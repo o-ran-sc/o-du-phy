@@ -1,0 +1,92 @@
+#######################################################################
+#
+# <COPYRIGHT_TAG>
+#
+#######################################################################
+
+# This is simple configuration file. Use '#' sign for comments
+appMode=0 # lls-CU(0) | RU(1)
+xranMode=0 # Category A  (0) (precoder in lls-CU) | Category B (1) (precoder in RU)
+ccNum=1 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 4)
+##Numerology
+mu=3 #mmWave 120Khz Sub Carrier Spacing
+antNum=4 # Number of Antennas per CC (default: 4)
+ttiPeriod=125 # in us TTI period (mmWave default 125us)
+llsCUMac=00:11:22:33:44:66 # asigned MAC of lls-CU VF
+ruMac=00:11:22:33:44:55  #RU VF for RU app
+#ruMac=3c:fd:fe:b1:d8:98 #RU PF for tcpdump
+#56:1e:4b:0c:f5:9b # RU MAC
+antC0=./ant_0.bin   #CC0
+antC1=./ant_1.bin   #CC0
+antC2=./ant_2.bin   #CC0
+antC3=./ant_3.bin   #CC0
+antC4=./ant_4.bin   #CC1
+antC5=./ant_5.bin   #CC1
+antC6=./ant_6.bin   #CC1
+antC7=./ant_7.bin   #CC1
+antC8=./ant_8.bin   #CC2
+antC9=./ant_9.bin   #CC2
+antC10=./ant_10.bin #CC2
+antC11=./ant_11.bin #CC2
+antC12=./ant_12.bin #CC3
+antC13=./ant_13.bin #CC3
+antC14=./ant_14.bin #CC3
+antC15=./ant_15.bin #CC3
+
+## RACH TODO: update for PRACH
+#rachEanble=1 # Enable (1)| disable (0) PRACH configuration
+#rachOffset=43 # RB offset for prach detection (see RIU spec)
+#rachCfgIdx=14 # PRACH config index as per TS36.211 - Table 5.7.1-2 : PRACH Configuration Index
+
+## control of IQ byte order
+iqswap=0 #do swap of IQ before send buffer to eth
+nebyteorderswap=0 #do swap of byte order for each I and Q from CPU byte order to network byte order
+
+##Debug
+debugStop=0 #stop app on 1pps boundary (gps_second % 30)
+
+CPenable=1 #(1) C-Plane is enabled| (0) C-Plane is disabled
+c_plane_vlan_tag=1 #VLAN Tag used for C-Plane
+u_plane_vlan_tag=2 #VLAN Tag used for U-Plane
+
+##RU Settings
+Tadv_cp_dl=25 #in us  TODO: update per RU implementation
+              #C-Plane messages must arrive at the RU some amount of time in advance (Tcp_adv_dl) of the corresponding U-Plane messages
+
+#Reception Window C-plane DL
+T2a_min_cp_dl=50 #in us  TODO: update per RU implementation
+T2a_max_cp_dl=140 #in us  TODO: update per RU implementation
+
+#Reception Window C-plane UL
+T2a_min_cp_ul=50 #in us  TODO: update per RU implementation
+T2a_max_cp_ul=140 #in us  TODO: update per RU implementation
+
+#Reception Window U-plane
+T2a_min_up=25 #in us
+T2a_max_up=140 #in us
+
+#Transmission Window
+Ta3_min=20 #in us
+Ta3_max=32 #in us
+
+###########################################################
+##lls-CU Settings
+#C-plane
+#Transmission Window Fast C-plane DL
+T1a_min_cp_dl=70
+T1a_max_cp_dl=100
+
+##Transmission Window Fast C-plane UL
+T1a_min_cp_ul=70
+T1a_max_cp_ul=80
+
+#U-plane
+##Transmission Window
+T1a_min_up=35
+T1a_max_up=50
+
+#Reception Window
+Ta4_min=0
+Ta4_max=45
+###########################################################
+
