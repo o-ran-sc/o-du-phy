@@ -33,6 +33,10 @@ From current unit testing coverage, no Know issues was founded yet.
 icc -v
 icc version 18.0.1 (gcc version 4.8.5 compatibility)
 
+Link to ICC (community free version):
+https://software.intel.com/en-us/system-studio/choose-download#technical
+
+
 5.2  DPDK version
 dpdk_18.08
 
