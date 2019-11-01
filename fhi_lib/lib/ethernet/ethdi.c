@@ -24,6 +24,7 @@
  * @author Intel Corporation
  **/
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
@@ -63,13 +64,13 @@
 
 #include "ethernet.h"
 #include "ethdi.h"
-#ifndef MLOG_ENABLED
-#include "../src/mlog_lnx_xRAN.h"
-#else
-#include "mlog_lnx.h"
-#endif
+#include "xran_fh_o_du.h"
+#include "xran_mlog_lnx.h"
+#include "xran_printf.h"
 
 #include "../src/xran_lib_mlog_tasks_id.h"
+
+#define BURST_RX_IO_SIZE 48
 
 struct xran_ethdi_ctx g_ethdi_ctx = { 0 };
 enum xran_if_state xran_if_current_state = XRAN_STOPPED;
@@ -102,13 +103,13 @@ int xran_ethdi_mbuf_send_cp(struct rte_mbuf *mb, uint16_t ethertype)
     res = xran_enqueue_mbuf(mb, ctx->tx_ring[ETHDI_CP_VF]);
     return res;
 }
-
+#if 0
 void xran_ethdi_stop_tx()
 {
     struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
     rte_timer_stop_sync(&ctx->timer_tx);
 }
-
+#endif
 
 struct {
     uint16_t ethertype;
@@ -200,22 +201,124 @@ int xran_ethdi_filter_packet(struct rte_mbuf *pkt, uint64_t rx_time)
     return xran_handle_ether(rte_be_to_cpu_16(eth_hdr->ether_type), pkt, rx_time);
 }
 
+#if 0
+//-------------------------------------------------------------------------------------------
+/** @ingroup xran
+ *
+ *  @param[in]  port - DPDK ETH port id
+ *
+ *  @return  void
+ *
+ *  @description
+ *  Prints statistics of usage of DPDK port
+ *
+**/
+//-------------------------------------------------------------------------------------------
+void xran_ethdi_ports_stats(void)
+{
+    struct rte_eth_stats stats;
+    struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
+    int32_t i = 0;
 
+    for(i = 0; i < ETHDI_VF_MAX; i++){
+        /* Get stats (extended stats includes common stats) */
+        rte_eth_stats_get(ctx->io_cfg.port[i], &stats);
+        printf("DPDK stats:\n");
+        printf("** Port %hhu **\n", ctx->io_cfg.port[i]);
+        printf("ierrors:\t%lu\n",   stats.ierrors);
+        printf("oerrors:\t%lu\n",   stats.oerrors);
+        printf("ipackets:\t%lu\n",  stats.ipackets);
+        printf("opackets:\t%lu\n",  stats.opackets);
+        printf("imissed:\t%lu\n",   stats.imissed);
+        printf("rx_nombuf:\t%lu\n", stats.rx_nombuf);
+    }
+    return ;
+}
+#endif
+/* Check the link status of all ports in up to 9s, and print them finally */
+static void check_port_link_status(uint8_t portid)
+{
+#define CHECK_INTERVAL 100 /* 100ms */
+#define MAX_CHECK_TIME 90 /* 9s (90 * 100ms) in total */
+    uint8_t count, all_ports_up, print_flag = 0;
+    struct rte_eth_link link;
+
+    printf("\nChecking link status");
+    fflush(stdout);
+    for (count = 0; count <= MAX_CHECK_TIME; count++) {
+        all_ports_up = 1;
+        memset(&link, 0, sizeof(link));
+        rte_eth_link_get_nowait(portid, &link);
+
+        /* print link status if flag set */
+        if (print_flag == 1) {
+            if (link.link_status)
+                printf("Port %d Link Up - speed %u "
+                        "Mbps - %s\n", (uint8_t)portid,
+                        (unsigned)link.link_speed,
+                        (link.link_duplex == ETH_LINK_FULL_DUPLEX) ?
+                        ("full-duplex") : ("half-duplex\n"));
+            else
+                printf("Port %d Link Down\n",
+                        (uint8_t)portid);
+        }
+        /* clear all_ports_up flag if any link down */
+        if (link.link_status == ETH_LINK_DOWN) {
+            all_ports_up = 0;
+            break;
+        }
+        /* after finally printing all link status, get out */
+        if (print_flag == 1)
+            break;
+
+        if (all_ports_up == 0) {
+            printf(".");
+            fflush(stdout);
+            rte_delay_ms(CHECK_INTERVAL);
+        }
+
+        /* set the print_flag if all ports up or timeout */
+        if (all_ports_up == 1 || count == (MAX_CHECK_TIME - 1)) {
+            print_flag = 1;
+            printf(" ... done\n");
+        }
+    }
+}
 
 
 int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
     int *lcore_id, struct ether_addr *p_lls_cu_addr, struct ether_addr *p_ru_addr,
     uint16_t cp_vlan, uint16_t up_vlan)
 {
-    uint16_t port[2] = {0, 0};
+    uint16_t port[2] = {0xffff, 0xffff};
     struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
     int i;
     char core_mask[20];
-    char *argv[] = { name, core_mask, "-m3072", "--proc-type=auto",
-        "--file-prefix", name, "-w", "0000:00:00.0" };
+    char bbdev_wdev[32] = "";
+    char bbdev_vdev[32] = "";
+
+    char *argv[] = { name, "-c ffffffff", "-n2", "--socket-mem=8192", "--proc-type=auto",
+        "--file-prefix", name, "-w", "0000:00:00.0", bbdev_wdev, bbdev_vdev};
 
     if (io_cfg == NULL)
         return 0;
+    if(io_cfg->bbdev_mode != XRAN_BBDEV_NOT_USED){
+        printf("BBDEV_FEC_ACCL_NR5G\n");
+        if (io_cfg->bbdev_mode == XRAN_BBDEV_MODE_HW_ON){
+            // hw-accelerated bbdev
+            printf("hw-accelerated bbdev %s\n", io_cfg->bbdev_dev[0]);
+            sprintf(bbdev_wdev, "-w %s", io_cfg->bbdev_dev[0]);
+        } else if (io_cfg->bbdev_mode == XRAN_BBDEV_MODE_HW_OFF){
+            // hw-accelerated bbdev disable
+            if(io_cfg->bbdev_dev[0]){
+                printf("hw-accelerated bbdev disable %s\n", io_cfg->bbdev_dev[0]);
+                sprintf(bbdev_wdev, "-b %s", io_cfg->bbdev_dev[0]);
+            }
+            sprintf(bbdev_wdev, "%s", "--vdev=baseband_turbo_sw");
+        } else {
+            rte_panic("Cannot init DPDK incorrect [bbdev_mode %d]\n", io_cfg->bbdev_mode);
+        }
+    }
 
     snprintf(core_mask, sizeof(core_mask), "-c%x",
             (1 << io_cfg->core) |
@@ -234,12 +337,21 @@ int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
     for (i = 0; i <= ID_BROADCAST; i++)     /* Initialize all as broadcast */
         memset(&ctx->entities[i], 0xFF, sizeof(ctx->entities[0]));
 
+    printf("%s: Calling rte_eal_init:", __FUNCTION__);
+    for (i = 0; i < RTE_DIM(argv); i++)
+    {
+        printf("%s ", argv[i]);
+    }
+    printf("\n");
+
+
     /* This will return on system_core, which is not necessarily the
      * one we're on right now. */
     if (rte_eal_init(RTE_DIM(argv), argv) < 0)
         rte_panic("Cannot init EAL: %s\n", rte_strerror(rte_errno));
 
     xran_init_mbuf_pool();
+
 
     /* Timers. */
     rte_timer_subsystem_init();
@@ -253,10 +365,14 @@ int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
 
     if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
         for (i = 0; i < ETHDI_VF_MAX; i ++){
-            if (rte_eth_dev_attach(io_cfg->dpdk_dev[i], &port[i]) != 0 ||
-                rte_eth_dev_count_avail() == 0)
-                errx(1, "Network port doesn't exist.");
-            xran_init_port(port[i], p_lls_cu_addr);   /* we only have 1 port at this stage */
+            if(io_cfg->dpdk_dev[i]){
+                if (rte_eth_dev_attach(io_cfg->dpdk_dev[i], &port[i]) != 0 ||
+                    rte_eth_dev_count_avail() == 0)
+                    errx(1, "Network port doesn't exist.");
+                xran_init_port(port[i], p_lls_cu_addr);
+            } else {
+                printf("no DPDK port provided\n");
+            }
             if(i==0){
                 ctx->tx_ring[i] = rte_ring_create("tx_ring_up", NUM_MBUFS,
                     rte_lcore_to_socket_id(*lcore_id), RING_F_SC_DEQ);
@@ -272,6 +388,8 @@ int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
                 ctx->pkt_dump_ring[i] = rte_ring_create("pkt_dump_ring_cp", NUM_MBUFS,
                     rte_lcore_to_socket_id(*lcore_id), RING_F_SC_DEQ);
             }
+            if(io_cfg->dpdk_dev[i])
+                check_port_link_status(port[i]);
         }
     } else {
         rte_panic("ethdi_dpdk_io_loop() failed to start  with RTE_PROC_SECONDARY\n");
@@ -279,15 +397,15 @@ int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
     PANIC_ON(ctx->tx_ring == NULL, "failed to allocate tx ring");
     PANIC_ON(ctx->rx_ring == NULL, "failed to allocate rx ring");
     PANIC_ON(ctx->pkt_dump_ring == NULL, "failed to allocate pkt dumping ring");
-    for (i = 0; i < ETHDI_VF_MAX; i++)
+    for (i = 0; i < ETHDI_VF_MAX; i++){
         ctx->io_cfg.port[i] = port[i];
+        print_dbg("port_id 0x%04x\n", ctx->io_cfg.port[i]);
+    }
 
-    rte_eth_macaddr_get(port[ETHDI_UP_VF], &ctx->entities[io_cfg->id]);
-    ether_addr_copy(p_ru_addr,  &ctx->entities[ID_RU]);
-
-    /* Start the actual IO thread */
-    if (rte_eal_remote_launch(xran_ethdi_dpdk_io_loop, &ctx->io_cfg, *lcore_id))
-        rte_panic("ethdi_dpdk_io_loop() failed to start\n");
+    if(io_cfg->dpdk_dev[ETHDI_UP_VF]){
+        rte_eth_macaddr_get(port[ETHDI_UP_VF], &ctx->entities[io_cfg->id]);
+        ether_addr_copy(p_ru_addr,  &ctx->entities[ID_RU]);
+    }
 
     return 1;
 }
@@ -315,7 +433,66 @@ static inline uint16_t xran_tx_from_ring(int port, struct rte_ring *r)
     }
 }
 
+int32_t process_dpdk_io(void)
+{
+    struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
+    const struct xran_io_loop_cfg *const cfg = &(xran_ethdi_get_ctx()->io_cfg);
+    const int port[ETHDI_VF_MAX] = {cfg->port[ETHDI_UP_VF], cfg->port[ETHDI_CP_VF]};
+    int port_id = 0;
 
+    for (port_id = 0; port_id < ETHDI_VF_MAX; port_id++){
+        struct rte_mbuf *mbufs[BURST_RX_IO_SIZE];
+        if(port[port_id] == 0xFF);
+        /* RX */
+        const uint16_t rxed = rte_eth_rx_burst(port[port_id], 0, mbufs, BURST_RX_IO_SIZE);
+        if (rxed != 0){
+            unsigned enq_n = 0;
+            long t1 = MLogTick();
+            enq_n =  rte_ring_enqueue_burst(ctx->rx_ring[port_id], (void*)mbufs, rxed, NULL);
+            if(rxed - enq_n)
+                rte_panic("error enq\n");
+            MLogTask(PID_RADIO_RX_VALIDATE, t1, MLogTick());
+        }
+
+        /* TX */
+        const uint16_t sent = xran_tx_from_ring(port[port_id], ctx->tx_ring[port_id]);
+
+        if (XRAN_STOPPED == xran_if_current_state)
+            return -1;
+    }
+
+    if (XRAN_STOPPED == xran_if_current_state)
+            return -1;
+
+    return 0;
+}
+
+#if 0
+static inline void xran_process_rx_burst(struct rte_mbuf *mbufs[], uint16_t n_mbufs,
+        uint64_t rx_time)
+{
+        int i;
+
+        if (!n_mbufs)
+            return;
+
+        for (i = 0; i < n_mbufs; ++i)
+        {
+            if (xran_ethdi_filter_packet(mbufs[i], rx_time) == MBUF_FREE)
+                rte_pktmbuf_free(mbufs[i]);
+        }
+
+#ifdef DPDKIO_LATENCY_DEBUG
+       struct timeval tv_now, tv_diff;
+
+       gettimeofday(&tv_now, NULL);
+       if (n_mbufs > 1)
+           nlog("Warning - received %d mbufs in a row", n_mbufs);
+
+       timersub(&tv_now, &rx_time, &tv_diff);
+       nlog("rx processing took %d usec", tv_diff.tv_usec);
+#endif
+}
 
 /*
  * This is the main DPDK-IO loop.
@@ -324,53 +501,30 @@ static inline uint16_t xran_tx_from_ring(int port, struct rte_ring *r)
  */
 int xran_ethdi_dpdk_io_loop(void *io_loop_cfg)
 {
-    struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
-    const struct xran_io_loop_cfg *const cfg = io_loop_cfg;
-    const int port[ETHDI_VF_MAX] = {cfg->port[ETHDI_UP_VF], cfg->port[ETHDI_CP_VF]};
-    int port_id = 0;
     struct sched_param sched_param;
     int res = 0;
+    struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
+    const struct xran_io_loop_cfg *const cfg = &(xran_ethdi_get_ctx()->io_cfg);
+    const int port[ETHDI_VF_MAX] = {cfg->port[ETHDI_UP_VF], cfg->port[ETHDI_CP_VF]};
 
     printf("%s [PORT: %d %d] [CPU %2d] [PID: %6d]\n", __FUNCTION__, port[ETHDI_UP_VF], port[ETHDI_CP_VF] , rte_lcore_id(), getpid());
 
     printf("%s [CPU %2d] [PID: %6d]\n", __FUNCTION__,  rte_lcore_id(), getpid());
     sched_param.sched_priority = XRAN_THREAD_DEFAULT_PRIO;
-    if ((res = pthread_setschedparam(pthread_self(), SCHED_FIFO, &sched_param)))
-    {
+    if ((res = pthread_setschedparam(pthread_self(), SCHED_FIFO, &sched_param))) {
         printf("priority is not changed: coreId = %d, result1 = %d\n",rte_lcore_id(), res);
     }
 
-    for (;;) {
-        for (port_id = 0; port_id < ETHDI_VF_MAX; port_id++){
-            struct rte_mbuf *mbufs[BURST_SIZE];
-            /* RX */
-            const uint16_t rxed = rte_eth_rx_burst(port[port_id], 0, mbufs, BURST_SIZE);
-            if (rxed != 0){
-                long t1 = MLogTick();
-                rte_ring_enqueue_burst(ctx->rx_ring[port_id], (void*)mbufs, rxed, NULL);
-                MLogTask(PID_RADIO_RX_VALIDATE, t1, MLogTick());
-            }
-
-            /* TX */
-            const uint16_t sent = xran_tx_from_ring(port[port_id], ctx->tx_ring[port_id]);
-            if (rxed | sent)
-                continue;   /* more packets might be waiting in queues */
-
-            rte_pause();    /* short pause, optimize memory access */
-            if (XRAN_STOPPED == xran_if_current_state)
-                break;
-        }
-
-        if (XRAN_STOPPED == xran_if_current_state)
-                break;
+    for (;;){
+        if(process_dpdk_io()!=0)
+            break;
     }
 
     fflush(stderr);
     fflush(stdout);
     puts("IO loop finished");
 
-    //for (port_id = 0; port_id < ETHDI_VF_MAX; port_id++)
-      //  xran_ethdi_port_stats(port[port_id]);
-
     return 0;
 }
+#endif
+

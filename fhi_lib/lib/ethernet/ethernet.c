@@ -68,10 +68,15 @@
 #include "ethdi.h"
 
 /* Our mbuf pools. */
-struct rte_mempool *_eth_mbuf_pool;
-struct rte_mempool *_eth_mbuf_pool_rx;
-struct rte_mempool *_eth_mbuf_pool_small;
-struct rte_mempool *_eth_mbuf_pool_big;
+struct rte_mempool *_eth_mbuf_pool          = NULL;
+struct rte_mempool *_eth_mbuf_pool_inderect = NULL;
+struct rte_mempool *_eth_mbuf_pool_rx     = NULL;
+struct rte_mempool *_eth_mbuf_pool_small  = NULL;
+struct rte_mempool *_eth_mbuf_pool_big    = NULL;
+
+struct rte_mempool *socket_direct_pool    = NULL;
+struct rte_mempool *socket_indirect_pool  = NULL;
+
 
 /*
  * Make sure the ring indexes are big enough to cover buf space x2
@@ -90,12 +95,66 @@ static struct {
 #define RINGSIZE sizeof(io_ring.buf)
 #define RINGMASK (RINGSIZE - 1)
 
+int __xran_delayed_msg(const char *fmt, ...)
+{
+#if 0
+    va_list ap;
+    int msg_len;
+    char localbuf[RINGSIZE];
+    ring_idx old_head, new_head;
+    ring_idx copy_len;
+
+    /* first prep a copy of the message on the local stack */
+    va_start(ap, fmt);
+    msg_len = vsnprintf(localbuf, RINGSIZE, fmt, ap);
+    va_end(ap);
+
+    /* atomically reserve space in the ring */
+    for (;;) {
+        old_head = io_ring.head;        /* snapshot head */
+        /* free always within range of [0, RINGSIZE] - proof by induction */
+        const ring_idx free = RINGSIZE - (old_head - io_ring.tail);
+
+        copy_len = RTE_MIN(msg_len, free);
+        if (copy_len <= 0)
+            return 0;   /* vsnprintf error or ringbuff full. Drop log. */
+
+        new_head = old_head + copy_len;
+        RTE_ASSERT((ring_idx)(new_head - io_ring.tail) <= RINGSIZE);
+
+        if (likely(__atomic_compare_exchange_n(&io_ring.head, &old_head,
+                        new_head, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)))
+            break;
+    }
+
+    /* Now copy data in at ease. */
+    const int copy_start = (old_head & RINGMASK);
+    if (copy_start < (new_head & RINGMASK))     /* no wrap */
+        memcpy(io_ring.buf + copy_start, localbuf, copy_len);
+    else {                                      /* wrap-around */
+        const int chunk_len = RINGSIZE - copy_start;
+
+        memcpy(io_ring.buf + copy_start, localbuf, chunk_len);
+        memcpy(io_ring.buf, localbuf + chunk_len, copy_len - chunk_len);
+    }
+
+    /* wait for previous writes to complete before updating read_head. */
+    while (io_ring.read_head != old_head)
+        rte_pause();
+    io_ring.read_head = new_head;
+
+
+    return copy_len;
+ #endif
+    return 0;
+}
 
 /*
  * Display part of the message stored in the ring buffer.
  * Might require multiple calls to print the full message.
  * Will return 0 when nothing left to print.
  */
+#if 0 
 int xran_show_delayed_message(void)
 {
     ring_idx tail = io_ring.tail;
@@ -122,7 +181,7 @@ int xran_show_delayed_message(void)
 
     return written;     /* next invocation will print the rest if any */
 }
-
+#endif
 
 void xran_init_mbuf_pool(void)
 {
@@ -130,6 +189,10 @@ void xran_init_mbuf_pool(void)
     if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
         _eth_mbuf_pool = rte_pktmbuf_pool_create("mempool", NUM_MBUFS,
                 MBUF_CACHE, 0, MBUF_POOL_ELEMENT, rte_socket_id());
+#ifdef XRAN_ATTACH_MBUF
+        _eth_mbuf_pool_inderect = rte_pktmbuf_pool_create("mempool_indirect", NUM_MBUFS,
+                MBUF_CACHE, 0, MBUF_POOL_ELEMENT, rte_socket_id());*/
+#endif
         _eth_mbuf_pool_rx = rte_pktmbuf_pool_create("mempool_rx", NUM_MBUFS,
                 MBUF_CACHE, 0, MBUF_POOL_ELEMENT, rte_socket_id());
         _eth_mbuf_pool_small = rte_pktmbuf_pool_create("mempool_small",
@@ -138,25 +201,37 @@ void xran_init_mbuf_pool(void)
                 NUM_MBUFS_BIG, 0, 0, MBUF_POOL_ELM_BIG, rte_socket_id());
     } else {
         _eth_mbuf_pool = rte_mempool_lookup("mempool");
+        _eth_mbuf_pool_inderect = rte_mempool_lookup("mempool_indirect");
         _eth_mbuf_pool_rx = rte_mempool_lookup("mempool_rx");
         _eth_mbuf_pool_small = rte_mempool_lookup("mempool_small");
         _eth_mbuf_pool_big = rte_mempool_lookup("mempool_big");
     }
     if (_eth_mbuf_pool == NULL)
         rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
+#ifdef XRAN_ATTACH_MBUF
+    if (_eth_mbuf_pool_inderect == NULL)
+        rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
+#endif
     if (_eth_mbuf_pool_rx == NULL)
         rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
     if (_eth_mbuf_pool_small == NULL)
         rte_panic("Cannot create small mbuf pool: %s\n", rte_strerror(rte_errno));
     if (_eth_mbuf_pool_big == NULL)
         rte_panic("Cannot create big mbuf pool: %s\n", rte_strerror(rte_errno));
+
+    if (socket_direct_pool == NULL)
+        socket_direct_pool = _eth_mbuf_pool;
+
+    if (socket_indirect_pool == NULL)
+        socket_indirect_pool = _eth_mbuf_pool_inderect;
 }
 
 /* Init NIC port, then start the port */
 void xran_init_port(int p_id,  struct ether_addr *p_lls_cu_addr)
 {
-    char buf[ETHER_ADDR_FMT_SIZE];
-    struct ether_addr eth_addr;
+    static uint16_t nb_rxd = BURST_SIZE;
+    static uint16_t nb_txd = BURST_SIZE;
+    struct ether_addr addr;
     struct rte_eth_rxmode rxmode =
             { .split_hdr_size = 0,
               .max_rx_pkt_len = MAX_RX_LEN,
@@ -169,8 +244,6 @@ void xran_init_port(int p_id,  struct ether_addr *p_lls_cu_addr)
             .rxmode = rxmode,
             .txmode = txmode
             };
-    struct ether_addr pDstEthAddr;
-
     struct rte_eth_rxconf rxq_conf;
     struct rte_eth_txconf txq_conf;
 
@@ -179,34 +252,12 @@ void xran_init_port(int p_id,  struct ether_addr *p_lls_cu_addr)
     const char *drv_name = "";
     int sock_id = rte_eth_dev_socket_id(p_id);
 
-   // ether_format_addr(buf, sizeof(buf), p_lls_cu_addr);
-   // printf("port %d set mac address %s\n", p_id, buf);
-   // rte_eth_dev_default_mac_addr_set(p_id, p_lls_cu_addr);
-
     rte_eth_dev_info_get(p_id, &dev_info);
     if (dev_info.driver_name)
         drv_name = dev_info.driver_name;
     printf("initializing port %d for TX, drv=%s\n", p_id, drv_name);
 
-    /* In order to receive packets from any server need to add broad case address
-    * for the port*/
-    pDstEthAddr.addr_bytes[0] = 0xFF;
-    pDstEthAddr.addr_bytes[1] = 0xFF;
-    pDstEthAddr.addr_bytes[2] = 0xFF;
-
-    pDstEthAddr.addr_bytes[3] = 0xFF;
-    pDstEthAddr.addr_bytes[4] = 0xFF;
-    pDstEthAddr.addr_bytes[5] = 0xFF;
-
-    rte_eth_macaddr_get(p_id, &eth_addr);
-    ether_format_addr(buf, sizeof(buf), &eth_addr);
-    printf("port %d mac address %s\n", p_id, buf);
-
-    struct ether_addr addr;
     rte_eth_macaddr_get(p_id, &addr);
-
-//    rte_eth_dev_mac_addr_add(p_id, &pDstEthAddr,1);
-   // rte_eth_dev_mac_addr_add(p_id, &addr, 1);
 
     printf("Port %u MAC: %02"PRIx8" %02"PRIx8" %02"PRIx8
         " %02"PRIx8" %02"PRIx8" %02"PRIx8"\n",
@@ -219,9 +270,18 @@ void xran_init_port(int p_id,  struct ether_addr *p_lls_cu_addr)
     if (ret < 0)
         rte_panic("Cannot configure port %u (%d)\n", p_id, ret);
 
+    ret = rte_eth_dev_adjust_nb_rx_tx_desc(p_id, &nb_rxd,&nb_txd);
+
+    if (ret < 0) {
+        printf("\n");
+        rte_exit(EXIT_FAILURE, "Cannot adjust number of "
+            "descriptors: err=%d, port=%d\n", ret, p_id);
+    }
+    printf("Port %u: nb_rxd %d nb_txd %d\n", p_id, nb_rxd, nb_txd);
+
     /* Init RX queues */
     rxq_conf = dev_info.default_rxconf;
-    ret = rte_eth_rx_queue_setup(p_id, 0, BURST_SIZE,
+    ret = rte_eth_rx_queue_setup(p_id, 0, nb_rxd,
         sock_id, &rxq_conf, _eth_mbuf_pool_rx);
     if (ret < 0)
         rte_panic("Cannot init RX for port %u (%d)\n",
@@ -229,7 +289,7 @@ void xran_init_port(int p_id,  struct ether_addr *p_lls_cu_addr)
 
     /* Init TX queues */
     txq_conf = dev_info.default_txconf;
-    ret = rte_eth_tx_queue_setup(p_id, 0, BURST_SIZE, sock_id, &txq_conf);
+    ret = rte_eth_tx_queue_setup(p_id, 0, nb_txd, sock_id, &txq_conf);
     if (ret < 0)
         rte_panic("Cannot init TX for port %u (%d)\n",
                 p_id, ret);
@@ -239,9 +299,10 @@ void xran_init_port(int p_id,  struct ether_addr *p_lls_cu_addr)
     if (ret < 0)
         rte_panic("Cannot start port %u (%d)\n", p_id, ret);
 
-    rte_eth_promiscuous_enable(p_id);
+//    rte_eth_promiscuous_enable(p_id);
 }
 
+#if 0
 void xran_memdump(void *addr, int len)
 {
     int i;
@@ -260,9 +321,8 @@ void xran_memdump(void *addr, int len)
 #endif
 }
 
-
 /* Prepend ethernet header, possibly vlan tag. */
-void xran_add_eth_hdr_vlan(struct ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb, uint16_t vlan_tci)
+void xran_add_eth_hdr(struct ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb)
 {
     /* add in the ethernet header */
     struct ether_hdr *const h = (void *)rte_pktmbuf_prepend(mb, sizeof(*h));
@@ -286,10 +346,23 @@ void xran_add_eth_hdr_vlan(struct ether_addr *dst, uint16_t ethertype, struct rt
     }
 #endif
 #ifdef VLAN_SUPPORT
-    mb->vlan_tci = vlan_tci;
-    dlog("Inserting vlan tag of %d", vlan_tci);
+    mb->vlan_tci = FLEXRAN_UP_VLAN_TAG;
+    dlog("Inserting vlan tag of %d", FLEXRAN_UP_VLAN_TAG);
     rte_vlan_insert(&mb);
 #endif
+}
+
+int xran_send_mbuf(struct ether_addr *dst, struct rte_mbuf *mb)
+{
+    xran_add_eth_hdr(dst, ETHER_TYPE_ETHDI, mb);
+
+    if (rte_eth_tx_burst(mb->port, 0, &mb, 1) == 1)
+        return 1;
+
+    elog("packet sending failed on port %d", mb->port);
+    rte_pktmbuf_free(mb);
+
+    return 0;   /* fail */
 }
 
 int xran_send_message_burst(int dst_id, int pkt_type, void *body, int len)
@@ -355,3 +428,38 @@ int xran_send_message_burst(int dst_id, int pkt_type, void *body, int len)
 
     return 1;
 }
+
+#endif
+
+/* Prepend ethernet header, possibly vlan tag. */
+void xran_add_eth_hdr_vlan(struct ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb, uint16_t vlan_tci)
+{
+    /* add in the ethernet header */
+    struct ether_hdr *h = (struct ether_hdr *)rte_pktmbuf_mtod(mb, struct ether_hdr*);
+
+    PANIC_ON(h == NULL, "mbuf prepend of ether_hdr failed");
+
+    /* Fill in the ethernet header. */
+    rte_eth_macaddr_get(mb->port, &h->s_addr);          /* set source addr */
+    h->d_addr = *dst;                                   /* set dst addr */
+    h->ether_type = rte_cpu_to_be_16(ethertype);        /* ethertype too */
+
+#if defined(DPDKIO_DEBUG) && DPDKIO_DEBUG > 1
+    {
+        char dst[ETHER_ADDR_FMT_SIZE] = "(empty)";
+        char src[ETHER_ADDR_FMT_SIZE] = "(empty)";
+
+        nlog("*** packet for TX below (len %d) ***", rte_pktmbuf_pkt_len(mb));
+        ether_format_addr(src, sizeof(src), &h->s_addr);
+        ether_format_addr(dst, sizeof(dst), &h->d_addr);
+        nlog("src: %s dst: %s ethertype: %.4X", src, dst, ethertype);
+    }
+#endif
+#ifdef VLAN_SUPPORT
+    mb->vlan_tci = vlan_tci;
+    dlog("Inserting vlan tag of %d", vlan_tci);
+    rte_vlan_insert(&mb);
+#endif
+}
+
+

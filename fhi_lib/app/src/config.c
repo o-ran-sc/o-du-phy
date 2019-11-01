@@ -26,42 +26,44 @@
 
 #include "rte_common.h"
 #include "config.h"
+#include "common.h"
+#include "debug.h"
 
 #include <rte_ethdev.h>
 
 #define MAX_LINE_SIZE 512
 /* Configuration file maximum supported line length */
 
-
 #define KEY_APP_MODE        "appMode"
 #define KEY_XRAN_MODE       "xranMode"
 #define KEY_MU_NUMBER       "mu"
+#define KEY_NDLABSFREPOINTA "nDLAbsFrePointA"
+#define KEY_NULABSFREPOINTA "nULAbsFrePointA"
+#define KEY_NDLBANDWIDTH    "nDLBandwidth"
+#define KEY_NULBANDWIDTH    "nULBandwidth"
+#define KEY_NDLFFTSIZE      "nDLFftSize"
+#define KEY_NULFFTSIZE      "nULFftSize"
+
+#define KEY_NFRAMEDUPLEXTYPE "nFrameDuplexType"
+#define KEY_NTDDPERIOD       "nTddPeriod"
+
+#define KEY_SSLOTCONFIG     "sSlotConfig"
+
 #define KEY_CC_PER_PORT_NUM "ccNum"
 #define KEY_ANT_NUM         "antNum"
 #define KEY_TTI_PERIOD      "ttiPeriod"
+
+#define KEY_MTU_SIZE        "MTUSize"
 #define KEY_LLS_CU_MAC      "llsCUMac"
 #define KEY_RU_MAC          "ruMac"
 
-#define KEY_FILE_AxC0      "antC0"
-#define KEY_FILE_AxC1      "antC1"
-#define KEY_FILE_AxC2      "antC2"
-#define KEY_FILE_AxC3      "antC3"
-#define KEY_FILE_AxC4      "antC4"
-#define KEY_FILE_AxC5      "antC5"
-#define KEY_FILE_AxC6      "antC6"
-#define KEY_FILE_AxC7      "antC7"
-#define KEY_FILE_AxC8      "antC8"
-#define KEY_FILE_AxC9      "antC9"
-#define KEY_FILE_AxC10     "antC10"
-#define KEY_FILE_AxC11     "antC11"
-#define KEY_FILE_AxC12     "antC12"
-#define KEY_FILE_AxC13     "antC13"
-#define KEY_FILE_AxC14     "antC14"
-#define KEY_FILE_AxC15     "antC15"
+#define KEY_FILE_NUMSLOTS   "numSlots"
+#define KEY_FILE_AxC        "antC"
+#define KEY_FILE_PRACH_AxC  "antPrachC"
+
 
 #define KEY_PRACH_ENABLE   "rachEanble"
-#define KEY_PRACH_OFFSET   "rachOffset"
-#define KEY_PRACH_CFG_IDX  "rachCfgIdx"
+#define KEY_PRACH_CFGIDX   "prachConfigIndex"
 
 #define KEY_IQ_SWAP        "iqswap"
 #define KEY_HTONS_SWAP     "nebyteorderswap"
@@ -89,6 +91,9 @@
 #define KEY_CP_VTAG        "c_plane_vlan_tag"
 #define KEY_UP_VTAG        "u_plane_vlan_tag"
 #define KEY_DEBUG_STOP     "debugStop"
+#define KEY_DEBUG_STOP_CNT     "debugStopCount"
+#define KEY_BBDEV_MODE     "bbdevMode"
+#define KEY_DYNA_SEC_ENA     "DynamicSectionEna"
 
 
 /**
@@ -123,6 +128,65 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
         config->numCC= atoi(value);
     } else if (strcmp(key, KEY_MU_NUMBER) == 0) {
         config->mu_number= atoi(value);
+        printf("mu_number: %d\n",config->mu_number);
+    } else if (strcmp(key, KEY_NDLABSFREPOINTA) == 0) {
+        config->nDLAbsFrePointA = atoi(value);
+        printf("nDLAbsFrePointA: %d\n",config->nDLAbsFrePointA);
+    } else if (strcmp(key, KEY_NULABSFREPOINTA) == 0) {
+        config->nULAbsFrePointA = atoi(value);
+        printf("nULAbsFrePointA: %d\n",config->nULAbsFrePointA);
+    } else if (strcmp(key, KEY_NDLBANDWIDTH) == 0) {
+        config->nDLBandwidth = atoi(value);
+        printf("nDLBandwidth: %d\n",config->nDLBandwidth);
+    } else if (strcmp(key, KEY_NULBANDWIDTH) == 0) {
+        config->nULBandwidth = atoi(value);
+        printf("nULBandwidth: %d\n",config->nULBandwidth);
+    } else if (strcmp(key, KEY_NDLFFTSIZE) == 0) {
+        config->nDLFftSize = atoi(value);
+        printf("nULFftSize: %d\n",config->nDLFftSize);
+    } else if (strcmp(key, KEY_NULFFTSIZE) == 0) {
+        config->nULFftSize = atoi(value);
+        printf("nULFftSize: %d\n",config->nULFftSize);
+    } else if (strcmp(key, KEY_NFRAMEDUPLEXTYPE) == 0) {
+        config->nFrameDuplexType = atoi(value);
+        printf("nFrameDuplexType: %d\n",config->nFrameDuplexType);
+    } else if (strcmp(key, KEY_NTDDPERIOD) == 0) {
+        config->nTddPeriod = atoi(value);
+        printf("nTddPeriod: %d\n",config->nTddPeriod);
+        if (config->nTddPeriod > XRAN_MAX_TDD_PERIODICITY)
+        {
+            printf("nTddPeriod is larger than max allowed, invalid!\n");
+            config->nTddPeriod = XRAN_MAX_TDD_PERIODICITY;
+        }
+    } else if (strncmp(key, KEY_SSLOTCONFIG, strlen(KEY_SSLOTCONFIG)) == 0) {
+        unsigned int slot_num = 0;
+        int i = 0;
+        sscanf(key,"sSlotConfig%u",&slot_num);
+        if (slot_num >= config->nTddPeriod){
+            printf("slot_num %d exceeds TddPeriod\n",slot_num);
+        }
+        else{
+            sscanf(value, "%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[0],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[1],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[2],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[3],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[4],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[5],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[6],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[7],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[8],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[9],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[10],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[11],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[12],
+                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[13]);
+            printf("sSlotConfig%d: ",slot_num);
+            for (i = 0; i< 14; i++){
+                printf("%d ",config->sSlotConfig[slot_num].nSymbolType[i]);
+            }
+            printf("\n");
+        }
     } else if (strcmp(key, KEY_ANT_NUM) == 0) {
         config->numAxc = atoi(value);
     } else if (strcmp(key, KEY_TTI_PERIOD) == 0) {
@@ -131,95 +195,71 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
         config->iqswap = atoi(value);
     } else if (strcmp(key, KEY_HTONS_SWAP) == 0) {
         config->nebyteorderswap = atoi(value);
+    } else if (strcmp(key, KEY_MTU_SIZE) == 0) {
+        config->mtu = atoi(value);
+        printf("mtu %d\n", config->mtu);
     } else if (strcmp(key, KEY_LLS_CU_MAC) == 0) {
-        sscanf(value, "%02x:%02x:%02x:%02x:%02x:%02x", (uint32_t*)&config->lls_cu_addr.addr_bytes[0],
-                                           (uint32_t*)&config->lls_cu_addr.addr_bytes[1],
-                                           (uint32_t*)&config->lls_cu_addr.addr_bytes[2],
-                                           (uint32_t*)&config->lls_cu_addr.addr_bytes[3],
-                                           (uint32_t*)&config->lls_cu_addr.addr_bytes[4],
-                                           (uint32_t*)&config->lls_cu_addr.addr_bytes[5]);
+        sscanf(value, "%02x:%02x:%02x:%02x:%02x:%02x", (uint32_t*)&config->o_du_addr.addr_bytes[0],
+                                           (uint32_t*)&config->o_du_addr.addr_bytes[1],
+                                           (uint32_t*)&config->o_du_addr.addr_bytes[2],
+                                           (uint32_t*)&config->o_du_addr.addr_bytes[3],
+                                           (uint32_t*)&config->o_du_addr.addr_bytes[4],
+                                           (uint32_t*)&config->o_du_addr.addr_bytes[5]);
 
         printf("lls-CU MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-            config->lls_cu_addr.addr_bytes[0],
-            config->lls_cu_addr.addr_bytes[1],
-            config->lls_cu_addr.addr_bytes[2],
-            config->lls_cu_addr.addr_bytes[3],
-            config->lls_cu_addr.addr_bytes[4],
-            config->lls_cu_addr.addr_bytes[5]);
+            config->o_du_addr.addr_bytes[0],
+            config->o_du_addr.addr_bytes[1],
+            config->o_du_addr.addr_bytes[2],
+            config->o_du_addr.addr_bytes[3],
+            config->o_du_addr.addr_bytes[4],
+            config->o_du_addr.addr_bytes[5]);
 
     } else if (strcmp(key, KEY_RU_MAC) == 0) {
-        sscanf(value, "%02x:%02x:%02x:%02x:%02x:%02x", (uint32_t*)&config->ru_addr.addr_bytes[0],
-                                           (uint32_t*)&config->ru_addr.addr_bytes[1],
-                                           (uint32_t*)&config->ru_addr.addr_bytes[2],
-                                           (uint32_t*)&config->ru_addr.addr_bytes[3],
-                                           (uint32_t*)&config->ru_addr.addr_bytes[4],
-                                           (uint32_t*)&config->ru_addr.addr_bytes[5]);
+        sscanf(value, "%02x:%02x:%02x:%02x:%02x:%02x", (uint32_t*)&config->o_ru_addr.addr_bytes[0],
+                                           (uint32_t*)&config->o_ru_addr.addr_bytes[1],
+                                           (uint32_t*)&config->o_ru_addr.addr_bytes[2],
+                                           (uint32_t*)&config->o_ru_addr.addr_bytes[3],
+                                           (uint32_t*)&config->o_ru_addr.addr_bytes[4],
+                                           (uint32_t*)&config->o_ru_addr.addr_bytes[5]);
 
         printf("RU MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-            config->ru_addr.addr_bytes[0],
-            config->ru_addr.addr_bytes[1],
-            config->ru_addr.addr_bytes[2],
-            config->ru_addr.addr_bytes[3],
-            config->ru_addr.addr_bytes[4],
-            config->ru_addr.addr_bytes[5]);
-    } else if (strcmp(key, KEY_FILE_AxC0) == 0) {
-        strncpy(&config->ant_file[0][0], value, strlen(value));
-        printf("ant0: %s\n",config->ant_file[0]);
-    } else if (strcmp(key, KEY_FILE_AxC1) == 0) {
-        strncpy(&config->ant_file[1][0], value, strlen(value));
-        printf("ant1: %s\n",config->ant_file[1]);
-    } else if (strcmp(key, KEY_FILE_AxC2) == 0) {
-        strncpy(&config->ant_file[2][0], value, strlen(value));
-        printf("ant2: %s\n",config->ant_file[2]);
-    } else if (strcmp(key, KEY_FILE_AxC3) == 0) {
-        strncpy(&config->ant_file[3][0], value, strlen(value));
-        printf("ant3: %s\n",config->ant_file[3]);
-    } else if (strcmp(key, KEY_FILE_AxC4) == 0) {
-        strncpy(&config->ant_file[4][0], value, strlen(value));
-        printf("ant4: %s\n",config->ant_file[4]);
-    } else if (strcmp(key, KEY_FILE_AxC5) == 0) {
-        strncpy(&config->ant_file[5][0], value, strlen(value));
-        printf("ant5: %s\n",config->ant_file[5]);
-    } else if (strcmp(key, KEY_FILE_AxC6) == 0) {
-        strncpy(&config->ant_file[6][0], value, strlen(value));
-        printf("ant6: %s\n",config->ant_file[6]);
-    } else if (strcmp(key, KEY_FILE_AxC7) == 0) {
-        strncpy(&config->ant_file[7][0], value, strlen(value));
-        printf("ant7: %s\n",config->ant_file[7]);
-    } else if (strcmp(key, KEY_FILE_AxC8) == 0) {
-        strncpy(&config->ant_file[8][0], value, strlen(value));
-        printf("ant8: %s\n",config->ant_file[8]);
-    } else if (strcmp(key, KEY_FILE_AxC9) == 0) {
-        strncpy(&config->ant_file[9][0], value, strlen(value));
-        printf("ant9: %s\n",config->ant_file[9]);
-    } else if (strcmp(key, KEY_FILE_AxC10) == 0) {
-        strncpy(&config->ant_file[10][0], value, strlen(value));
-        printf("ant10: %s\n",config->ant_file[10]);
-    } else if (strcmp(key, KEY_FILE_AxC11) == 0) {
-        strncpy(&config->ant_file[11][0], value, strlen(value));
-        printf("ant11: %s\n",config->ant_file[11]);
-    } else if (strcmp(key, KEY_FILE_AxC12) == 0) {
-        strncpy(&config->ant_file[12][0], value, strlen(value));
-        printf("ant12: %s\n",config->ant_file[12]);
-    } else if (strcmp(key, KEY_FILE_AxC13) == 0) {
-        strncpy(&config->ant_file[13][0], value, strlen(value));
-        printf("ant13: %s\n",config->ant_file[13]);
-    } else if (strcmp(key, KEY_FILE_AxC14) == 0) {
-        strncpy(&config->ant_file[14][0], value, strlen(value));
-        printf("ant14: %s\n",config->ant_file[14]);
-    } else if (strcmp(key, KEY_FILE_AxC15) == 0) {
-        strncpy(&config->ant_file[15][0], value, strlen(value));
-        printf("ant15: %s\n",config->ant_file[15]);
+            config->o_ru_addr.addr_bytes[0],
+            config->o_ru_addr.addr_bytes[1],
+            config->o_ru_addr.addr_bytes[2],
+            config->o_ru_addr.addr_bytes[3],
+            config->o_ru_addr.addr_bytes[4],
+            config->o_ru_addr.addr_bytes[5]);
+    } else if (strcmp(key, KEY_FILE_NUMSLOTS) == 0) {
+        config->numSlots = atoi(value);
+        printf("numSlots: %d\n",config->numSlots);
+    }else if (strncmp(key, KEY_FILE_AxC, strlen(KEY_FILE_AxC)) == 0) {
+        unsigned int ant_num = 0;
+        sscanf(key,"antC%02u",&ant_num);
+        if (ant_num >= MAX_ANT_CARRIER_SUPPORTED)
+        {
+            printf("antC%d exceeds max antenna supported\n",ant_num);
+        }
+        else{
+            strncpy(&config->ant_file[ant_num][0], value, strlen(value));
+            printf("antC%d: %s\n",ant_num, config->ant_file[ant_num]);
+        }
     } else if (strcmp(key, KEY_PRACH_ENABLE) == 0) {
         config->enablePrach = atoi(value);
         printf("Prach enable: %d\n",config->enablePrach);
-    } else if (strcmp(key, KEY_PRACH_OFFSET ) == 0) {
-        config->prachOffset = atoi(value);
-        printf("Prach Offset: %d\n",config->prachOffset);
-    } else if (strcmp(key, KEY_PRACH_CFG_IDX ) == 0) {
+    } else if (strcmp(key, KEY_PRACH_CFGIDX) == 0) {
         config->prachConfigIndex = atoi(value);
-        printf("Prach Conf Index: %d\n",config->prachConfigIndex);
-
+        printf("Prach config index: %d\n",config->prachConfigIndex);
+    } else if (strncmp(key, KEY_FILE_PRACH_AxC, strlen(KEY_FILE_PRACH_AxC)) == 0) {
+        unsigned int ant_num = 0;
+        sscanf(key,"antPrachC%02u",&ant_num);
+        if (ant_num >= MAX_ANT_CARRIER_SUPPORTED)
+        {
+            printf("antC%d exceeds max antenna supported\n",ant_num);
+        }
+        else{
+            strncpy(&config->prach_file[ant_num][0], value, strlen(value));
+            printf("antPrachC%d: %s\n",ant_num, config->prach_file[ant_num]);
+        }
         /* timing */
     } else if (strcmp(key, KEY_TADV_CP_DL ) == 0) {
         config->Tadv_cp_dl = atoi(value);
@@ -279,6 +319,15 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
     } else if (strcmp(key, KEY_DEBUG_STOP ) == 0) {
         config->debugStop = atoi(value);
         printf("debugStop: %d\n",config->debugStop);
+    } else if (strcmp(key, KEY_DEBUG_STOP_CNT) == 0) {
+        config->debugStopCount = atoi(value);
+        printf("debugStopCount: %d\n",config->debugStopCount);
+    } else if (strcmp(key, KEY_BBDEV_MODE) == 0) {
+        config->bbdevMode = atoi(value);
+        printf("bbdevMode: %d\n",config->debugStopCount);
+    } else if (strcmp(key, KEY_DYNA_SEC_ENA) == 0) {
+        config->DynamicSectionEna = atoi(value);
+        printf("DynamicSectionEna: %d\n",config->DynamicSectionEna);
     } else if (strcmp(key, KEY_CP_VTAG ) == 0) {
         config->cp_vlan_tag = atoi(value);
         printf("cp_vlan_tag: %d\n",config->cp_vlan_tag);
@@ -304,11 +353,11 @@ int parseConfigFile(char *filename, RuntimeConfig *config)
     FILE *file = fopen(filename, "r");
 
     if (NULL == file) {
-        //log_err("Error while opening config file from: %s", filename);
+        log_err("Error while opening config file from: %s", filename);
         return -1;
     }
 
-    init_config(config);
+//    init_config(config);
 
     for (;;) {
         if (fgets(inputLine, MAX_LINE_SIZE, file) == NULL) {
@@ -341,7 +390,7 @@ int parseConfigFile(char *filename, RuntimeConfig *config)
                 key[i] = '\0';
                 trim(key);
                 if ((i + 1 > inputLen - 1) || (i - 2 > inputLen)) {
-                    //log_err("Parsing config file error at line %d", lineNum);
+                    log_err("Parsing config file error at line %d", lineNum);
                     fclose(file);
                     return -1;
                 }

@@ -28,7 +28,8 @@ if ! mount | grep $huge_folder; then
  mount none $huge_folder -t hugetlbfs -o rw,mode=0777
 fi
 
-./ru/bin/sample-ru config_file_ru.dat 0000:18:02.0 0000:18:02.1
+#40G
+./build/sample-app ./usecase/mu1_100mhz/config_file_o_ru.dat 0000:d8:02.0 0000:d8:02.1
 
 umount $huge_folder
 rmdir $huge_folder

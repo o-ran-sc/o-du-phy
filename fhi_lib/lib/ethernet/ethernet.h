@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file has all definitions for the Ethernet Data Interface Layer
  * @file ethernet.h
@@ -35,7 +34,7 @@ extern "C" {
 #include <rte_ether.h>
 #include <rte_mbuf.h>
 
-#define BURST_SIZE 64
+#define BURST_SIZE 4096
 
 //#define VLAN_SUPPORT
 #define FLEXRAN_UP_VLAN_TAG 2
@@ -44,7 +43,7 @@ extern "C" {
 #define ETHER_TYPE_SYNC 0xBEFE
 #define ETHER_TYPE_START_TX 0xCEFE
 
-#define NUM_MBUFS 262144
+#define NUM_MBUFS 65536
 #define MBUF_CACHE 256
 
 #define MBUF_POOL_ELM_SMALL 1500 /* regular ethernet MTU, most compatible */
@@ -64,6 +63,8 @@ extern "C" {
 extern struct rte_mempool *_eth_mbuf_pool;
 extern struct rte_mempool *_eth_mbuf_pool_small;
 extern struct rte_mempool *_eth_mbuf_pool_big;
+extern struct rte_mempool *socket_direct_pool;
+extern struct rte_mempool *socket_indirect_pool;
 
 /* Do NOT change the order of this enum and below
  * - need to be in sync with the table of handlers in testue.c */
@@ -121,23 +122,25 @@ void xran_init_mbuf_pool(void);
 void xran_init_port(int port, struct ether_addr *p_lls_cu_addr);
 
 void xran_add_eth_hdr_vlan(struct ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb, uint16_t vlan_tci);
-int xran_send_mbuf(struct ether_addr *dst, struct rte_mbuf *mb);
 
-int xran_send_message_burst(int dst_id, int pkt_type, void *body, int len);
-
+#if 0
 void xran_memdump(void *addr, int len);
-
+void xran_add_eth_hdr(struct ether_addr *dst, uint16_t ethertype, struct rte_mbuf *);
+int xran_send_mbuf(struct ether_addr *dst, struct rte_mbuf *mb);
+int xran_send_message_burst(int dst_id, int pkt_type, void *body, int len);
+int xran_show_delayed_message(void);
+#endif
 /*
  * Print a message after all critical processing done.
  * Mt-safe. 4 variants - normal, warning, error and debug log.
  */
-
-#define nlog(m, ...) 
-#define delayed_message     /* this is the old alias for this function */
-#define wlog(m, ...) 
-#define elog(m, ...) 
+int __xran_delayed_msg(const char *fmt, ...);
+#define nlog(m, ...) __xran_delayed_msg("%s(): " m "\n", __FUNCTION__, ##__VA_ARGS__)
+#define delayed_message nlog    /* this is the old alias for this function */
+#define wlog(m, ...) nlog("WARNING: " m, ##__VA_ARGS__)
+#define elog(m, ...) nlog("ERROR: " m, ##__VA_ARGS__)
 #ifdef DEBUG
-# define dlog(m, ...) 
+# define dlog(m, ...) nlog("DEBUG: " m, ##__VA_ARGS__)
 #else
 # define dlog(m, ...)
 #endif

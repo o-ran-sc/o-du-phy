@@ -15,73 +15,191 @@
 #*   limitations under the License.
 #*
 #*******************************************************************************/
-CC := icc
-AR := xiar
+
+
+MYCUSTOMTAB='     '
+MYCUSTOMSPACE='============================================================================================'
+MYCUSTOMSPACE1='------------------------------------------------------------'
+
+##############################################################
+#  Tools configuration
+##############################################################
+CC  := icc
+CPP := icpc
+AS := as
+AR := ar
+LD := icc
+OBJDUMP := objdump
+
+ifeq ($(SHELL),cmd.exe)
+MD := mkdir.exe -p
+CP := cp.exe -f
+RM := rm.exe -rf
+else
+MD := mkdir -p
+CP := cp -f
+RM := rm -rf
+endif
+
+PROJECT_NAME := libxran
+PROJECT_TYPE := lib
+PROJECT_DIR  := $(XRAN_DIR)/lib
+BUILDDIR := ./build
+PROJECT_BINARY := $(BUILDDIR)/$(PROJECT_NAME).a
 
 ifeq ($(RTE_SDK),)
     $(error "Please define RTE_SDK environment variable")
 endif
 
-RTE_TARGET := x86_64-native-linuxapp-icc
+RTE_TARGET ?= x86_64-native-linuxapp-gcc
 RTE_INC := $(RTE_SDK)/$(RTE_TARGET)/include
-#include $(RTE_SDK)/mk/rte.vars.mk
-API_DIR := $(PWD)/api
-SRC_DIR := $(PWD)/src
-ETH_DIR := $(PWD)/ethernet
 
+API_DIR := $(PROJECT_DIR)/api
+SRC_DIR := $(PROJECT_DIR)/src
+ETH_DIR := $(PROJECT_DIR)/ethernet
 
+ifeq ($(MLOG),1)
 ifeq ($(MLOG_DIR),)
     MLOG_DIR=$(XRAN_DIR)/../mlog
 endif
-
-CFLAGS += -std=gnu11 -Wall -wd9 -Wno-deprecated-declarations -Wextra -Werror -qopt-report-phase:all -qopt-zmm-usage=high \
-	-fdata-sections \
-	-ffunction-sections \
-	-restrict \
-	-g \
-	-Wall \
-	-Wimplicit-function-declaration \
-	-Werror \
-	-Wextra \
-	-no-inline-max-total-size \
-	-no-inline-max-size \
-        -I$(API_DIR) -I$(ETH_DIR) -I$(MLOG_DIR)/source -I$(RTE_INC) -g -O3
-
-ifeq ($(ME),1)
-    CFLAGS += -DMLOG_ENABLED
 endif
-SRC = $(ETH_DIR)/ethdi.c \
+
+CC_SRC = $(ETH_DIR)/ethdi.c \
 	$(ETH_DIR)/ethernet.c \
 	$(SRC_DIR)/xran_up_api.c \
 	$(SRC_DIR)/xran_sync_api.c \
 	$(SRC_DIR)/xran_timer.c \
 	$(SRC_DIR)/xran_cp_api.c 	\
-	$(SRC_DIR)/xran_transport.c  \
+	$(SRC_DIR)/xran_transport.c 	\
 	$(SRC_DIR)/xran_common.c        \
 	$(SRC_DIR)/xran_ul_tables.c     \
-	$(SRC_DIR)/xran_main.c 
+	$(SRC_DIR)/xran_frame_struct.c  \
+	$(SRC_DIR)/xran_app_frag.c \
+	$(SRC_DIR)/xran_main.c
 
-FLEX_C_CRAN_LIB = libxran.a
+CPP_SRC = $(SRC_DIR)/xran_compression.cpp
 
-OBJ = $(foreach file,$(SRC),$(file:.c=.o))
+CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
+	-fdata-sections \
+	-ffunction-sections \
+	-g \
+	-Wall \
+	-Wimplicit-function-declaration \
+        -g -O3
+
+CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
+                -no-prec-div -fp-model fast=2\
+                -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
+        -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
+
+INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
+DEF :=
+ifeq ($(MLOG),1)
+	INC  += -I$(MLOG_DIR)/source
+	DEF += -DMLOG_ENABLED
+else
+	DEF += -UMLOG_ENABLED
+endif
+
+AS_FLAGS :=
+AR_FLAGS := rc
+
+PROJECT_OBJ_DIR := build/obj
+
+CC_OBJS := $(patsubst %.c,%.o,$(CC_SRC))
+CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
+AS_OBJS := $(patsubst %.s,%.o,$(AS_SRC))
+OBJS    := $(CC_OBJS) $(CPP_OBJS) $(AS_OBJS) $(LIBS)
+DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS))))
+
+CC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CC_OBJS))
+CPP_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS))
+
+AS_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(AS_OBJS))
+
+CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
+CPP_FLAGS_FULL := $(CPP_FLAGS) $(INC) $(DEF)
+
+AS_FLAGS := $(AS_FLAGS) $(INC)
+
+PROJECT_DEP_FILE := $(PROJECT_OBJ_DIR)/$(PROJECT_NAME).dep
+
+ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
+GENERATE_DEPS :=
+else
+
+CC_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CC_SRC)))
+CPP_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CPP_SRC)))
+GENERATE_DEPS := generate_deps
+endif
+
+all : welcome_line 	$(PROJECT_BINARY)
+	@echo $(PROJECT_BINARY)
+
+.PHONY : clear_dep
+clear_dep:
+	@$(RM) $(PROJECT_DEP_FILE)
+	@echo [DEP]   $(subst $(PROJECT_OBJ_DIR)/,,$(PROJECT_DEP_FILE))
+
+$(CC_DEPS) :
+	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CC_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
+
+$(CPP_DEPS) :
+	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPP_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
+
+.PHONY : generate_deps
+generate_deps : clear_dep $(CC_DEPS) $(CPP_DEPS)
 
 
-all: flex_lib install
+.PHONY : echo_start_build
+echo_start_build :
+	@echo [BUILD] $(PROJECT_TYPE) : $(PROJECT_NAME)
 
-$(OBJ): %.o: %.c
-	$(CC) $(CFLAGS) -I$(API_DIR) -c $< -o $@ 
+$(DIRLIST) :
+	-@$(MD) $@
 
+$(CC_OBJTARGETS) :
+	@echo [CC]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
+	@$(CC) -c $(CC_FLAGS_FULL) -o"$@" $(patsubst %.o,%.c,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-flex_lib:$(FLEX_C_CRAN_LIB)
+$(CPP_OBJTARGETS) :
+	@echo [CPP]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
+	@$(CPP) -c $(CPP_FLAGS_FULL) -o"$@" $(patsubst %.o,%.cpp,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-$(FLEX_C_CRAN_LIB): $(OBJ)
-	$(AR) rsu $@ $^
+$(AS_OBJTARGETS) :
+	@echo [AS]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
+	@$(AS) $(AS_FLAGS) -o"$@" $(patsubst %.o,%.s,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-install: $(FLEX_C_CRAN_LIB)
-	mkdir -p bin
-	@mv $(FLEX_C_CRAN_LIB) ./bin
+ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
 
+include $(PROJECT_DEP_FILE)
+
+endif
+
+.PHONY: clean xclean
 clean:
-	@rm -rf $(FLEX_C_CRAN_LIB) $(OBJ) ./bin/$(FLEX_C_CRAN_LIB)
+	@echo [CLEAN]  : $(PROJECT_NAME)
+	@$(RM) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
 
-#include $(RTE_SDK)/mk/rte.extlib.mk
+xclean: clean
+ifneq ($(wildcard $(PROJECT_DIR)/$(PROJECT_MAKE)),)
+	@echo [XCLEAN] : $(PROJECT_NAME)
+	@$(RM) $(PROJECT_BINARY) $(PROJECT_BINARY_LIB) $(PROJECT_DEP_FILE)
+endif
+
+.PHONY : welcome_line
+welcome_line :
+	@echo $(MYCUSTOMSPACE)
+	@echo Building  $(PROJECT_BINARY)
+	@echo $(MYCUSTOMTAB)RTE_TARGET           = $(RTE_TARGET)
+	@echo $(MYCUSTOMSPACE)
+
+
+.PHONY : debug release
+
+debug :  all
+release :  all
+
+$(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+	@echo [AR]    $(subst $(BUILDDIR)/,,$@)
+	@$(AR) $(AR_FLAGS) $@ $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)

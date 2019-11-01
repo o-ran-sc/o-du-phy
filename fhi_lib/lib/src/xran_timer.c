@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file provides implementation to Timing for XRAN.
  *
@@ -33,20 +32,18 @@
 
 #include "xran_timer.h"
 #include "xran_printf.h"
-#ifndef MLOG_ENABLED
-#include "mlog_lnx_xRAN.h"
-#else
-#include "mlog_lnx.h"
-#endif
+#include "xran_mlog_lnx.h"
 #include "xran_lib_mlog_tasks_id.h"
 #include "ethdi.h"
+#include "xran_fh_o_du.h"
+#include "xran_common.h"
 
 #define NSEC_PER_SEC  1000000000L
 #define NSEC_PER_USEC 1000L
 #define THRESHOLD        35  /**< the avg cost of clock_gettime() in ns */
 #define TIMECOMPENSATION 2   /**< time compensation in us, avg latency of clock_nanosleep */
 
-#define SEC_MOD_STOP (30)
+#define SEC_MOD_STOP (60)
 
 static struct timespec started_time;
 static struct timespec last_time;
@@ -59,20 +56,46 @@ static struct timespec* p_temp_time;
 
 static unsigned long current_second = 0;
 static unsigned long started_second = 0;
+static uint8_t numerlogy = 0;
 extern uint32_t xran_lib_ota_sym;
 extern uint32_t xran_lib_ota_tti;
 extern uint32_t xran_lib_ota_sym_idx;
 
 static int debugStop = 0;
+static int debugStopCount = 0;
+
+static long fine_tuning[5][2] =
+{
+    {71428L, 71429L},  /* mu = 0 */
+    {35714L, 35715L},  /* mu = 1 */
+    {0, 0},            /* mu = 2 not supported */
+    {8928L, 8929L},    /* mu = 3 */
+    {0,0  }            /* mu = 4 not supported */
+};
+
+static uint8_t slots_per_subframe[4] =
+{
+    1,  /* mu = 0 */
+    2,  /* mu = 1 */
+    4,  /* mu = 2 */
+    8,  /* mu = 3 */
+};
 
 uint64_t timing_get_current_second(void)
 {
     return current_second;
 }
 
-int timing_set_debug_stop(int value)
+int timing_set_numerology(uint8_t value)
+{
+    numerlogy = value;
+    return numerlogy;
+}
+
+int timing_set_debug_stop(int value, int count)
 {
     debugStop = value;
+    debugStopCount = count;
 
     if(debugStop){
         clock_gettime(CLOCK_REALTIME, &started_time);
@@ -107,6 +130,14 @@ long poll_next_tick(long interval_ns)
         clock_gettime(CLOCK_REALTIME, p_cur_time);
         delta = (p_cur_time->tv_sec * NSEC_PER_SEC + p_cur_time->tv_nsec) - target_time;
         if(delta > 0 || (delta < 0 && abs(delta) < THRESHOLD)) {
+            if (debugStop &&(debugStopCount > 0) && (tx_counter >= debugStopCount)){
+                uint64_t t1;
+                printf("STOP:[%ld.%09ld], debugStopCount %d, tx_counter %ld\n", p_cur_time->tv_sec, p_cur_time->tv_nsec, debugStopCount, tx_counter);
+                t1 = MLogTick();
+                rte_pause();
+                MLogTask(PID_TIME_SYSTIME_STOP, t1, MLogTick());
+                xran_if_current_state = XRAN_STOPPED;
+            }
             if(current_second != p_cur_time->tv_sec){
                 current_second = p_cur_time->tv_sec;
                 xran_lib_ota_sym_idx = 0;
@@ -127,12 +158,12 @@ long poll_next_tick(long interval_ns)
                 }
                 p_cur_time->tv_nsec = 0; // adjust to 1pps
             } else {
-                xran_lib_ota_sym_idx = XranIncrementSymIdx(xran_lib_ota_sym_idx, 14*8);
+                xran_lib_ota_sym_idx = XranIncrementSymIdx(xran_lib_ota_sym_idx, XRAN_NUM_OF_SYMBOL_PER_SLOT*slots_per_subframe[numerlogy]);
                 /* adjust to sym boundary */
                 if(sym_cnt & 1)
-                    sym_acc += 8928L;
+                    sym_acc +=  fine_tuning[numerlogy][0];
                 else
-                    sym_acc += 8929L;
+                    sym_acc +=  fine_tuning[numerlogy][1];
                 /* fine tune to second boundary */
                 if(sym_cnt % 13 == 0)
                     sym_acc += 1;
@@ -146,6 +177,11 @@ long poll_next_tick(long interval_ns)
             p_last_time = p_cur_time;
             p_cur_time  = p_temp_time;
             break;
+        } else {
+            if( likely(xran_if_current_state == XRAN_RUNNING)){
+                ring_processing_func();
+                process_dpdk_io();
+            }
         }
   }
 

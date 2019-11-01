@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file provides the definitions for Transport layer (eCPRI) API.
  *
@@ -29,6 +28,10 @@
 #ifndef _XRAN_TRANSPORT_H_
 #define _XRAN_TRANSPORT_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <rte_common.h>
 #include <rte_mbuf.h>
 
@@ -39,36 +42,37 @@ struct xran_eaxc_info {
     uint8_t bandSectorId;
     uint8_t ccId;
     uint8_t ruPortId;
-    };
+};
 
-/**
- * @brief Compose ecpriRtcid/ecpriPcid
- *
- * @param CU_Port_ID CU Port ID
- * @param BanbSector_ID Band Sector ID
- * @param CC_ID Component Carrier ID
- * @param Ant_ID RU Port ID (antenna ID)
- * @return uint16_t composed ecpriRtcid/ecpriPcid
- */
+struct xran_recv_packet_info {
+    int ecpri_version;
+    enum ecpri_msg_type msg_type;
+    int payload_len;
+    struct xran_eaxc_info eaxc;
+    int seq_id;
+    int subseq_id;
+    int ebit;
+};
+
+
+int xran_get_ecpri_hdr_size(void);
+void xran_update_ecpri_payload_size(struct rte_mbuf *mbuf, int size);
+
 uint16_t xran_compose_cid(uint8_t CU_Port_ID, uint8_t BandSector_ID, uint8_t CC_ID, uint8_t Ant_ID);
-
-/**
- * @brief Decompose ecpriRtcid/ecpriPcid
- *
- * @param cid composed ecpriRtcid/ecpriPcid (network byte order)
- * @param result the pointer of the structure to store decomposed values
- * @return none
- */
 void xran_decompose_cid(uint16_t cid, struct xran_eaxc_info *result);
 
-/**
- * @brief modify the payload size of eCPRI header in xRAN packet
- *
- * @param mbuf Initialized rte_mbuf packet which has eCPRI header already
- * @param size payload size to be updated
- * @return none
- */
-void xran_update_ecpri_payload_size(struct rte_mbuf *mbuf, int size);
+int xran_build_ecpri_hdr(struct rte_mbuf *mbuf,
+                        uint8_t CC_ID, uint8_t Ant_ID,
+                        uint8_t seq_id,
+                        struct xran_ecpri_hdr **ecpri_hdr);
+
+int xran_parse_ecpri_hdr(struct rte_mbuf *mbuf,
+                        struct xran_ecpri_hdr **ecpri_hdr,
+                        struct xran_recv_packet_info *pkt_info);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
 

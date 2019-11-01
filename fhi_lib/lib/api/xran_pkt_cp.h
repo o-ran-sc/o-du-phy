@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file provides the definition of Control Plane Messages
  *      for XRAN Front Haul layer as defined in XRAN-FH.CUS.0-v02.01.
@@ -29,6 +28,10 @@
 
 #ifndef _XRAN_PKT_CP_H_
 #define _XRAN_PKT_CP_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
 /**********************************************************************
@@ -85,7 +88,7 @@ struct xran_cp_radioapp_frameStructure {
  *      Section headers definition for C-Plane.
  *      Section type 6 and 7 are not present since those have different fields.
  */
-struct xran_cp_radioapp_section_header {    // 8bytes, need the conversion for byte order
+struct xran_cp_radioapp_section_header {    /* 8bytes, need the conversion for byte order */
     union {
         struct {
             uint32_t    reserved:16;
@@ -112,13 +115,193 @@ struct xran_cp_radioapp_section_header {    // 8bytes, need the conversion for b
             } s5;
         } u;
 
-    uint32_t    numPrbc:8;              /**< 5.4.5.6 number of contiguous PRBs per control section */
+    uint32_t    numPrbc:8;              /**< 5.4.5.6 number of contiguous PRBs per control section  0000 0000b = all PRBs */
     uint32_t    startPrbc:10;           /**< 5.4.5.4 starting PRB of control section */
     uint32_t    symInc:1;               /**< 5.4.5.3 symbol number increment command XRAN_SYMBOLNUMBER_xxxx */
     uint32_t    rb:1;                   /**< 5.4.5.2 resource block indicator, XRAN_RBIND_xxx */
     uint32_t    sectionId:12;           /**< 5.4.5.1 section identifier */
     } __attribute__((__packed__));
 
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Beamforming Weights Extension Type(ExtType 1) defined in 5.4.7.1
+ *      The structure is reordered for byte order conversion.
+ */
+struct xran_cp_radioapp_section_ext1 {
+    /* variable length, need to be careful to convert byte order
+     *   - does not need to convert first 3 bytes */
+    uint8_t     extType:7;          /**< 5.4.6.1 extension type */
+    uint8_t     ef:1;               /**< 5.4.6.2 extension flag */
+    uint8_t     extLen;             /**< 5.4.6.3 extension length, in 32bits words */
+    uint8_t     bfwCompMeth:4;      /**< 5.4.7.1.1 Beamforming weight Compression method */
+    uint8_t     bfwIqWidth:4;       /**< 5.4.7.1.1 Beamforming weight IQ bit width */
+
+    /*
+     * would be better to use bit manipulation directly to add these parameters
+     *
+     * bfwCompParam
+     * (bfwI,  bfwQ)+
+     *    ......
+     * padding for 4-byte alignment
+     */
+    } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Beamforming Attributes Extension Type(ExtType 2) defined in 5.4.7.2
+ *      The structure is reordered for byte order conversion.
+ */
+struct xran_cp_radioapp_section_ext2 {
+    /* variable length, need to be careful to convert byte order
+     *   - first 4 bytes can be converted at once
+     */
+    uint32_t    bfZe3ddWidth:3;     /**< 5.4.7.2.1 beamforming zenith beamwidth parameter bitwidth, Table 5-21 */
+    uint32_t    bfAz3ddWidth:3;     /**< 5.4.7.2.1 beamforming azimuth beamwidth parameter bitwidth, Table 5-20 */
+    uint32_t    bfaCompResv1:2;
+    uint32_t    bfZePtWidth:3;      /**< 5.4.7.2.1 beamforming zenith pointing parameter bitwidth, Table 5-19 */
+    uint32_t    bfAzPtWidth:3;      /**< 5.4.7.2.1 beamforming azimuth pointing parameter bitwidth, Table 5-18 */
+    uint32_t    bfaCompResv0:2;
+    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
+    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+
+    /*
+     * would be better to use bit manipulation directly to add these parameters
+     *
+     * bfAzPt: var by bfAzPtWidth
+     * bfZePt: var by bfZePtWidth
+     * bfAz3dd: var by bfAz3ddWidth
+     * bfZe3dd: var by bfZe3ddWidth
+     * bfAzSI:5 (including zero-padding for unused bits)
+     * bfZeSI:3
+     * padding for 4-byte alignment
+     *
+     */
+    } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      DL Precoding Extension Type(ExtType 3) for first data layer.
+ *      Defined in 5.4.7.3 Table 5-22.
+ *      Only be used for LTE TM2-4 and not for other LTE TMs nor NR.
+ *      The structure is reordered for byte order conversion. Not supported.
+ */
+struct xran_cp_radioapp_section_ext3_first {
+    /* 16 bytes, need to convert byte order for two parts
+     *   - 8 / 8 bytes
+     */
+    uint32_t    reserved1:8;
+    uint32_t    crsSymNum:4;        /**< 5.4.7.3.6 CRS symbol number indication */
+    uint32_t    reserved0:3;
+    uint32_t    crsShift:1;         /**< 5.4.7.3.7 CRS shift used for DL transmission */
+    uint32_t    crsReMask:12;       /**< 5.4.7.3.5 CRS resource element mask */
+    uint32_t    txScheme:4;         /**< 5.4.7.3.3 transmission scheme */
+    uint32_t    numLayers:4;        /**< 5.4.7.3.4 number of layers used for DL transmission */
+    uint32_t    layerId:4;          /**< 5.4.7.3.2 Layer ID for DL transmission */
+    uint32_t    codebookIndex:8;    /**< 5.4.7.3.1 precoder codebook used for transmission */
+    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
+    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+
+    uint16_t    beamIdAP3;          /**< 5.4.7.3.10 beam id to be used for antenna port 3 */
+    uint16_t    beamIdAP2;          /**< 5.4.7.3.9 beam id to be used for antenna port 2 */
+    uint16_t    beamIdAP1;          /**< 5.4.7.3.8 beam id to be used for antenna port 1 */
+    uint16_t    reserved2;
+    } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      DL Precoding Extension Type(ExtType 3) for non-first data layer.
+ *      Defined in 5.4.7.3 Table 5-23.
+ *      Only be used for LTE TM2-4 and not for other LTE TMs nor NR.
+ *      The structure is reordered for byte order conversion. Not supported.
+ */
+struct xran_cp_radioapp_section_ext3_non_first {
+    /* 4 bytes, need to convert byte order at once */
+    uint32_t    numLayers:4;        /**< 5.4.7.3.4 number of layers used for DL transmission */
+    uint32_t    layerId:4;          /**< 5.4.7.3.2 Layer ID for DL transmission */
+    uint32_t    codebookIndex:8;    /**< 5.4.7.3.1 precoder codebook used for transmission */
+
+    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
+    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+    } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Modulation Compression Parameter Extension Type(ExtType 4), 5.4.7.4
+ *      Only applies to section type 1 and 3.
+ *      The structure is reordered for byte order conversion.
+ */
+struct xran_cp_radioapp_section_ext4 {
+    /* 4 bytes, need to convert byte order at once */
+    uint32_t    modCompScaler:15;   /**< 5.4.7.4.2 modulation compression scaler value */
+    uint32_t    csf:1;              /**< 5.4.7.4.1 constellation shift flag */
+
+    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
+    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+    } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Modulation Compression Additional Parameter Extension Type(ExtType 5) for one scaler value.
+ *      Defined in 5.4.7.5 Table 5-26
+ *      Only applies to section type 1 3, and 5.
+ *      The structure is reordered for byte order conversion.
+ */
+struct xran_cp_radioapp_section_ext5_1 {
+    /* 8 bytes, need to convert byte order at once */
+    uint32_t    reserved:20;
+    uint32_t    mcScaleOffset:15;   /**< 5.4.7.5.3 scaling value for modulation compression */
+    uint32_t    csf:1;              /**< 5.4.7.5.2 constellation shift flag */
+    uint32_t    mcScaleReMask:12;   /**< 5.4.7.5.1 modulation compression power scale RE mask */
+
+    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
+    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+    } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Modulation Compression Additional Parameter Extension Type(ExtType 5) for two scaler values.
+ *      Defined in 5.4.7.5 Table 5-27
+ *      Only applies to section type 1 3, and 5.
+ *      The structure is reordered for byte order conversion.
+ */
+struct xran_cp_radioapp_section_ext5_2 {
+    /* 12 bytes, need to convert byte order for two parts respectively
+     *  - 2 and 8 bytes, reserved1 would be OK if it is zero
+     */
+    uint16_t     extLen:8;          /**< 5.4.6.3 extension length, in 32bits words */
+    uint16_t     extType:7;         /**< 5.4.6.1 extension type */
+    uint16_t     ef:1;              /**< 5.4.6.2 extension flag */
+
+    uint32_t    reserved0:8;
+    uint32_t    mcScaleOffset2:15;  /**< 5.4.7.5.3 scaling value for modulation compression */
+    uint32_t    csf2:1;             /**< 5.4.7.5.2 constellation shift flag */
+    uint32_t    mcScaleReMask2:12;  /**< 5.4.7.5.1 modulation compression power scale RE mask */
+    uint32_t    mcScaleOffset1:15;  /**< 5.4.7.5.3 scaling value for modulation compression */
+    uint32_t    csf1:1;             /**< 5.4.7.5.2 constellation shift flag */
+    uint32_t    mcScaleReMask1:12;  /**< 5.4.7.5.1 modulation compression power scale RE mask */
+
+    uint16_t    reserved1;
+    } __attribute__((__packed__));
 
 /**********************************************************
  * Scheduling and Beam-forming Commands 5.4.2
@@ -283,5 +466,8 @@ struct xran_cp_radioapp_section7_header {
     // Payload start from here          // 5.4.5.16 ~ 5.4.5.32
     } __attribute__((__packed__));
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* _XRAN_PKT_CP_H_ */

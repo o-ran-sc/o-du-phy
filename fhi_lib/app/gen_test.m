@@ -16,19 +16,105 @@
 %*
 %*******************************************************************************/
 
-%Matlab: read bin
-%fileID_c = fopen('ant_7.bin','r');
-%ant7_c= fread(fileID_c, [2, 792*14*80], 'integer*2');
-%ant7_c;
-%ant7_c=ant7_c.';
-
 close all;
 clear all;
 
-ifft_in = load('ifft_in.txt')
+%select mu and bw to generate test files
+sub6=false;  %false
+mu=3; % 0,1, or 3
+bw=100; %5,10,20,100 MHz
+
+nSlots=160; % any 40 and 160
+
+     %  5MHz    10MHz   15MHz   20 MHz  25 MHz  30 MHz  40 MHz  50MHz   60 MHz  70 MHz  80 MHz   90 MHz  100 MHz
+nNumRbsPerSymF1 = ...
+[
+     %  5MHz    10MHz   15MHz   20 MHz  25 MHz  30 MHz  40 MHz  50MHz   60 MHz  70 MHz  80 MHz   90 MHz  100 MHz
+        [25,    52,     79,     106,    133,    160,    216,    270,    0,         0,      0,      0,      0]         % Numerology 0 (15KHz)
+        [11,    24,     38,     51,     65,     78,     106,    133,    162,       0,    217,    245,    273]         % Numerology 1 (30KHz)
+        [0,     11,     18,     24,     31,     38,     51,     65,     79,        0,    107,    121,    135]         % Numerology 2 (60KHz)
+];
+
+nNumRbsPerSymF2 = ...
+[
+    %  50Mhz  100MHz  200MHz   400MHz
+        [66,    132,    264,     0]        % Numerology 2 (60KHz)
+        [32,    66,     132,     264]      % Numerology 3 (120KHz)
+];
+
+if sub6
+    disp('Sub6')
+    if mu < 3
+        nNumerology = mu+1;
+        switch (bw)
+            case {5}
+                numRBs = nNumRbsPerSymF1(nNumerology,0+1);
+            case {10}
+                numRBs = nNumRbsPerSymF1(nNumerology,1+1);
+            case {15}
+                numRBs = nNumRbsPerSymF1(nNumerology,2+1);
+            case {20}
+                numRBs = nNumRbsPerSymF1(nNumerology,3+1);
+            case {25}
+                numRBs = nNumRbsPerSymF1(nNumerology,4+1);
+            case {30}
+                numRBs = nNumRbsPerSymF1(nNumerology,5+1);
+            case {40}
+                numRBs = nNumRbsPerSymF1(nNumerology,6+1);
+            case {50}
+                numRBs = nNumRbsPerSymF1(nNumerology,7+1);
+            case {60}
+                numRBs = nNumRbsPerSymF1(nNumerology,8+1);
+            case {70}
+                numRBs = nNumRbsPerSymF1(nNumerology,9+1);
+            case {80}
+                numRBs = nNumRbsPerSymF1(nNumerology,10+1);
+            case {90}
+                numRBs = nNumRbsPerSymF1(nNumerology,11+1);
+            case {100}
+                numRBs = nNumRbsPerSymF1(nNumerology,12+1);
+            otherwise
+                disp('Unknown BW && mu')
+        end
+    end
+else
+    disp('mmWave')
+    if  (mu >=2) && (mu <= 3)
+        nNumerology = mu;
+        switch (bw)
+            case {50}
+                numRBs = nNumRbsPerSymF2(nNumerology-1,0+1);
+            case {100}
+                numRBs = nNumRbsPerSymF2(nNumerology-1,1+1);
+            case {200}
+                numRBs = nNumRbsPerSymF2(nNumerology-1,2+1);
+            case {400}
+                numRBs = nNumRbsPerSymF2(nNumerology-1,3+1);
+            otherwise
+                disp('Unknown BW && mu')
+        end
+    end
+end
+
+if numRBs ==0
+    disp('Incorrect Numerology and BW combination.')
+    return
+end
+
+bw
+numRBs
+nSlots
+
+%use file as input
+%ifft_in = load('ifft_in.txt')
+
+%gen IQs
+ifft_in = [[1:1:(numRBs*12)]', [1:1:(numRBs*12)]'];
+
 ant_c = ifft_in;
-for (i=1:1:80*14-1)
-    ant_c = [ant_c; ifft_in];
+for (i=1:1:nSlots*14-1)
+    ifft_in_1 = ifft_in + i;
+    ant_c = [ant_c; ifft_in_1];
 end
 
 ant0=ant_c;

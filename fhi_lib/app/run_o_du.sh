@@ -18,7 +18,6 @@
 #*
 #*******************************************************************************/
 
-
 ulimit -c unlimited
 echo 1 > /proc/sys/kernel/core_uses_pid
 
@@ -29,7 +28,11 @@ if ! mount | grep $huge_folder; then
  mount none $huge_folder -t hugetlbfs -o rw,mode=0777
 fi
 
-./lls-cu/bin/sample-lls-cu config_file_lls_cu.dat  0000:18:02.0 0000:18:02.1
+#40G
+./build/sample-app ./usecase/mu3_100mhz/config_file_o_du.dat  0000:d8:02.0 0000:d8:02.1
+
+#25G
+#./build/sample-app ./usecase/mu0_10mhz/12/config_file_o_du.dat  0000:af:02.0 0000:af:02.1
 
 umount $huge_folder
 rmdir $huge_folder

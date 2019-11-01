@@ -26,6 +26,10 @@
 #ifndef _XRAN_TASK_ID_H_
 #define _XRAN_TASK_ID_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define RESOURCE_CORE_0                             0
 #define RESOURCE_CORE_1                             1
 #define RESOURCE_CORE_2                             2
@@ -96,6 +100,9 @@
 #define PID_PROCESS_CP_PKT                      2700
 
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _XRAN_TASK_ID_H_ */
 

@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file defines those table used in 5G NR spec.
  * @file xran_ul_tables.c
@@ -843,8 +842,12 @@ const xRANPrachConfigTableStruct gxranPrachDataTable_mmw[XRAN_PRACH_CONFIG_TABLE
     { 255, { FORMAT_A3, FORMAT_B3 }, 1, { 0 }, { 7, 15, 23, 31, 39 }, 5, 2, 1, 2, 6 },
 };
 
-const xRANPrachPreambleLRAStruct gxranPreambleforLRA[XRAN_PRACH_PREAMBLE_FORMAT_OF_ABC] =
+const xRANPrachPreambleLRAStruct gxranPreambleforLRA[13] =
 {
+    {FORMAT_0, 839,  125, 1 , 3168 },
+    {FORMAT_1, 839,  125, 2 ,21024 },
+    {FORMAT_2, 839,  125, 4 , 4688 },
+    {FORMAT_3, 839,    5, 1 , 3168 },
     {FORMAT_A1, 139,  15, 2 ,  288 },
     {FORMAT_A2, 139,  15, 4 ,  576 },
     {FORMAT_A3, 139,  15, 6 ,  864 },

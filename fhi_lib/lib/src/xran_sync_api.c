@@ -15,7 +15,6 @@
 *   limitations under the License.
 *
 *******************************************************************************/
-
 /**
  * @brief This file provides implementation of synchronization related APIs (PTP/1588)
  *        for XRAN.
@@ -31,11 +30,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <dirent.h>
-#include <math.h>
 
 #include "xran_sync_api.h"
 #include "xran_printf.h"
@@ -67,30 +61,27 @@ static int is_process_running(char *pname)
     char full_path[BUF_LEN] = {0};
     char read_proc_name[BUF_LEN] = {0};
     int res = 1;
-    int null = 0;
-    int dir_fd = dirfd((DIR*)PROC_DIR);
-    DIR *dir = fdopendir(dir_fd);
+    DIR *dir = opendir(PROC_DIR);
     if (NULL == dir) {
         return 1;
     }
 
     struct dirent *entry = NULL;
-    while ((entry = readdir(dir))) {
+    while (entry = readdir(dir)) {
         long pid = atol(entry->d_name);
         if (0 == pid)
             continue;
-
-	snprintf(full_path, BUF_LEN,"%s/%ld/%s", PROC_DIR, pid, COMM_FILE);
-	int proc_name_file = open(full_path, O_RDONLY);
-        if (null == proc_name_file)
+        sprintf(full_path, "%s/%ld/%s", PROC_DIR, pid, COMM_FILE);
+        FILE *proc_name_file = fopen(full_path, "r");
+        if (NULL == proc_name_file)
             continue;
-        fgets( read_proc_name, BUF_LEN, (FILE*)proc_name_file);
+        fgets( read_proc_name, BUF_LEN, proc_name_file);
         if (0 == strncmp(read_proc_name, pname, strlen(pname))) {
             res = 0;
-	    close(proc_name_file);
+            fclose(proc_name_file);
             break;
         }
-	close(proc_name_file);
+        fclose(proc_name_file);
     }
     closedir(dir);
     return res;

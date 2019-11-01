@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file has all definitions for the Ethernet Data Interface Layer
  * @file ethdi.h
@@ -37,6 +36,7 @@ extern "C" {
 #include <rte_timer.h>
 
 #include "ethernet.h"
+#include "xran_fh_o_du.h"
 
 #define XRAN_THREAD_DEFAULT_PRIO (98)
 
@@ -52,14 +52,6 @@ extern "C" {
 
 #define TX_TIMER_INTERVAL ((rte_get_timer_hz() / 1000000000L)*interval_us*1000) /* nanosec */
 #define TX_RX_LOOP_TIME rte_get_timer_hz() / 1
-
-extern enum xran_if_state xran_if_current_state;
-
-enum xran_if_state
-{
-    XRAN_RUNNING,
-    XRAN_STOPPED
-};
 
 enum xran_ping_states
 {
@@ -79,6 +71,8 @@ struct xran_io_loop_cfg
 {
     uint8_t id;
     char *dpdk_dev[ETHDI_VF_MAX];
+    char *bbdev_dev[1];
+    int bbdev_mode;
     int core;
     int system_core;    /* Needed as DPDK will change your starting core. */
     int pkt_proc_core;  /* Needed for packet processing thread. */
@@ -132,6 +126,7 @@ enum {
     MBUF_FREE
 };
 
+extern enum xran_if_state xran_if_current_state;
 extern uint8_t ping_dst_id;
 extern struct ether_addr entities_addrs[];
 
@@ -154,12 +149,16 @@ int xran_register_ethertype_handler(uint16_t ethertype, ethertype_handler callba
 int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
     int *lcore_id, struct ether_addr *p_lls_cu_addr, struct ether_addr *p_ru_addr,
     uint16_t cp_vlan, uint16_t up_vlan);
-int xran_ethdi_dpdk_io_loop(void *);
 struct rte_mbuf *xran_ethdi_mbuf_alloc(void);
 int xran_ethdi_mbuf_send(struct rte_mbuf *mb, uint16_t ethertype);
 int xran_ethdi_mbuf_send_cp(struct rte_mbuf *mb, uint16_t ethertype);
+#if 0
 void xran_ethdi_stop_tx(void);
+void xran_ethdi_ports_stats(void);
+int xran_ethdi_dpdk_io_loop(void *);
+#endif
 int xran_ethdi_filter_packet(struct rte_mbuf *pkt, uint64_t rx_time);
+int32_t process_dpdk_io(void);
 
 
 #ifdef __cplusplus

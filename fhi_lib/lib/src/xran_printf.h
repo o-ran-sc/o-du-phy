@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief Modules provide debug prints and utility functions
  * @file xran_printf.h
@@ -101,7 +100,16 @@ extern "C" {
 
 #endif /* _IASSERT_*/
 
-
+#ifdef CHECK_PARAMS
+#define CHECK_NOT_NULL(param, returnValue)      \
+if (param == NULL)                          \
+{                                           \
+    print_err("%s is NULL!\n", #param);   \
+    return returnValue;                     \
+}
+#else
+#define CHECK_NOT_NULL(param, returnValue)
+#endif
 
 #ifdef __cplusplus
 }

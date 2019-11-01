@@ -16,14 +16,20 @@
 *
 *******************************************************************************/
 
-#ifndef _MLOG_LNX_XRAN_H_
-#define _MLOG_LNX_XRAN_H_
+
+#ifndef _XRAN_MLOG_LNX_H_
+#define _XRAN_MLOG_LNX_H_
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
+#ifdef MLOG_ENABLED
+#include <mlog_lnx.h>
+#else
+
+/* stubs for MLOG functions */
 #define MLOG_FALSE                  ( 0 )
 
 #define MLogOpen(a, b, c, d, e)     MLOG_FALSE
@@ -47,9 +53,11 @@ extern "C"
 #define MLogAddTestCase(a, b)       MLOG_FALSE
 #define MLogAddPowerStats(a, b, c, d, e) MLOG_FALSE
 
+#endif /* MLOG_ENABLED */
+
 #ifdef __cplusplus
 }
 #endif /* #ifdef __cplusplus */
 
-#endif  /* #ifndef _MLOG_LNX_H_ */
+#endif  /* #ifndef _XRAN_MLOG_LNX_H_ */
 

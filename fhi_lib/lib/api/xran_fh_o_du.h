@@ -18,18 +18,20 @@
 
 
 /**
- * @brief This file provides public interface to XRAN Front Haul layer implementation as defined in the
- *      XRAN-FH.CUS.0-v02.00 spec. Implementation is specific to lls-CU node
- *      for 5G NR Radio Access technology
+ * @brief This file provides public interface to xRAN Front Haul layer implementation as defined in the
+ *      ORAN-WG4.CUS.0-v01.00 spec. Implementation specific to
+ *      Lower Layer Split Central Unit (O-DU): a logical node that includes the eNB/gNB functions as
+ *      listed in section 2.1 split option 7-2x, excepting those functions allocated exclusively to the O-RU.
+ *      The O-DU controls the operation of O-RUs for 5G NR Radio Access technology
  *
- * @file xran_fh_lls_cu.h
+ * @file xran_fh_o_du.h
  * @ingroup group_lte_source_xran
  * @author Intel Corporation
  *
  **/
 
-#ifndef _XRAN_FH_LLS_CU_H_
-#define _XRAN_FH_LLS_CU_H_
+#ifndef _XRAN_FH_O_DU_H_
+#define _XRAN_FH_O_DU_H_
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,31 +90,54 @@ extern "C" {
  *  parameters supplied.  This may be because a particular
  *  capability is not supported by the current implementation. */
 
-/** Macro to calculate TTI number [0:7999] from symbol index [0: 112000-1] used by timing thread */
+#define XRAN_STATUS_INVALID_PACKET (-7)
+/**<
+ *  @ingroup xran
+ *  Recevied packet does not have correct format. */
+
+/** Macro to calculate TTI number from symbol index used by timing thread */
 #define XranGetTtiNum(symIdx, numSymPerTti) (((uint32_t)symIdx / (uint32_t)numSymPerTti))
-/** Macro to calculate Symbol number [0:7] for given slot from symbol index [0: 112000-1] */
+/** Macro to calculate Symbol number for given slot from symbol index  */
 #define XranGetSymNum(symIdx, numSymPerTti) (((uint32_t)symIdx % (uint32_t)numSymPerTti))
-/** Macro to calculate Frame number [0:99] for given tti [0: 7999] */
+/** Macro to calculate Frame number for given tti */
 #define XranGetFrameNum(tti,numSubFramePerSystemFrame, numSlotPerSubFrame)  ((uint32_t)tti / ((uint32_t)numSubFramePerSystemFrame * (uint32_t)numSlotPerSubFrame))
-/** Macro to calculate Subframe number [0:9] for given tti [0: 7999] */
+/** Macro to calculate Subframe number for given tti */
 #define XranGetSubFrameNum(tti, numSlotPerSubFrame, numSubFramePerSystemFrame) (((uint32_t)tti/(uint32_t)numSlotPerSubFrame) % (uint32_t)numSubFramePerSystemFrame)
-/** Macro to calculate Slot number [0:7] for given tti [0: 7999] */
+/** Macro to calculate Slot number */
 #define XranGetSlotNum(tti, numSlotPerSfn) ((uint32_t)tti % ((uint32_t)numSlotPerSfn))
 
-#define XRAN_PORTS_NUM      (1) /**< number of XRAN ports supported */
-#define XRAN_N_FE_BUF_LEN   (80)/** Number of TTIs (slots) */
-#define XRAN_MAX_SECTOR_NR  (4) /**< Max sectors per XRAN port */
-#define XRAN_MAX_ANTENNA_NR (4) /**< Max antenna per port */
-#define XRAN_NUM_OF_SYMBOL_PER_SLOT          ( 14 ) /**< Number of symbols per slot */
+#define XRAN_PORTS_NUM      (1)  /**< number of XRAN ports (aka O-RU devices) supported */
+#define XRAN_N_FE_BUF_LEN   (80) /**< Number of TTIs (slots) */
+#define XRAN_MAX_SECTOR_NR  (12) /**< Max sectors per XRAN port */
+#define XRAN_MAX_ANTENNA_NR (4)  /**< Max antenna per port */
+#define XRAN_NUM_OF_SYMBOL_PER_SLOT  (14) /**< Number of symbols per slot */
+#define XRAN_MAX_TDD_PERIODICITY     (80)   /**< Max TDD pattern period */
+#define XRAN_MAX_CELLS_PER_PORT      (XRAN_MAX_SECTOR_NR) /**< Max cells mapped to XRAN port */
+#define XRAN_COMPONENT_CARRIERS_MAX  (XRAN_MAX_SECTOR_NR) /**< number of CCs */
+#define XRAN_NUM_OF_ANT_RADIO        (XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR) /**< Max Number of Antennas supported for all CC on single XRAN port */
+#define XRAN_MAX_PRBS                (275) /**< Max of PRBs per CC per antanna for 5G NR */
 
-#define XRAN_MAX_CELLS_PER_PORT      (4) /**< Max cells mapped to XRAN port */
-#define XRAN_COMPONENT_CARRIERS_MAX  XRAN_MAX_SECTOR_NR /**< number of CCs */
-#define XRAN_NUM_OF_ANT_RADIO        16  /**< Max Number of Antennas supported for all CC on single XRAN port */
 
 #define XRAN_MAX_PKT_BURST (448+4) /**< 4x14x8 symbols per ms */
 #define XRAN_N_MAX_BUFFER_SEGMENT XRAN_MAX_PKT_BURST /**< Max number of segments per ms */
 
-#define XRAN_STRICT_PARM_CHECK      (1) /**< enable parameter check for C-plane */
+#define XRAN_STRICT_PARM_CHECK               (1) /**< enable parameter check for C-plane */
+
+/* Slot type definition */
+#define XRAN_SLOT_TYPE_INVALID               (0) /**< invalid slot type */
+#define XRAN_SLOT_TYPE_DL                    (1) /**< DL slot */
+#define XRAN_SLOT_TYPE_UL                    (2) /**< UL slot */
+#define XRAN_SLOT_TYPE_SP                    (3) /**< Special slot */
+#define XRAN_SLOT_TYPE_FDD                   (4) /**< FDD slot */
+#define XRAN_SLOT_TYPE_LAST                  (5) /**< MAX slot */
+
+/* symbol type definition */
+#define XRAN_SYMBOL_TYPE_DL                  (0) /**< DL symbol  */
+#define XRAN_SYMBOL_TYPE_UL                  (1) /**< UL symbol  */
+#define XRAN_SYMBOL_TYPE_GUARD               (2) /**< GUARD symbol */
+#define XRAN_SYMBOL_TYPE_FDD                 (3) /**< FDD symbol */
+
+#define XRAN_NUM_OF_SLOT_IN_TDD_LOOP         (80)/**< MAX number of slot for TDD repetition */
 
 //#define _XRAN_DEBUG   /**< Enable debug log */
 //#define _XRAN_VERBOSE /**< Enable verbose log */
@@ -145,6 +170,18 @@ extern "C" {
         __FILE__,                       \
         __LINE__, ##__VA_ARGS__)
 
+enum XranFrameDuplexType
+{
+    XRAN_FDD = 0, XRAN_TDD
+};
+
+enum xran_if_state
+{
+    XRAN_INIT = 0,
+    XRAN_RUNNING,
+    XRAN_STOPPED
+};
+
 /**
  ******************************************************************************
  * @ingroup xran
@@ -159,7 +196,7 @@ enum xran_compression_method {
     XRAN_COMPMETHOD_ULAW        = 3,
     XRAN_COMPMETHOD_MODULATION  = 4,
     XRAN_COMPMETHOD_MAX
-    };
+};
 
 /**
  ******************************************************************************
@@ -176,35 +213,23 @@ enum callback_to_phy_id
     XRAN_CB_MAX /**< max number of callbacks */
 };
 
-typedef int32_t XranStatusInt32; /**< Xran status return value */
+typedef int32_t xran_status_t; /**< Xran status return value */
 
 /** callback function type for Symbol packet */
-typedef void (*XRANFHSYMPROCCB)(void*);
+typedef void (*xran_callback_sym_fn)(void*);
 
 /** Callback function type for TTI event */
-typedef int (*XRANFHTTIPROCCB)(void* );
+typedef int (*xran_fh_tti_callback_fn)(void*);
 
 /** Callback function type packet arrival from transport layer (ETH or IP) */
-typedef void (*XranTransportBlockCallbackFn)(void*, int32_t);
+typedef void (*xran_transport_callback_fn)(void*, int32_t);
 
-/**
-* Component Carrier Initialization
-*/
-typedef struct tagXRANCCINIT
-{
-    uint32_t RadioMode; /**< XRAN mode Cat A or Cat B on given CC */
-    uint32_t nTxAnt;    /**< Number of TX antennas */
-    uint32_t nRxAnt;    /**< Number of RX antennas */
-    uint32_t radiobw;   /**< bandwidth id */
-    uint32_t dpdk_port; /**< networking layer port id */
-    char *dpdk_pcie_eth_dev; /**< pcie device for this cc */
-    char *ru_mac_str;       /**< mac address of RU */
-    uint32_t ulAgc;     /**< state of UL AGC (ON/OFF) */
-    uint32_t numCell;   /**< Number of Cells per port per CC */
-    uint32_t phyInsId[XRAN_MAX_CELLS_PER_PORT]; /**< Mapping of Cell ID to CC */
-    uint32_t dpdkRxCore; /**< DPDK RX Core */
-    uint32_t dpdkTxCore; /**< DPDK TX Core */
-}XRANCCINIT, *PXRANCCINIT;
+/** Callback functions to poll BBdev encoder */
+typedef int16_t (*phy_encoder_poll_fn)(void);
+
+/** Callback functions to poll BBdev secoder */
+typedef int16_t (*phy_decoder_poll_fn)(void);
+
 
 /** XRAN port enum */
 enum xran_vf_ports
@@ -214,22 +239,47 @@ enum xran_vf_ports
     XRAN_VF_MAX
 };
 
-/** DPDK IO configuration for XRAN layer */
-typedef struct tagXRAN_IO_LOOP_CFG
+/** XRAN category enum */
+enum xran_category
 {
-    uint8_t id;
-    char *dpdk_dev[XRAN_VF_MAX];
-    int core;
-    int system_core;    /* Needed as DPDK will change your starting core. */
-    int pkt_proc_core;  /* Needed for packet processing thread. */
-    int pkt_aux_core;   /* Needed for debug purposes. */
-    int timing_core;    /* Needed for getting precise time */
-    int port[XRAN_VF_MAX];  /* This is auto-detected, no need to set. */
-}XRAN_IO_LOOP_CFG, *PXRAN_IO_LOOP_CFG;
+    XRAN_CATRGORY_A = 0,
+    XRAN_CATRGORY_B = 1,
+    XRAN_CATRGORY_MAX
+};
+
+/** type of beamforming */
+enum xran_beamforming_type
+{
+    XRAN_BEAM_ID_BASED = 0, /**< beam index based */
+    XRAN_BEAM_WEIGHT,       /**< beam forming weights */
+    XRAN_BEAM_ATTRIBUTE,    /**< beam index based */
+};
+
+/** state of bbdev with xran */
+enum xran_bbdev_init
+{
+    XRAN_BBDEV_NOT_USED    = -1, /**< BBDEV is disabled */
+    XRAN_BBDEV_MODE_HW_OFF = 0,  /**< BBDEV is enabled for SW sim mode */
+    XRAN_BBDEV_MODE_HW_ON  = 1,  /**< BBDEV is enable for HW */
+    XRAN_BBDEV_MODE_MAX
+};
+
+/** DPDK IO configuration for XRAN layer */
+struct xran_io_cfg {
+    uint8_t id; /**< should be (0) for O-DU or (1) O-RU (debug) */
+    char *dpdk_dev[XRAN_VF_MAX]; /**< VFs devices  */
+    char *bbdev_dev[1];     /**< BBDev dev name */
+    int32_t bbdev_mode;     /**< DPDK for BBDev */
+    int32_t core;           /**< reservd */
+    int32_t system_core;    /**< reservd */
+    int32_t pkt_proc_core;  /**< reservd */
+    int32_t pkt_aux_core;   /**< reservd */
+    int32_t timing_core;    /**< core used by xRAN */
+    int32_t port[XRAN_VF_MAX];  /**< VFs ports */
+};
 
 /** XRAN spec section 3.1.3.1.6 ecpriRtcid / ecpriPcid define */
-typedef struct tagXRANEAXCIDCONFIG
-{
+struct xran_eaxcid_config {
     uint16_t mask_cuPortId;     /**< Mask CU PortId */
     uint16_t mask_bandSectorId; /**< Mask Band */
     uint16_t mask_ccId;         /**< Mask CC */
@@ -237,35 +287,27 @@ typedef struct tagXRANEAXCIDCONFIG
 
     uint8_t bit_cuPortId;       /**< bandsectorId + ccId + ruportId */
     uint8_t bit_bandSectorId;   /**< ccId + ruPortId */
-    uint8_t bit_ccId;           /**<  ruportId */
-    uint8_t bit_ruPortId;       /**<  0 */
-}XRANEAXCIDCONFIG, *PXRANEAXCIDCONFIG;
+    uint8_t bit_ccId;           /**< ruportId */
+    uint8_t bit_ruPortId;       /**< 0 */
+};
 
 /**
 * XRAN Front haul interface initialization settings
 */
-typedef struct tagXRANFHINIT
-{
-    uint32_t llscuId;    /**< lls-cu ID */
-    uint32_t nSec;       /**< number of sectors, shall be 1 */
-    XRANCCINIT ccCfg[XRAN_COMPONENT_CARRIERS_MAX]; /**< configuration of each CCs */
-    XRANEAXCIDCONFIG eAxCId_conf; /**< config of ecpriRtcid/ecpriPcid */
-    uint32_t radio_iface;         /**< enable/disable radio */
-    uint32_t dpdkMasterCore;      /**< master core of DPDK */
-    uint32_t dpdkMemorySize;      /**< huge pages allocation for DPDK */
-    uint32_t dpdkIrqMode;         /**< DPDK IRQ or PMD mode */
+struct xran_fh_init {
+    struct xran_io_cfg io_cfg;/**< DPDK IO for XRAN */
+    struct xran_eaxcid_config eAxCId_conf; /**< config of ecpriRtcid/ecpriPcid */
+
     uint32_t dpdkBasebandFecMode; /**< DPDK Baseband FEC device mode (0-SW, 1-HW) */
     char *dpdkBasebandDevice;     /**< DPDK Baseband device address */
-    uint32_t singleThreadTxRx;
-    uint32_t bbuPoolCores;  /**< DPDK cores for BBU pool */
-    uint32_t radioEnabled;  /**< reserved */
-    uint32_t powerSaveEn;   /**< reserved */
-    char *filePrefix;       /**< DPDK prefix */
-    XRAN_IO_LOOP_CFG io_cfg;/**< DPDK IO for XRAN */
-    uint8_t xranMode;       /**< mode: lls-CU or RU */
-    int8_t *p_lls_cu_addr;  /**<  lls-CU Ethernet Mac Address */
-    int8_t *p_ru_addr;      /**<  RU Ethernet Mac Address */
-    uint32_t ttiPeriod;     /**< TTI period */
+    char *filePrefix;             /**< DPDK prefix */
+
+    enum xran_category xranCat;   /**< mode: Catergory A or Category B */
+
+    uint32_t mtu; /**< maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single
+                       xRAN network layer transaction. supported 1500 bytes and 9600 bytes (Jumbo Frame) */
+    int8_t   *p_o_du_addr;  /**<  O-DU Ethernet Mac Address */
+    int8_t   *p_o_ru_addr;  /**<  O-RU Ethernet Mac Address */
 
     uint16_t Tadv_cp_dl;    /**< Table 2 7 : xRAN Delay Management Model Parameters */
     uint16_t T2a_min_cp_dl; /**< Table 2 7 : xRAN Delay Management Model Parameters */
@@ -285,158 +327,157 @@ typedef struct tagXRANFHINIT
     uint16_t Ta4_min;       /**< Table 2 7 : xRAN Delay Management Model Parameters */
     uint16_t Ta4_max;       /**< Table 2 7 : xRAN Delay Management Model Parameters */
 
-    uint8_t enableCP;    /**<  enable C-plane */
-    uint8_t cp_vlan_tag; /**<  C-plane vlan tag */
-    uint8_t up_vlan_tag; /**<  U-plane vlan tag */
-    int32_t debugStop;   /**<  enable auto stop */
-} XRANFHINIT, *PXRANFHINIT;
+    uint8_t enableCP;       /**<  enable C-plane */
+    uint8_t prachEnable;    /**<  enable PRACH   */
+    uint8_t cp_vlan_tag;    /**<  C-plane vlan tag */
+    uint8_t up_vlan_tag;    /**<  U-plane vlan tag */
+    int32_t debugStop;      /**<  enable auto stop */
+    int32_t debugStopCount;      /**<  enable auto stop after number of Tx packets */
+    int32_t DynamicSectionEna; /**<  enable dynamic C-Plane section allocation */
+};
 
-/** XRAN Playback format */
-typedef enum {
-    XRAN_RADIO_PLAYBACK_TIME_DOMAIN = 0,
-    XRAN_RADIO_PLAYBACK_FREQ_DOMAIN = 1
-} XranPlaybackFormatEnum;
+struct xran_cp_bf_weight{
+    int16_t weight[64];
+};
+struct xran_cp_bf_attribute{
+    int16_t weight[4];
+};
+struct xran_cp_bf_precoding{
+    int16_t weight[4];
+};
+
+/** PRB element structure */
+struct xran_prb_elm {
+    int16_t nRBStart; /**< start RB of RB allocation */
+    int16_t nRBSize;  /**< number of RBs used */
+    int16_t nStartSymb; /**< start symbol ID */
+    int16_t numSymb;  /**< number of symbol */
+    int16_t nBeamIndex; /**< beam index for given PRB */
+    int16_t compMethod; /**< compression index for given PRB */
+    int16_t BeamFormingType;
+    union {
+        struct xran_cp_bf_attribute bf_attribute;
+        struct xran_cp_bf_precoding bf_precoding;
+    };
+};
+
+/** PRB map structure */
+struct xran_prb_map {
+    uint8_t   dir;        /**< DL or UL direction */
+    uint8_t   xran_port;  /**< xran id of given RU [0-(XRAN_PORTS_NUM-1)] */
+    uint16_t  band_id;    /**< xran band id */
+    uint16_t  cc_id;      /**< componnent carrier id [0 - (XRAN_MAX_SECTOR_NR-1)] */
+    uint16_t  ru_port_id; /**< RU device antenna port id [0 - (XRAN_MAX_ANTENNA_NR-1) */
+    uint16_t  tti_id;     /**< xRAN slot id [0 - (max tti-1)] */
+    uint8_t   start_sym_id;     /**< start symbol Id [0-13] */
+    uint8_t   bf_weight_update;     /**need to update beam weight or not*/
+    uint32_t  nPrbElm;    /**< total number of PRBs for given map [0- (XRAN_MAX_PRBS-1)] */
+    struct xran_prb_elm prbMap[XRAN_MAX_PRBS];
+    struct xran_cp_bf_weight bf_weight;
+};
 
 /* PRACH config required for XRAN based FH */
-typedef struct tagXRANPRACHCONFIG
+struct xran_prach_config
 {
-    /**** word 5 *****/
     /* PRACH config*/
-    /** PRACH Configuration Index*/
-    uint8_t      nPrachConfIdx;
-    /** PRACH Sub-carrier spacing
+    uint8_t      nPrachConfIdx;  /**< PRACH Configuration Index*/
+    uint8_t      nPrachSubcSpacing;
+    /**< PRACH Sub-carrier spacing
     Value:0->1
     For below 6GHz the values indicate 15kHz or 30kHz
     For above 6GHz the values indicate 60kHz or 120kHz*/
-    /*PRACH zeroCorrelationZoneConfig */
-    uint8_t      nPrachSubcSpacing;
-    /** PRACH zeroCorrelationZoneConfig */
-    uint8_t      nPrachZeroCorrConf;
-    /** PRACH restrictedSetConfig */
-    uint8_t      nPrachRestrictSet;
+    uint8_t      nPrachZeroCorrConf; /**< PRACH zeroCorrelationZoneConfig */
+    uint8_t      nPrachRestrictSet;  /**< PRACH restrictedSetConfig */
+    uint16_t     nPrachRootSeqIdx; /**< PRACH Root Sequence Index */
+    uint16_t     nPrachFreqStart;  /**< PRACH prach-frequency-start  */
+    int32_t      nPrachFreqOffset; /**< PRACH prach-frequency-offset */
+    uint8_t      nPrachFilterIdx;  /**< PRACH Filter index */
+};
 
-    /**** word 6 *****/
-    /** PRACH Root Sequence Index */
-    uint16_t     nPrachRootSeqIdx;
-    /** PRACH prach-frequency-start  */
-    uint16_t     nPrachFreqStart;
-
-    /** PRACH prach-frequency-offset */
-    int32_t     nPrachFreqOffset;
-    /** PRACH Filter index */
-    uint8_t     nPrachFilterIdx;
-}XRANPRACHCONFIG, *PXRANPRACHCONFIG;
-
-/** XRAN front haul playback configuration (not supported in 19.03) */
-typedef struct tagXRANFHPLAYBACK
-{
-    XranPlaybackFormatEnum TxPlayFormatType; /**< type of play back files [Time|Freq] */
-
-    unsigned long TxPlayBufAddr[XRAN_NUM_OF_ANT_RADIO]; /**< pointer to buffers to play */
-    uint32_t TxPlayBufSize; /**< Buffer size */
-
-    char*      TxPlayFileName[XRAN_NUM_OF_ANT_RADIO]; /**< files to play */
-    uint32_t   TxPlayFileSize; /**< expected the same size for all Ant */
-
-}XRANPLAYBACKCONFIG,*PXRANPLAYBACKCONFIG;
-
-/** XRAN front haul logging configuration (not supported in 19.03) */
-typedef struct tagXRANFHLOGCONF
-{
-    /* logging */
-    unsigned long TxLogBufAddr;
-    uint32_t TxLogBufSize;
-
-    unsigned long TxLogIfftInAddr;
-    uint32_t  TxLogIfftInSize;
-
-    unsigned long TxLogIfft1200InAddr;
-    uint32_t  TxLogIfft1200InSize;
-
-    unsigned long RxLogFftOutAddr;
-    uint32_t  RxLogFftOutSize;
-
-    unsigned long RxLogFftOutExpAddr;
-    uint32_t  RxLogFftOutExpSize;
-
-    unsigned long RxLogFftOutGainAddr;
-    uint32_t  RxLogFftOutGainSize;
-
-    unsigned long RxLogBufAddr;
-    uint32_t  RxLogBufSize;
-
-    unsigned long RxLogAlawBufAddr;
-    uint32_t  RxLogAlawBufSize;
-
-    unsigned long RxLogPrachBufAddr;
-    uint32_t  RxLogPrachBufSize;
-
-    uint32_t  cfg_dl_iq_buf_enabled;
-    uint32_t  cfg_ul_iq_buf_enabled;
-
-}XRANFHLOGCONF, *PXRANFHLOGCONF;
+/** XRAN slot configuration */
+struct xran_slot_config {
+    uint8_t nSymbolType[XRAN_NUM_OF_SYMBOL_PER_SLOT]; /**< Defines the Symbol type for all 14 symbols in a slot. 0: DL, 1: UL, 2: Guard */
+    uint8_t reserved[2];
+};
 
 /** XRAN front haul frame config */
-typedef struct tagXRANFRAMECONFIG
-{
-    /** Frame Duplex type:  0 -> FDD, 1 -> TDD */
-    uint8_t      nFrameDuplexType;
-    /** Numerology, determine sub carrier spacing, Value: 0->4
-       0: 15khz,  1: 30khz,  2: 60khz
-       3: 120khz, 4: 240khz */
-    uint8_t      nNumerology;
-    /** TDD period */
-    uint8_t      nTddPeriod;
-}XRANFRAMECONFIG, *PXRANFRAMECONFIG;
+struct xran_frame_config {
+    uint8_t      nFrameDuplexType; /**< Frame Duplex type:  0 -> FDD, 1 -> TDD */
+    uint8_t      nNumerology; /**< Numerology, determine sub carrier spacing, Value: 0->4
+                                   0: 15khz,  1: 30khz,  2: 60khz
+                                   3: 120khz, 4: 240khz */
+    uint8_t      nTddPeriod;  /**< TDD period */
+    struct xran_slot_config sSlotConfig[XRAN_MAX_TDD_PERIODICITY];
+    /**< TDD Slot configuration - If nFrameDuplexType = TDD(1), then this config defines the slot config type for each slot.*/
+    /* The number of slots need to be equal to nTddPeriod */
+};
 
-/** XRAN front haul BBU pooling config */
-typedef struct tagXRANBBUPOOLCONFIG
-{
-    uint32_t isBbuPool; /**< FH running with BBU pool */
-}XRANBBUPOOLCONFIG, *PXRANBBUPOOLCONFIG;
+/** XRAN-PHY interface byte order */
+enum xran_input_byte_order {
+    XRAN_NE_BE_BYTE_ORDER = 0, /**< Network byte order (Big endian), xRAN lib doesn't do swap */
+    XRAN_CPU_LE_BYTE_ORDER     /**< CPU byte order (Little endian), xRAN lib does do swap */
+};
+
+/** XRAN-PHY interface I and Q order */
+enum xran_input_i_q_order {
+    XRAN_I_Q_ORDER = 0,  /**< I , Q */
+    XRAN_Q_I_ORDER       /**< Q , I */
+};
 
 /** XRAN front haul IQ compression settings */
-typedef struct tagXRANRUCONFIG
-{
+struct xran_ru_config {
     uint8_t iqWidth;        /**< IQ bit width */
     uint8_t compMeth;       /**< Compression method */
     uint8_t fftSize;        /**< FFT Size */
-}XRANRUCONFIG, *PXRANRUCONFIG;
-
-/** XRAN front haul Phase compensation settings */
-typedef struct
-{
-    uint32_t nSecNum;
-    uint32_t nPhaseCompFlag;
-    uint32_t nDlArfcn[XRAN_MAX_SECTOR_NR];
-    uint32_t nUlArfcn[XRAN_MAX_SECTOR_NR];
-}XRANPHASECompConfig;
+    enum xran_input_byte_order byteOrder; /**< Order of bytes in int16_t in buffer. Big or little endian */
+    enum xran_input_i_q_order  iqOrder;   /**< order of IQs in the buffer */
+};
 
 /**
  * @ingroup xran
- *XRAN front haul general configuration */
-typedef struct tagXRANFHCONFIG
-{
+ * XRAN front haul general configuration */
+struct xran_fh_config {
     uint32_t            dpdk_port; /**< DPDK port number used for FH */
     uint32_t            sector_id; /**< Band sector ID for FH */
     uint32_t            nCC;       /**< number of Component carriers supported on FH */
-    uint32_t            neAxc;     /**< number of eAxc supported on FH */
-    XRANPLAYBACKCONFIG  playback_conf;/**< configuration of playback of IQs supported with FH */
-    XRANFHLOGCONF       log_conf;     /**< config of logging functionality supported by FH */
-    XRANFHTTIPROCCB     ttiCb;        /**< call back for TTI event */
+    uint32_t            neAxc;     /**< number of eAxc supported on one CC*/
+    uint16_t            nDLFftSize;  /**< DL FFT size */
+    uint16_t            nULFftSize;  /**< UL FFT size */
+    uint16_t            nDLRBs;      /**< DL PRB  */
+    uint16_t            nULRBs;      /**< UL PRB  */
+    uint32_t            nDLAbsFrePointA; /**< Abs Freq Point A of the Carrier Center Frequency for in KHz Value: 450000->52600000 */
+    uint32_t            nULAbsFrePointA; /**< Abs Freq Point A of the Carrier Center Frequency for in KHz Value: 450000->52600000 */
+    uint32_t            nDLCenterFreqARFCN;   /**< center frerquency for DL in MHz */
+    uint32_t            nULCenterFreqARFCN;   /**< center frerquency for UL in MHz */
+    xran_fh_tti_callback_fn     ttiCb;        /**< call back for TTI event */
     void                *ttiCbParam;  /**< parameters of call back function */
-    XRANPRACHCONFIG     prach_conf;   /**< PRACH specific configurations for FH */
-    XRANFRAMECONFIG     frame_conf;   /**< frame config */
-    XRANBBUPOOLCONFIG   bbu_conf;     /**< BBU pool config */
-    XRANRUCONFIG        ru_conf;      /**< config of RU as per XRAN spec */
-    XRANPHASECompConfig phase_compensation; /**< phase compensation settings */
-}XRANFHCONFIG, *PXRANFHCONFIG;
 
+    struct xran_prach_config     prach_conf;   /**< PRACH specific configurations for FH */
+    struct xran_frame_config     frame_conf;   /**< frame config */
+    struct xran_ru_config        ru_conf;      /**< config of RU as per XRAN spec */
+
+    phy_encoder_poll_fn bbdev_enc; /**< call back to poll BBDev encoder */
+    phy_decoder_poll_fn bbdev_dec; /**< call back to poll BBDev decoder */
+
+    uint32_t log_level; /**< configuration of log level */
+};
+
+/**
+ * @ingroup xran
+ * XRAN front haul statistic counters according to Table 7 1 : Common Counters for both DL and UL */
+struct xran_common_counters{
+    uint64_t Rx_on_time;      /**< Data was received on time (applies to user data reception window) */
+    uint64_t Rx_early;        /**< Data was received too early (applies to user data reception window) */
+    uint64_t Rx_late;         /**< Data was received too late (applies to user data reception window) */
+    uint64_t Rx_corrupt;      /**< Corrupt/Incorrect header packet */
+    uint64_t Rx_pkt_dupl;     /**< Duplicated packet */
+    uint64_t Total_msgs_rcvd; /**< Total messages received (on all links) */
+};
 
 /**
  * @ingroup xran
  * CC instance handle pointer type */
-typedef void * XranCcInstanceHandleVoidP;
+typedef void * xran_cc_handle_t;
 
 /**
  *****************************************************************************
@@ -448,7 +489,7 @@ typedef void * XranCcInstanceHandleVoidP;
  *      buffer segment may contain several equally sized elements.
  *
  *****************************************************************************/
-typedef struct XRANFlatBuffer
+struct xran_flat_buffer
 {
     uint32_t nElementLenInBytes;
     /**< The Element length specified in bytes.
@@ -465,7 +506,9 @@ typedef struct XRANFlatBuffer
     /**< The data pointer is a virtual address, however the actual data pointed
      * to is required to be in contiguous physical memory unless the field
      requiresPhysicallyContiguousMemory in CpaInstanceInfo is false. */
-} XRANFlatBufferStruct;
+    void *pCtrl;
+    /**< pointer to control section coresponding to data buffer */
+};
 
 /**
  *****************************************************************************
@@ -485,11 +528,11 @@ typedef struct XRANFlatBuffer
  *      the pPrivateMetaData memory.
  *
  *****************************************************************************/
-typedef struct XRANBufferList
+struct xran_buffer_list
 {
     uint32_t nNumBuffers;
     /**< Number of pointers */
-    XRANFlatBufferStruct *pBuffers;
+    struct xran_flat_buffer *pBuffers;
     /**< Pointer to an unbounded array containing the number of CpaFlatBuffers
      * defined by nNumBuffers */
     void *pUserData;
@@ -501,7 +544,7 @@ typedef struct XRANBufferList
      * cpaCyBufferListGetMetaSize. If cpaCyBufferListGetMetaSize returns a size
      * of zero no memory needs to be allocated, and this parameter can be NULL.
      */
-} XRANBufferListStruct;
+};
 
 /**
  * @ingroup xran
@@ -519,7 +562,7 @@ typedef struct XRANBufferList
  *   0 - on success
  *   Error codes returned via rte_errno
  */
-int32_t xran_init(int argc, char *argv[], PXRANFHINIT p_xran_fh_init, char *appName, void ** pHandle);
+int32_t xran_init(int argc, char *argv[], struct xran_fh_init *p_xran_fh_init, char *appName, void ** pHandle);
 
 /**
  * @ingroup xran
@@ -532,13 +575,13 @@ int32_t xran_init(int argc, char *argv[], PXRANFHINIT p_xran_fh_init, char *appN
  * @param nNumInstances
  *   total number of instances of CC
  * @param pSectorInstanceHandles
- *   Pointer to XranCcInstanceHandleVoidP where to store Handle pointer
+ *   Pointer to xran_cc_handle_t where to store Handle pointer
  *
  * @return
  *   0 - on success
  */
 int32_t xran_sector_get_instances (void * pHandle, uint16_t nNumInstances,
-               XranCcInstanceHandleVoidP * pSectorInstanceHandles);
+               xran_cc_handle_t * pSectorInstanceHandles);
 
 /**
  * @ingroup xran
@@ -587,13 +630,16 @@ int32_t xran_bm_init (void * pHandle, uint32_t * pPoolIndex, uint32_t nNumberOfB
  *   Pointer to XRAN layer handle for given CC
  * @param nPoolIndex
  *   buffer pool identification
- * @param ppVirtAddr
+ * @param ppData
  *   Pointer to pointer where to store address of new buffer
+ * @param ppCtrl
+ *   Pointer to pointer where to store address of internal private control information
+ *
  *
  * @return
  *   0 - on success
  */
-int32_t xran_bm_allocate_buffer(void * pHandle, uint32_t nPoolIndex, void **ppVirtAddr);
+int32_t xran_bm_allocate_buffer(void * pHandle, uint32_t nPoolIndex, void **ppData,  void **ppCtrl);
 
 /**
  * @ingroup xran
@@ -602,13 +648,15 @@ int32_t xran_bm_allocate_buffer(void * pHandle, uint32_t nPoolIndex, void **ppVi
  *
  * @param pHandle
  *   Pointer to XRAN layer handle for given CC
- * @param pVirtAddr
+ * @param pData
  *   Pointer to buffer
+ * @param pData
+ *   Pointer to internal private control information
  *
  * @return
  *   0 - on success
  */
-int32_t xran_bm_free_buffer(void * pHandle, void *pVirtAddr);
+int32_t xran_bm_free_buffer(void * pHandle, void *pData, void *pCtrl);
 
 /**
  * @ingroup xran
@@ -633,9 +681,13 @@ int32_t xran_mm_destroy (void * pHandle);
  *   Pointer to XRAN layer handle for given CC
  * @param pSrcBuffer
  *   list of memory buffers to use to fetch IQs from PHY to XRAN layer (DL)
+ * @param pSrcCpBuffer
+ *   list of memory buffers to use to configure C-plane (DL)
  * @param pDstBuffer
  *   list of memory buffers to use to deliver IQs from XRAN layer to PHY (UL)
- * @param XranTransportBlockCallbackFn pCallback
+ * @param pDstCpBuffer
+ *   list of memory buffers to use to configure C-plane (UL)
+ * @param xran_transport_callback_fn pCallback
  *   Callback function to call with arrival of all packets for given CC for given symbol
  * @param pCallbackTag
  *   Parameters of Callback function
@@ -644,11 +696,13 @@ int32_t xran_mm_destroy (void * pHandle);
  *   0  - on success
  *   -1 - on error
  */
-int32_t xran_5g_fronthault_config (void * pHandle,
-                XRANBufferListStruct *pSrcBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
-                XRANBufferListStruct *pDstBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
-                XranTransportBlockCallbackFn pCallback,
-                void *pCallbackTag);
+ int32_t xran_5g_fronthault_config (void * pHandle,
+                    struct xran_buffer_list *pSrcBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
+                    struct xran_buffer_list *pSrcCpBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
+                    struct xran_buffer_list *pDstBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
+                    struct xran_buffer_list *pDstCpBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
+                    xran_transport_callback_fn pCallback,
+                    void *pCallbackTag);
 
 /**
  * @ingroup xran
@@ -659,7 +713,7 @@ int32_t xran_5g_fronthault_config (void * pHandle,
  *   Pointer to XRAN layer handle for given CC
  * @param pDstBuffer
  *   list of memory buffers to use to deliver PRACH IQs from xran layer to PHY
- * @param XranTransportBlockCallbackFn pCallback
+ * @param xran_transport_callback_fn pCallback
  *   Callback function to call with arrival of PRACH packets for given CC
  * @param pCallbackTag
  *   Parameters of Callback function
@@ -669,30 +723,9 @@ int32_t xran_5g_fronthault_config (void * pHandle,
  *   -1 - on error
  */
 int32_t xran_5g_prach_req (void *  pHandle,
-                XRANBufferListStruct *pDstBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
-                XranTransportBlockCallbackFn pCallback,
+                struct xran_buffer_list *pDstBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
+                xran_transport_callback_fn pCallback,
                 void *pCallbackTag);
-/**
- * @ingroup xran
- *
- *   Function configures phase compensation for RU via XRAN layer with given handle
- *
- * @param pHandle
- *   Pointer to XRAN layer handle for given CC
- * @param nTxPhaseCps
- *   TX(DL) phase compensation settings
- * @param nTxPhaseCps
- *   RX(UL) phase compensation settings
- * @param nSectorId
- *   Sector id to use with given settings
- *
- * @return
- *   0 - on success
- */
-int32_t xran_5g_pre_compenstor_cfg(void* pHandle,
-                uint32_t nTxPhaseCps,
-                uint32_t nRxPhaseCps,
-                uint8_t nSectorId);
 
 /**
  * @ingroup xran
@@ -701,13 +734,13 @@ int32_t xran_5g_pre_compenstor_cfg(void* pHandle,
  *
  * @param pHandle
  *   Pointer to XRAN layer handle for given CC
- * @param PXRANFHCONFIG pConf
+ * @param pointer to struct xran_fh_config pConf
  *   Pointer to XRAN configuration structure with specific settings to use
  *
  * @return
  *   0 - on success
  */
-int32_t xran_open(void *pHandle, PXRANFHCONFIG pConf);
+int32_t xran_open(void *pHandle, struct xran_fh_config* pConf);
 
 /**
  * @ingroup xran
@@ -768,7 +801,7 @@ int32_t xran_close(void *pHandle);
  *    0 - in case of success
  *   -1 - in case of failure
  */
-int32_t xran_reg_sym_cb(void *pHandle, XRANFHSYMPROCCB symCb, void * symCbParam, uint8_t symb, uint8_t ant);
+int32_t xran_reg_sym_cb(void *pHandle, xran_callback_sym_fn symCb, void * symCbParam, uint8_t symb, uint8_t ant);
 
 /**
  * @ingroup xran
@@ -791,7 +824,7 @@ int32_t xran_reg_sym_cb(void *pHandle, XRANFHSYMPROCCB symCb, void * symCbParam,
  *    0 - in case of success
  *   -1 - in case of failure
  */
-int32_t xran_reg_physide_cb(void *pHandle, XRANFHTTIPROCCB Cb, void *cbParam, int skipTtiNum, enum callback_to_phy_id);
+int32_t xran_reg_physide_cb(void *pHandle, xran_fh_tti_callback_fn Cb, void *cbParam, int skipTtiNum, enum callback_to_phy_id);
 
 /**
  * @ingroup xran
@@ -815,8 +848,27 @@ int32_t xran_reg_physide_cb(void *pHandle, XRANFHTTIPROCCB Cb, void *cbParam, in
  */
 int32_t xran_get_slot_idx (uint32_t *nFrameIdx, uint32_t *nSubframeIdx,  uint32_t *nSlotIdx, uint64_t *nSecond);
 
+/**
+ * @ingroup xran
+ *
+ *   Function retrun XRAN layer common counters for given handle
+ *
+ * @param pHandle
+ *   Pointer to XRAN layer handle for given CC
+ *
+ * @param pStats
+ *   Pointer to pointer of common counter structure
+ *
+ * @return
+ *   0 - on success
+ */
+int32_t xran_get_common_counters(void *pXranLayerHandle, struct xran_common_counters *pStats);
+
+enum xran_if_state xran_get_if_state(void);
+
+
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* _XRAN_FH_LLS_CU_H_*/
+#endif /* _XRAN_FH_O_DU_H_*/

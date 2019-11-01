@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file has the System Debug Trace Logger (Mlog) Task IDs used by PHY
  * @file mlog_task_id.h
@@ -26,6 +25,10 @@
 
 #ifndef _XRAN_TASK_ID_H_
 #define _XRAN_TASK_ID_H_
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #define RESOURCE_CORE_0                             0
 #define RESOURCE_CORE_1                             1
@@ -51,11 +54,14 @@
 // XRAN APP
 //--------------------------------------------------------------------
 
-#define PID_GNB_PROC_TIMING                     902
-#define PID_GNB_PROC_TIMING_TIMEOUT             903
-#define PID_GNB_SYM_CB                          904
-#define PID_GNB_PRACH_CB                        905
+#define PID_GNB_PROC_TIMING                             70
+#define PID_GNB_PROC_TIMING_TIMEOUT                     71
+#define PID_GNB_SYM_CB                                  72
+#define PID_GNB_PRACH_CB                                73
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _XRAN_TASK_ID_H_ */
 

@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file provides interface to Timing for XRAN.
  *
@@ -28,6 +27,11 @@
 
 #ifndef _XRAN_TIMER_H
 #define _XRAN_TIMER_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,8 +44,13 @@
 
 long poll_next_tick(long interval_ns);
 long sleep_next_tick(long interval);
-int timing_set_debug_stop(int value);
+int timing_set_debug_stop(int value, int count);
 int timing_get_debug_stop(void);
 inline uint64_t timing_get_current_second(void);
+int timing_set_numerology(uint8_t value);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file provides interface to synchronization related APIs (PTP/1588)
  *        for XRAN.
@@ -30,6 +29,10 @@
 #ifndef _XRAN_SYNC_API_H_
 #define _XRAN_SYNC_API_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * @brief Function checks if machine is synchronized using PTP for Linux
  *        software.
@@ -37,5 +40,9 @@
  * @return int Returns 0 if synchronized, otherwise positive.
  */
 int xran_is_synchronized(void);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* _XRAN_SYNC_API_H_ */
