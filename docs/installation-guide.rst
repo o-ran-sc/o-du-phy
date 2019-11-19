@@ -335,7 +335,7 @@ if [ ${VM_DETECT} == 'HOST' ]; then
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:da:02.0 <<< port has to match VF function from step 1.11
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:da:02.1 <<< port has to match VF function from step 1.11
 
-	1.
+	
 Run
 
 * Run dpdk.sh to assign port to PMD
