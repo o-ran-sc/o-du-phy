@@ -318,6 +318,7 @@ fi
 
 #40G
 ./build/sample-app ./usecase/mu3_100mhz/config_file_o_du.dat  0000:da:02.0 0000:da:02.1
+
                                                               ^^^^^ ports have to match VF function from step 1.11 (0000:da:02.0 - U-plane  0000:da:02.1 C-plane)
 
 umount $huge_folder
@@ -524,17 +525,26 @@ xran_cp_init_sectiondb:Allocation Size for list : 1848 (28x66)
 xran_cp_init_sectiondb:Allocation Size for list : 1848 (28x66)
 xran_open: interval_us=125
 nSlotNum[0] : numDlSym[14] numGuardSym[0] numUlSym[0] XRAN_SLOT_TYPE_DL
+
             numDlSlots[1] numUlSlots[0] numSpSlots[0] numSpDlSlots[0] numSpUlSlots[0]
+            
 nSlotNum[1] : numDlSym[14] numGuardSym[0] numUlSym[0] XRAN_SLOT_TYPE_DL
+
             numDlSlots[2] numUlSlots[0] numSpSlots[0] numSpDlSlots[0] numSpUlSlots[0]
+            
 nSlotNum[2] : numDlSym[14] numGuardSym[0] numUlSym[0] XRAN_SLOT_TYPE_DL
+
             numDlSlots[3] numUlSlots[0] numSpSlots[0] numSpDlSlots[0] numSpUlSlots[0]
+            
 nSlotNum[3] : numDlSym[1] numGuardSym[2] numUlSym[11] XRAN_SLOT_TYPE_SP
+
             numDlSlots[3] numUlSlots[0] numSpSlots[1] numSpDlSlots[1] numSpUlSlots[1]
+            
 xran_fs_set_slot_type: nPhyInstanceId[0] nFrameDuplexType[1], nTddPeriod[4]
 DLRate[1.000000] ULRate[0.250000]
 SlotPattern:
 Slot:   0    1    2    3
+
     0   DL   DL   DL   SP
 
 xran_timing_source_thread [CPU  7] [PID: 292331]
