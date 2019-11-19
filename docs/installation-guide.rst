@@ -177,21 +177,29 @@ Hardware Requirements
 The following minimum hardware requirements must be met for installation of the FHI Library:
 *	Wolfpass server according to recommended BOM for FlexRAN such as Intel® Xeon® Skylake Gold 6148 FC-LGA3647 2.4GHz 27.5MB 150W 20 cores (2 sockets) 
 *	BIOS settings: 
+
     	Intel(R) Virtualization Technology Enabled
     	Intel(R) VT for Directed I/O - Enabled
         ACS Control - Enabled
     	Coherency Support - Disabled
+        
 *   Front Haul networking cards:
+
         Intel® Ethernet Converged Network Adapter XL710-QDA2
         Intel® Ethernet Converged Network Adapter XXV710-DA2
         Intel® FPGA Programmable Acceleration Card (Intel® FPGA PAC) N3000
-*	Back (Mid) Haul networking card can be either 
+        
+*	Back (Mid) Haul networking card can be either
+
     	Intel® Ethernet Connection X722 for 10GBASE-T  
         Intel® 82599ES 10-Gigabit SFI/SFP+ Network Connection
+        
 *   Other networking cards capable of HW timestamping for PTP synchronization.
+
 Note:	Both Back (mid) Haul and Front Haul NIC require support for PTP HW timestamping.
 
 The recommended configuration for NICs is: 
+
     ethtool -i enp216s0f0
     driver: i40e
     version: 2.8.43
@@ -206,17 +214,22 @@ The recommended configuration for NICs is:
     [root@5gnr-sc12-xran testmac]# ethtool -T enp216s0f0
     Time stamping parameters for enp216s0f0:
     Capabilities:
+    
         hardware-transmit     (SOF_TIMESTAMPING_TX_HARDWARE)
         software-transmit     (SOF_TIMESTAMPING_TX_SOFTWARE)
         hardware-receive      (SOF_TIMESTAMPING_RX_HARDWARE)
         software-receive      (SOF_TIMESTAMPING_RX_SOFTWARE)
         software-system-clock (SOF_TIMESTAMPING_SOFTWARE)
         hardware-raw-clock    (SOF_TIMESTAMPING_RAW_HARDWARE)
+        
     PTP Hardware Clock: 2
     Hardware Transmit Timestamp Modes:
+    
         off                   (HWTSTAMP_TX_OFF)
         on                    (HWTSTAMP_TX_ON)
+        
     Hardware Receive Filter Modes:
+    
         none                  (HWTSTAMP_FILTER_NONE)
         ptpv1-l4-sync         (HWTSTAMP_FILTER_PTP_V1_L4_SYNC)
         ptpv1-l4-delay-req    (HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ)
@@ -229,6 +242,7 @@ The recommended configuration for NICs is:
         ptpv2-event           (HWTSTAMP_FILTER_PTP_V2_EVENT)
         ptpv2-sync            (HWTSTAMP_FILTER_PTP_V2_SYNC)
         ptpv2-delay-req       (HWTSTAMP_FILTER_PTP_V2_DELAY_REQ)
+        
 PTP Grand Master is required to be available in the network to provide synchronization of both O-DU and RU to GPS time.
 
 Software Installation and Deployment
@@ -238,18 +252,23 @@ This section describes the installation of the Front Haul Interface Library on t
 
 * start matlab and run gen_test.m with correct Numerology, Bandwidth and number of slots
   copy ant_*.bin  to /xran/app/usecase/mu{X}_{Y}MHz
+  
 	where X is numerology: 0,1,3
+    
 	      Y is 5,10,20,100 MHz bandwidth
 
 * compile xran sample application (Please make sure that the export match your install directories for SDK, ORAN_FH_lib (i.e. XRAN_DIR), google test
+
     export RTE_SDK=/opt/dpdk-18.08
     export RTE_TARGET=x86_64-native-linuxapp-icc
     export XRAN_DIR= /home/npg_wireless-flexran_xran/
     export export GTEST_ROOT=/opt/gtest/gtest-1.7.0 
 
 * ./build.sh
+
     Number of commandline arguments: 0
     Building xRAN Library
+    
   LIBXRANSO=0
   CC ../lib/ethernet/ethdi.o
   CC ../lib/ethernet/ethernet.o
@@ -269,8 +288,10 @@ This section describes the installation of the Front Haul Interface Library on t
   Building xRAN Test Application
   CC ../app/src/common.o
   CC ../app/src/sample-app.o
+  
 remark #11074: Inlining inhibited by limit max-size
 remark #11076: To get full report use -qopt-report=4 -qopt-report-phase ipo
+
   CC ../app/src/config.o
   LD sample-app
   INSTALL-APP sample-app
@@ -290,7 +311,9 @@ grep Huge /proc/meminfo
 huge_folder="/mnt/huge_bbu"
 [ -d "$huge_folder" ] || mkdir -p $huge_folder
 if ! mount | grep $huge_folder; then
+
  mount none $huge_folder -t hugetlbfs -o rw,mode=0777
+ 
 fi
 
 #40G
@@ -305,6 +328,7 @@ cat ./dpdk.sh
 ...
 $RTE_SDK/usertools/dpdk-devbind.py --status
 if [ ${VM_DETECT} == 'HOST' ]; then
+
     #HOST
 
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:da:02.0 <<< port has to match VF function from step 1.11
@@ -424,7 +448,7 @@ TX: Convert S16 I and S16 Q to network byte order for XRAN Ant: [2]
 TX: Convert S16 I and S16 Q to network byte order for XRAN Ant: [3]
 System clock (rdtsc) resolution 1596250371 [Hz]
 Ticks per us 1596
- xran_init: MTU 9600
+xran_init: MTU 9600
 xran_ethdi_init_dpdk_io: Calling rte_eal_init:wls -c ffffffff -m5120 --proc-type=auto --file-prefix wls -w 0000:00:00.0
 EAL: Detected 40 lcore(s)
 EAL: Detected 2 NUMA nodes
@@ -515,8 +539,11 @@ Slot:   0    1    2    3
 
 xran_timing_source_thread [CPU  7] [PID: 292331]
 MLogOpen: filename(mlog-o-du.bin) mlogSubframes (0), mlogCores(32), mlogSize(0) mlog_mask (-1)
+
     mlogSubframes (256), mlogCores(32), mlogSize(7168)
+    
     localMLogTimerInit
+    
 lls-CU: thread_run start time: 06/10/19 21:09:37.000000028 UTC [125]
 Start C-plane DL 25 us after TTI  [trigger on sym 3]
 Start C-plane UL 55 us after TTI  [trigger on sym 7]
@@ -525,8 +552,10 @@ Start U-plane UL 45 us OTA        [offset  in sym 6]
 C-plane to U-plane delay 25 us after TTI
 Start Sym timer 8928 ns
 interval_us 125
+
         System clock (CLOCK_REALTIME)  resolution 1000037471 [Hz]
         Ticks per us 1000
+        
     MLog Storage: 0x7f6298487100 -> 0x7f629bc88d20 [ 58727456 bytes ]
     localMLogFreqReg: 1000. Storing: 1000
     Mlog Open successful
@@ -554,6 +583,7 @@ get_xran_iq_content
 Closing timing source thread...
 Closing l1 app... Ending all threads...
 MLogPrint: ext_filename((null).bin)
+
     Opening MLog File: mlog-o-du-c0.bin
     MLog file mlog-o-du-c0.bin closed
     Mlog Print successful
