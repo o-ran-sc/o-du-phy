@@ -136,6 +136,7 @@ d8:02.0 Ethernet controller: Intel Corporation XL710/X710 Virtual Function (rev 
 d8:02.1 Ethernet controller: Intel Corporation XL710/X710 Virtual Function (rev 02) <<<< this is XRAN port (c-plane)
 
 * Configure VFs
+
 - set mac to 00:11:22:33:44:66
 - set Vlan tag to 2 (U-plane) for VF0
 - set Vlan tag to 1 (C-plane) for VF1
@@ -143,6 +144,7 @@ d8:02.1 Ethernet controller: Intel Corporation XL710/X710 Virtual Function (rev 
 [root@5gnr-sc12-xran app]# ip link set enp216s0f0 vf 0 mac 00:11:22:33:44:66 vlan 2
 [root@5gnr-sc12-xran app]# ip link set enp216s0f0 vf 1 mac 00:11:22:33:44:66 vlan 1
 [root@5gnr-sc12-xran app]# ip link show
+
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT qlen 1
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
 2: enp65s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
