@@ -81,7 +81,7 @@ exit   [35] Exit Script
 
  * Find PCIe device of Fortville port
 
-lspci |grep Eth
+lspci|grep Eth
 19:00.0 Ethernet controller: Intel Corporation 82599ES 10-Gigabit SFI/SFP+ Network Connection (rev 01)
 19:00.1 Ethernet controller: Intel Corporation 82599ES 10-Gigabit SFI/SFP+ Network Connection (rev 01)
 41:00.0 Ethernet controller: Intel Corporation Ethernet Connection X722 for 10GBASE-T (rev 04)
