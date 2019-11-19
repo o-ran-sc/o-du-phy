@@ -81,7 +81,7 @@ exit   [35] Exit Script
 
  * Find PCIe device of Fortville port
 
-lspci |grep Eth
+lspci|grep Eth
 19:00.0 Ethernet controller: Intel Corporation 82599ES 10-Gigabit SFI/SFP+ Network Connection (rev 01)
 19:00.1 Ethernet controller: Intel Corporation 82599ES 10-Gigabit SFI/SFP+ Network Connection (rev 01)
 41:00.0 Ethernet controller: Intel Corporation Ethernet Connection X722 for 10GBASE-T (rev 04)
@@ -117,6 +117,7 @@ firmware-version: 6.01
 
 cat /proc/cmdline
 BOOT_IMAGE=/vmlinuz-3.10.0-rt56 root=/dev/mapper/centos-root ro crashkernel=auto rd.lvm.lv=centos/root rd.lvm.lv=centos/swap intel_iommu=on iommu=pt usbcore.autosuspend=-1 selinux=0 enforcing=0 nmi_watchdog=0 softlockup_panic=0 audit=0 intel_pstate=disable cgroup_disable=memory mce=off idle=poll hugepagesz=1G hugepages=20 hugepagesz=2M hugepages=0 default_hugepagesz=1G isolcpus=1-39 rcu_nocbs=1-39 kthread_cpus=0 irqaffinity=0 nohz_full=1-39
+
 * enable SRIOV VF port for XRAN
 
 echo 2 > /sys/class/net/enp216s0f0/device/sriov_numvfs
@@ -125,7 +126,7 @@ see https://doc.dpdk.org/guides/nics/intel_vf.html
 
 * Check that Virtual Function was created
 
-lspci |grep Eth
+lspci|grep Eth
 19:00.0 Ethernet controller: Intel Corporation 82599ES 10-Gigabit SFI/SFP+ Network Connection (rev 01)
 19:00.1 Ethernet controller: Intel Corporation 82599ES 10-Gigabit SFI/SFP+ Network Connection (rev 01)
 41:00.0 Ethernet controller: Intel Corporation Ethernet Connection X722 for 10GBASE-T (rev 04)
@@ -136,6 +137,7 @@ d8:02.0 Ethernet controller: Intel Corporation XL710/X710 Virtual Function (rev 
 d8:02.1 Ethernet controller: Intel Corporation XL710/X710 Virtual Function (rev 02) <<<< this is XRAN port (c-plane)
 
 * Configure VFs
+
 - set mac to 00:11:22:33:44:66
 - set Vlan tag to 2 (U-plane) for VF0
 - set Vlan tag to 1 (C-plane) for VF1
@@ -143,29 +145,52 @@ d8:02.1 Ethernet controller: Intel Corporation XL710/X710 Virtual Function (rev 
 [root@5gnr-sc12-xran app]# ip link set enp216s0f0 vf 0 mac 00:11:22:33:44:66 vlan 2
 [root@5gnr-sc12-xran app]# ip link set enp216s0f0 vf 1 mac 00:11:22:33:44:66 vlan 1
 [root@5gnr-sc12-xran app]# ip link show
+
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT qlen 1
+
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    
 2: enp65s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether a4:bf:01:3e:6b:79 brd ff:ff:ff:ff:ff:ff
+    
 3: eno2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether a4:bf:01:3e:6b:7a brd ff:ff:ff:ff:ff:ff
+    
 4: enp25s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether 90:e2:ba:d3:b2:ec brd ff:ff:ff:ff:ff:ff
+    
 5: enp129s0f0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq state DOWN mode DEFAULT qlen 1000
+
     link/ether 3c:fd:fe:a8:e0:70 brd ff:ff:ff:ff:ff:ff
+    
 6: enp129s0f1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq state DOWN mode DEFAULT qlen 1000
+
     link/ether 3c:fd:fe:a8:e0:71 brd ff:ff:ff:ff:ff:ff
+    
 7: enp216s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether 3c:fd:fe:9e:93:68 brd ff:ff:ff:ff:ff:ff
+    
     vf 0 MAC 00:11:22:33:44:66, vlan 2, spoof checking on, link-state auto, trust off
     vf 1 MAC 00:11:22:33:44:66, vlan 1, spoof checking on, link-state auto, trust off
+    
 8: enp25s0f1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq state DOWN mode DEFAULT qlen 1000
+
     link/ether 90:e2:ba:d3:b2:ed brd ff:ff:ff:ff:ff:ff
+    
 9: enp216s0f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether 3c:fd:fe:9e:93:69 brd ff:ff:ff:ff:ff:ff
+    
 12: enp216s2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether 96:fa:4d:04:4d:87 brd ff:ff:ff:ff:ff:ff
+    
 13: enp216s2f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether a6:67:49:bb:bd:5e brd ff:ff:ff:ff:ff:ff
 
 
@@ -175,21 +200,29 @@ Hardware Requirements
 The following minimum hardware requirements must be met for installation of the FHI Library:
 *	Wolfpass server according to recommended BOM for FlexRAN such as Intel® Xeon® Skylake Gold 6148 FC-LGA3647 2.4GHz 27.5MB 150W 20 cores (2 sockets) 
 *	BIOS settings: 
+
     	Intel(R) Virtualization Technology Enabled
     	Intel(R) VT for Directed I/O - Enabled
         ACS Control - Enabled
     	Coherency Support - Disabled
+        
 *   Front Haul networking cards:
+
         Intel® Ethernet Converged Network Adapter XL710-QDA2
         Intel® Ethernet Converged Network Adapter XXV710-DA2
         Intel® FPGA Programmable Acceleration Card (Intel® FPGA PAC) N3000
-*	Back (Mid) Haul networking card can be either 
+        
+*	Back (Mid) Haul networking card can be either
+
     	Intel® Ethernet Connection X722 for 10GBASE-T  
         Intel® 82599ES 10-Gigabit SFI/SFP+ Network Connection
+        
 *   Other networking cards capable of HW timestamping for PTP synchronization.
+
 Note:	Both Back (mid) Haul and Front Haul NIC require support for PTP HW timestamping.
 
 The recommended configuration for NICs is: 
+
     ethtool -i enp216s0f0
     driver: i40e
     version: 2.8.43
@@ -204,17 +237,22 @@ The recommended configuration for NICs is:
     [root@5gnr-sc12-xran testmac]# ethtool -T enp216s0f0
     Time stamping parameters for enp216s0f0:
     Capabilities:
+    
         hardware-transmit     (SOF_TIMESTAMPING_TX_HARDWARE)
         software-transmit     (SOF_TIMESTAMPING_TX_SOFTWARE)
         hardware-receive      (SOF_TIMESTAMPING_RX_HARDWARE)
         software-receive      (SOF_TIMESTAMPING_RX_SOFTWARE)
         software-system-clock (SOF_TIMESTAMPING_SOFTWARE)
         hardware-raw-clock    (SOF_TIMESTAMPING_RAW_HARDWARE)
+        
     PTP Hardware Clock: 2
     Hardware Transmit Timestamp Modes:
+    
         off                   (HWTSTAMP_TX_OFF)
         on                    (HWTSTAMP_TX_ON)
+        
     Hardware Receive Filter Modes:
+    
         none                  (HWTSTAMP_FILTER_NONE)
         ptpv1-l4-sync         (HWTSTAMP_FILTER_PTP_V1_L4_SYNC)
         ptpv1-l4-delay-req    (HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ)
@@ -227,6 +265,7 @@ The recommended configuration for NICs is:
         ptpv2-event           (HWTSTAMP_FILTER_PTP_V2_EVENT)
         ptpv2-sync            (HWTSTAMP_FILTER_PTP_V2_SYNC)
         ptpv2-delay-req       (HWTSTAMP_FILTER_PTP_V2_DELAY_REQ)
+        
 PTP Grand Master is required to be available in the network to provide synchronization of both O-DU and RU to GPS time.
 
 Software Installation and Deployment
@@ -235,19 +274,25 @@ Software Installation and Deployment
 This section describes the installation of the Front Haul Interface Library on the reference hardware and the validation.
 
 * start matlab and run gen_test.m with correct Numerology, Bandwidth and number of slots
+
   copy ant_*.bin  to /xran/app/usecase/mu{X}_{Y}MHz
+  
 	where X is numerology: 0,1,3
+    
 	      Y is 5,10,20,100 MHz bandwidth
 
 * compile xran sample application (Please make sure that the export match your install directories for SDK, ORAN_FH_lib (i.e. XRAN_DIR), google test
+
     export RTE_SDK=/opt/dpdk-18.08
     export RTE_TARGET=x86_64-native-linuxapp-icc
     export XRAN_DIR= /home/npg_wireless-flexran_xran/
     export export GTEST_ROOT=/opt/gtest/gtest-1.7.0 
 
 * ./build.sh
+
     Number of commandline arguments: 0
     Building xRAN Library
+    
   LIBXRANSO=0
   CC ../lib/ethernet/ethdi.o
   CC ../lib/ethernet/ethernet.o
@@ -267,8 +312,10 @@ This section describes the installation of the Front Haul Interface Library on t
   Building xRAN Test Application
   CC ../app/src/common.o
   CC ../app/src/sample-app.o
+  
 remark #11074: Inlining inhibited by limit max-size
 remark #11076: To get full report use -qopt-report=4 -qopt-report-phase ipo
+
   CC ../app/src/config.o
   LD sample-app
   INSTALL-APP sample-app
@@ -288,11 +335,14 @@ grep Huge /proc/meminfo
 huge_folder="/mnt/huge_bbu"
 [ -d "$huge_folder" ] || mkdir -p $huge_folder
 if ! mount | grep $huge_folder; then
+
  mount none $huge_folder -t hugetlbfs -o rw,mode=0777
+ 
 fi
 
 #40G
 ./build/sample-app ./usecase/mu3_100mhz/config_file_o_du.dat  0000:da:02.0 0000:da:02.1
+
                                                               ^^^^^ ports have to match VF function from step 1.11 (0000:da:02.0 - U-plane  0000:da:02.1 C-plane)
 
 umount $huge_folder
@@ -303,12 +353,13 @@ cat ./dpdk.sh
 ...
 $RTE_SDK/usertools/dpdk-devbind.py --status
 if [ ${VM_DETECT} == 'HOST' ]; then
+
     #HOST
 
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:da:02.0 <<< port has to match VF function from step 1.11
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:da:02.1 <<< port has to match VF function from step 1.11
 
-	1.
+	
 Run
 
 * Run dpdk.sh to assign port to PMD
@@ -322,6 +373,7 @@ Network devices using DPDK-compatible driver
 
 
 * Run XRAN sample app
+
 setup RU mac address in config_file_o_du.dat for corespondig usecase
 
 e.g.
@@ -422,7 +474,7 @@ TX: Convert S16 I and S16 Q to network byte order for XRAN Ant: [2]
 TX: Convert S16 I and S16 Q to network byte order for XRAN Ant: [3]
 System clock (rdtsc) resolution 1596250371 [Hz]
 Ticks per us 1596
- xran_init: MTU 9600
+xran_init: MTU 9600
 xran_ethdi_init_dpdk_io: Calling rte_eal_init:wls -c ffffffff -m5120 --proc-type=auto --file-prefix wls -w 0000:00:00.0
 EAL: Detected 40 lcore(s)
 EAL: Detected 2 NUMA nodes
@@ -498,23 +550,35 @@ xran_cp_init_sectiondb:Allocation Size for list : 1848 (28x66)
 xran_cp_init_sectiondb:Allocation Size for list : 1848 (28x66)
 xran_open: interval_us=125
 nSlotNum[0] : numDlSym[14] numGuardSym[0] numUlSym[0] XRAN_SLOT_TYPE_DL
+
             numDlSlots[1] numUlSlots[0] numSpSlots[0] numSpDlSlots[0] numSpUlSlots[0]
+            
 nSlotNum[1] : numDlSym[14] numGuardSym[0] numUlSym[0] XRAN_SLOT_TYPE_DL
+
             numDlSlots[2] numUlSlots[0] numSpSlots[0] numSpDlSlots[0] numSpUlSlots[0]
+            
 nSlotNum[2] : numDlSym[14] numGuardSym[0] numUlSym[0] XRAN_SLOT_TYPE_DL
+
             numDlSlots[3] numUlSlots[0] numSpSlots[0] numSpDlSlots[0] numSpUlSlots[0]
+            
 nSlotNum[3] : numDlSym[1] numGuardSym[2] numUlSym[11] XRAN_SLOT_TYPE_SP
+
             numDlSlots[3] numUlSlots[0] numSpSlots[1] numSpDlSlots[1] numSpUlSlots[1]
+            
 xran_fs_set_slot_type: nPhyInstanceId[0] nFrameDuplexType[1], nTddPeriod[4]
 DLRate[1.000000] ULRate[0.250000]
 SlotPattern:
 Slot:   0    1    2    3
+
     0   DL   DL   DL   SP
 
 xran_timing_source_thread [CPU  7] [PID: 292331]
 MLogOpen: filename(mlog-o-du.bin) mlogSubframes (0), mlogCores(32), mlogSize(0) mlog_mask (-1)
+
     mlogSubframes (256), mlogCores(32), mlogSize(7168)
+    
     localMLogTimerInit
+    
 lls-CU: thread_run start time: 06/10/19 21:09:37.000000028 UTC [125]
 Start C-plane DL 25 us after TTI  [trigger on sym 3]
 Start C-plane UL 55 us after TTI  [trigger on sym 7]
@@ -523,15 +587,17 @@ Start U-plane UL 45 us OTA        [offset  in sym 6]
 C-plane to U-plane delay 25 us after TTI
 Start Sym timer 8928 ns
 interval_us 125
+
         System clock (CLOCK_REALTIME)  resolution 1000037471 [Hz]
         Ticks per us 1000
+        
     MLog Storage: 0x7f6298487100 -> 0x7f629bc88d20 [ 58727456 bytes ]
     localMLogFreqReg: 1000. Storing: 1000
     Mlog Open successful
 
-----------------------------------------
+
 MLog Info: virt=0x00007f6298487100 size=58727456
-----------------------------------------
+
 Start XRAN traffic
 +---------------------------------------+
 | Press 1 to start 5G NR XRAN traffic   |
@@ -552,6 +618,7 @@ get_xran_iq_content
 Closing timing source thread...
 Closing l1 app... Ending all threads...
 MLogPrint: ext_filename((null).bin)
+
     Opening MLog File: mlog-o-du-c0.bin
     MLog file mlog-o-du-c0.bin closed
     Mlog Print successful
