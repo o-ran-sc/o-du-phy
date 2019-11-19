@@ -117,6 +117,7 @@ firmware-version: 6.01
 
 cat /proc/cmdline
 BOOT_IMAGE=/vmlinuz-3.10.0-rt56 root=/dev/mapper/centos-root ro crashkernel=auto rd.lvm.lv=centos/root rd.lvm.lv=centos/swap intel_iommu=on iommu=pt usbcore.autosuspend=-1 selinux=0 enforcing=0 nmi_watchdog=0 softlockup_panic=0 audit=0 intel_pstate=disable cgroup_disable=memory mce=off idle=poll hugepagesz=1G hugepages=20 hugepagesz=2M hugepages=0 default_hugepagesz=1G isolcpus=1-39 rcu_nocbs=1-39 kthread_cpus=0 irqaffinity=0 nohz_full=1-39
+
 * enable SRIOV VF port for XRAN
 
 echo 2 > /sys/class/net/enp216s0f0/device/sriov_numvfs
@@ -146,28 +147,50 @@ d8:02.1 Ethernet controller: Intel Corporation XL710/X710 Virtual Function (rev 
 [root@5gnr-sc12-xran app]# ip link show
 
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT qlen 1
+
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    
 2: enp65s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether a4:bf:01:3e:6b:79 brd ff:ff:ff:ff:ff:ff
+    
 3: eno2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether a4:bf:01:3e:6b:7a brd ff:ff:ff:ff:ff:ff
+    
 4: enp25s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether 90:e2:ba:d3:b2:ec brd ff:ff:ff:ff:ff:ff
+    
 5: enp129s0f0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq state DOWN mode DEFAULT qlen 1000
+
     link/ether 3c:fd:fe:a8:e0:70 brd ff:ff:ff:ff:ff:ff
+    
 6: enp129s0f1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq state DOWN mode DEFAULT qlen 1000
+
     link/ether 3c:fd:fe:a8:e0:71 brd ff:ff:ff:ff:ff:ff
+    
 7: enp216s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether 3c:fd:fe:9e:93:68 brd ff:ff:ff:ff:ff:ff
+    
     vf 0 MAC 00:11:22:33:44:66, vlan 2, spoof checking on, link-state auto, trust off
     vf 1 MAC 00:11:22:33:44:66, vlan 1, spoof checking on, link-state auto, trust off
+    
 8: enp25s0f1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq state DOWN mode DEFAULT qlen 1000
+
     link/ether 90:e2:ba:d3:b2:ed brd ff:ff:ff:ff:ff:ff
+    
 9: enp216s0f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether 3c:fd:fe:9e:93:69 brd ff:ff:ff:ff:ff:ff
+    
 12: enp216s2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether 96:fa:4d:04:4d:87 brd ff:ff:ff:ff:ff:ff
+    
 13: enp216s2f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT qlen 1000
+
     link/ether a6:67:49:bb:bd:5e brd ff:ff:ff:ff:ff:ff
 
 
@@ -251,6 +274,7 @@ Software Installation and Deployment
 This section describes the installation of the Front Haul Interface Library on the reference hardware and the validation.
 
 * start matlab and run gen_test.m with correct Numerology, Bandwidth and number of slots
+
   copy ant_*.bin  to /xran/app/usecase/mu{X}_{Y}MHz
   
 	where X is numerology: 0,1,3
@@ -349,6 +373,7 @@ Network devices using DPDK-compatible driver
 
 
 * Run XRAN sample app
+
 setup RU mac address in config_file_o_du.dat for corespondig usecase
 
 e.g.
