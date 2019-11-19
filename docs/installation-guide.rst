@@ -595,9 +595,9 @@ interval_us 125
     localMLogFreqReg: 1000. Storing: 1000
     Mlog Open successful
 
-----------------------------------------
+
 MLog Info: virt=0x00007f6298487100 size=58727456
-----------------------------------------
+
 Start XRAN traffic
 +---------------------------------------+
 | Press 1 to start 5G NR XRAN traffic   |
