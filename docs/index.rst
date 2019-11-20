@@ -29,3 +29,5 @@ FHI Library
    release-notes.rst
 
 * :ref:`search`
+* :ref:`modindex`
+* :ref:`search`

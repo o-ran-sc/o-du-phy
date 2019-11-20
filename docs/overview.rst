@@ -25,7 +25,7 @@ Project Resources
 -----------------
 
 The source code is available from the Linux Foundation Gerrit server:
-    `<https://gerrit.o-ran-sc.org/r/a/o-du/phy/fhi_lib/src>`_
+    `<https://gerrit.o-ran-sc.org/r/o-du/phy/fhi_lib/src>`_
  
 The build (CI) jobs will be in the Linux Foundation Jenkins server:
 
