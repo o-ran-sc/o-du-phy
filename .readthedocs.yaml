@@ -14,7 +14,7 @@ build:
 python:
   version: 3.7
   install:
-    - requirements: fhi_lib/docs/requirements-docs.txt
+    - requirements: docs/requirements-docs.txt
 
 sphinx:
-  configuration: fhi_lib/docs/conf.py
+  configuration: docs/conf.py
