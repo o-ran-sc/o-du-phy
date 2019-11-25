@@ -24,11 +24,18 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 ##############################################################
 #  Tools configuration
 ##############################################################
+ifeq ($(BUILD_GCC),)
 CC  := icc
+LD := icc
+else
+CC := gcc
+LD := gcc
+endif
+
 CPP := icpc
 AS := as
 AR := ar
-LD := icc
+
 OBJDUMP := objdump
 
 ifeq ($(SHELL),cmd.exe)
@@ -77,8 +84,8 @@ CC_SRC = $(ETH_DIR)/ethdi.c \
 	$(SRC_DIR)/xran_app_frag.c \
 	$(SRC_DIR)/xran_main.c
 
-CPP_SRC = $(SRC_DIR)/xran_compression.cpp
-
+#CPP_SRC = $(SRC_DIR)/xran_compression.cpp
+ifeq ($(BUILD_GCC),)
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
 	-ffunction-sections \
@@ -91,6 +98,35 @@ CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REE
                 -no-prec-div -fp-model fast=2\
                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
         -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
+else
+CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations -Wextra \
+	-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
+        -Wold-style-definition -Wpointer-arith -Wcast-align -Wnested-externs \
+        -Wcast-qual -Wformat-nonliteral -Wformat-security -Wundef -Wwrite-strings \
+        -Wdeprecated -Wunused-parameter -Wunused-variable\
+        -fdata-sections \
+	-ffunction-sections \
+	-g \
+	-Wimplicit-function-declaration \
+	-m64 \
+	-pthread \
+	-march=native \
+	-DRTE_MACHINE_CPUFLAG_SSE \
+	-DRTE_MACHINE_CPUFLAG_SSE2 \
+	-DRTE_MACHINE_CPUFLAG_SSE3 \
+ 	-DRTE_MACHINE_CPUFLAG_SSSE3 \
+	-DRTE_MACHINE_CPUFLAG_SSE4_1 \
+	-DRTE_MACHINE_CPUFLAG_SSE4_2 \
+	-DRTE_MACHINE_CPUFLAG_AES \
+	-DRTE_MACHINE_CPUFLAG_PCLMULQDQ \
+	-DRTE_MACHINE_CPUFLAG_AVX \
+	-DRTE_MACHINE_CPUFLAG_RDRAND \
+	-DRTE_MACHINE_CPUFLAG_FSGSBASE \
+ 	-DRTE_MACHINE_CPUFLAG_F16C \
+	-DRTE_MACHINE_CPUFLAG_AVX2 \
+	-I$(API_DIR) -I$(ETH_DIR) -I$(MLOG_DIR)/source -I$(RTE_INC) -g -O3 \
+	-DALLOW_EXPERIMENTAL_API 
+endif
 
 INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
 DEF :=
