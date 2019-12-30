@@ -179,6 +179,7 @@ BlockFloatCompander::BlockFloatExpand_Basic(const CompressedData& dataIn, Expand
       auto dataIdxIn = (expIdx + 1) + re;
       auto thisData = (int16_t)dataIn.dataCompressed[dataIdxIn];
       auto thisExp = (int16_t)dataIn.dataCompressed[expIdx];
+      
       dataOut->dataExpanded[dataIdxOut] = (int16_t)(thisData << thisExp);
     }
   }
