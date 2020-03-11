@@ -35,6 +35,17 @@ extern "C" {
 #include <rte_mbuf.h>
 #include <rte_timer.h>
 
+/*  comment this to enable PDUMP
+ *  DPDK has to be compiled with
+ *      CONFIG_RTE_LIBRTE_PMD_PCAP=y
+ *      CONFIG_RTE_LIBRTE_PDUMP=y
+ */
+#undef RTE_LIBRTE_PDUMP
+
+#ifdef RTE_LIBRTE_PDUMP
+#include <rte_pdump.h>
+#endif
+
 #include "ethernet.h"
 #include "xran_fh_o_du.h"
 

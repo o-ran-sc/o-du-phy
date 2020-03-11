@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file has all definitions for the Ethernet Data Interface Layer
  * @file ethernet.c
@@ -154,7 +153,7 @@ int __xran_delayed_msg(const char *fmt, ...)
  * Might require multiple calls to print the full message.
  * Will return 0 when nothing left to print.
  */
-#if 0 
+#if 0
 int xran_show_delayed_message(void)
 {
     ring_idx tail = io_ring.tail;

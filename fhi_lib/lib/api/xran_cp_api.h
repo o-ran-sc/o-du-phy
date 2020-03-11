@@ -39,13 +39,13 @@ extern "C" {
 
 #define XRAN_MAX_SECTIONDB_CTX              2
 
-#define XRAN_MAX_NUM_EXTENSIONS     4       /* Maximum number of extensions in a section */
-#define XRAN_MAX_NUM_UE             16      /* Maximum number of UE */
+#define XRAN_MAX_NUM_EXTENSIONS     XRAN_MAX_PRBS /* Maximum number of extensions in a section [up to 1 ext section per RB]*/
+#define XRAN_MAX_NUM_UE             16      /* Maximum number of UEs/Lyaers */
 #define XRAN_MAX_NUM_ANT_BF         64      /* Maximum number of beamforming antenna,
                                              * could be defined as XRAN_MAX_ANTENNA_NR */
 /* Maximum total number of beamforming weights (5.4.7.1.2) */
 #define XRAN_MAX_BFW_N              (XRAN_MAX_NUM_ANT_BF*XRAN_MAX_NUM_UE)
-#define XRAN_MAX_MODCOMP_ADDPARMS   2
+#define XRAN_MAX_MODCOMP_ADDPARMS   6       /* max should be even number */
 
 #define XRAN_SECTIONEXT_ALIGN       4       /* alignment size in byte for section extension */
 
@@ -138,6 +138,10 @@ enum xran_cp_symbolnuminc {
 #define XRAN_LBTMODE_PARTIAL34              2
 #define XRAN_LBTMODE_FULLSTOP               3
 
+#define XRAN_EF_F_LAST                      0
+#define XRAN_EF_F_ANOTHER_ONE               1
+
+
 
 /** Control Plane section extension commands, defined in 5.4.6 Table 5.13 */
 enum xran_cp_sectionextcmd {
@@ -189,22 +193,26 @@ struct xran_section_info {
     uint16_t    startPrbc;  /*  X X X X X     10bits */
     uint16_t    numPrbc;    /*  X X X X X      8bits */ /* will be converted to zero if >255 */
     uint8_t     rb;         /*  X X X X X      1bit  */
-    uint8_t     iqWidth;    /*    X X X        4bits */
     uint8_t     compMeth;   /*    X X X        4bits */
+    uint8_t     iqWidth;    /*    X X X        4bits */
     uint8_t     ef;         /*    X X X X      1bit  */
     int32_t     freqOffset; /*      X         24bits */
     uint16_t    beamId;     /*    X X         15bits */
     uint16_t    ueId;       /*        X X     15bits */
     uint16_t    regFactor;  /*          X     16bits */
     uint16_t    pad0;
-    };
+    /** for U-plane */
+    struct xran_section_desc sec_desc[XRAN_NUM_OF_SYMBOL_PER_SLOT];
+};
 
 
 struct xran_sectionext1_info {
-    uint16_t    bfwNumber;                  /* number of bf weights in this section */
+    uint16_t    rbNumber;                   /**< number RBs to ext1 chain */
+    uint16_t    bfwNumber;                  /**< number of bf weights in this section */
     uint8_t     bfwiqWidth;
     uint8_t     bfwCompMeth;
-    uint16_t    bfwIQ[XRAN_MAX_BFW_N*2];    /* I/Q pair, max 4KB with 16bits, 16UE and 64ANT */
+    int16_t     *p_bfwIQ;                   /**< pointer to formed section extention */
+    int16_t     bfwIQ_sz;                   /**< size of buffer with section extention information */
     union {
         uint8_t     exponent;
         uint8_t     blockScaler;
@@ -250,7 +258,6 @@ struct xran_sectionext5_info {
     uint8_t     num_sets;
     struct {
         uint16_t    csf;
-//        uint16_t    pad0;
         uint16_t    mcScaleReMask;
         uint16_t    mcScaleOffset;
         } mc[XRAN_MAX_MODCOMP_ADDPARMS];
@@ -295,7 +302,13 @@ struct xran_section_gen_info {
         uint16_t    len;            /**< length of extension data */
         void        *data;          /**< pointer to extension data */
         } exData[XRAN_MAX_NUM_EXTENSIONS];
-    };
+    struct xran_sectionext1_info m_ext1[XRAN_MAX_NUM_EXTENSIONS];
+    struct xran_sectionext2_info m_ext2[XRAN_MAX_NUM_EXTENSIONS];
+    struct xran_sectionext3_info m_ext3[XRAN_MAX_NUM_EXTENSIONS];
+    struct xran_sectionext4_info m_ext4[XRAN_MAX_NUM_EXTENSIONS];
+    struct xran_sectionext5_info m_ext5[XRAN_MAX_NUM_EXTENSIONS];
+};
+
 
 /**
  * This structure to hold the information to generate a C-Plane message */
@@ -322,7 +335,11 @@ struct xran_cp_rbmap_list {
     uint16_t    rb_start;   /**< Start RB position */
     uint16_t    rb_num;     /**< Number of RBs */
 
+    int16_t     iq_buff_offset; /**< Offset within Sym for start of IQs */
+    int16_t     iq_buff_len;    /**< length IQs */
+
     uint16_t    beam_id;    /**< Bean Index */
+    uint8_t     iqWidth;    /**< I and Q width in bits */
     uint8_t     comp_meth;  /**< Compression method */
     uint8_t     pad0;
     };
@@ -356,7 +373,13 @@ struct xran_section_info *xran_cp_iterate_section_info(void *pHandle,
         uint8_t ctx_id, uint32_t *next);
 int xran_cp_getsize_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id);
 int xran_cp_reset_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id);
-
+int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination buffer */
+                                       uint16_t  ext1_dst_len, /**< dest buffer size */
+                                       int16_t  *p_bfw_iq_src, /**< source buffer of IQs */
+                                       uint16_t  rbNumber,     /**< number RBs to ext1 chain */
+                                       uint16_t  bfwNumber,    /**< number of bf weights in this set of sections */
+                                       uint8_t   bfwiqWidth,   /**< bit size of IQs */
+                                       uint8_t   bfwCompMeth); /**< compression method */
 #ifdef __cplusplus
 }
 #endif

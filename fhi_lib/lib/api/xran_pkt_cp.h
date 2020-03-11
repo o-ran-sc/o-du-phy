@@ -123,6 +123,15 @@ struct xran_cp_radioapp_section_header {    /* 8bytes, need the conversion for b
     } __attribute__((__packed__));
 
 
+struct xran_cp_radioapp_section_ext_hdr {
+    /* 12 bytes, need to convert byte order for two parts respectively
+     *  - 2 and 8 bytes, reserved1 would be OK if it is zero
+     */
+    uint16_t     extLen:8;          /**< 5.4.6.3 extension length, in 32bits words */
+    uint16_t     extType:7;         /**< 5.4.6.1 extension type */
+    uint16_t     ef:1;              /**< 5.4.6.2 extension flag */
+    } __attribute__((__packed__));
+
 /**
  * @ingroup xran_cp_pkt
  *
@@ -136,16 +145,17 @@ struct xran_cp_radioapp_section_ext1 {
     uint8_t     extType:7;          /**< 5.4.6.1 extension type */
     uint8_t     ef:1;               /**< 5.4.6.2 extension flag */
     uint8_t     extLen;             /**< 5.4.6.3 extension length, in 32bits words */
+    /* bfwCompHdr */
     uint8_t     bfwCompMeth:4;      /**< 5.4.7.1.1 Beamforming weight Compression method */
     uint8_t     bfwIqWidth:4;       /**< 5.4.7.1.1 Beamforming weight IQ bit width */
 
     /*
-     * would be better to use bit manipulation directly to add these parameters
+     *
      *
      * bfwCompParam
      * (bfwI,  bfwQ)+
      *    ......
-     * padding for 4-byte alignment
+     * zero padding for 4-byte alignment
      */
     } __attribute__((__packed__));
 
@@ -254,6 +264,7 @@ struct xran_cp_radioapp_section_ext4 {
     uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
     } __attribute__((__packed__));
 
+#if 0
 /**
  * @ingroup xran_cp_pkt
  *
@@ -301,6 +312,17 @@ struct xran_cp_radioapp_section_ext5_2 {
     uint32_t    mcScaleReMask1:12;  /**< 5.4.7.5.1 modulation compression power scale RE mask */
 
     uint16_t    reserved1;
+    } __attribute__((__packed__));
+#endif
+
+struct xran_cp_radioapp_section_ext5 {
+    uint32_t    reserved0:8;
+    uint32_t    mcScaleOffset2:15;  /**< 5.4.7.5.3 scaling value for modulation compression */
+    uint32_t    csf2:1;             /**< 5.4.7.5.2 constellation shift flag */
+    uint32_t    mcScaleReMask2:12;  /**< 5.4.7.5.1 modulation compression power scale RE mask */
+    uint32_t    mcScaleOffset1:15;  /**< 5.4.7.5.3 scaling value for modulation compression */
+    uint32_t    csf1:1;             /**< 5.4.7.5.2 constellation shift flag */
+    uint32_t    mcScaleReMask1:12;  /**< 5.4.7.5.1 modulation compression power scale RE mask */
     } __attribute__((__packed__));
 
 /**********************************************************

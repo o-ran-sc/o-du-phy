@@ -53,6 +53,15 @@ extern "C" {
 //--------------------------------------------------------------------
 // XRAN
 //--------------------------------------------------------------------
+
+//--------------------------------------------------------------------
+// POLLING
+//--------------------------------------------------------------------
+#define PID_XRAN_BBDEV_DL_POLL                  51
+#define PID_XRAN_BBDEV_DL_POLL_DISPATCH         52
+#define PID_XRAN_BBDEV_UL_POLL                  53
+#define PID_XRAN_BBDEV_UL_POLL_DISPATCH         54
+
 #define PID_TTI_TIMER                           2100
 #define PID_TTI_CB                              2101
 

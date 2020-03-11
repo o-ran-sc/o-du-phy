@@ -49,8 +49,12 @@ static struct timespec started_time;
 static struct timespec last_time;
 static struct timespec cur_time;
 
+static uint64_t  curr_tick;
+static uint64_t  last_tick;
+
 static struct timespec* p_cur_time = &cur_time;
 static struct timespec* p_last_time = &last_time;
+
 
 static struct timespec* p_temp_time;
 
@@ -109,25 +113,61 @@ int timing_get_debug_stop(void)
     return debugStop;
 }
 
-long poll_next_tick(long interval_ns)
+void timing_adjust_gps_second(struct timespec* p_time)
 {
+    struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
+
+    long nsec = p_time->tv_nsec + p_xran_dev_ctx->offset_nsec;
+    p_time->tv_sec += p_xran_dev_ctx->offset_sec;
+    if (nsec >= 1e9)
+    {
+        nsec -=1e9;
+        p_time->tv_sec += 1;
+    }
+    p_time->tv_nsec = nsec;
+
+    return;
+}
+uint64_t xran_tick(void)
+{
+    uint32_t hi, lo;
+    __asm volatile ("rdtsc" : "=a"(lo), "=d"(hi));
+    return ( (uint64_t)lo)|( ((uint64_t)hi)<<32 );
+}
+
+unsigned long get_ticks_diff(unsigned long curr_tick, unsigned long last_tick)
+{
+    if (curr_tick >= last_tick)
+        return (unsigned long)(curr_tick - last_tick);
+    else
+        return (unsigned long)(0xFFFFFFFFFFFFFFFF - last_tick + curr_tick);
+}
+
+long poll_next_tick(long interval_ns, unsigned long *used_tick)
+{
+    struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
     long target_time;
     long delta;
     static int counter = 0;
     static long sym_acc = 0;
     static long sym_cnt = 0;
 
-    if(counter){
+    if(counter == 0) {
        clock_gettime(CLOCK_REALTIME, p_last_time);
+       last_tick = MLogTick();
+       if(unlikely(p_xran_dev_ctx->offset_sec || p_xran_dev_ctx->offset_nsec))
+           timing_adjust_gps_second(p_last_time);
        current_second = p_last_time->tv_sec;
        counter = 1;
     }
 
     target_time = (p_last_time->tv_sec * NSEC_PER_SEC + p_last_time->tv_nsec + interval_ns);
 
-    while(1)
-    {
+    while(1) {
         clock_gettime(CLOCK_REALTIME, p_cur_time);
+        curr_tick = MLogTick();
+        if(unlikely(p_xran_dev_ctx->offset_sec || p_xran_dev_ctx->offset_nsec))
+            timing_adjust_gps_second(p_cur_time);
         delta = (p_cur_time->tv_sec * NSEC_PER_SEC + p_cur_time->tv_nsec) - target_time;
         if(delta > 0 || (delta < 0 && abs(delta) < THRESHOLD)) {
             if (debugStop &&(debugStopCount > 0) && (tx_counter >= debugStopCount)){
@@ -140,6 +180,7 @@ long poll_next_tick(long interval_ns)
             }
             if(current_second != p_cur_time->tv_sec){
                 current_second = p_cur_time->tv_sec;
+                xran_updateSfnSecStart();
                 xran_lib_ota_sym_idx = 0;
                 xran_lib_ota_tti = 0;
                 xran_lib_ota_sym = 0;
@@ -171,16 +212,30 @@ long poll_next_tick(long interval_ns)
                 p_cur_time->tv_nsec = sym_acc;
                 sym_cnt++;
             }
+
+#ifdef USE_PTP_TIME
             if(debugStop && delta < interval_ns*10)
                 MLogTask(PID_TIME_SYSTIME_POLL, (p_last_time->tv_sec * NSEC_PER_SEC + p_last_time->tv_nsec), (p_cur_time->tv_sec * NSEC_PER_SEC + p_cur_time->tv_nsec));
+#else
+            MLogTask(PID_TIME_SYSTIME_POLL, last_tick, curr_tick);
+            last_tick = curr_tick;
+#endif
+
+
             p_temp_time = p_last_time;
             p_last_time = p_cur_time;
             p_cur_time  = p_temp_time;
             break;
         } else {
             if( likely(xran_if_current_state == XRAN_RUNNING)){
+                uint64_t t1, t2;
+                t1 = xran_tick();
+
                 ring_processing_func();
                 process_dpdk_io();
+
+                t2 = xran_tick();
+                *used_tick += get_ticks_diff(t2, t1);
             }
         }
   }

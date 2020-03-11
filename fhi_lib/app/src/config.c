@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief
  * @file
@@ -51,9 +50,25 @@
 
 #define KEY_CC_PER_PORT_NUM "ccNum"
 #define KEY_ANT_NUM         "antNum"
+#define KEY_UL_ANT_NUM      "antNumUL"
+
+#define KEY_ANT_ELM_TRX_NUM "antElmTRx"
+
+#define KEY_MU_MIMO_UES_NUM "muMimoUEs"
+#define KEY_DLLAYERS_PER_UE "DlLayersPerUe"
+#define KEY_ULLAYERS_PER_UE "UlLayersPerUe"
+#define KEY_FILE_DLBFWUE    "DlBfwUe"
+#define KEY_FILE_ULBFWUE    "UlBfwUe"
+
+#define KEY_FILE_ULSRS      "antSrsC"
+
+
 #define KEY_TTI_PERIOD      "ttiPeriod"
 
 #define KEY_MTU_SIZE        "MTUSize"
+#define KEY_IO_CORE         "ioCore"
+#define KEY_INSTANCE_ID     "instanceId"
+
 #define KEY_LLS_CU_MAC      "llsCUMac"
 #define KEY_RU_MAC          "ruMac"
 
@@ -61,12 +76,20 @@
 #define KEY_FILE_AxC        "antC"
 #define KEY_FILE_PRACH_AxC  "antPrachC"
 
-
 #define KEY_PRACH_ENABLE   "rachEanble"
+#define KEY_SRS_ENABLE     "srsEanble"
+
 #define KEY_PRACH_CFGIDX   "prachConfigIndex"
+#define KEY_SRS_SYM_IDX    "srsSym"
+
+#define KEY_MAX_FRAME_ID   "maxFrameId"
+
 
 #define KEY_IQ_SWAP        "iqswap"
 #define KEY_HTONS_SWAP     "nebyteorderswap"
+#define KEY_COMPRESSION    "compression"
+
+#define KEY_BFW_NUM        "totalBFWeights"
 
 #define KEY_TADV_CP_DL     "Tadv_cp_dl"
 #define KEY_T2A_MIN_CP_DL  "T2a_min_cp_dl"
@@ -91,10 +114,17 @@
 #define KEY_CP_VTAG        "c_plane_vlan_tag"
 #define KEY_UP_VTAG        "u_plane_vlan_tag"
 #define KEY_DEBUG_STOP     "debugStop"
-#define KEY_DEBUG_STOP_CNT     "debugStopCount"
+#define KEY_DEBUG_STOP_CNT "debugStopCount"
 #define KEY_BBDEV_MODE     "bbdevMode"
-#define KEY_DYNA_SEC_ENA     "DynamicSectionEna"
+#define KEY_DYNA_SEC_ENA   "DynamicSectionEna"
+#define KEY_ALPHA          "Gps_Alpha"
+#define KEY_BETA           "Gps_Beta"
 
+#define KEY_NPRBELEM_DL       "nPrbElemDl"
+#define KEY_PRBELEM_DL        "PrbElemDl"
+
+#define KEY_NPRBELEM_UL       "nPrbElemUl"
+#define KEY_PRBELEM_UL        "PrbElemUl"
 
 /**
  * Set runtime configuration parameters to their defaults.
@@ -123,7 +153,7 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
     if (strcmp(key, KEY_APP_MODE) == 0){
         config->appMode = atoi(value);
     } else if (strcmp(key, KEY_XRAN_MODE) == 0) {
-        config->xranMode = atoi(value);
+        config->xranCat = atoi(value);
     } else if (strcmp(key, KEY_CC_PER_PORT_NUM) == 0) {
         config->numCC= atoi(value);
     } else if (strcmp(key, KEY_MU_NUMBER) == 0) {
@@ -143,7 +173,7 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
         printf("nULBandwidth: %d\n",config->nULBandwidth);
     } else if (strcmp(key, KEY_NDLFFTSIZE) == 0) {
         config->nDLFftSize = atoi(value);
-        printf("nULFftSize: %d\n",config->nDLFftSize);
+        printf("nDLFftSize: %d\n",config->nDLFftSize);
     } else if (strcmp(key, KEY_NULFFTSIZE) == 0) {
         config->nULFftSize = atoi(value);
         printf("nULFftSize: %d\n",config->nULFftSize);
@@ -189,16 +219,35 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
         }
     } else if (strcmp(key, KEY_ANT_NUM) == 0) {
         config->numAxc = atoi(value);
+    } else if (strcmp(key, KEY_UL_ANT_NUM) == 0) {
+        config->numUlAxc = atoi(value);
+    }else if (strcmp(key, KEY_ANT_ELM_TRX_NUM) == 0) {
+        config->antElmTRx = atoi(value);
+        printf("antElmTRx %d\n", config->antElmTRx);
+    } else if (strcmp(key, KEY_MU_MIMO_UES_NUM) == 0) {
+        config->muMimoUEs = atoi(value);
+    } else if (strcmp(key, KEY_DLLAYERS_PER_UE) == 0) {
+        config->DlLayersPerUe = atoi(value);
+    } else if (strcmp(key, KEY_ULLAYERS_PER_UE) == 0) {
+        config->UlLayersPerUe = atoi(value);
     } else if (strcmp(key, KEY_TTI_PERIOD) == 0) {
         config->ttiPeriod = atoi(value);
     } else if (strcmp(key, KEY_IQ_SWAP) == 0) {
         config->iqswap = atoi(value);
     } else if (strcmp(key, KEY_HTONS_SWAP) == 0) {
         config->nebyteorderswap = atoi(value);
+    } else if (strcmp(key, KEY_COMPRESSION) == 0) {
+        config->compression = atoi(value);
     } else if (strcmp(key, KEY_MTU_SIZE) == 0) {
         config->mtu = atoi(value);
         printf("mtu %d\n", config->mtu);
-    } else if (strcmp(key, KEY_LLS_CU_MAC) == 0) {
+    } else if (strcmp(key, KEY_IO_CORE) == 0) {
+        config->io_core = atoi(value);
+        printf("io_core %d\n", config->io_core);
+    }else if (strcmp(key, KEY_INSTANCE_ID) == 0) {
+        config->instance_id = atoi(value);
+        printf("instance_id %d\n", config->instance_id);
+    }else if (strcmp(key, KEY_LLS_CU_MAC) == 0) {
         sscanf(value, "%02x:%02x:%02x:%02x:%02x:%02x", (uint32_t*)&config->o_du_addr.addr_bytes[0],
                                            (uint32_t*)&config->o_du_addr.addr_bytes[1],
                                            (uint32_t*)&config->o_du_addr.addr_bytes[2],
@@ -235,20 +284,54 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
     }else if (strncmp(key, KEY_FILE_AxC, strlen(KEY_FILE_AxC)) == 0) {
         unsigned int ant_num = 0;
         sscanf(key,"antC%02u",&ant_num);
-        if (ant_num >= MAX_ANT_CARRIER_SUPPORTED)
-        {
+        if (ant_num >= MAX_ANT_CARRIER_SUPPORTED) {
             printf("antC%d exceeds max antenna supported\n",ant_num);
-        }
-        else{
+        } else {
             strncpy(&config->ant_file[ant_num][0], value, strlen(value));
             printf("antC%d: %s\n",ant_num, config->ant_file[ant_num]);
+        }
+    } else if (strncmp(key, KEY_FILE_DLBFWUE, strlen(KEY_FILE_DLBFWUE)) == 0) {
+        unsigned int ue_num = 0;
+        sscanf(key,"DlBfwUe%02u",&ue_num);
+        if (ue_num >= MAX_ANT_CARRIER_SUPPORTED) {
+            printf("DlBfwUe%d exceeds max streams supported\n",ue_num);
+        } else {
+            strncpy(&config->dl_bfw_file[ue_num][0], value, strlen(value));
+            printf("DlBfwUe%d: %s\n",ue_num, config->dl_bfw_file[ue_num]);
+        }
+    }else if (strncmp(key, KEY_FILE_ULBFWUE, strlen(KEY_FILE_ULBFWUE)) == 0) {
+        unsigned int ue_num = 0;
+        sscanf(key,"UlBfwUe%02u",&ue_num);
+        if (ue_num >= MAX_ANT_CARRIER_SUPPORTED) {
+            printf("UlBfwUe%d exceeds max streams supported\n",ue_num);
+        } else {
+            strncpy(&config->ul_bfw_file[ue_num][0], value, strlen(value));
+            printf("UlBfwUe%d: %s\n",ue_num, config->ul_bfw_file[ue_num]);
+        }
+    }else if (strncmp(key, KEY_FILE_ULSRS, strlen(KEY_FILE_ULSRS)) == 0) {
+        unsigned int srs_ant = 0;
+        sscanf(key,"antSrsC%02u",&srs_ant);
+        if (srs_ant >= MAX_ANT_CARRIER_SUPPORTED_CAT_B) {
+            printf("antSrsC%d exceeds max ant elemnets supported [%d]\n", srs_ant, MAX_ANT_CARRIER_SUPPORTED_CAT_B);
+        } else {
+            strncpy(&config->ul_srs_file[srs_ant][0], value, strlen(value));
+            printf("antSrsC%d: %s\n",srs_ant, config->ul_srs_file[srs_ant]);
         }
     } else if (strcmp(key, KEY_PRACH_ENABLE) == 0) {
         config->enablePrach = atoi(value);
         printf("Prach enable: %d\n",config->enablePrach);
+    }else if (strcmp(key, KEY_MAX_FRAME_ID) == 0) {
+        config->maxFrameId = atoi(value);
+        printf("maxFrameId: %d\n",config->maxFrameId);
+    } else if (strcmp(key, KEY_SRS_ENABLE) == 0) {
+        config->enableSrs = atoi(value);
+        printf("Srs enable: %d\n",config->enablePrach);
     } else if (strcmp(key, KEY_PRACH_CFGIDX) == 0) {
         config->prachConfigIndex = atoi(value);
         printf("Prach config index: %d\n",config->prachConfigIndex);
+    } else if (strcmp(key, KEY_SRS_SYM_IDX) == 0) {
+        config->srsSymMask = atoi(value);
+        printf("Srs symbol [0-13]: %d\n",config->srsSymMask);
     } else if (strncmp(key, KEY_FILE_PRACH_AxC, strlen(KEY_FILE_PRACH_AxC)) == 0) {
         unsigned int ant_num = 0;
         sscanf(key,"antPrachC%02u",&ant_num);
@@ -260,6 +343,9 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
             strncpy(&config->prach_file[ant_num][0], value, strlen(value));
             printf("antPrachC%d: %s\n",ant_num, config->prach_file[ant_num]);
         }
+    } else if (strcmp(key, KEY_BFW_NUM) == 0) {
+        config->totalBfWeights = atoi(value);
+        printf("%s : %d\n",KEY_BFW_NUM, config->totalBfWeights);
         /* timing */
     } else if (strcmp(key, KEY_TADV_CP_DL ) == 0) {
         config->Tadv_cp_dl = atoi(value);
@@ -328,12 +414,78 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
     } else if (strcmp(key, KEY_DYNA_SEC_ENA) == 0) {
         config->DynamicSectionEna = atoi(value);
         printf("DynamicSectionEna: %d\n",config->DynamicSectionEna);
+    } else if (strcmp(key, KEY_ALPHA) == 0) {
+        config->GPS_Alpha = atoi(value);
+        printf("GPS_Alpha: %d\n",config->GPS_Alpha);
+    } else if (strcmp(key, KEY_BETA) == 0) {
+        config->GPS_Beta = atoi(value);
+        printf("GPS_Beta: %d\n",config->GPS_Beta);
     } else if (strcmp(key, KEY_CP_VTAG ) == 0) {
         config->cp_vlan_tag = atoi(value);
         printf("cp_vlan_tag: %d\n",config->cp_vlan_tag);
     } else if (strcmp(key, KEY_UP_VTAG ) == 0) {
         config->up_vlan_tag = atoi(value);
         printf("up_vlan_tag: %d\n",config->up_vlan_tag);
+    } else if (strcmp(key, KEY_NPRBELEM_UL ) == 0) {
+        config->PrbMapUl.nPrbElm = atoi(value);
+        if (config->PrbMapUl.nPrbElm > XRAN_MAX_PRBS)
+        {
+            printf("nTddPeriod is larger than max allowed, invalid!\n");
+            config->PrbMapUl.nPrbElm = XRAN_MAX_PRBS;
+        }
+        printf("nPrbElemUl: %d\n",config->PrbMapUl.nPrbElm);
+    } else if (strncmp(key, KEY_PRBELEM_UL, strlen(KEY_PRBELEM_UL)) == 0) {
+        unsigned int section_idx = 0;
+        sscanf(key,"PrbElemUl%u",&section_idx);
+        if (section_idx >= config->PrbMapUl.nPrbElm){
+            printf("section_idx %d exceeds nPrbElem\n",section_idx);
+        }
+        else{
+            struct xran_prb_elm *pPrbElem = &config->PrbMapUl.prbMap[section_idx];
+            sscanf(value, "%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd",
+                (int16_t*)&pPrbElem->nRBStart,
+                (int16_t*)&pPrbElem->nRBSize,
+                (int16_t*)&pPrbElem->nStartSymb,
+                (int16_t*)&pPrbElem->numSymb,
+                (int16_t*)&pPrbElem->nBeamIndex,
+                (int16_t*)&pPrbElem->bf_weight_update,
+                (int16_t*)&pPrbElem->compMethod,
+                (int16_t*)&pPrbElem->iqWidth,
+                (int16_t*)&pPrbElem->BeamFormingType);
+            printf("nPrbElemUl%d: ",section_idx);
+            printf("nRBStart %d,nRBSize %d,nStartSymb %d,numSymb %d,nBeamIndex %d, bf_weight_update %d compMethod %d, iqWidth %d BeamFormingType %d\n",
+                pPrbElem->nRBStart,pPrbElem->nRBSize,pPrbElem->nStartSymb,pPrbElem->numSymb,pPrbElem->nBeamIndex, pPrbElem->bf_weight_update, pPrbElem->compMethod, pPrbElem->iqWidth, pPrbElem->BeamFormingType);
+        }
+    }else if (strcmp(key, KEY_NPRBELEM_DL ) == 0) {
+        config->PrbMapDl.nPrbElm = atoi(value);
+        if (config->PrbMapDl.nPrbElm > XRAN_MAX_PRBS)
+        {
+            printf("nTddPeriod is larger than max allowed, invalid!\n");
+            config->PrbMapDl.nPrbElm = XRAN_MAX_PRBS;
+        }
+        printf("nPrbElemDl: %d\n",config->PrbMapDl.nPrbElm);
+    } else if (strncmp(key, KEY_PRBELEM_DL, strlen(KEY_PRBELEM_DL)) == 0) {
+        unsigned int section_idx = 0;
+        sscanf(key,"PrbElemDl%u",&section_idx);
+        if (section_idx >= config->PrbMapDl.nPrbElm){
+            printf("section_idx %d exceeds nPrbElem\n",section_idx);
+        }
+        else{
+            struct xran_prb_elm *pPrbElem = &config->PrbMapDl.prbMap[section_idx];
+            sscanf(value, "%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd",
+                (int16_t*)&pPrbElem->nRBStart,
+                (int16_t*)&pPrbElem->nRBSize,
+                (int16_t*)&pPrbElem->nStartSymb,
+                (int16_t*)&pPrbElem->numSymb,
+                (int16_t*)&pPrbElem->nBeamIndex,
+                (int16_t*)&pPrbElem->bf_weight_update,
+                (int16_t*)&pPrbElem->compMethod,
+                (int16_t*)&pPrbElem->iqWidth,
+                (int16_t*)&pPrbElem->BeamFormingType);
+            printf("nPrbElemDl%d: ",section_idx);
+            printf("nRBStart %d,nRBSize %d,nStartSymb %d,numSymb %d,nBeamIndex %d, bf_weight_update %d compMethod %d, iqWidth %d BeamFormingType %d\n",
+                pPrbElem->nRBStart,pPrbElem->nRBSize,pPrbElem->nStartSymb,pPrbElem->numSymb,pPrbElem->nBeamIndex, pPrbElem->bf_weight_update, pPrbElem->compMethod, pPrbElem->iqWidth, pPrbElem->BeamFormingType);
+        }
     } else {
         printf("Unsupported configuration key [%s]\n", key);
         return -1;

@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 #define _GNU_SOURCE
 #include <unistd.h>
 #include <sys/syscall.h>
@@ -39,6 +38,7 @@
 #include "xran_mlog_lnx.h"
 
 #include "xran_fh_o_du.h"
+#include "xran_compression.h"
 #include "xran_cp_api.h"
 #include "xran_sync_api.h"
 #include "xran_mlog_task_id.h"
@@ -101,9 +101,12 @@ typedef struct XranLibConfig
 typedef enum {
     XRANFTHTX_OUT = 0,
     XRANFTHTX_PRB_MAP_OUT,
+    XRANFTHTX_SEC_DESC_OUT,
     XRANFTHRX_IN,
     XRANFTHRX_PRB_MAP_IN,
+    XRANFTHTX_SEC_DESC_IN,
     XRANFTHRACH_IN,
+    XRANSRS_IN,
     MAX_SW_XRAN_INTERFACE_NUM
 }SWXRANInterfaceTypeEnum;
 
@@ -141,12 +144,18 @@ typedef struct  {
     BbuIoBufCtrlStruct sFrontHaulRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     BbuIoBufCtrlStruct sFHPrachRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
 
+    /* Cat B */
+    BbuIoBufCtrlStruct sFHSrsRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
+
     /* buffers lists */
     struct xran_flat_buffer sFrontHaulTxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFrontHaulTxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     struct xran_flat_buffer sFrontHaulRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFrontHaulRxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     struct xran_flat_buffer sFHPrachRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
+
+    /* Cat B SRS buffers */
+    struct xran_flat_buffer sFHSrsRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT];
 
     void*    nInstanceHandle[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR]; // instance per sector
     uint32_t nBufPoolIndex[XRAN_MAX_SECTOR_NR][MAX_SW_XRAN_INTERFACE_NUM];   // every api owns unique buffer pool
@@ -160,6 +169,14 @@ static XranLibConfigStruct *gpXranLibConfig = NULL;
 
 extern long rx_counter;
 extern long tx_counter;
+extern long tx_bytes_counter;
+extern long rx_bytes_counter;
+extern long tx_bytes_per_sec;
+extern long rx_bytes_per_sec;
+long old_rx_counter = 0;
+long old_tx_counter = 0;
+
+
 
 #define CPU_HZ tick_per_usec //us
 
@@ -240,6 +257,22 @@ void xran_fh_rx_prach_callback(void *pCallbackTag, xran_status_t status)
 
     MLogTask(PID_GNB_PRACH_CB, t1, MLogTick());
 }
+
+void xran_fh_rx_srs_callback(void *pCallbackTag, xran_status_t status)
+{
+    uint64_t t1 = MLogTick();
+    uint32_t mlogVar[10];
+    uint32_t mlogVarCnt = 0;
+
+    mlogVar[mlogVarCnt++] = 0xCCCCCCCC;
+    mlogVar[mlogVarCnt++] = status >> 16; /* tti */
+    mlogVar[mlogVarCnt++] = status & 0xFF; /* sym */
+    MLogAddVariables(mlogVarCnt, mlogVar, MLogTick());
+    rte_pause();
+
+    MLogTask(PID_GNB_SRS_CB, t1, MLogTick());
+}
+
 
 //-------------------------------------------------------------------------------------------
 /** @ingroup group_nbiot_source_auxlib_timer
@@ -362,6 +395,7 @@ int32_t init_xran(void)
     struct xran_buffer_list *pFthRxBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
     struct xran_buffer_list *pFthRxPrbMapBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
     struct xran_buffer_list *pFthRxRachBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
+    struct xran_buffer_list *pFthRxSrsBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_N_FE_BUF_LEN];
 
     for (nSectorNum = 0; nSectorNum < XRAN_MAX_SECTOR_NR; nSectorNum++)
     {
@@ -426,10 +460,8 @@ int32_t init_xran(void)
         printf("nSectorIndex[%d] = %d\n",i,  nSectorIndex[i]);
         status = xran_bm_init(psBbuIo->nInstanceHandle[0][i], &psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],
             XRAN_N_FE_BUF_LEN*XRAN_MAX_ANTENNA_NR*XRAN_NUM_OF_SYMBOL_PER_SLOT, nSW_ToFpga_FTH_TxBufferLen);
-        if(XRAN_STATUS_SUCCESS != status)
-        {
-            printf("Failed at  xran_bm_init , status %d\n", status);
-            iAssert(status == XRAN_STATUS_SUCCESS);
+        if(XRAN_STATUS_SUCCESS != status) {
+            rte_panic("Failed at  xran_bm_init , status %d\n", status);
         }
         for(j = 0; j < XRAN_N_FE_BUF_LEN; j++)
         {
@@ -447,10 +479,8 @@ int32_t init_xran(void)
                     psBbuIo->sFrontHaulTxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nNumberOfElements = 1;
                     psBbuIo->sFrontHaulTxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nOffsetInBytes = 0;
                     status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[0][i], psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],&ptr, &mb);
-                    if(XRAN_STATUS_SUCCESS != status)
-                    {
-                        printf("Failed at  xran_bm_allocate_buffer , status %d\n",status);
-                        iAssert(status == XRAN_STATUS_SUCCESS);
+                    if(XRAN_STATUS_SUCCESS != status){
+                        rte_panic("Failed at  xran_bm_allocate_buffer , status %d\n",status);
                     }
                     psBbuIo->sFrontHaulTxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].pData = (uint8_t *)ptr;
                     psBbuIo->sFrontHaulTxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].pCtrl = (void *)mb;
@@ -458,26 +488,31 @@ int32_t init_xran(void)
                     if(ptr){
                         u32dptr = (uint32_t*)(ptr);
                         uint8_t *ptr_temp = (uint8_t *)ptr;
-                        memset(u32dptr, 0xCC, nSW_ToFpga_FTH_TxBufferLen);
-                        ptr_temp[0] = j; // TTI
-                        ptr_temp[1] = i; // Sec
-                        ptr_temp[2] = z; // Ant
-                        ptr_temp[3] = k; // sym
+                        memset(u32dptr, 0x0, nSW_ToFpga_FTH_TxBufferLen);
+                       // ptr_temp[0] = j; // TTI
+                       // ptr_temp[1] = i; // Sec
+                       // ptr_temp[2] = z; // Ant
+                       // ptr_temp[3] = k; // sym
                     }
                 }
             }
         }
 
         /* C-plane DL */
+        eInterfaceType = XRANFTHTX_SEC_DESC_OUT;
+        status = xran_bm_init(psBbuIo->nInstanceHandle[0][i], &psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],
+            XRAN_N_FE_BUF_LEN*XRAN_MAX_ANTENNA_NR*XRAN_NUM_OF_SYMBOL_PER_SLOT*XRAN_MAX_SECTIONS_PER_SYM, sizeof(struct xran_section_desc));
+        if(XRAN_STATUS_SUCCESS != status) {
+            rte_panic("Failed at  xran_bm_init , status %d\n", status);
+        }
+
         eInterfaceType = XRANFTHTX_PRB_MAP_OUT;
-        printf("nSectorIndex[%d] = %d\n",i,  nSectorIndex[i]);
         status = xran_bm_init(psBbuIo->nInstanceHandle[0][i], &psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],
             XRAN_N_FE_BUF_LEN*XRAN_MAX_ANTENNA_NR*XRAN_NUM_OF_SYMBOL_PER_SLOT, sizeof(struct xran_prb_map));
-        if(XRAN_STATUS_SUCCESS != status)
-        {
-            printf("Failed at  xran_bm_init , status %d\n", status);
-            iAssert(status == XRAN_STATUS_SUCCESS);
+        if(XRAN_STATUS_SUCCESS != status) {
+            rte_panic("Failed at  xran_bm_init , status %d\n", status);
         }
+
         for(j = 0; j < XRAN_N_FE_BUF_LEN; j++)
         {
             for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++){
@@ -493,22 +528,32 @@ int32_t init_xran(void)
                     psBbuIo->sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nNumberOfElements = 1;
                     psBbuIo->sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nOffsetInBytes = 0;
                     status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[0][i], psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],&ptr, &mb);
-                    if(XRAN_STATUS_SUCCESS != status)
-                    {
-                        printf("Failed at  xran_bm_allocate_buffer , status %d\n",status);
-                        iAssert(status == XRAN_STATUS_SUCCESS);
+                    if(XRAN_STATUS_SUCCESS != status) {
+                        rte_panic("Failed at  xran_bm_allocate_buffer , status %d\n",status);
                     }
                     psBbuIo->sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pData = (uint8_t *)ptr;
                     psBbuIo->sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pCtrl = (void *)mb;
 
                     if(ptr){
-                        u32dptr = (uint32_t*)(ptr);
-                        uint8_t *ptr_temp = (uint8_t *)ptr;
-                        memset(u32dptr, 0xCC, sizeof(struct xran_prb_map));
-                        ptr_temp[0] = j; // TTI
-                        ptr_temp[1] = i; // Sec
-                        ptr_temp[2] = z; // Ant
-                        ptr_temp[3] = k; // sym
+                        void *sd_ptr;
+                        void *sd_mb;
+                        int elm_id;
+                        struct xran_prb_map * p_rb_map = (struct xran_prb_map *)ptr;
+                        if (startupConfiguration.appMode == APP_O_DU)
+                            memcpy(ptr, &startupConfiguration.PrbMapDl, sizeof(struct xran_prb_map));
+                        else
+                            memcpy(ptr, &startupConfiguration.PrbMapUl, sizeof(struct xran_prb_map));
+
+                        for (elm_id = 0; elm_id < p_rb_map->nPrbElm; elm_id++){
+                            struct xran_prb_elm *pPrbElem = &p_rb_map->prbMap[elm_id];
+                            for(k = 0; k < XRAN_NUM_OF_SYMBOL_PER_SLOT; k++){
+                                status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[0][i], psBbuIo->nBufPoolIndex[nSectorIndex[i]][XRANFTHTX_SEC_DESC_OUT],&sd_ptr, &sd_mb);
+                                if(XRAN_STATUS_SUCCESS != status){
+                                    rte_panic("SD Failed at  xran_bm_allocate_buffer , status %d\n",status);
+                                }
+                                pPrbElem->p_sec_desc[k] = sd_ptr;
+                            }
+                        }
                     }
                 }
             }
@@ -540,38 +585,39 @@ int32_t init_xran(void)
                     psBbuIo->sFrontHaulRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nNumberOfElements = 1;
                     psBbuIo->sFrontHaulRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nOffsetInBytes = 0;
                     status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[0][i],psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],&ptr, &mb);
-                    if(XRAN_STATUS_SUCCESS != status)
-                    {
-                        printf("Failed at  xran_bm_allocate_buffer , status %d\n",status);
-                        iAssert(status == XRAN_STATUS_SUCCESS);
+                    if(XRAN_STATUS_SUCCESS != status) {
+                        rte_panic("Failed at  xran_bm_allocate_buffer , status %d\n",status);
                     }
                     psBbuIo->sFrontHaulRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].pData = (uint8_t *)ptr;
                     psBbuIo->sFrontHaulRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].pCtrl = (void *) mb;
                     if(ptr){
                         u32dptr = (uint32_t*)(ptr);
                         uint8_t *ptr_temp = (uint8_t *)ptr;
-                        memset(u32dptr, 0xCC, nFpgaToSW_FTH_RxBufferLen);
-                        ptr_temp[0] = j; // TTI
-                        ptr_temp[1] = i; // Sec
-                        ptr_temp[2] = z; // Ant
-                        ptr_temp[3] = k; // sym
+                        memset(u32dptr, 0x0, nFpgaToSW_FTH_RxBufferLen);
+                     //   ptr_temp[0] = j; // TTI
+                     //   ptr_temp[1] = i; // Sec
+                     //   ptr_temp[2] = z; // Ant
+                     //   ptr_temp[3] = k; // sym
                     }
                 }
             }
         }
 
         /* C-plane */
+        eInterfaceType = XRANFTHTX_SEC_DESC_IN;
+        status = xran_bm_init(psBbuIo->nInstanceHandle[0][i], &psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],
+            XRAN_N_FE_BUF_LEN*XRAN_MAX_ANTENNA_NR*XRAN_NUM_OF_SYMBOL_PER_SLOT*XRAN_MAX_SECTIONS_PER_SYM, sizeof(struct xran_section_desc));
+        if(XRAN_STATUS_SUCCESS != status) {
+            rte_panic("Failed at  xran_bm_init , status %d\n", status);
+        }
         eInterfaceType = XRANFTHRX_PRB_MAP_IN;
         status = xran_bm_init(psBbuIo->nInstanceHandle[0][i], &psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],
                 XRAN_N_FE_BUF_LEN*XRAN_MAX_ANTENNA_NR*XRAN_NUM_OF_SYMBOL_PER_SLOT, sizeof(struct xran_prb_map));
-        if(XRAN_STATUS_SUCCESS != status)
-        {
-            printf("Failed at xran_bm_init, status %d\n", status);
-            iAssert(status == XRAN_STATUS_SUCCESS);
+        if(XRAN_STATUS_SUCCESS != status) {
+            rte_panic("Failed at xran_bm_init, status %d\n", status);
         }
 
-        for(j = 0;j < XRAN_N_FE_BUF_LEN; j++)
-        {
+        for(j = 0;j < XRAN_N_FE_BUF_LEN; j++) {
             for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++){
                 psBbuIo->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].bValid = 0;
                 psBbuIo->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].nSegGenerated = -1;
@@ -584,36 +630,46 @@ int32_t init_xran(void)
                     psBbuIo->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nNumberOfElements = 1;
                     psBbuIo->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nOffsetInBytes = 0;
                     status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[0][i],psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],&ptr, &mb);
-                    if(XRAN_STATUS_SUCCESS != status)
-                    {
-                        printf("Failed at  xran_bm_allocate_buffer , status %d\n",status);
-                        iAssert(status == XRAN_STATUS_SUCCESS);
+                    if(XRAN_STATUS_SUCCESS != status) {
+                        rte_panic("Failed at  xran_bm_allocate_buffer , status %d\n",status);
                     }
                     psBbuIo->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pData = (uint8_t *)ptr;
                     psBbuIo->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pCtrl = (void *)mb;
                     if(ptr){
-                        u32dptr = (uint32_t*)(ptr);
-                        uint8_t *ptr_temp = (uint8_t *)ptr;
-                        memset(u32dptr, 0xCC, sizeof(struct xran_prb_map));
-                        ptr_temp[0] = j; // TTI
-                        ptr_temp[1] = i; // Sec
-                        ptr_temp[2] = z; // Ant
-                        ptr_temp[3] = k; // sym
+                        void *sd_ptr;
+                        void *sd_mb;
+                        int elm_id;
+                        struct xran_prb_map * p_rb_map = (struct xran_prb_map *)ptr;
+
+                        if (startupConfiguration.appMode == APP_O_DU)
+                            memcpy(ptr, &startupConfiguration.PrbMapUl, sizeof(struct xran_prb_map));
+                        else
+                            memcpy(ptr, &startupConfiguration.PrbMapDl, sizeof(struct xran_prb_map));
+
+                        for (elm_id = 0; elm_id < p_rb_map->nPrbElm; elm_id++){
+                            struct xran_prb_elm *pPrbElem = &p_rb_map->prbMap[elm_id];
+                            for(k = 0; k < XRAN_NUM_OF_SYMBOL_PER_SLOT; k++){
+                                status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[0][i], psBbuIo->nBufPoolIndex[nSectorIndex[i]][XRANFTHTX_SEC_DESC_IN],&sd_ptr, &sd_mb);
+                                if(XRAN_STATUS_SUCCESS != status){
+                                    rte_panic("SD Failed at  xran_bm_allocate_buffer , status %d\n",status);
+                                }
+                                pPrbElem->p_sec_desc[k] = sd_ptr;
+                            }
+                        }
                     }
                 }
             }
         }
     }
 
+
     // add prach rx buffer
     for(i = 0; i<nSectorNum; i++)
     {
         eInterfaceType = XRANFTHRACH_IN;
         status = xran_bm_init(psBbuIo->nInstanceHandle[0][i],&psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],XRAN_N_FE_BUF_LEN*XRAN_MAX_ANTENNA_NR*XRAN_NUM_OF_SYMBOL_PER_SLOT, FPGA_TO_SW_PRACH_RX_BUFFER_LEN);
-        if(XRAN_STATUS_SUCCESS != status)
-        {
-            printf("Failed at xran_bm_init, status %d\n", status);
-            iAssert(status == XRAN_STATUS_SUCCESS);
+        if(XRAN_STATUS_SUCCESS != status) {
+            rte_panic("Failed at xran_bm_init, status %d\n", status);
         }
         for(j = 0;j < XRAN_N_FE_BUF_LEN; j++)
         {
@@ -630,21 +686,59 @@ int32_t init_xran(void)
                     psBbuIo->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nNumberOfElements = 1;
                     psBbuIo->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nOffsetInBytes = 0;
                     status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[0][i],psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],&ptr, &mb);
-                    if(XRAN_STATUS_SUCCESS != status)
-                    {
-                        printf("Failed at  xran_bm_allocate_buffer, status %d\n",status);
-                        iAssert(status == XRAN_STATUS_SUCCESS);
+                    if(XRAN_STATUS_SUCCESS != status) {
+                        rte_panic("Failed at  xran_bm_allocate_buffer, status %d\n",status);
                     }
                     psBbuIo->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].pData = (uint8_t *)ptr;
                     psBbuIo->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].pCtrl = (void *)mb;
                     if(ptr){
                         u32dptr = (uint32_t*)(ptr);
-                        memset(u32dptr, 0xCC, FPGA_TO_SW_PRACH_RX_BUFFER_LEN);
+                        memset(u32dptr, 0x0, FPGA_TO_SW_PRACH_RX_BUFFER_LEN);
                     }
                 }
             }
         }
     }
+
+    /* add SRS rx buffer */
+    for(i = 0; i<nSectorNum; i++)
+    {
+        eInterfaceType = XRANSRS_IN;
+        status = xran_bm_init(psBbuIo->nInstanceHandle[0][i],&psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],
+            XRAN_N_FE_BUF_LEN*XRAN_MAX_ANT_ARRAY_ELM_NR*XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT, nSW_ToFpga_FTH_TxBufferLen);
+
+        if(XRAN_STATUS_SUCCESS != status) {
+            rte_panic("Failed at xran_bm_init, status %d\n", status);
+        }
+        for(j = 0; j < XRAN_N_FE_BUF_LEN; j++)
+        {
+            for(z = 0; z < XRAN_MAX_ANT_ARRAY_ELM_NR; z++){
+                psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].bValid = 0;
+                psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].nSegGenerated = -1;
+                psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].nSegToBeGen = -1;
+                psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].nSegTransferred = 0;
+                psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList.nNumBuffers = XRAN_MAX_ANT_ARRAY_ELM_NR; /* ant number */
+                psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers = &psBbuIo->sFHSrsRxBuffers[j][i][z][0];
+                for(k = 0; k < XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT; k++)
+                {
+                    psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nElementLenInBytes = nSW_ToFpga_FTH_TxBufferLen;
+                    psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nNumberOfElements = 1;
+                    psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nOffsetInBytes = 0;
+                    status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[0][i],psBbuIo->nBufPoolIndex[nSectorIndex[i]][eInterfaceType],&ptr, &mb);
+                    if(XRAN_STATUS_SUCCESS != status) {
+                        rte_panic("Failed at  xran_bm_allocate_buffer, status %d\n",status);
+                    }
+                    psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].pData = (uint8_t *)ptr;
+                    psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].pCtrl = (void *)mb;
+                    if(ptr){
+                        u32dptr = (uint32_t*)(ptr);
+                        memset(u32dptr, 0x0, nSW_ToFpga_FTH_TxBufferLen);
+                    }
+                }
+            }
+        }
+    }
+
 
     for(i=0; i<nSectorNum; i++)
     {
@@ -657,11 +751,16 @@ int32_t init_xran(void)
                 pFthRxPrbMapBuffer[i][z][j]     = &(psBbuIo->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList);
                 pFthRxRachBuffer[i][z][j] = &(psBbuIo->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList);
             }
+
+            for(z = 0; z < XRAN_MAX_ANT_ARRAY_ELM_NR; z++){
+                pFthRxSrsBuffer[i][z][j] = &(psBbuIo->sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList);
+            }
         }
     }
 
     if(NULL != psBbuIo->nInstanceHandle[0])
     {
+        /* add pusch callback */
         for (i = 0; i<nSectorNum; i++)
         {
             xran_5g_fronthault_config (psBbuIo->nInstanceHandle[0][i],
@@ -672,12 +771,19 @@ int32_t init_xran(void)
                 xran_fh_rx_callback,  &pFthRxBuffer[i][0]);
         }
 
-        // add prach callback here
+        /* add prach callback here */
         for (i = 0; i<nSectorNum; i++)
         {
             xran_5g_prach_req(psBbuIo->nInstanceHandle[0][i], pFthRxRachBuffer[i],
                 xran_fh_rx_prach_callback,&pFthRxRachBuffer[i][0]);
         }
+
+        /* add SRS callback here */
+        for (i = 0; i<nSectorNum; i++) {
+            xran_5g_srs_req(psBbuIo->nInstanceHandle[0][i], pFthRxSrsBuffer[i],
+                xran_fh_rx_srs_callback,&pFthRxSrsBuffer[i][0]);
+        }
+
         ptrLibConfig->nFhBufIntFlag = 1;
     }
 
@@ -703,7 +809,7 @@ int init_xran_iq_content(void)
     uint16_t *u16dptr;
     uint8_t  *u8dptr;
 
-    char        *pos = NULL;
+    char *pos = NULL;
     struct xran_prb_map *pRbMap = NULL;
 
     for (nSectorNum = 0; nSectorNum < XRAN_MAX_SECTOR_NR; nSectorNum++)
@@ -721,63 +827,209 @@ int init_xran_iq_content(void)
                 for(sym_id = 0; sym_id < XRAN_NUM_OF_SYMBOL_PER_SLOT; sym_id++) {
 
                     flowId = XRAN_MAX_ANTENNA_NR*cc_id + ant_id;
-
                     if(p_tx_play_buffer[flowId]){
+                        /* c-plane DL */
+                        pRbMap = (struct xran_prb_map *) psBbuIo->sFrontHaulTxPrbMapBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers->pData;
+                        if(pRbMap){
+                            if (xranInit.DynamicSectionEna == 0){
+                                pRbMap->dir = XRAN_DIR_DL;
+                                pRbMap->xran_port = 0;
+                                pRbMap->band_id = 0;
+                                pRbMap->cc_id = cc_id;
+                                pRbMap->ru_port_id = ant_id;
+                                pRbMap->tti_id = tti;
+                                pRbMap->start_sym_id = 0;
+                                pRbMap->nPrbElm = 1;
+                                pRbMap->prbMap[0].nStartSymb = 0;
+                                pRbMap->prbMap[0].numSymb = 14;
+                                pRbMap->prbMap[0].nRBStart = 0;
+                                pRbMap->prbMap[0].nRBSize = pXranConf->nDLRBs;
+                                pRbMap->prbMap[0].nBeamIndex = 0;
+                                pRbMap->prbMap[0].compMethod = XRAN_COMPMETHOD_NONE;
+                                pRbMap->prbMap[0].iqWidth    = 16;
+                            } else if(pXranConf->ru_conf.xranCat == XRAN_CATEGORY_B
+                                      && startupConfiguration.appMode == APP_O_DU
+                                      && sym_id == 0){ /* BF Ws are per slot */
+                                int idxElm = 0;
+                                char* dl_bfw_pos  = ((char*)p_tx_dl_bfw_buffer[flowId]) + tx_dl_bfw_buffer_position[flowId];
+                                struct xran_prb_elm* p_pRbMapElm = NULL;
+                                for (idxElm = 0;  idxElm < pRbMap->nPrbElm; idxElm++){
+                                    p_pRbMapElm = &pRbMap->prbMap[idxElm];
+                                    p_pRbMapElm->bf_weight.nAntElmTRx = pXranConf->nAntElmTRx;
+                                    if(p_pRbMapElm->BeamFormingType == XRAN_BEAM_WEIGHT && p_pRbMapElm->bf_weight_update){
+                                        int16_t  ext_len       = 9600;
+                                        int16_t  ext_sec_total = 0;
+                                        int8_t * ext_buf =(int8_t*) xran_malloc(ext_len);
+                                        int idRb = 0;
+                                        int16_t *ptr = NULL;
+                                        int i;
+                                        if (ext_buf){
+                                            ext_buf += (RTE_PKTMBUF_HEADROOM +
+                                                       sizeof (struct xran_ecpri_hdr) +
+                                                       sizeof(struct xran_cp_radioapp_section1));
+
+                                            ext_len -= (RTE_PKTMBUF_HEADROOM +
+                                                        sizeof (struct xran_ecpri_hdr) +
+                                                        sizeof(struct xran_cp_radioapp_section1));
+                                            ext_sec_total =  xran_cp_populate_section_ext_1((int8_t *)ext_buf,
+                                                                      ext_len,
+                                                                      (int16_t *) (dl_bfw_pos + (p_pRbMapElm->nRBStart*pXranConf->nAntElmTRx)*4),
+                                                                      p_pRbMapElm->nRBSize,
+                                                                      pXranConf->nAntElmTRx,
+                                                                      p_pRbMapElm->iqWidth, p_pRbMapElm->compMethod);
+                                            if(ext_sec_total > 0){
+                                                p_pRbMapElm->bf_weight.p_ext_section  = ext_buf;
+                                                p_pRbMapElm->bf_weight.ext_section_sz = ext_sec_total;
+                                            }else {
+                                                rte_panic("xran_cp_populate_section_ext_1 return error [%d]\n", ext_sec_total);
+                                            }
+                                        } else {
+                                            rte_panic("xran_malloc return NULL\n");
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            printf("DL pRbMap ==NULL\n");
+                            exit(-1);
+                        }
+
                         pos =  ((char*)p_tx_play_buffer[flowId]) + tx_play_buffer_position[flowId];
                         ptr = psBbuIo->sFrontHaulTxBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers[sym_id].pData;
 
                         if(ptr && pos){
-                            u32dptr = (uint32_t*)(ptr);
-                            rte_memcpy(u32dptr, pos, pXranConf->nDLRBs*N_SC_PER_PRB*4);
-#ifdef DEBUG_XRAN_BUFFERS
-                            uint8_t *ptr_temp = (uint8_t *)ptr;
-                                ptr_temp[0] = tti; // TTI
-                                ptr_temp[1] = cc_id; // Sec
-                                ptr_temp[2] = ant_id; // Ant
-                                ptr_temp[3] = sym_id; // sym
-#endif
+                            int idxElm = 0;
+                            u8dptr = (uint8_t*)ptr;
+                            int16_t payload_len = 0;
+
+                            uint8_t  *dst = (uint8_t *)u8dptr;
+                            uint8_t  *src = (uint8_t *)pos;
+                            struct xran_prb_elm* p_prbMapElm = &pRbMap->prbMap[idxElm];
+                            dst =  xran_add_hdr_offset(dst, p_prbMapElm->compMethod);
+                            for (idxElm = 0;  idxElm < pRbMap->nPrbElm; idxElm++) {
+                                struct xran_section_desc *p_sec_desc = NULL;
+                                p_prbMapElm = &pRbMap->prbMap[idxElm];
+                                p_sec_desc =  p_prbMapElm->p_sec_desc[sym_id];
+
+                                if(p_sec_desc == NULL){
+                                    printf ("p_sec_desc == NULL\n");
+                                    exit(-1);
+                                }
+                                src = (uint8_t *)(pos + p_prbMapElm->nRBStart*N_SC_PER_PRB*4L);
+
+                                if(p_prbMapElm->compMethod == XRAN_COMPMETHOD_NONE) {
+                                    payload_len = p_prbMapElm->nRBSize*N_SC_PER_PRB*4L;
+                                    rte_memcpy(dst, src, payload_len);
+
+                                } else if (p_prbMapElm->compMethod == XRAN_COMPMETHOD_BLKFLOAT) {
+                                    struct xranlib_compress_request  bfp_com_req;
+                                    struct xranlib_compress_response bfp_com_rsp;
+
+                                    memset(&bfp_com_req, 0, sizeof(struct xranlib_compress_request));
+                                    memset(&bfp_com_rsp, 0, sizeof(struct xranlib_compress_response));
+
+                                    bfp_com_req.data_in    = (int16_t*)src;
+                                    bfp_com_req.numRBs     = p_prbMapElm->nRBSize;
+                                    bfp_com_req.len        = p_prbMapElm->nRBSize*N_SC_PER_PRB*4L;
+                                    bfp_com_req.compMethod = p_prbMapElm->compMethod;
+                                    bfp_com_req.iqWidth    = p_prbMapElm->iqWidth;
+
+                                    bfp_com_rsp.data_out   = (int8_t*)dst;
+                                    bfp_com_rsp.len        = 0;
+
+                                    if(xranlib_compress_avx512(&bfp_com_req, &bfp_com_rsp) < 0){
+                                        printf ("compression failed [%d]\n",
+                                            p_prbMapElm->compMethod);
+                                        exit(-1);
+                                    } else {
+                                        payload_len = bfp_com_rsp.len;
+                                    }
+                                }else {
+                                    printf ("p_prbMapElm->compMethod == %d is not supported\n",
+                                        p_prbMapElm->compMethod);
+                                    exit(-1);
+                                }
+
+                                /* update RB map for given element */
+                                p_sec_desc->iq_buffer_offset = RTE_PTR_DIFF(dst, u8dptr);
+                                p_sec_desc->iq_buffer_len = payload_len;
+
+                                /* add headroom for ORAN headers between IQs for chunk of RBs*/
+                                dst += payload_len;
+                                dst  = xran_add_hdr_offset(dst, p_prbMapElm->compMethod);
+                            }
                         } else {
                             exit(-1);
                             printf("ptr ==NULL\n");
                         }
 
-                        /* c-plane DL */
-                        pRbMap = (struct xran_prb_map *) psBbuIo->sFrontHaulTxPrbMapBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers->pData;
-                        if(pRbMap){
-                            pRbMap->dir = XRAN_DIR_DL;
-                            pRbMap->xran_port = 0;
-                            pRbMap->band_id = 0;
-                            pRbMap->cc_id = cc_id;
-                            pRbMap->ru_port_id = ant_id;
-                            pRbMap->tti_id = tti;
-                            pRbMap->start_sym_id = 0;
-                            pRbMap->nPrbElm = 1;
-                            pRbMap->prbMap[0].nRBStart = 0;
-                            pRbMap->prbMap[0].nRBSize = pXranConf->nDLRBs;
-                            pRbMap->prbMap[0].nBeamIndex = 0;
-                            pRbMap->prbMap[0].compMethod = XRAN_COMPMETHOD_NONE;
-                        }else{
-                            printf("DL pRbMap ==NULL\n");
-                            exit(-1);
-                        }
 
                         /* c-plane UL */
                         pRbMap = (struct xran_prb_map *) psBbuIo->sFrontHaulRxPrbMapBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers->pData;
                         if(pRbMap){
-                            pRbMap->dir = XRAN_DIR_UL;
-                            pRbMap->xran_port = 0;
-                            pRbMap->band_id = 0;
-                            pRbMap->cc_id = cc_id;
-                            pRbMap->ru_port_id = ant_id;
-                            pRbMap->tti_id = tti;
-                            pRbMap->start_sym_id = 0;
-                            pRbMap->nPrbElm = 1;
-                            pRbMap->prbMap[0].nRBStart = 0;
-                            pRbMap->prbMap[0].nRBSize = pXranConf->nULRBs;
-                            pRbMap->prbMap[0].nBeamIndex = 0;
-                            pRbMap->prbMap[0].compMethod = XRAN_COMPMETHOD_NONE;
-                        }else {
-                            printf("UL: pRbMap ==NULL\n");
+                            if (xranInit.DynamicSectionEna == 0){
+                                pRbMap->dir = XRAN_DIR_UL;
+                                pRbMap->xran_port = 0;
+                                pRbMap->band_id = 0;
+                                pRbMap->cc_id = cc_id;
+                                pRbMap->ru_port_id = ant_id;
+                                pRbMap->tti_id = tti;
+                                pRbMap->start_sym_id = 0;
+                                pRbMap->nPrbElm = 1;
+                                pRbMap->prbMap[0].nRBStart = 0;
+                                pRbMap->prbMap[0].nRBSize = pXranConf->nULRBs;
+                                pRbMap->prbMap[0].nStartSymb = 0;
+                                pRbMap->prbMap[0].numSymb = 14;
+                                pRbMap->prbMap[0].p_sec_desc[sym_id]->iq_buffer_offset = 0;
+                                pRbMap->prbMap[0].p_sec_desc[sym_id]->iq_buffer_len    = pXranConf->nULRBs *4L;
+                                pRbMap->prbMap[0].nBeamIndex = 0;
+                                pRbMap->prbMap[0].compMethod = XRAN_COMPMETHOD_NONE;
+                            } else if(pXranConf->ru_conf.xranCat == XRAN_CATEGORY_B
+                                      && startupConfiguration.appMode == APP_O_DU
+                                      && sym_id == 0){
+                                int idxElm = 0;
+                                char        * ul_bfw_pos =  ((char*)p_tx_ul_bfw_buffer[flowId]) + tx_ul_bfw_buffer_position[flowId];
+                                struct xran_prb_elm* p_pRbMapElm = NULL;
+
+                                for (idxElm = 0;  idxElm < pRbMap->nPrbElm; idxElm++){
+                                    p_pRbMapElm = &pRbMap->prbMap[idxElm];
+                                    p_pRbMapElm->bf_weight.nAntElmTRx = pXranConf->nAntElmTRx;
+                                    if(p_pRbMapElm->BeamFormingType == XRAN_BEAM_WEIGHT && p_pRbMapElm->bf_weight_update){
+                                        int16_t  ext_len       = 9600;
+                                        int16_t  ext_sec_total = 0;
+                                        int8_t * ext_buf =(int8_t*) xran_malloc(ext_len);
+                                        int idRb = 0;
+                                        int16_t *ptr = NULL;
+                                        int i;
+                                        if (ext_buf){
+                                            ext_buf += (RTE_PKTMBUF_HEADROOM +
+                                                       sizeof (struct xran_ecpri_hdr) +
+                                                       sizeof(struct xran_cp_radioapp_section1));
+
+                                            ext_len -= (RTE_PKTMBUF_HEADROOM +
+                                                        sizeof (struct xran_ecpri_hdr) +
+                                                        sizeof(struct xran_cp_radioapp_section1));
+                                            ptr = (int16_t*)(ul_bfw_pos +(p_pRbMapElm->nRBStart*pXranConf->nAntElmTRx)*4);
+                                            ext_sec_total =  xran_cp_populate_section_ext_1((int8_t *)ext_buf,
+                                                                      ext_len,
+                                                                      (int16_t *) (ul_bfw_pos + (p_pRbMapElm->nRBStart*pXranConf->nAntElmTRx)*4),
+                                                                      p_pRbMapElm->nRBSize,
+                                                                      pXranConf->nAntElmTRx,
+                                                                      p_pRbMapElm->iqWidth, p_pRbMapElm->compMethod);
+                                            if(ext_sec_total > 0){
+                                                p_pRbMapElm->bf_weight.p_ext_section  = ext_buf;
+                                                p_pRbMapElm->bf_weight.ext_section_sz = ext_sec_total;
+                                            }else {
+                                                rte_panic("xran_cp_populate_section_ext_1 return error [%d]\n", ext_sec_total);
+                                            }
+                                        } else {
+                                            rte_panic("xran_malloc return NULL\n");
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            printf("DL pRbMap ==NULL\n");
                             exit(-1);
                         }
 
@@ -785,6 +1037,18 @@ int init_xran_iq_content(void)
 
                         if(tx_play_buffer_position[flowId] >= tx_play_buffer_size[flowId])
                             tx_play_buffer_position[flowId] = 0;
+
+                        if(pXranConf->ru_conf.xranCat == XRAN_CATEGORY_B
+                           && startupConfiguration.appMode == APP_O_DU
+                           && sym_id == 0) {
+                            tx_dl_bfw_buffer_position[flowId] += (pXranConf->nDLRBs*pXranConf->nAntElmTRx)*4;
+                            if(tx_dl_bfw_buffer_position[flowId] >= tx_dl_bfw_buffer_size[flowId])
+                                tx_dl_bfw_buffer_position[flowId] = 0;
+
+                            tx_ul_bfw_buffer_position[flowId] += (pXranConf->nULRBs*pXranConf->nAntElmTRx)*4;
+                            if(tx_ul_bfw_buffer_position[flowId] >= tx_ul_bfw_buffer_size[flowId])
+                                tx_ul_bfw_buffer_position[flowId] = 0;
+                        }
                     } else {
                         //printf("flowId %d\n", flowId);
                     }
@@ -794,29 +1058,55 @@ int init_xran_iq_content(void)
             /* prach TX for RU only */
             if(startupConfiguration.appMode == APP_O_RU && startupConfiguration.enablePrach){
                 for(ant_id = 0; ant_id < XRAN_MAX_ANTENNA_NR; ant_id++){
-                    for(sym_id = 0; sym_id < 1; sym_id++) {
+                    for(sym_id = 0; sym_id < XRAN_NUM_OF_SYMBOL_PER_SLOT; sym_id++) {
                         flowId = XRAN_MAX_ANTENNA_NR*cc_id + ant_id;
 
                         if(p_tx_prach_play_buffer[flowId]){
-                            /* (0-79 slots) 10ms of IQs */
                             pos =  ((char*)p_tx_prach_play_buffer[flowId]);
 
                             ptr = psBbuIo->sFHPrachRxBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers[sym_id].pData;
 
                             if(ptr && pos){
                                 u32dptr = (uint32_t*)(ptr);
-                                rte_memcpy(u32dptr, pos, PRACH_PLAYBACK_BUFFER_BYTES);
-#ifdef DEBUG_XRAN_BUFFERS
-                                uint8_t *ptr_temp = (uint8_t *)ptr;
-                                    ptr_temp[0] = tti; // TTI
-                                    ptr_temp[1] = cc_id; // Sec
-                                    ptr_temp[2] = ant_id; // Ant
-                                    ptr_temp[3] = sym_id; // sym
-#endif
+                                /* duplicate full PRACH (repetition * occassions ) in every symbol */
+                                memset(u32dptr,0 , PRACH_PLAYBACK_BUFFER_BYTES);
+                                rte_memcpy(u32dptr, pos, RTE_MIN(PRACH_PLAYBACK_BUFFER_BYTES, tx_prach_play_buffer_size[flowId]));
                             } else {
                                 exit(-1);
                                 printf("ptr ==NULL\n");
                             }
+                        } else {
+                            //printf("flowId %d\n", flowId);
+                        }
+                    }
+                }
+            }
+
+            /* SRS TX for RU only */
+            if(startupConfiguration.appMode == APP_O_RU && startupConfiguration.enableSrs){
+                for(ant_id = 0; ant_id < XRAN_MAX_ANT_ARRAY_ELM_NR; ant_id++){
+                    for(sym_id = 0; sym_id < XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT; sym_id++) {
+                        flowId = XRAN_MAX_ANT_ARRAY_ELM_NR*cc_id + ant_id;
+
+                        if(p_tx_srs_play_buffer[flowId]){
+                            pos =  ((char*)p_tx_srs_play_buffer[flowId]) + tx_srs_play_buffer_position[flowId];
+                            ptr = psBbuIo->sFHSrsRxBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers[sym_id].pData;
+
+                            if(startupConfiguration.srsSymMask & (1 << sym_id) ){
+                                if(ptr && pos){
+                                    u32dptr = (uint32_t*)(ptr);
+                                    memset(u32dptr,0 , pXranConf->nULRBs*N_SC_PER_PRB*4);
+                                    rte_memcpy(u32dptr, pos, pXranConf->nULRBs*N_SC_PER_PRB*4);
+                                } else {
+                                    exit(-1);
+                                    printf("ptr ==NULL\n");
+                                }
+                            }
+
+                            tx_srs_play_buffer_position[flowId] += pXranConf->nULRBs*N_SC_PER_PRB*4;
+
+                            if(tx_srs_play_buffer_position[flowId] >= tx_srs_play_buffer_size[flowId])
+                                tx_srs_play_buffer_position[flowId] = 0;
                         } else {
                             //printf("flowId %d\n", flowId);
                         }
@@ -879,67 +1169,124 @@ int get_xran_iq_content(void)
     {
         for(tti  = 0; tti  < XRAN_N_FE_BUF_LEN; tti++) {
             for(ant_id = 0; ant_id < XRAN_MAX_ANTENNA_NR; ant_id++){
+                int32_t idxElm = 0;
+                struct xran_prb_map *pRbMap = NULL;
+                struct xran_prb_elm *pRbElm = NULL;
+                struct xran_section_desc *p_sec_desc = NULL;
+                pRbMap = (struct xran_prb_map *) psBbuIo->sFrontHaulRxPrbMapBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers->pData;
+                if(pRbMap == NULL)
+                    exit(-1);
+                flowId = XRAN_MAX_ANTENNA_NR * cc_id + ant_id;
                 for(sym_id = 0; sym_id < XRAN_NUM_OF_SYMBOL_PER_SLOT; sym_id++) {
-                    flowId = XRAN_MAX_ANTENNA_NR * cc_id + ant_id;
-                    if(p_rx_log_buffer[flowId]){
-                        /* (0-79 slots) 10ms of IQs */
-                        pos =  ((char*)p_rx_log_buffer[flowId]) + rx_log_buffer_position[flowId];
-                        ptr = psBbuIo->sFrontHaulRxBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers[sym_id].pData;
-                        if(ptr){
-                            u32dptr = (uint32_t*)(ptr);
-                            rte_memcpy(pos, u32dptr, pXranConf->nULRBs*N_SC_PER_PRB*4);
-#ifdef DEBUG_XRAN_BUFFERS
-                            if (pos[0] != tti||
-                                pos[1] != cc_id  ||
-                                pos[2] != ant_id ||
-                                pos[3] != sym_id){
-                                    printf("[flowId %d] %d %d %d %d\n", flowId, pos[0], pos[1], pos[2], pos[3]);
+                    pRbElm = &pRbMap->prbMap[0];
+                    if(pRbMap->nPrbElm == 1){
+                        if(p_rx_log_buffer[flowId]) {
+                            pos =  ((char*)p_rx_log_buffer[flowId]) + rx_log_buffer_position[flowId];
+                            ptr =  psBbuIo->sFrontHaulRxBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers[sym_id].pData;
+                            if(ptr){
+                                u32dptr = (uint32_t*)(ptr);
+                                char* my_ptr =(char *)ptr;
+                                rte_memcpy(pos + pRbElm->nRBStart*N_SC_PER_PRB*4L , u32dptr, pRbElm->nRBSize*N_SC_PER_PRB*4L);
+                            }else {
+                                printf("[%d][%d][%d][%d]ptr ==NULL\n",tti,cc_id,ant_id, sym_id);
                             }
-#endif
-                        }else
-                            printf("ptr ==NULL\n");
-
-                        rx_log_buffer_position[flowId] += pXranConf->nULRBs*N_SC_PER_PRB*4;
-
-                        if(rx_log_buffer_position[flowId] >= rx_log_buffer_size[flowId])
-                            rx_log_buffer_position[flowId] = 0;
+                        }
                     } else {
-                        //printf("flowId %d\n", flowId);
+                        for(idxElm = 0; idxElm < pRbMap->nPrbElm; idxElm++ ) {
+                            pRbElm = &pRbMap->prbMap[idxElm];
+                            p_sec_desc = pRbElm->p_sec_desc[sym_id];
+                            if(p_rx_log_buffer[flowId] && p_sec_desc){
+                                if(sym_id >= pRbElm->nStartSymb && sym_id < pRbElm->nStartSymb + pRbElm->numSymb){
+                                    pos =  ((char*)p_rx_log_buffer[flowId]) + rx_log_buffer_position[flowId];
+                                    ptr = p_sec_desc->pData;
+                                    if(ptr){
+                                        int32_t payload_len = 0;
+                                        u32dptr = (uint32_t*)(ptr);
+                                        if (pRbElm->compMethod != XRAN_COMPMETHOD_NONE){
+                                            struct xranlib_decompress_request  bfp_decom_req;
+                                            struct xranlib_decompress_response bfp_decom_rsp;
+
+                                            memset(&bfp_decom_req, 0, sizeof(struct xranlib_decompress_request));
+                                            memset(&bfp_decom_rsp, 0, sizeof(struct xranlib_decompress_response));
+
+                                            bfp_decom_req.data_in    = (int8_t *)u32dptr;
+                                            bfp_decom_req.numRBs     = pRbElm->nRBSize;
+                                            bfp_decom_req.len        = (3* pRbElm->iqWidth + 1)*pRbElm->nRBSize;
+                                            bfp_decom_req.compMethod = pRbElm->compMethod;
+                                            bfp_decom_req.iqWidth    = pRbElm->iqWidth;
+
+                                            bfp_decom_rsp.data_out   = (int16_t *)(pos + pRbElm->nRBStart*N_SC_PER_PRB*4);
+                                            bfp_decom_rsp.len        = 0;
+
+                                            if(xranlib_decompress_avx512(&bfp_decom_req, &bfp_decom_rsp) < 0){
+                                                printf ("compression failed [%d]\n",
+                                                    pRbElm->compMethod);
+                                                exit(-1);
+                                            } else {
+                                                payload_len = bfp_decom_rsp.len;
+                                            }
+                                       } else {
+                                            rte_memcpy(pos + pRbElm->nRBStart*N_SC_PER_PRB*4 , u32dptr, pRbElm->nRBSize*N_SC_PER_PRB*4);
+                                       }
+                                    }
+                                }
+                            }
+                        }
                     }
+                    rx_log_buffer_position[flowId] += pXranConf->nULRBs*N_SC_PER_PRB*4;
+
+                    if(rx_log_buffer_position[flowId] >= rx_log_buffer_size[flowId])
+                        rx_log_buffer_position[flowId] = 0;
                 }
 
                 /* prach RX for O-DU only */
-                if(startupConfiguration.appMode == APP_O_DU){
+                if(startupConfiguration.appMode == APP_O_DU) {
                     flowId = XRAN_MAX_ANTENNA_NR * cc_id + ant_id;
-                    sym_id = 0;
+                    for(sym_id = 0; sym_id < XRAN_NUM_OF_SYMBOL_PER_SLOT; sym_id++){
+                        if(p_prach_log_buffer[flowId]){
+                            /* (0-79 slots) 10ms of IQs */
+                            pos =  ((char*)p_prach_log_buffer[flowId]) + prach_log_buffer_position[flowId];
+                            ptr = psBbuIo->sFHPrachRxBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers[sym_id].pData; //8192 144
+                            if(ptr){
+                                u32dptr = (uint32_t*)(ptr);
+                                rte_memcpy(pos, u32dptr, PRACH_PLAYBACK_BUFFER_BYTES);
+                            }else
+                                printf("ptr ==NULL\n");
 
-                    if(p_prach_log_buffer[flowId]){
-                        /* (0-79 slots) 10ms of IQs */
-                        pos =  ((char*)p_prach_log_buffer[flowId]) + prach_log_buffer_position[flowId];
-                        ptr = psBbuIo->sFHPrachRxBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers[sym_id].pData;
-                        if(ptr){
-                            u32dptr = (uint32_t*)(ptr);
-                            rte_memcpy(pos, u32dptr, PRACH_PLAYBACK_BUFFER_BYTES);
-#ifdef DEBUG_XRAN_BUFFERS
-                            if (pos[0] != tti||
-                                pos[1] != cc_id  ||
-                                pos[2] != ant_id ||
-                                pos[3] != sym_id){
-                                    printf("[flowId %d] %d %d %d %d\n", flowId, pos[0], pos[1], pos[2], pos[3]);
-                            }
-#endif
-                        }else
-                            printf("ptr ==NULL\n");
+                            prach_log_buffer_position[flowId] += PRACH_PLAYBACK_BUFFER_BYTES;
 
-                        prach_log_buffer_position[flowId] += PRACH_PLAYBACK_BUFFER_BYTES;
-
-                        if(prach_log_buffer_position[flowId] >= prach_log_buffer_size[flowId])
-                            prach_log_buffer_position[flowId] = 0;
-                    } else {
-                        //printf("flowId %d\n", flowId);
+                            if(prach_log_buffer_position[flowId] >= prach_log_buffer_size[flowId])
+                                prach_log_buffer_position[flowId] = 0;
+                        } else {
+                            //printf("flowId %d\n", flowId);
+                        }
                     }
                 }
+            }
 
+            /* SRS RX for O-DU only */
+            if(startupConfiguration.appMode == APP_O_DU) {
+                for(ant_id = 0; ant_id < XRAN_MAX_ANT_ARRAY_ELM_NR; ant_id++){
+                    flowId = XRAN_MAX_ANT_ARRAY_ELM_NR*cc_id + ant_id;
+                    for(sym_id = 0; sym_id < XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT; sym_id++){
+                        if(p_srs_log_buffer[flowId]){
+                            pos =  ((char*)p_srs_log_buffer[flowId]) + srs_log_buffer_position[flowId];
+                            ptr = psBbuIo->sFHSrsRxBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers[sym_id].pData;
+                            if(ptr){
+                                u32dptr = (uint32_t*)(ptr);
+                                rte_memcpy(pos, u32dptr, pXranConf->nULRBs*N_SC_PER_PRB*4);
+                            }else
+                                printf("ptr ==NULL\n");
+
+                            srs_log_buffer_position[flowId] += pXranConf->nULRBs*N_SC_PER_PRB*4;
+
+                            if(srs_log_buffer_position[flowId] >= srs_log_buffer_size[flowId])
+                                srs_log_buffer_position[flowId] = 0;
+                        } else {
+                            //printf("flowId %d\n", flowId);
+                        }
+                    }
+                }
             }
         }
     }
@@ -974,7 +1321,8 @@ int main(int argc, char *argv[])
     int i;
     int j, len;
     int  lcore_id = 0;
-    char filename[64];
+    char filename[256];
+    char prefix_name[256];
     uint32_t nCenterFreq;
     int32_t xret = 0;
     struct stat st = {0};
@@ -982,9 +1330,19 @@ int main(int argc, char *argv[])
     char *pCheckName1 = NULL, *pCheckName2 = NULL;
     enum xran_if_state xran_curr_if_state = XRAN_INIT;
 
+    uint64_t nMask = (uint64_t)1;
+    uint16_t nCoreUsage[4*64+1];
+    uint16_t nCoreId[4*64];
+    float nTotal = 0.0;
+    uint64_t nTotalTime;
+    uint64_t nUsedTime;
+    uint32_t nCoreUsed;
+    float nUsedPercent;
+
+
     if (argc == 3)
         errx(2, "Need two argument - the PCI address of the network port");
-    if (filenameLength >= 64)
+    if (filenameLength >= 256)
     {
         printf("Config file name input is too long, exiting!\n");
         exit(-1);
@@ -999,14 +1357,6 @@ int main(int argc, char *argv[])
     strncpy(filename, argv[1], (sizeof(filename) - 10));
     filename[len] = '\0';
 
-    pCheckName1 = strstr(filename, "config_file_o_du.dat");
-    pCheckName2 = strstr(filename, "config_file_o_ru.dat");
-    if ((pCheckName1 == NULL) && (pCheckName2 == NULL))
-    {
-        printf("config file name %s is not valid!\n", filename);
-        exit(-1);
-    }
-
     if (xran_is_synchronized() != 0)
         printf("Machine is not synchronized using PTP!\n");
     else
@@ -1016,19 +1366,24 @@ int main(int argc, char *argv[])
 
     if (parseConfigFile(filename, (RuntimeConfig*)&startupConfiguration) != 0) {
         printf("Configuration file error.\n");
-        return 0;
+        return -1;
     }
 
     if(startupConfiguration.ant_file[0] == NULL){
         printf("it looks like test vector for antennas were not provided\n");
         exit(-1);
     }
-    if (startupConfiguration.numCC > XRAN_MAX_SECTOR_NR)
-    {
+
+    if (startupConfiguration.numCC > XRAN_MAX_SECTOR_NR) {
         printf("Number of cells %d exceeds max number supported %d!\n", startupConfiguration.numCC, XRAN_MAX_SECTOR_NR);
         startupConfiguration.numCC = XRAN_MAX_SECTOR_NR;
 
     }
+    if (startupConfiguration.antElmTRx > XRAN_MAX_ANT_ARRAY_ELM_NR) {
+        printf("Number of Antenna elements %d exceeds max number supported %d!\n", startupConfiguration.antElmTRx, XRAN_MAX_ANT_ARRAY_ELM_NR);
+        startupConfiguration.antElmTRx = XRAN_MAX_ANT_ARRAY_ELM_NR;
+    }
+
     numCCPorts = startupConfiguration.numCC;
     num_eAxc   = startupConfiguration.numAxc;
 
@@ -1037,55 +1392,78 @@ int main(int argc, char *argv[])
     if (startupConfiguration.mu_number <= 1){
         nFpgaToSW_FTH_RxBufferLen    = 13168; /* 273*12*4 + 64*/
         nFpgaToSW_PRACH_RxBufferLen  = 8192;
-        nSW_ToFpga_FTH_TxBufferLen   = 13168; /* 273*12*4 + 64*/
+        nSW_ToFpga_FTH_TxBufferLen   = 13168 + /* 273*12*4 + 64* + ETH AND ORAN HDRs */
+                        XRAN_MAX_SECTIONS_PER_SYM* (RTE_PKTMBUF_HEADROOM + sizeof(struct ether_hdr) +
+                        sizeof(struct xran_ecpri_hdr) +
+                        sizeof(struct radio_app_common_hdr) +
+                        sizeof(struct data_section_hdr));
     } else if (startupConfiguration.mu_number == 3){
         nFpgaToSW_FTH_RxBufferLen    = 3328;
         nFpgaToSW_PRACH_RxBufferLen  = 8192;
-        nSW_ToFpga_FTH_TxBufferLen   = 3328;
+        nSW_ToFpga_FTH_TxBufferLen   = 3328 +
+                        XRAN_MAX_SECTIONS_PER_SYM * (RTE_PKTMBUF_HEADROOM + sizeof(struct ether_hdr) +
+                        sizeof(struct xran_ecpri_hdr) +
+                        sizeof(struct radio_app_common_hdr) +
+                        sizeof(struct data_section_hdr));
     } else {
         printf("given numerology is not supported %d\n", startupConfiguration.mu_number);
         exit(-1);
     }
+    printf("nSW_ToFpga_FTH_TxBufferLen %d\n", nSW_ToFpga_FTH_TxBufferLen);
 
     memset(&xranInit, 0, sizeof(struct xran_fh_init));
 
     if(startupConfiguration.appMode == APP_O_DU) {
         printf("set O-DU\n");
-        xranInit.io_cfg.id = 0;//ID_LLS_CU;
-        xranInit.io_cfg.core          = 4+1;
+        xranInit.io_cfg.id = 0;/* O-DU */
+        xranInit.io_cfg.core          = startupConfiguration.io_core;
         xranInit.io_cfg.system_core   = 0;
-        xranInit.io_cfg.pkt_proc_core = 4+2;
+        xranInit.io_cfg.pkt_proc_core = startupConfiguration.io_core+1;
         xranInit.io_cfg.pkt_aux_core  = 0; /* do not start*/
-        xranInit.io_cfg.timing_core   = 4+3;
+        xranInit.io_cfg.timing_core   = startupConfiguration.io_core+2;
     } else {
-        printf("set O-DU\n");
-        xranInit.io_cfg.id = 1; /* ID_LLS_CU;*/
-        xranInit.io_cfg.core          = 1;
+        printf("set O-RU\n");
+        xranInit.io_cfg.id = 1; /* O-RU*/
+        xranInit.io_cfg.core          = startupConfiguration.io_core;
         xranInit.io_cfg.system_core   = 0;
-        xranInit.io_cfg.pkt_proc_core = 2;
+        xranInit.io_cfg.pkt_proc_core = startupConfiguration.io_core+1;
         xranInit.io_cfg.pkt_aux_core  = 0; /* do not start */
-        xranInit.io_cfg.timing_core   = 3;
+        xranInit.io_cfg.timing_core   = startupConfiguration.io_core+2;
     }
 
     xranInit.io_cfg.bbdev_mode = XRAN_BBDEV_NOT_USED;
 
-    xranInit.eAxCId_conf.mask_cuPortId      = 0xf000;
-    xranInit.eAxCId_conf.mask_bandSectorId  = 0x0f00;
-    xranInit.eAxCId_conf.mask_ccId          = 0x00f0;
-    xranInit.eAxCId_conf.mask_ruPortId      = 0x000f;
-    xranInit.eAxCId_conf.bit_cuPortId       = 12;
-    xranInit.eAxCId_conf.bit_bandSectorId   = 8;
-    xranInit.eAxCId_conf.bit_ccId           = 4;
-    xranInit.eAxCId_conf.bit_ruPortId       = 0;
+    if(startupConfiguration.xranCat == XRAN_CATEGORY_A){
+        xranInit.eAxCId_conf.mask_cuPortId      = 0xf000;
+        xranInit.eAxCId_conf.mask_bandSectorId  = 0x0f00;
+        xranInit.eAxCId_conf.mask_ccId          = 0x00f0;
+        xranInit.eAxCId_conf.mask_ruPortId      = 0x000f;
+        xranInit.eAxCId_conf.bit_cuPortId       = 12;
+        xranInit.eAxCId_conf.bit_bandSectorId   = 8;
+        xranInit.eAxCId_conf.bit_ccId           = 4;
+        xranInit.eAxCId_conf.bit_ruPortId       = 0;
+    } else {
+        xranInit.eAxCId_conf.mask_cuPortId      = 0xf000;
+        xranInit.eAxCId_conf.mask_bandSectorId  = 0x0c00;
+        xranInit.eAxCId_conf.mask_ccId          = 0x0300;
+        xranInit.eAxCId_conf.mask_ruPortId      = 0x00ff; /* more than [0-127] eAxC */
+        xranInit.eAxCId_conf.bit_cuPortId       = 12;
+        xranInit.eAxCId_conf.bit_bandSectorId   = 10;
+        xranInit.eAxCId_conf.bit_ccId           = 8;
+        xranInit.eAxCId_conf.bit_ruPortId       = 0;
+    }
 
     xranInit.io_cfg.dpdk_dev[XRAN_UP_VF]      = argv[2];
     xranInit.io_cfg.dpdk_dev[XRAN_CP_VF]      = argv[3];
     xranInit.mtu           = startupConfiguration.mtu;
 
-    xranInit.p_o_du_addr = (int8_t*)&startupConfiguration.o_du_addr;
-    xranInit.p_o_ru_addr = (int8_t*)&startupConfiguration.o_ru_addr;
-    xranInit.filePrefix  = "wls";
-    xranInit.xranCat     = XRAN_CATRGORY_A;
+    xranInit.p_o_du_addr = (int8_t *)&startupConfiguration.o_du_addr;
+    xranInit.p_o_ru_addr = (int8_t *)&startupConfiguration.o_ru_addr;
+
+    sprintf(prefix_name, "wls_%d",startupConfiguration.instance_id);
+    xranInit.filePrefix  = prefix_name;
+
+    xranInit.totalBfWeights = startupConfiguration.totalBfWeights;
 
     xranInit.Tadv_cp_dl     = startupConfiguration.Tadv_cp_dl;
     xranInit.T2a_min_cp_dl  = startupConfiguration.T2a_min_cp_dl;
@@ -1107,10 +1485,13 @@ int main(int argc, char *argv[])
 
     xranInit.enableCP       = startupConfiguration.enableCP;
     xranInit.prachEnable    = startupConfiguration.enablePrach;
+    xranInit.srsEnable      = startupConfiguration.enableSrs;
     xranInit.debugStop      = startupConfiguration.debugStop;
     xranInit.debugStopCount = startupConfiguration.debugStopCount;
     xranInit.DynamicSectionEna = startupConfiguration.DynamicSectionEna;
-    xranInit.io_cfg.bbdev_mode = XRAN_BBDEV_NOT_USED; //startupConfiguration.bbdevMode;
+    xranInit.io_cfg.bbdev_mode = XRAN_BBDEV_NOT_USED;
+    xranInit.GPS_Alpha         = startupConfiguration.GPS_Alpha;
+    xranInit.GPS_Beta          = startupConfiguration.GPS_Beta;
 
     xranInit.cp_vlan_tag    = startupConfiguration.cp_vlan_tag;
     xranInit.up_vlan_tag    = startupConfiguration.up_vlan_tag;
@@ -1125,8 +1506,23 @@ int main(int argc, char *argv[])
                                  app_xran_get_num_rbs(startupConfiguration.mu_number, startupConfiguration.nULBandwidth, startupConfiguration.nULAbsFrePointA)
                                  *4L);
 
-    for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
 
+    /* 10 * [14*32*273*2*2] = 4892160 bytes */
+    iq_bfw_buffer_size_dl = (startupConfiguration.numSlots * N_SYM_PER_SLOT *  startupConfiguration.antElmTRx *
+                                 app_xran_get_num_rbs(startupConfiguration.mu_number, startupConfiguration.nDLBandwidth, startupConfiguration.nDLAbsFrePointA)
+                                 *4L);
+
+    /* 10 * [14*32*273*2*2] = 4892160 bytes */
+    iq_bfw_buffer_size_ul = (startupConfiguration.numSlots * N_SYM_PER_SLOT *
+                                 app_xran_get_num_rbs(startupConfiguration.mu_number, startupConfiguration.nULBandwidth, startupConfiguration.nULAbsFrePointA)
+                                 *4L);
+
+    /* 10 * [1*273*2*2] = 349440 bytes */
+    iq_srs_buffer_size_ul = (startupConfiguration.numSlots * N_SYM_PER_SLOT * N_SC_PER_PRB *
+                                 app_xran_get_num_rbs(startupConfiguration.mu_number, startupConfiguration.nULBandwidth, startupConfiguration.nULAbsFrePointA)
+                                 *4L);
+
+    for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
         p_tx_play_buffer[i]    = (int16_t*)malloc(iq_playback_buffer_size_dl);
         tx_play_buffer_size[i] = (int32_t)iq_playback_buffer_size_dl;
 
@@ -1141,6 +1537,42 @@ int main(int argc, char *argv[])
         tx_play_buffer_position[i] = 0;
     }
 
+    if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.xranCat == XRAN_CATEGORY_B){
+        for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
+
+            p_tx_dl_bfw_buffer[i]    = (int16_t*)malloc(iq_bfw_buffer_size_dl);
+            tx_dl_bfw_buffer_size[i] = (int32_t)iq_bfw_buffer_size_dl;
+
+            if (p_tx_dl_bfw_buffer[i] == NULL)
+                exit(-1);
+
+            tx_dl_bfw_buffer_size[i] = sys_load_file_to_buff(startupConfiguration.dl_bfw_file[i],
+                                "DL BF weights IQ Samples in binary format",
+                                (uint8_t*) p_tx_dl_bfw_buffer[i],
+                                tx_dl_bfw_buffer_size[i],
+                                1);
+            tx_dl_bfw_buffer_position[i] = 0;
+        }
+    }
+
+    if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.xranCat == XRAN_CATEGORY_B){
+
+        for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
+            p_tx_ul_bfw_buffer[i]    = (int16_t*)malloc(iq_bfw_buffer_size_ul);
+            tx_ul_bfw_buffer_size[i] = (int32_t)iq_bfw_buffer_size_ul;
+
+            if (p_tx_ul_bfw_buffer[i] == NULL)
+                exit(-1);
+
+            tx_ul_bfw_buffer_size[i] = sys_load_file_to_buff(startupConfiguration.ul_bfw_file[i],
+                                "UL BF weights IQ Samples in binary format",
+                                (uint8_t*) p_tx_ul_bfw_buffer[i],
+                                tx_ul_bfw_buffer_size[i],
+                                1);
+            tx_ul_bfw_buffer_position[i] = 0;
+        }
+    }
+
     if (startupConfiguration.appMode == APP_O_RU && startupConfiguration.enablePrach){
          for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
              p_tx_prach_play_buffer[i]    = (int16_t*)malloc(PRACH_PLAYBACK_BUFFER_BYTES);
@@ -1148,6 +1580,8 @@ int main(int argc, char *argv[])
 
              if (p_tx_prach_play_buffer[i] == NULL)
                  exit(-1);
+
+             memset(p_tx_prach_play_buffer[i], 0, PRACH_PLAYBACK_BUFFER_BYTES);
 
              tx_prach_play_buffer_size[i] = sys_load_file_to_buff(startupConfiguration.prach_file[i],
                                  "PRACH IQ Samples in binary format",
@@ -1157,6 +1591,29 @@ int main(int argc, char *argv[])
              tx_prach_play_buffer_position[i] = 0;
          }
     }
+
+    if (startupConfiguration.appMode == APP_O_RU && startupConfiguration.enableSrs){
+         for(i = 0;
+             i < MAX_ANT_CARRIER_SUPPORTED_CAT_B && i < (uint32_t)(numCCPorts * startupConfiguration.antElmTRx);
+             i++) {
+
+             p_tx_srs_play_buffer[i]    = (int16_t*)malloc(iq_srs_buffer_size_ul);
+             tx_srs_play_buffer_size[i] = (int32_t)iq_srs_buffer_size_ul;
+
+             if (p_tx_srs_play_buffer[i] == NULL)
+                 exit(-1);
+
+             memset(p_tx_srs_play_buffer[i], 0, iq_srs_buffer_size_ul);
+             tx_prach_play_buffer_size[i] = sys_load_file_to_buff(startupConfiguration.ul_srs_file[i],
+                                 "SRS IQ Samples in binary format",
+                                 (uint8_t*) p_tx_srs_play_buffer[i],
+                                 tx_srs_play_buffer_size[i],
+                                 1);
+
+             tx_srs_play_buffer_position[i] = 0;
+         }
+    }
+
     /* log of ul */
     for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
 
@@ -1171,17 +1628,34 @@ int main(int argc, char *argv[])
         memset(p_rx_log_buffer[i], 0, rx_log_buffer_size[i]);
     }
 
-    /* log of Prach */
+    /* log of prach */
     for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
 
-        p_prach_log_buffer[i]    = (int16_t*)malloc(startupConfiguration.numSlots*PRACH_PLAYBACK_BUFFER_BYTES);
-        prach_log_buffer_size[i] = (int32_t)startupConfiguration.numSlots*PRACH_PLAYBACK_BUFFER_BYTES;
+        p_prach_log_buffer[i]    = (int16_t*)malloc(startupConfiguration.numSlots*XRAN_NUM_OF_SYMBOL_PER_SLOT*PRACH_PLAYBACK_BUFFER_BYTES);
+        prach_log_buffer_size[i] = (int32_t)startupConfiguration.numSlots*XRAN_NUM_OF_SYMBOL_PER_SLOT*PRACH_PLAYBACK_BUFFER_BYTES;
 
         if (p_prach_log_buffer[i] == NULL)
             exit(-1);
 
         memset(p_prach_log_buffer[i], 0, prach_log_buffer_size[i]);
         prach_log_buffer_position[i] = 0;
+    }
+
+    /* log of SRS */
+    if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.enableSrs){
+        for(i = 0;
+            i < MAX_ANT_CARRIER_SUPPORTED_CAT_B && i < (uint32_t)(numCCPorts * startupConfiguration.antElmTRx);
+            i++) {
+
+             p_srs_log_buffer[i]    = (int16_t*)malloc(iq_srs_buffer_size_ul);
+             srs_log_buffer_size[i] = (int32_t)iq_srs_buffer_size_ul;
+
+             if (p_srs_log_buffer[i] == NULL)
+                 exit(-1);
+
+             memset(p_srs_log_buffer[i], 0, iq_srs_buffer_size_ul);
+             srs_log_buffer_position[i] = 0;
+        }
     }
 
     if (stat("./logs", &st) == -1) {
@@ -1204,22 +1678,78 @@ int main(int argc, char *argv[])
                             tx_play_buffer_size[i]/sizeof(short),
                             sizeof(short));
 
+
+        if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.xranCat == XRAN_CATEGORY_B){
+            sprintf(filename, "./logs/%s-dl_bfw_ue%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            sys_save_buf_to_file_txt(filename,
+                                "DL Beamformig weights IQ Samples in human readable format",
+                                (uint8_t*) p_tx_dl_bfw_buffer[i],
+                                tx_dl_bfw_buffer_size[i],
+                                1);
+
+            sprintf(filename, "./logs/%s-dl_bfw_ue%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            sys_save_buf_to_file(filename,
+                                "DL Beamformig weightsIQ Samples in binary format",
+                                (uint8_t*) p_tx_dl_bfw_buffer[i],
+                                tx_dl_bfw_buffer_size[i]/sizeof(short),
+                                sizeof(short));
+
+
+            sprintf(filename, "./logs/%s-ul_bfw_ue%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            sys_save_buf_to_file_txt(filename,
+                                "UL Beamformig weights IQ Samples in human readable format",
+                                (uint8_t*) p_tx_ul_bfw_buffer[i],
+                                tx_ul_bfw_buffer_size[i],
+                                1);
+
+            sprintf(filename, "./logs/%s-ul_bfw_ue%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            sys_save_buf_to_file(filename,
+                                "UL Beamformig weightsIQ Samples in binary format",
+                                (uint8_t*) p_tx_ul_bfw_buffer[i],
+                                tx_ul_bfw_buffer_size[i]/sizeof(short),
+                                sizeof(short));
+
+        }
+
         if (startupConfiguration.appMode == APP_O_RU && startupConfiguration.enablePrach){
             sprintf(filename, "./logs/%s-play_prach_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
             sys_save_buf_to_file_txt(filename,
-                                "DL IFFT IN IQ Samples in human readable format",
+                                "PRACH IQ Samples in human readable format",
                                 (uint8_t*) p_tx_prach_play_buffer[i],
                                 tx_prach_play_buffer_size[i],
                                 1);
 
             sprintf(filename, "./logs/%s-play_prach_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
             sys_save_buf_to_file(filename,
-                                "DL IFFT IN IQ Samples in binary format",
+                                "PRACH IQ Samples in binary format",
                                 (uint8_t*) p_tx_prach_play_buffer[i],
                                 tx_prach_play_buffer_size[i]/sizeof(short),
                                 sizeof(short));
         }
     }
+
+    if (startupConfiguration.appMode == APP_O_RU && startupConfiguration.enableSrs && startupConfiguration.xranCat == XRAN_CATEGORY_B){
+       for(i = 0;
+           i < MAX_ANT_CARRIER_SUPPORTED_CAT_B && i < (uint32_t)(numCCPorts * startupConfiguration.antElmTRx);
+           i++) {
+
+
+            sprintf(filename, "./logs/%s-play_srs_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            sys_save_buf_to_file_txt(filename,
+                            "SRS IQ Samples in human readable format",
+                            (uint8_t*) p_tx_srs_play_buffer[i],
+                            tx_srs_play_buffer_size[i],
+                            1);
+
+            sprintf(filename, "./logs/%s-play_srs_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            sys_save_buf_to_file(filename,
+                                "SRS IQ Samples in binary format",
+                                (uint8_t*) p_tx_srs_play_buffer[i],
+                                tx_srs_play_buffer_size[i]/sizeof(short),
+                                sizeof(short));
+        }
+    }
+
     if (startupConfiguration.iqswap == 1){
         for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
             printf("TX: Swap I and Q to match RU format: [%d]\n",i);
@@ -1235,7 +1765,36 @@ int main(int argc, char *argv[])
                    ptr[j + 1] = temp;
                 }
             }
+            if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.xranCat == XRAN_CATEGORY_B){
+                printf("DL BFW: Swap I and Q to match RU format: [%d]\n",i);
+                {
+                    /* swap I and Q */
+                    int32_t j;
+                    signed short *ptr = (signed short *)  p_tx_dl_bfw_buffer[i];
+                    signed short temp;
+
+                    for (j = 0; j < (int32_t)(tx_dl_bfw_buffer_size[i]/sizeof(short)) ; j = j + 2){
+                       temp    = ptr[j];
+                       ptr[j]  = ptr[j + 1];
+                       ptr[j + 1] = temp;
+                    }
+                }
+                printf("UL BFW: Swap I and Q to match RU format: [%d]\n",i);
+                {
+                    /* swap I and Q */
+                    int32_t j;
+                    signed short *ptr = (signed short *)  p_tx_ul_bfw_buffer[i];
+                    signed short temp;
+
+                    for (j = 0; j < (int32_t)(tx_ul_bfw_buffer_size[i]/sizeof(short)) ; j = j + 2){
+                       temp    = ptr[j];
+                       ptr[j]  = ptr[j + 1];
+                       ptr[j + 1] = temp;
+                    }
+                }
+            }
         }
+
         if (startupConfiguration.appMode == APP_O_RU){
             for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
                 printf("PRACH: Swap I and Q to match RU format: [%d]\n",i);
@@ -1254,6 +1813,25 @@ int main(int argc, char *argv[])
             }
         }
 
+        if (startupConfiguration.appMode == APP_O_RU){
+            for(i = 0;
+               i < MAX_ANT_CARRIER_SUPPORTED_CAT_B && i < (uint32_t)(numCCPorts * startupConfiguration.antElmTRx);
+               i++) {
+                 printf("SRS: Swap I and Q to match RU format: [%d]\n",i);
+                {
+                    /* swap I and Q */
+                    int32_t j;
+                    signed short *ptr = (signed short *)  p_tx_srs_play_buffer[i];
+                    signed short temp;
+
+                    for (j = 0; j < (int32_t)(tx_srs_play_buffer_size[i]/sizeof(short)) ; j = j + 2){
+                       temp    = ptr[j];
+                       ptr[j]  = ptr[j + 1];
+                       ptr[j + 1] = temp;
+                    }
+                }
+            }
+        }
     }
 
 #if 0
@@ -1267,15 +1845,26 @@ int main(int argc, char *argv[])
                             1);
     }
 #endif
-    if (startupConfiguration.nebyteorderswap == 1){
+    if (startupConfiguration.nebyteorderswap == 1 && startupConfiguration.compression == 0){
         for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
             printf("TX: Convert S16 I and S16 Q to network byte order for XRAN Ant: [%d]\n",i);
             for (j = 0; j < tx_play_buffer_size[i]/sizeof(short); j++){
                 p_tx_play_buffer[i][j]  = rte_cpu_to_be_16(p_tx_play_buffer[i][j]);
             }
+
+            if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.xranCat == XRAN_CATEGORY_B){
+                printf("DL BFW: Convert S16 I and S16 Q to network byte order for XRAN Ant: [%d]\n",i);
+                for (j = 0; j < tx_dl_bfw_buffer_size[i]/sizeof(short); j++){
+                    p_tx_dl_bfw_buffer[i][j]  = rte_cpu_to_be_16(p_tx_dl_bfw_buffer[i][j]);
+                }
+                printf("UL BFW: Convert S16 I and S16 Q to network byte order for XRAN Ant: [%d]\n",i);
+                for (j = 0; j < tx_ul_bfw_buffer_size[i]/sizeof(short); j++){
+                    p_tx_ul_bfw_buffer[i][j]  = rte_cpu_to_be_16(p_tx_ul_bfw_buffer[i][j]);
+                }
+            }
         }
 
-        if (startupConfiguration.appMode == APP_O_RU){
+        if (startupConfiguration.appMode == APP_O_RU && startupConfiguration.enablePrach){
             for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
                 printf("PRACH: Convert S16 I and S16 Q to network byte order for XRAN Ant: [%d]\n",i);
                 for (j = 0; j < tx_prach_play_buffer_size[i]/sizeof(short); j++){
@@ -1283,6 +1872,18 @@ int main(int argc, char *argv[])
                 }
             }
         }
+
+        if (startupConfiguration.appMode == APP_O_RU && startupConfiguration.enableSrs){
+               for(i = 0;
+               i < MAX_ANT_CARRIER_SUPPORTED_CAT_B && i < (uint32_t)(numCCPorts * startupConfiguration.antElmTRx);
+               i++)  {
+                printf("SRS: Convert S16 I and S16 Q to network byte order for XRAN Ant: [%d]\n",i);
+                for (j = 0; j < tx_srs_play_buffer_size[i]/sizeof(short); j++){
+                    p_tx_srs_play_buffer[i][j]  = rte_cpu_to_be_16(p_tx_srs_play_buffer[i][j]);
+                }
+            }
+        }
+
     }
 
 #if 0
@@ -1297,6 +1898,50 @@ int main(int argc, char *argv[])
     }
 #endif
 
+    memset(&xranConf, 0, sizeof(struct xran_fh_config));
+    pXranConf = &xranConf;
+
+    pXranConf->nDLRBs = app_xran_get_num_rbs(startupConfiguration.mu_number, startupConfiguration.nDLBandwidth, startupConfiguration.nDLAbsFrePointA);
+    pXranConf->nULRBs = app_xran_get_num_rbs(startupConfiguration.mu_number, startupConfiguration.nULBandwidth, startupConfiguration.nULAbsFrePointA);
+
+    if(startupConfiguration.DynamicSectionEna == 0){
+        struct xran_prb_map* pRbMap;
+
+        pRbMap = &startupConfiguration.PrbMapDl;
+
+        pRbMap->dir = XRAN_DIR_DL;
+        pRbMap->xran_port = 0;
+        pRbMap->band_id = 0;
+        pRbMap->cc_id = 0;
+        pRbMap->ru_port_id = 0;
+        pRbMap->tti_id = 0;
+        pRbMap->start_sym_id = 0;
+        pRbMap->nPrbElm = 1;
+        pRbMap->prbMap[0].nStartSymb = 0;
+        pRbMap->prbMap[0].numSymb = 14;
+        pRbMap->prbMap[0].nRBStart = 0;
+        pRbMap->prbMap[0].nRBSize = pXranConf->nDLRBs;
+        pRbMap->prbMap[0].nBeamIndex = 0;
+        pRbMap->prbMap[0].compMethod = XRAN_COMPMETHOD_NONE;
+        pRbMap->prbMap[0].iqWidth    = 16;
+
+        pRbMap = &startupConfiguration.PrbMapUl;
+        pRbMap->dir = XRAN_DIR_UL;
+        pRbMap->xran_port = 0;
+        pRbMap->band_id = 0;
+        pRbMap->cc_id = 0;
+        pRbMap->ru_port_id = 0;
+        pRbMap->tti_id = 0;
+        pRbMap->start_sym_id = 0;
+        pRbMap->nPrbElm = 1;
+        pRbMap->prbMap[0].nStartSymb = 0;
+        pRbMap->prbMap[0].numSymb = 14;
+        pRbMap->prbMap[0].nRBStart = 0;
+        pRbMap->prbMap[0].nRBSize = pXranConf->nULRBs;
+        pRbMap->prbMap[0].nBeamIndex = 0;
+        pRbMap->prbMap[0].compMethod = XRAN_COMPMETHOD_NONE;
+        pRbMap->prbMap[0].iqWidth    = 16;
+    }
 
     timer_set_tsc_freq_from_clock();
     xret =  xran_init(argc, argv, &xranInit, argv[0], &xranHandle);
@@ -1308,12 +1953,12 @@ int main(int argc, char *argv[])
     if(xranHandle == NULL)
         exit(1);
 
-    memset(&xranConf, 0, sizeof(struct xran_fh_config));
-    pXranConf = &xranConf;
 
     pXranConf->sector_id                        = 0;
     pXranConf->nCC                              = numCCPorts;
     pXranConf->neAxc                            = num_eAxc;
+    pXranConf->neAxcUl                          = startupConfiguration.numUlAxc;
+    pXranConf->nAntElmTRx                       = startupConfiguration.antElmTRx;
 
     pXranConf->frame_conf.nFrameDuplexType      = startupConfiguration.nFrameDuplexType;
     pXranConf->frame_conf.nNumerology           = startupConfiguration.mu_number;
@@ -1329,8 +1974,17 @@ int main(int argc, char *argv[])
     pXranConf->prach_conf.nPrachConfIdx         = startupConfiguration.prachConfigIndex;
     pXranConf->prach_conf.nPrachFreqOffset      = -792;
 
-    pXranConf->ru_conf.iqWidth                  = 16;
-    pXranConf->ru_conf.compMeth                 = XRAN_COMPMETHOD_NONE;
+    pXranConf->srs_conf.symbMask                 = startupConfiguration.srsSymMask;
+    pXranConf->srs_conf.eAxC_offset             = 2 * startupConfiguration.numAxc; /* PUSCH, PRACH, SRS */
+
+    pXranConf->ru_conf.xranCat                  = startupConfiguration.xranCat;
+    pXranConf->ru_conf.iqWidth                  = startupConfiguration.PrbMapDl.prbMap[0].iqWidth;
+
+    if (startupConfiguration.compression == 0)
+        pXranConf->ru_conf.compMeth                 = XRAN_COMPMETHOD_NONE;
+    else
+        pXranConf->ru_conf.compMeth                 = XRAN_COMPMETHOD_BLKFLOAT;
+
     pXranConf->ru_conf.fftSize                  = 0;
     while (startupConfiguration.nULFftSize >>= 1)
         ++pXranConf->ru_conf.fftSize;
@@ -1339,9 +1993,6 @@ int main(int argc, char *argv[])
     pXranConf->ru_conf.iqOrder   = (startupConfiguration.iqswap == 1) ? XRAN_Q_I_ORDER : XRAN_I_Q_ORDER;
 
     printf("FFT Order %d\n", pXranConf->ru_conf.fftSize);
-
-    pXranConf->nDLRBs = app_xran_get_num_rbs(startupConfiguration.mu_number, startupConfiguration.nDLBandwidth, startupConfiguration.nDLAbsFrePointA);
-    pXranConf->nULRBs = app_xran_get_num_rbs(startupConfiguration.mu_number, startupConfiguration.nULBandwidth, startupConfiguration.nULAbsFrePointA);
 
     nCenterFreq = startupConfiguration.nDLAbsFrePointA + (((pXranConf->nDLRBs * N_SC_PER_PRB) / 2) * app_xran_get_scs(startupConfiguration.mu_number));
     pXranConf->nDLCenterFreqARFCN = app_xran_cal_nrarfcn(nCenterFreq);
@@ -1353,6 +2004,11 @@ int main(int argc, char *argv[])
 
     pXranConf->bbdev_dec = NULL;
     pXranConf->bbdev_enc = NULL;
+
+    pXranConf->log_level = 1;
+
+    if(startupConfiguration.maxFrameId)
+        pXranConf->ru_conf.xran_max_frame = startupConfiguration.maxFrameId;
 
     if(init_xran() != 0)
         exit(-1);
@@ -1372,9 +2028,10 @@ int main(int argc, char *argv[])
 
     sprintf(filename, "mlog-%s", startupConfiguration.appMode == 0 ? "o-du" : "o-ru");
 
-//    MLogOpen(0, 32, 0, 0xFFFFFFFF, filename);
+    /* MLogOpen(0, 32, 0, 0xFFFFFFFF, filename);*/
 
-    MLogOpen(256, 3, 20000, 0xFFFFFFFF, filename);
+    MLogOpen(256, 3, 20000, 0, filename);
+    MLogSetMask(0);
 
     puts("----------------------------------------");
     printf("MLog Info: virt=0x%016lx size=%d\n", MLogGetFileLocation(), MLogGetFileSize());
@@ -1400,13 +2057,33 @@ int main(int argc, char *argv[])
         sleep(1);
         xran_curr_if_state = xran_get_if_state();
         if(xran_get_common_counters(xranHandle, &x_counters) == XRAN_STATUS_SUCCESS) {
-            printf("rx %ld tx %ld  [on_time %ld early %ld late %ld corrupt %ld pkt_dupl %ld Total %ld\n", rx_counter, tx_counter,
+
+            xran_get_time_stats(&nTotalTime, &nUsedTime, &nCoreUsed, 1);
+            nUsedPercent = ((float)nUsedTime * 100.0) / (float)nTotalTime;
+
+            printf("[%s][rx %ld pps %ld kbps %ld][tx %ld pps %ld kbps %ld] [on_time %ld early %ld late %ld corrupt %ld pkt_dupl %ld Total %ld] IO Util: %5.2f %%\n",
+                   ((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),
+                   rx_counter,
+                   rx_counter-old_rx_counter,
+                   rx_bytes_per_sec*8/1000L,
+                   tx_counter,
+                   tx_counter-old_tx_counter,
+                   tx_bytes_per_sec*8/1000L,
                    x_counters.Rx_on_time,
                    x_counters.Rx_early,
                    x_counters.Rx_late,
                    x_counters.Rx_corrupt,
                    x_counters.Rx_pkt_dupl,
-                   x_counters.Total_msgs_rcvd);
+                   x_counters.Total_msgs_rcvd,
+                   nUsedPercent);
+
+            if(rx_counter > old_rx_counter)
+                old_rx_counter = rx_counter;
+            if(tx_counter > old_tx_counter)
+                old_tx_counter = tx_counter;
+
+            if(rx_counter > 0 && tx_counter > 0)
+                MLogSetMask(0xFFFFFFFF);
         } else {
             printf("error xran_get_common_counters\n");
         }
@@ -1464,13 +2141,45 @@ int main(int argc, char *argv[])
                 }
             }
         }
+
+        if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.enableSrs){
+            for(i = 0;
+            i < MAX_ANT_CARRIER_SUPPORTED_CAT_B && i < (uint32_t)(numCCPorts * startupConfiguration.antElmTRx);
+            i++)  {
+                printf("SRS: Swap I and Q to match CPU format: [%d]\n",i);
+                {
+                    /* swap I and Q */
+                    int32_t j;
+                    signed short *ptr = (signed short *)  p_srs_log_buffer[i];
+                    signed short temp;
+
+                    for (j = 0; j < (int32_t)(srs_log_buffer_size[i]/sizeof(short)) ; j = j + 2){
+                       temp    = ptr[j];
+                       ptr[j]  = ptr[j + 1];
+                       ptr[j + 1] = temp;
+                    }
+                }
+            }
+        }
     }
 
-    if (startupConfiguration.nebyteorderswap == 1){
+    if (startupConfiguration.nebyteorderswap == 1 && startupConfiguration.compression == 0) {
+
         for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
             printf("RX: Convert S16 I and S16 Q to cpu byte order from XRAN Ant: [%d]\n",i);
             for (j = 0; j < rx_log_buffer_size[i]/sizeof(short); j++){
                 p_rx_log_buffer[i][j]  = rte_be_to_cpu_16(p_rx_log_buffer[i][j]);
+            }
+        }
+
+        if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.enableSrs){
+            for(i = 0;
+            i < MAX_ANT_CARRIER_SUPPORTED_CAT_B && i < (uint32_t)(numCCPorts * startupConfiguration.antElmTRx);
+            i++)  {
+                printf("SRS: Convert S16 I and S16 Q to cpu byte order from XRAN Ant: [%d]\n",i);
+                for (j = 0; j < srs_log_buffer_size[i]/sizeof(short); j++){
+                    p_srs_log_buffer[i][j]  = rte_be_to_cpu_16(p_srs_log_buffer[i][j]);
+                }
             }
         }
     }
@@ -1490,6 +2199,26 @@ int main(int argc, char *argv[])
                             (uint8_t*) p_rx_log_buffer[i],
                             rx_log_buffer_size[i]/sizeof(short),
                             sizeof(short));
+    }
+
+    if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.enableSrs){
+        for(i = 0;
+        i < MAX_ANT_CARRIER_SUPPORTED_CAT_B && i < (uint32_t)(numCCPorts * startupConfiguration.antElmTRx);
+        i++) {
+            sprintf(filename, "./logs/%s-srs_log_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            sys_save_buf_to_file_txt(filename,
+                                "SRS UL FFT OUT IQ Samples in human readable format",
+                                (uint8_t*) p_srs_log_buffer[i],
+                                srs_log_buffer_size[i],
+                                1);
+
+            sprintf(filename, "./logs/%s-srs_log_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            sys_save_buf_to_file(filename,
+                                "SRS UL FFT OUT IQ Samples in binary format",
+                                (uint8_t*) p_srs_log_buffer[i],
+                                srs_log_buffer_size[i]/sizeof(short),
+                                sizeof(short));
+        }
     }
 
     if (startupConfiguration.appMode == APP_O_DU &&  startupConfiguration.enablePrach){
@@ -1512,7 +2241,7 @@ int main(int argc, char *argv[])
         }
 
 
-        if (startupConfiguration.nebyteorderswap == 1){
+        if (startupConfiguration.nebyteorderswap == 1 && startupConfiguration.compression == 0){
             for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
                 printf("PRACH: Convert S16 I and S16 Q to cpu byte order from XRAN Ant: [%d]\n",i);
                 for (j = 0; j < prach_log_buffer_size[i]/sizeof(short); j++){

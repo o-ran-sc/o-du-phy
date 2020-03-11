@@ -64,29 +64,6 @@ struct xran_up_pkt_gen_no_compression_params
     struct data_section_hdr sec_hdr;
 };
 
-
-/**
- * @brief Function that is preparing an mbuf with portion of IQ samples related
- *        to the single symbol.
- *
- * @param mbuf Initialized rte_mbuf packet
- * @param iq_data_start Address of the first element in IQ data array.
- * @param iq_data_num_elements Size of the IQ data array.
- * @param iq_data_offset IQ data array's elements already sent.
- * @param alignment Align data to this many bytes.
- * @param params Structure containing Radio App Header and Data Section Header
- *               structures.
- * @return int Bytes of IQ samples that have been appended to the packet.
- */
-int xran_prepare_iq_symbol_portion(
-    struct rte_mbuf *mbuf,
-    const void *iq_data_start,
-    const uint32_t iq_data_num_bytes,
-    uint32_t *iq_data_offset,
-    const uint8_t alignment,
-    struct xran_up_pkt_gen_params *params,
-    int sub_seq_id);
-
 /**
  * @brief Function extracts IQ samples from received mbuf packet.
  *
@@ -95,7 +72,7 @@ int xran_prepare_iq_symbol_portion(
  *                      here
  * @return int Bytes of IQ samples that have been extracted from mbuf.
  */
-int xran_extract_iq_samples(struct rte_mbuf *mbuf,
+int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
     void **iq_data_start,
     uint8_t *CC_ID,
     uint8_t *Ant_ID,
@@ -108,14 +85,17 @@ int xran_extract_iq_samples(struct rte_mbuf *mbuf,
     uint16_t *start_prbu,
     uint16_t *sym_inc,
     uint16_t *rb,
-    uint16_t *sect_id);
+    uint16_t *sect_id,
+    int8_t   expect_comp,
+    uint8_t *compMeth,
+    uint8_t *iqWidth);
 
-int xran_prepare_iq_symbol_portion_no_comp(
+int xran_prepare_iq_symbol_portion(
                         struct rte_mbuf *mbuf,
                         const void *iq_data_start,
                         const enum xran_input_byte_order iq_buf_byte_order,
                         const uint32_t iq_data_num_bytes,
-                        struct xran_up_pkt_gen_no_compression_params *params,
+                        struct xran_up_pkt_gen_params *params,
                         uint8_t CC_ID,
                         uint8_t Ant_ID,
                         uint8_t seq_id,

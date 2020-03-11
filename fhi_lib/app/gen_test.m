@@ -1,30 +1,13 @@
-%/******************************************************************************
-%*
-%*   Copyright (c) 2019 Intel.
-%*
-%*   Licensed under the Apache License, Version 2.0 (the "License");
-%*   you may not use this file except in compliance with the License.
-%*   You may obtain a copy of the License at
-%*
-%*       http://www.apache.org/licenses/LICENSE-2.0
-%*
-%*   Unless required by applicable law or agreed to in writing, software
-%*   distributed under the License is distributed on an "AS IS" BASIS,
-%*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-%*   See the License for the specific language governing permissions and
-%*   limitations under the License.
-%*
-%*******************************************************************************/
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% <COPYRIGHT_TAG>
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%This script was tested with GNU Octave, version 3.8.2 or Matlab 9.2.0.538062 (R2017a) 
 
 close all;
 clear all;
-
-%select mu and bw to generate test files
-sub6=false;  %false
-mu=3; % 0,1, or 3
-bw=100; %5,10,20,100 MHz
-
-nSlots=160; % any 40 and 160
 
      %  5MHz    10MHz   15MHz   20 MHz  25 MHz  30 MHz  40 MHz  50MHz   60 MHz  70 MHz  80 MHz   90 MHz  100 MHz
 nNumRbsPerSymF1 = ...
@@ -42,175 +25,221 @@ nNumRbsPerSymF2 = ...
         [32,    66,     132,     264]      % Numerology 3 (120KHz)
 ];
 
-if sub6
-    disp('Sub6')
-    if mu < 3
-        nNumerology = mu+1;
-        switch (bw)
-            case {5}
-                numRBs = nNumRbsPerSymF1(nNumerology,0+1);
-            case {10}
-                numRBs = nNumRbsPerSymF1(nNumerology,1+1);
-            case {15}
-                numRBs = nNumRbsPerSymF1(nNumerology,2+1);
-            case {20}
-                numRBs = nNumRbsPerSymF1(nNumerology,3+1);
-            case {25}
-                numRBs = nNumRbsPerSymF1(nNumerology,4+1);
-            case {30}
-                numRBs = nNumRbsPerSymF1(nNumerology,5+1);
-            case {40}
-                numRBs = nNumRbsPerSymF1(nNumerology,6+1);
-            case {50}
-                numRBs = nNumRbsPerSymF1(nNumerology,7+1);
-            case {60}
-                numRBs = nNumRbsPerSymF1(nNumerology,8+1);
-            case {70}
-                numRBs = nNumRbsPerSymF1(nNumerology,9+1);
-            case {80}
-                numRBs = nNumRbsPerSymF1(nNumerology,10+1);
-            case {90}
-                numRBs = nNumRbsPerSymF1(nNumerology,11+1);
-            case {100}
-                numRBs = nNumRbsPerSymF1(nNumerology,12+1);
-            otherwise
-                disp('Unknown BW && mu')
+% total number of tests
+tests_total = 6
+sub6_all = ...
+    [ 
+      true, true, true, true, false, true,   
+    ]
+
+mu_all = ...
+    [
+      0, 0, 0, 1, 3, 1
+    ]
+
+bw_all = ...
+    [
+      5, 10, 20, 100, 100, 100
+    ]
+
+ant_num_all = ...
+    [
+      4, 4, 4, 4, 4, 8
+    ]
+
+bfw_gen_all = ...
+    [
+      false, false, false, false, false, true
+    ]
+
+trx_all = ...
+    [ 
+      32, 32, 32, 32, 32, 32
+    ]
+path_to_usecase_all = ... 
+    [
+      "./usecase/mu0_5mhz/"; 
+      "./usecase/mu0_10mhz/"; 
+      "./usecase/mu0_20mhz/"; 
+      "./usecase/mu1_100mhz/"; 
+      "./usecase/mu3_100mhz/"; 
+      "./usecase/cat_b/mu1_100mhz/";
+    ]
+
+path_to_usecase_all = cellstr(path_to_usecase_all) 
+
+nSlots_all = ...
+    [
+       40,40,40,40,40,10 
+    ]
+
+%select mu and bw to generate test files
+for test_num =(1:1:tests_total)
+    test_num
+    sub6=sub6_all(test_num)  %false
+    mu=mu_all(test_num) % 0,1, or 3
+    bw=bw_all(test_num) %5,10,20,100 MHz
+    ant_num = ant_num_all(test_num)
+    bfw_gen=bfw_gen_all(test_num)
+    trx = trx_all(test_num)
+    size(path_to_usecase_all)
+    path_to_usecase = path_to_usecase_all(test_num)
+
+    nSlots=nSlots_all(test_num) % any 40 and 160
+
+    if sub6
+        disp('Sub6')
+        if mu < 3
+            nNumerology = mu+1;
+            switch (bw)
+                case {5}
+                    numRBs = nNumRbsPerSymF1(nNumerology,0+1);
+                case {10}
+                    numRBs = nNumRbsPerSymF1(nNumerology,1+1);
+                case {15}
+                    numRBs = nNumRbsPerSymF1(nNumerology,2+1);
+                case {20}
+                    numRBs = nNumRbsPerSymF1(nNumerology,3+1);
+                case {25}
+                    numRBs = nNumRbsPerSymF1(nNumerology,4+1);
+                case {30}
+                    numRBs = nNumRbsPerSymF1(nNumerology,5+1);
+                case {40}
+                    numRBs = nNumRbsPerSymF1(nNumerology,6+1);
+                case {50}
+                    numRBs = nNumRbsPerSymF1(nNumerology,7+1);
+                case {60}
+                    numRBs = nNumRbsPerSymF1(nNumerology,8+1);
+                case {70}
+                    numRBs = nNumRbsPerSymF1(nNumerology,9+1);
+                case {80}
+                    numRBs = nNumRbsPerSymF1(nNumerology,10+1);
+                case {90}
+                    numRBs = nNumRbsPerSymF1(nNumerology,11+1);
+                case {100}
+                    numRBs = nNumRbsPerSymF1(nNumerology,12+1);
+                otherwise
+                    disp('Unknown BW && mu')
+            end
+        end
+    else
+        disp('mmWave')
+        if  (mu >=2) && (mu <= 3)
+            nNumerology = mu;
+            switch (bw)
+                case {50}
+                    numRBs = nNumRbsPerSymF2(nNumerology-1,0+1);
+                case {100}
+                    numRBs = nNumRbsPerSymF2(nNumerology-1,1+1);
+                case {200}
+                    numRBs = nNumRbsPerSymF2(nNumerology-1,2+1);
+                case {400}
+                    numRBs = nNumRbsPerSymF2(nNumerology-1,3+1);
+                otherwise
+                    disp('Unknown BW && mu')
+            end
         end
     end
-else
-    disp('mmWave')
-    if  (mu >=2) && (mu <= 3)
-        nNumerology = mu;
-        switch (bw)
-            case {50}
-                numRBs = nNumRbsPerSymF2(nNumerology-1,0+1);
-            case {100}
-                numRBs = nNumRbsPerSymF2(nNumerology-1,1+1);
-            case {200}
-                numRBs = nNumRbsPerSymF2(nNumerology-1,2+1);
-            case {400}
-                numRBs = nNumRbsPerSymF2(nNumerology-1,3+1);
-            otherwise
-                disp('Unknown BW && mu')
-        end
+
+    if numRBs ==0
+        disp('Incorrect Numerology and BW combination.')
+        return
+    end
+
+    bw
+    numRBs
+    nSlots
+
+    %use file as input
+    %ifft_in = load('ifft_in.txt')
+
+    %gen IQs
+    ifft_in = [[1:1:(numRBs*12)]', [1:1:(numRBs*12)]'];
+
+    ant_c = ifft_in;
+    for (i=1:1:nSlots*14-1)
+        ifft_in_1 = ifft_in + i;
+        ant_c = [ant_c; ifft_in_1];
+    end
+
+    %write files for IQ samples 
+    for ant = 1:1:ant_num
+        antX=ant_c*(ant*10);
+        antX_16=int16(antX.');
+        file_name = strcat(path_to_usecase,"ant_", num2str(ant-1),".bin");
+        disp(file_name)
+        fileID = fopen(file_name,'w');
+        fwrite(fileID, antX_16, 'int16');
+        fclose(fileID);    
+    end
+
+    if bfw_gen
+        disp('Generate BF Weights per RB')
+
+        %seed to make it repeatable 
+        rand('seed',47)
+
+        %random channel matrix for single sym on syngle RB 
+        H = (rand(trx,ant_num) + 1j*rand(trx,ant_num));
+
+        %calculate weights 
+        % W_dl = H^*(H^TH^*)^-1
+        % W_ul =  ((H^H*H)^-1)H^H
+        % where H^* - conjugate 
+        %       H^T - transpose
+        %       H^H - conjugate transpose 
+        W_dl = conj(H)*(transpose(H)*conj(H))^-1; %weights for DL
+        W_ul = ((ctranspose(H)*H)^-1)*ctranspose(H); %weights for UL
+
+        W_ul = W_ul.';
+
+        for ant = 1:1:ant_num
+            %DL 
+
+            bfw_per_sym = [];
+            % adjust channel per each RB 
+            for iPrb = 1:1:numRBs
+               bfw_per_sym = [ bfw_per_sym, [real((W_dl(:, ant).'))*iPrb; imag((W_dl(:, ant).'))*iPrb]];
+            end
+
+            bfw_all_slots = [];
+            %reuse channel for all symbols  
+            for (slot_idx=1:1:nSlots*14)
+                bfw_all_slots = [bfw_all_slots, bfw_per_sym];
+            end
+
+            bfw_all_slots_int = int16(bfw_all_slots./max(max(abs((bfw_all_slots.')))).*2^15);
+
+            %write files for IQ samples 
+            antX_16=bfw_all_slots_int.';
+            file_name = strcat(path_to_usecase,"dl_bfw_ue_", num2str(ant-1),".bin");
+            disp(file_name)
+            fileID = fopen(file_name,'w');
+            fwrite(fileID,antX_16, 'int16');
+            fclose(fileID);    
+
+            %UL 
+            bfw_per_sym = [];
+            % adjust channel per each RB 
+            for iPrb = 1:1:numRBs
+               bfw_per_sym = [ bfw_per_sym, [real((W_ul(:, ant).'))*iPrb; imag((W_ul(:, ant).'))*iPrb]];
+            end
+
+            bfw_all_slots = [];
+            %reuse channel for all symbols  
+            for (slot_idx=1:1:nSlots*14)
+                bfw_all_slots = [bfw_all_slots, bfw_per_sym];
+            end
+
+            bfw_all_slots_int = int16(bfw_all_slots./max(max(abs((bfw_all_slots.')))).*2^15);
+
+            %write files for IQ samples 
+            antX_16=bfw_all_slots_int.';
+            file_name = strcat(path_to_usecase,"ul_bfw_ue_", num2str(ant-1),".bin");
+            disp(file_name)
+            fileID = fopen(file_name,'w');
+            fwrite(fileID,antX_16, 'int16');
+            fclose(fileID);    
+        end  
     end
 end
-
-if numRBs ==0
-    disp('Incorrect Numerology and BW combination.')
-    return
-end
-
-bw
-numRBs
-nSlots
-
-%use file as input
-%ifft_in = load('ifft_in.txt')
-
-%gen IQs
-ifft_in = [[1:1:(numRBs*12)]', [1:1:(numRBs*12)]'];
-
-ant_c = ifft_in;
-for (i=1:1:nSlots*14-1)
-    ifft_in_1 = ifft_in + i;
-    ant_c = [ant_c; ifft_in_1];
-end
-
-ant0=ant_c;
-ant1=ant_c*10;
-ant2=ant_c*20;
-ant3=ant_c*30;
-ant4=ant_c*40;
-ant5=ant_c*50;
-ant6=ant_c*60;
-ant7=ant_c*70;
-ant8=ant_c*80;
-ant9=ant_c*90;
-ant10=ant_c*100;
-ant11=ant_c*110;
-ant12=ant_c*120;
-ant13=ant_c*130;
-ant14=ant_c*140;
-ant15=ant_c*150;
-
-
-ant0_16=int16(ant0.');
-fileID = fopen('ant_0.bin','w');
-fwrite(fileID,ant0_16, 'int16');
-fclose(fileID);
-
-ant1_16=int16(ant1.');
-fileID = fopen('ant_1.bin','w');
-fwrite(fileID,ant1_16, 'int16');
-fclose(fileID);
-
-ant2_16=int16(ant2.');
-fileID = fopen('ant_2.bin','w');
-fwrite(fileID,ant2_16, 'int16');
-fclose(fileID);
-
-ant3_16=int16(ant3.');
-fileID = fopen('ant_3.bin','w');
-fwrite(fileID,ant3_16, 'int16');
-fclose(fileID);
-
-ant4_16=int16(ant4.');
-fileID = fopen('ant_4.bin','w');
-fwrite(fileID,ant4_16, 'int16');
-fclose(fileID);
-
-ant5_16=int16(ant5.');
-fileID = fopen('ant_5.bin','w');
-fwrite(fileID,ant5_16, 'int16');
-fclose(fileID);
-
-ant6_16=int16(ant6.');
-fileID = fopen('ant_6.bin','w');
-fwrite(fileID,ant6_16, 'int16');
-fclose(fileID);
-
-ant7_16=int16(ant7.');
-fileID = fopen('ant_7.bin','w');
-fwrite(fileID,ant7_16, 'int16');
-fclose(fileID);
-
-ant8_16=int16(ant8.');
-fileID = fopen('ant_8.bin','w');
-fwrite(fileID,ant8_16, 'int16');
-fclose(fileID);
-
-ant9_16=int16(ant9.');
-fileID = fopen('ant_9.bin','w');
-fwrite(fileID,ant9_16, 'int16');
-fclose(fileID);
-
-ant10_16=int16(ant10.');
-fileID = fopen('ant_10.bin','w');
-fwrite(fileID,ant10_16, 'int16');
-fclose(fileID);
-
-ant11_16=int16(ant11.');
-fileID = fopen('ant_11.bin','w');
-fwrite(fileID,ant11_16, 'int16');
-fclose(fileID);
-
-ant12_16=int16(ant12.');
-fileID = fopen('ant_12.bin','w');
-fwrite(fileID,ant12_16, 'int16');
-fclose(fileID);
-
-ant13_16=int16(ant13.');
-fileID = fopen('ant_13.bin','w');
-fwrite(fileID,ant13_16, 'int16');
-fclose(fileID);
-
-ant14_16=int16(ant14.');
-fileID = fopen('ant_14.bin','w');
-fwrite(fileID,ant14_16, 'int16');
-fclose(fileID);
-
-ant15_16=int16(ant15.');
-fileID = fopen('ant_15.bin','w');
-fwrite(fileID,ant15_16, 'int16');
-fclose(fileID);

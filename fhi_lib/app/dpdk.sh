@@ -132,13 +132,10 @@ fi
 $RTE_SDK/usertools/dpdk-devbind.py --status
 if [ ${VM_DETECT} == 'HOST' ]; then
     #HOST
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:86:02.0
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:86:02.1
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:d8:02.0 
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:d8:02.1 
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:da:02.0 
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:da:02.1
-
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:22:02.0
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:22:02.1
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:22:0a.0
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:22:0a.1
 else
     #VM
     $RTE_SDK/usertools/dpdk-devbind.py --bind=igb_uio 0000:00:04.0

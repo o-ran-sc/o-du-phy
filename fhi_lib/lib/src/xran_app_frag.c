@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief xRAN application frgamentation for U-plane packets
  *
@@ -52,10 +51,9 @@ static inline void __fill_xranhdr_frag(struct xran_up_pkt_hdr *dst,
 
     rte_memcpy(dst, src, sizeof(*dst));
 
-    if(dst->ecpri_hdr.ecpri_seq_id.seq_id != *seqid - 1){
-        /* not first fragment, incease seq id */
-        dst->ecpri_hdr.ecpri_seq_id.seq_id = *seqid++;
-    }
+    dst->ecpri_hdr.ecpri_seq_id.seq_id = (*seqid)++;
+
+    print_dbg("sec [%d %d] sec %d mf %d g_sec %d\n",sectinfo->startPrbc, sectinfo->numPrbc, dst->ecpri_hdr.ecpri_seq_id.seq_id, mf, *seqid);
 
     loc_data_sec_hdr.fields.all_bits = rte_be_to_cpu_32(dst->data_sec_hdr.fields.all_bits);
 

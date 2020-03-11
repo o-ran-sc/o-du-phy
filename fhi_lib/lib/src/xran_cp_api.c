@@ -32,17 +32,21 @@
 #include "xran_transport.h"
 #include "xran_cp_api.h"
 #include "xran_printf.h"
+#include "xran_compression.h"
 
 
 /**
  * This structure to store the section information of C-Plane
  * in order to generate and parse corresponding U-Plane */
 struct xran_sectioninfo_db {
-    uint32_t    cur_index;  /**< Current index to store fro this eAXC */
+    uint32_t    cur_index;  /**< Current index to store for this eAXC */
     struct xran_section_info list[XRAN_MAX_NUM_SECTIONS]; /**< The array of section information */
     };
 
-static struct xran_sectioninfo_db sectiondb[XRAN_MAX_SECTIONDB_CTX][XRAN_DIR_MAX][XRAN_COMPONENT_CARRIERS_MAX][XRAN_MAX_ANTENNA_NR*2];
+static struct xran_sectioninfo_db sectiondb[XRAN_MAX_SECTIONDB_CTX][XRAN_DIR_MAX][XRAN_COMPONENT_CARRIERS_MAX][XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR];
+
+static const uint8_t zeropad[XRAN_SECTIONEXT_ALIGN] = { 0, 0, 0, 0 };
+static const uint8_t bitmask[] = { 0x00, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff };
 
 
 /**
@@ -66,7 +70,7 @@ int xran_cp_init_sectiondb(void *pHandle)
     for(ctx=0; ctx < XRAN_MAX_SECTIONDB_CTX; ctx++)
         for(dir=0; dir < XRAN_DIR_MAX; dir++)
             for(cc=0; cc < XRAN_COMPONENT_CARRIERS_MAX; cc++)
-                for(ant=0; ant < XRAN_MAX_ANTENNA_NR*2; ant++)
+                for(ant=0; ant < XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR; ant++)
                     sectiondb[ctx][dir][cc][ant].cur_index = 0;
 
     return (XRAN_STATUS_SUCCESS);
@@ -108,7 +112,7 @@ static inline struct xran_sectioninfo_db *xran_get_section_db(void *pHandle,
         return (NULL);
         }
 
-    if(unlikely(ruport_id >= XRAN_MAX_ANTENNA_NR*2)) {
+    if(unlikely(ruport_id >= XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR)) {
         print_err("Invalid eAxC id - %d", ruport_id);
         return (NULL);
         }
@@ -327,9 +331,9 @@ struct xran_section_info *xran_cp_iterate_section_info(void *pHandle,
  *  The size of stored entries
  *  -1 if failed to find matched database
  */
-int xran_cp_getsize_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id)
+int32_t xran_cp_getsize_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id)
 {
-  int i, index;
+  int index;
   struct xran_sectioninfo_db *ptr;
 
 
@@ -380,6 +384,157 @@ int xran_dump_sectiondb(void)
     return (0);
 }
 
+int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination buffer */
+                                       uint16_t  ext1_dst_len, /**< dest buffer size */
+                                       int16_t  *p_bfw_iq_src, /**< source buffer of IQs */
+                                       uint16_t  rbNum,        /* number RBs to ext1 chain */
+                                       uint16_t  bfwNumPerRb,  /* number of bf weights per RB (i.e. antenna elements) */
+                                       uint8_t   bfwiqWidth,   /* bit size of IQs */
+                                       uint8_t   bfwCompMeth)  /* compression method */
+{
+    struct xran_cp_radioapp_section_ext1 *p_ext1;
+
+    uint8_t *p_bfw_content = NULL;
+    int32_t parm_size   = 0;
+    int32_t bfw_iq_bits = 0;
+    int32_t total_len   = 0;
+    int32_t comp_len    = 0;
+    uint8_t ext_flag    = XRAN_EF_F_ANOTHER_ONE;
+    int16_t idxRb       = 0;
+    int16_t cur_ext_len = 0;
+    int8_t  *p_ext1_dst_cur = NULL;
+
+    struct xranlib_compress_request  bfp_com_req;
+    struct xranlib_compress_response bfp_com_rsp;
+
+    memset(&bfp_com_req, 0, sizeof(struct xranlib_compress_request));
+    memset(&bfp_com_rsp, 0, sizeof(struct xranlib_compress_response));
+
+    print_dbg("%s comp %d\n", __FUNCTION__, bfwCompMeth);
+    print_dbg("bfwNumPerRb %d bfwiqWidth %d\n", bfwNumPerRb, bfwiqWidth);
+
+    if(p_ext1_dst)
+        p_ext1_dst_cur = p_ext1_dst;
+    else
+        return (XRAN_STATUS_INVALID_PARAM);
+
+    /* create extType=1 section for each RB */
+    for (idxRb = 0; idxRb < rbNum; idxRb++) {
+        print_dbg("%s RB %d\n", __FUNCTION__, idxRb);
+
+        if(total_len >= ext1_dst_len){
+            print_err("p_ext1_dst overflow\n");
+            return -1;
+        }
+
+        cur_ext_len = 0; /** populate one extType=1 section with BFW for 1 RB */
+        parm_size = sizeof(struct xran_cp_radioapp_section_ext1);
+        p_ext1 = (struct xran_cp_radioapp_section_ext1 *)p_ext1_dst_cur;
+        if(p_ext1 == NULL) {
+            print_err("p_ext1 is null!\n");
+            return (XRAN_STATUS_INVALID_PARAM);
+        }
+
+        cur_ext_len += parm_size;
+
+        if(idxRb+1 == rbNum)
+            ext_flag = XRAN_EF_F_LAST;
+
+        p_ext1->extType       = XRAN_CP_SECTIONEXTCMD_1;
+        p_ext1->ef            = ext_flag;
+        p_ext1->bfwCompMeth   = bfwCompMeth;
+        p_ext1->bfwIqWidth    = XRAN_CONVERT_BFWIQWIDTH(bfwiqWidth);
+
+        switch(bfwCompMeth) {
+            case XRAN_BFWCOMPMETHOD_BLKFLOAT:
+                p_bfw_content = (uint8_t *)(p_ext1+1);
+                if(p_bfw_content == NULL) {
+                    print_err("Fail to allocate the space for section extension 1");
+                    return (XRAN_STATUS_RESOURCE);
+                }
+                bfp_com_req.data_in    = (int16_t*)p_bfw_iq_src;
+                bfp_com_req.len        =  bfwNumPerRb*4;
+                bfp_com_req.compMethod = p_ext1->bfwCompMeth;
+                bfp_com_req.iqWidth    = p_ext1->bfwIqWidth;
+
+                print_dbg("req 0x%08p iqWidth %d\n",bfp_com_req.data_in, bfp_com_req.iqWidth);
+
+                parm_size = 1; /* exponent as part of bfwCompParam 1 octet */
+                break;
+            case XRAN_BFWCOMPMETHOD_BLKSCALE:
+                rte_panic("XRAN_BFWCOMPMETHOD_BLKSCALE");
+                break;
+
+            case XRAN_BFWCOMPMETHOD_ULAW:
+                rte_panic("XRAN_BFWCOMPMETHOD_BLKSCALE");
+                break;
+
+            case XRAN_BFWCOMPMETHOD_BEAMSPACE:
+                rte_panic("XRAN_BFWCOMPMETHOD_BLKSCALE");
+                break;
+
+            case XRAN_BFWCOMPMETHOD_NONE:
+            default:
+                p_bfw_content = (uint8_t *)(p_ext1+1);
+                /* bfwCompParam is absent for no compression case */
+                parm_size = 0;
+        }
+
+        if(p_bfw_content == NULL) {
+            print_err("Fail to allocate the space for section extension 1");
+            return (XRAN_STATUS_RESOURCE);
+            }
+
+        bfw_iq_bits = bfwNumPerRb* bfwiqWidth * 2;
+
+        parm_size += bfw_iq_bits>>3;
+        if(bfw_iq_bits%8)
+            parm_size++;
+
+        print_dbg("copy BF W %p -> %p size %d \n", p_bfw_iq_src, p_bfw_content, parm_size);
+        if (p_ext1->bfwIqWidth == 0 || p_ext1->bfwIqWidth == 16){
+            rte_memcpy(p_bfw_content, p_bfw_iq_src, parm_size);
+        } else {
+            bfp_com_rsp.data_out = (int8_t*)p_bfw_content;
+            if(xranlib_compress_avx512_bfw(&bfp_com_req, &bfp_com_rsp) == 0){
+                comp_len = bfp_com_rsp.len;
+                print_dbg("comp_len %d\n", comp_len);
+            } else {
+                print_err("compression failed\n");
+                return (XRAN_STATUS_FAIL);
+            }
+        }
+
+        p_bfw_content = (uint8_t *)(p_bfw_content + parm_size);
+
+        cur_ext_len += parm_size;
+        parm_size = cur_ext_len % XRAN_SECTIONEXT_ALIGN;
+        if(parm_size) {
+            parm_size = XRAN_SECTIONEXT_ALIGN - parm_size;
+            p_bfw_content = (uint8_t *)(p_bfw_content + parm_size);
+            rte_memcpy(p_bfw_content, zeropad, parm_size);
+            cur_ext_len += parm_size;
+            print_dbg("zeropad %d cur_ext_len %d\n", parm_size, cur_ext_len);
+        }
+
+        if(cur_ext_len % XRAN_SECTIONEXT_ALIGN)
+            rte_panic("ext1 should be aligned on 4-bytes boundary");
+
+        p_ext1->extLen = cur_ext_len / XRAN_SECTIONEXT_ALIGN;
+        print_dbg("p_ext1->extLen %d\n", p_ext1->extLen);
+
+        /* update for next RB */
+        p_ext1_dst_cur += cur_ext_len;
+        p_bfw_iq_src   = p_bfw_iq_src + bfwNumPerRb*2;
+
+        total_len += cur_ext_len;
+    }
+
+    print_dbg("total_len %d\n", total_len);
+    return (total_len);
+}
+
+
 // Cyclic Prefix Length 5.4.4.14
 //   CP_length = cpLength * Ts,  Ts = 1/30.72MHz
 //    i.e cpLength = CP_length / Ts ?
@@ -397,25 +552,46 @@ inline int32_t xran_get_freqoffset(int32_t freqOffset, int32_t scs)
     return (freqOffset);
 }
 
+static int xran_copy_sectionext_1(struct rte_mbuf *mbuf,
+                struct xran_sectionext1_info *params, int last_flag)
+{
+    int32_t total_len;
+    int8_t *p_dst = (int8_t *)rte_pktmbuf_append(mbuf, params->bfwIQ_sz);
+    if(p_dst == NULL) {
+        print_err("Fail to allocate the space for section extension 1 [%d]", params->bfwIQ_sz);
+        return (XRAN_STATUS_RESOURCE);
+    }
+    if(params->p_bfwIQ){
+        /* copy formated extType1 with all the headers */
+        rte_memcpy(p_dst, params->p_bfwIQ, params->bfwIQ_sz);
+        total_len = params->bfwIQ_sz;
+    }
+    else
+        total_len = 0;
+
+
+    return (total_len);
+}
+
 
 static int xran_prepare_sectionext_1(struct rte_mbuf *mbuf,
                 struct xran_sectionext1_info *params, int last_flag)
 {
-  struct xran_cp_radioapp_section_ext1 *ext1;
-  uint8_t *data;
-  int parm_size, iq_size;
-  int total_len;
-  static const uint8_t zeropad[XRAN_SECTIONEXT_ALIGN] = { 0, 0, 0, 0 };
-
+    struct xran_cp_radioapp_section_ext1 *ext1;
+    uint8_t *data;
+    int parm_size, iq_size;
+    int total_len;
 
     total_len = 0;
+
+    print_dbg("%s %d\n", __FUNCTION__, last_flag);
 
     parm_size = sizeof(struct xran_cp_radioapp_section_ext1);
     ext1 = (struct xran_cp_radioapp_section_ext1 *)rte_pktmbuf_append(mbuf, parm_size);
     if(ext1 == NULL) {
-        print_err("Fail to allocate the space for section extension 1");
+        print_err("Fail to allocate the space for section extension 1 [%d]", parm_size);
         return (XRAN_STATUS_RESOURCE);
-        }
+    }
 
     total_len += parm_size;
 
@@ -429,9 +605,9 @@ static int xran_prepare_sectionext_1(struct rte_mbuf *mbuf,
             parm_size = 1;
             data = (uint8_t *)rte_pktmbuf_append(mbuf, parm_size);
             if(data == NULL) {
-                print_err("Fail to allocate the space for section extension 1");
+                print_err("Fail to allocate the space for section extension 1 [%d]", parm_size);
                 return (XRAN_STATUS_RESOURCE);
-                }
+            }
             total_len += parm_size;
             *data = (params->bfwCompParam.exponent & 0x0f);
             break;
@@ -440,9 +616,9 @@ static int xran_prepare_sectionext_1(struct rte_mbuf *mbuf,
             parm_size = 1;
             data = (uint8_t *)rte_pktmbuf_append(mbuf, parm_size);
             if(data == NULL) {
-                print_err("Fail to allocate the space for section extension 1");
+                print_err("Fail to allocate the space for section extension 1 [%d]", parm_size);
                 return (XRAN_STATUS_RESOURCE);
-                }
+            }
             total_len += parm_size;
             *data = params->bfwCompParam.blockScaler;
             break;
@@ -451,7 +627,7 @@ static int xran_prepare_sectionext_1(struct rte_mbuf *mbuf,
             parm_size = 1;
             data = (uint8_t *)rte_pktmbuf_append(mbuf, parm_size);
             if(data == NULL) {
-                print_err("Fail to allocate the space for section extension 1");
+                print_err("Fail to allocate the space for section extension 1 [%d]", parm_size);
                 return (XRAN_STATUS_RESOURCE);
                 }
             total_len += parm_size;
@@ -459,16 +635,12 @@ static int xran_prepare_sectionext_1(struct rte_mbuf *mbuf,
             break;
 
         case XRAN_BFWCOMPMETHOD_BEAMSPACE:
-#if 0
-            parm_size = ceil(params->bfwNumber/8)*8;
-#else
             parm_size = params->bfwNumber>>3;
             if(params->bfwNumber%8) parm_size++;
             parm_size *= 8;
-#endif
             data = (uint8_t *)rte_pktmbuf_append(mbuf, parm_size);
             if(data == NULL) {
-                print_err("Fail to allocate the space for section extension 1");
+                print_err("Fail to allocate the space for section extension 1 [%d]", parm_size);
                 return (XRAN_STATUS_RESOURCE);
                 }
             rte_memcpy(data, params->bfwCompParam.activeBeamspaceCoeffMask, parm_size);
@@ -480,20 +652,20 @@ static int xran_prepare_sectionext_1(struct rte_mbuf *mbuf,
             parm_size = 0;
         }
 
+    print_dbg("params->bfwNumber %d params->bfwiqWidth %d\n", params->bfwNumber, params->bfwiqWidth);
+
     iq_size = params->bfwNumber * params->bfwiqWidth * 2;
-#if 0
-    parm_size = ceil(iq_size/8);
-#else
+
     parm_size = iq_size>>3;
-    if(iq_size%8) parm_size++;
-#endif
+    if(iq_size%8)
+        parm_size++;
 
     data = (uint8_t *)rte_pktmbuf_append(mbuf, parm_size);
     if(data == NULL) {
-        print_err("Fail to allocate the space for section extension 1");
+        print_err("Fail to allocate the space for section extension 1 BF W iq_size: [%d]", parm_size);
         return (XRAN_STATUS_RESOURCE);
-        }
-    rte_memcpy(data, params->bfwIQ, parm_size);
+    }
+    rte_memcpy(data, params->p_bfwIQ, parm_size);
 
     total_len += parm_size;
     parm_size = total_len % XRAN_SECTIONEXT_ALIGN;
@@ -501,12 +673,12 @@ static int xran_prepare_sectionext_1(struct rte_mbuf *mbuf,
         parm_size = XRAN_SECTIONEXT_ALIGN - parm_size;
         data = (uint8_t *)rte_pktmbuf_append(mbuf, parm_size);
         if(data == NULL) {
-            print_err("Fail to allocate the space for section extension 1");
+            print_err("Fail to allocate the space for section extension 1 [%d]", parm_size);
             return (XRAN_STATUS_RESOURCE);
-            }
+        }
         rte_memcpy(data, zeropad, parm_size);
         total_len += parm_size;
-        }
+    }
 
     ext1->extLen        = total_len / XRAN_SECTIONEXT_ALIGN;
 
@@ -521,7 +693,7 @@ static int xran_prepare_sectionext_2(struct rte_mbuf *mbuf,
   int total_len;
   int parm_size;
   uint32_t val, shift_val;
-  int val_size;
+  int val_size, pad_size;
 
 
     total_len = 0;
@@ -546,7 +718,7 @@ static int xran_prepare_sectionext_2(struct rte_mbuf *mbuf,
     val = 0;
     shift_val = 0;
     if(params->bfAzPtWidth) {
-        val += params->bfAzPt;
+        val += params->bfAzPt & bitmask[params->bfAzPtWidth];
         shift_val += 8 - (params->bfAzPtWidth+1);
         }
     else
@@ -554,7 +726,7 @@ static int xran_prepare_sectionext_2(struct rte_mbuf *mbuf,
 
     if(params->bfZePtWidth) {
         val = val << (params->bfZePtWidth+1);
-        val += params->bfZePt;
+        val += params->bfZePt & bitmask[params->bfZePtWidth];
         shift_val += 8 - (params->bfZePtWidth+1);
         }
     else
@@ -562,7 +734,7 @@ static int xran_prepare_sectionext_2(struct rte_mbuf *mbuf,
 
     if(params->bfAz3ddWidth) {
         val = val << (params->bfAz3ddWidth+1);
-        val += params->bfAz3dd;
+        val += params->bfAz3dd & bitmask[params->bfAz3ddWidth];
         shift_val += 8 - (params->bfAz3ddWidth+1);
         }
     else
@@ -570,7 +742,7 @@ static int xran_prepare_sectionext_2(struct rte_mbuf *mbuf,
 
     if(params->bfZe3ddWidth) {
         val = val << (params->bfZe3ddWidth+1);
-        val += params->bfZe3dd;
+        val += params->bfZe3dd & bitmask[params->bfZe3ddWidth];
         shift_val += 8 - (params->bfZe3ddWidth+1);
         }
     else
@@ -584,18 +756,28 @@ static int xran_prepare_sectionext_2(struct rte_mbuf *mbuf,
     val_size = 4 - (shift_val/8);   /* ceil(total bit/8) */
     parm_size = val_size + 1;       /* additional 1 byte for bfxxSI */
 
+    // alignment
+    total_len += parm_size;
+    pad_size = total_len % XRAN_SECTIONEXT_ALIGN;
+    if(pad_size) {
+        pad_size = XRAN_SECTIONEXT_ALIGN - pad_size;
+        parm_size += pad_size;
+        total_len += pad_size;
+        }
+
     data = (uint8_t *)rte_pktmbuf_append(mbuf, parm_size);
     if(data == NULL) {
         print_err("Fail to allocate the space for section extension 2");
         return (XRAN_STATUS_RESOURCE);
         }
-    total_len += parm_size;
 
     rte_memcpy(data, &val, val_size);
     data += val_size;
     *data = ((params->bfAzSI) << 3) + (params->bfZeSI);
+    data++;
+    rte_memcpy(data, zeropad, pad_size);
 
-    ext2->extLen            = total_len / XRAN_SECTIONEXT_ALIGN;
+    ext2->extLen = total_len / XRAN_SECTIONEXT_ALIGN;
     *(uint32_t *)ext2 = rte_cpu_to_be_32(*(uint32_t *)ext2);
 
     return (total_len);
@@ -625,7 +807,7 @@ static int xran_prepare_sectionext_4(struct rte_mbuf *mbuf,
         ext4->ef            = last_flag;
         ext4->modCompScaler = params->modCompScaler;
         ext4->csf           = params->csf?1:0;
-        ext4->extLen        = 1;
+        ext4->extLen        = total_len / XRAN_SECTIONEXT_ALIGN;
 
         *(uint32_t *)ext4 = rte_cpu_to_be_32(*(uint32_t*)ext4);
         }
@@ -636,72 +818,76 @@ static int xran_prepare_sectionext_4(struct rte_mbuf *mbuf,
 static int xran_prepare_sectionext_5(struct rte_mbuf *mbuf,
                 struct xran_sectionext5_info *params, int last_flag)
 {
-  struct xran_cp_radioapp_section_ext5_1 *ext5_1;
-  struct xran_cp_radioapp_section_ext5_2 *ext5_2;
-  int parm_size;
+  struct xran_cp_radioapp_section_ext_hdr *ext_hdr;
+  struct xran_cp_radioapp_section_ext5 ext5;
+  int padding;
   int total_len;
-  uint32_t *data;
+  uint8_t *data;
+  int i;
 
 
-    total_len = 0;
+    if(params->num_sets > XRAN_MAX_MODCOMP_ADDPARMS) {
+        print_err("Exceeds maximum number of parameters(%d). Skipping.", params->num_sets);
+        return (0);
+        }
 
-    if(params->num_sets == 1) {
-        parm_size = sizeof(struct xran_cp_radioapp_section_ext5_1);
-        ext5_1 = (struct xran_cp_radioapp_section_ext5_1 *)rte_pktmbuf_append(mbuf, parm_size);
-        if(ext5_1 == NULL) {
-            print_err("Fail to allocate the space for section extension 5-1");
-            return (XRAN_STATUS_RESOURCE);
+    total_len = sizeof(struct xran_cp_radioapp_section_ext_hdr)
+                + (sizeof(struct xran_cp_radioapp_section_ext5)*params->num_sets)/2
+                - (params->num_sets>>1); // 8bits are added by every two sets, so needs to adjust
+
+    /* for alignment */
+    padding = total_len % XRAN_SECTIONEXT_ALIGN;
+    if(padding) {
+        padding = XRAN_SECTIONEXT_ALIGN - padding;
+        total_len += padding;
+        }
+
+    ext_hdr = (struct xran_cp_radioapp_section_ext_hdr *)rte_pktmbuf_append(mbuf, total_len);
+    if(ext_hdr == NULL) {
+        print_err("Fail to allocate the space for section extension 5");
+        return (XRAN_STATUS_RESOURCE);
+        }
+
+    ext_hdr->extType    = XRAN_CP_SECTIONEXTCMD_5;
+    ext_hdr->ef         = last_flag;
+    ext_hdr->extLen     = total_len / XRAN_SECTIONEXT_ALIGN;
+
+    *(uint16_t *)ext_hdr    = rte_cpu_to_be_16(*((uint16_t *)ext_hdr));
+
+    data = (uint8_t *)(ext_hdr + 1);
+    i = 0;
+    while(i < params->num_sets) {
+        if(i%2) { // odd index
+            ext5.mcScaleOffset2 = params->mc[i].mcScaleOffset;
+            ext5.csf2           = params->mc[i].csf;
+            ext5.mcScaleReMask2 = params->mc[i].mcScaleReMask;
+            ext5.reserved0      = 0;
+            i++;
+
+            // adding two sets at once (due to the definition of structure)
+            *((uint64_t *)&ext5) = rte_cpu_to_be_64(*((uint64_t *)&ext5));
+            rte_memcpy(data, &ext5, sizeof(struct xran_cp_radioapp_section_ext5));
+            data += sizeof(struct xran_cp_radioapp_section_ext5);
             }
-        else {
-            total_len += parm_size;
+        else { // even index
+            ext5.mcScaleOffset1 = params->mc[i].mcScaleOffset;
+            ext5.csf1           = params->mc[i].csf;
+            ext5.mcScaleReMask1 = params->mc[i].mcScaleReMask;
+            ext5.mcScaleReMask2 = 0;
+            i++;
 
-            ext5_1->extType         = XRAN_CP_SECTIONEXTCMD_5;
-            ext5_1->ef              = last_flag;
-
-            ext5_1->mcScaleOffset   = params->mc[0].mcScaleOffset;
-            ext5_1->csf             = params->mc[0].csf;
-            ext5_1->mcScaleReMask   = params->mc[0].mcScaleReMask;
-            ext5_1->reserved        = 0;
-
-            ext5_1->extLen          = 2;
-
-            *(uint64_t *)ext5_1 = rte_cpu_to_be_64(*(uint64_t *)ext5_1);
+            if(i == params->num_sets) { // adding last even index
+                *((uint64_t *)&ext5) = rte_cpu_to_be_64(*((uint64_t *)&ext5));
+                rte_memcpy(data, &ext5, sizeof(struct xran_cp_radioapp_section_ext5)/2);
+                data += sizeof(struct xran_cp_radioapp_section_ext5)/2;
+                break;
+                }
             }
         }
-    else if(params->num_sets == 2) {
-        parm_size = sizeof(struct xran_cp_radioapp_section_ext5_2);
-        ext5_2 = (struct xran_cp_radioapp_section_ext5_2 *)rte_pktmbuf_append(mbuf, parm_size);
-        if(ext5_2 == NULL) {
-            print_err("Fail to allocate the space for section extension 5-2");
-            return (XRAN_STATUS_RESOURCE);
-            }
-        else {
-            total_len += parm_size;
 
-            ext5_2->extType         = XRAN_CP_SECTIONEXTCMD_5;
-            ext5_2->ef              = last_flag;
-
-            ext5_2->mcScaleOffset1  = params->mc[0].mcScaleOffset;
-            ext5_2->csf1            = params->mc[0].csf;
-            ext5_2->mcScaleReMask1  = params->mc[0].mcScaleReMask;
-            ext5_2->mcScaleOffset2  = params->mc[1].mcScaleOffset;
-            ext5_2->csf2            = params->mc[1].csf;
-            ext5_2->mcScaleReMask2  = params->mc[1].mcScaleReMask;
-
-            ext5_2->reserved0       = 0;
-            ext5_2->reserved1       = 0;
-
-            ext5_2->extLen          = 3;
-
-            *(uint64_t *)ext5_2 = rte_cpu_to_be_64(*(uint64_t *)ext5_2);
-            data = (uint32_t *)((uint8_t *)ext5_2 + 8);
-            *data = rte_cpu_to_be_32(*data);
-            }
-        }
-    else {
-        print_err("Invalid number of scalar values - %d", params->num_sets);
-        return (XRAN_STATUS_INVALID_PARAM);
-        }
+    /* zero padding */
+    if(padding)
+        rte_memcpy(data, zeropad, padding);
 
     return (total_len);
 }
@@ -720,34 +906,34 @@ static int xran_prepare_sectionext_5(struct rte_mbuf *mbuf,
  */
 int xran_append_section_extensions(struct rte_mbuf *mbuf, struct xran_section_gen_info *params)
 {
-  int i, ret;
-  uint32_t totalen;
-  int last_flag;
-  int ext_size;
+    int i, ret;
+    uint32_t totalen;
+    int last_flag;
+    int ext_size;
 
-
-    if(unlikely(params->exDataSize >= XRAN_MAX_NUM_EXTENSIONS)) {
+    if(unlikely(params->exDataSize > XRAN_MAX_NUM_EXTENSIONS)) {
         print_err("Invalid total number of extensions - %d", params->exDataSize);
         return (XRAN_STATUS_INVALID_PARAM);
-        }
+    }
 
     totalen = 0;
 
-
     ret = XRAN_STATUS_SUCCESS;
 
+    print_dbg("params->exDataSize %d\n", params->exDataSize);
     for(i=0; i < params->exDataSize; i++) {
         if(params->exData[i].data == NULL) {
             print_err("Invalid parameter - extension data %d is NULL", i);
             ret = XRAN_STATUS_INVALID_PARAM;
             continue;
-            }
+        }
 
-//    params->exData[].len
-        last_flag = ((params->exDataSize - i)==1)?0:1;
+        last_flag = (params->exDataSize == (i+1))?0:1;
+
         switch(params->exData[i].type) {
             case XRAN_CP_SECTIONEXTCMD_1:
-                ext_size = xran_prepare_sectionext_1(mbuf, params->exData[i].data, last_flag);
+                ext_size = xran_copy_sectionext_1(mbuf, params->exData[i].data, last_flag);
+                    //xran_prepare_sectionext_1(mbuf, params->exData[i].data, last_flag);
                 break;
             case XRAN_CP_SECTIONEXTCMD_2:
                 ext_size = xran_prepare_sectionext_2(mbuf, params->exData[i].data, last_flag);
@@ -758,7 +944,6 @@ int xran_append_section_extensions(struct rte_mbuf *mbuf, struct xran_section_ge
             case XRAN_CP_SECTIONEXTCMD_5:
                 ext_size = xran_prepare_sectionext_5(mbuf, params->exData[i].data, last_flag);
                 break;
-
             case XRAN_CP_SECTIONEXTCMD_0:
             case XRAN_CP_SECTIONEXTCMD_3:
             default:
@@ -769,10 +954,10 @@ int xran_append_section_extensions(struct rte_mbuf *mbuf, struct xran_section_ge
 
         if(ext_size == XRAN_STATUS_RESOURCE) {
             break;
-            }
+        }
 
         totalen += ext_size;
-        }
+    }
 
     return (totalen);
 }
@@ -1020,28 +1205,32 @@ int xran_append_control_section(struct rte_mbuf *mbuf, struct xran_cp_gen_params
     if(unlikely(xran_prepare_section_func == NULL)) {
        print_err("Section Type %d is not supported!", params->sectionType);
        return (XRAN_STATUS_INVALID_PARAM);
-       }
+    }
 
-    for(i=0; i<params->numSections; i++) {
+    for(i=0; i < params->numSections; i++) {
         section = rte_pktmbuf_append(mbuf, section_size);
         if(section == NULL) {
             print_err("Fail to allocate the space for section[%d]!", i);
             return (XRAN_STATUS_RESOURCE);
-            }
-
+        }
+        print_dbg("%s %d ef %d\n", __FUNCTION__, i, params->sections[i].info.ef);
         ret = xran_prepare_section_func((void *)section,
                             (void *)&params->sections[i]);
-        if(ret < 0)
+        if(ret < 0){
+            print_err("%s %d\n", __FUNCTION__, ret);
             return (ret);
+        }
         totalen += section_size;
 
         if(params->sections[i].info.ef) {
+            print_dbg("sections[%d].info.ef %d exDataSize %d  type %d\n", i, params->sections[i].info.ef,
+                params->sections[i].exDataSize, params->sections[i].exData[0].type);
             ret = xran_append_section_extensions(mbuf, &params->sections[i]);
             if(ret < 0)
                 return (ret);
             totalen += ret;
-            }
-        }
+       }
+    }
 
     return (totalen);
 }
@@ -1203,14 +1392,16 @@ int xran_prepare_ctrl_pkt(struct rte_mbuf *mbuf,
 
     ret = xran_append_radioapp_header(mbuf, params);
     if(ret < 0) {
+        print_err("%s %d\n", __FUNCTION__, ret);
         return (ret);
-        }
+    }
     payloadlen += ret;
 
     ret = xran_append_control_section(mbuf, params);
     if(ret < 0) {
+        print_err("%s %d\n", __FUNCTION__, ret);
         return (ret);
-        }
+    }
     payloadlen += ret;
 
     /* set payload length */
@@ -1222,6 +1413,323 @@ int xran_prepare_ctrl_pkt(struct rte_mbuf *mbuf,
 
 ///////////////////////////////////////
 // for RU emulation
+int xran_parse_section_ext1(void *ext,
+                struct xran_sectionext1_info *extinfo)
+{
+  int len;
+  int total_len;
+  struct xran_cp_radioapp_section_ext1 *ext1;
+  uint8_t *data;
+  int parm_size, iq_size;
+  int N;
+  void *pHandle;
+
+    pHandle = NULL;
+    N = xran_get_conf_num_bfweights(pHandle);
+    extinfo->bfwNumber = N;
+
+    ext1 = (struct xran_cp_radioapp_section_ext1 *)ext;
+    data = (uint8_t *)ext;
+
+    len = 0;
+    total_len = ext1->extLen * XRAN_SECTIONEXT_ALIGN;   /* from word to byte */
+
+    extinfo->bfwCompMeth    = ext1->bfwCompMeth;
+    extinfo->bfwiqWidth     = (ext1->bfwIqWidth==0)?16:ext1->bfwIqWidth;
+
+    len     += sizeof(struct xran_cp_radioapp_section_ext1);
+    data    += sizeof(struct xran_cp_radioapp_section_ext1);
+
+    switch(ext1->bfwCompMeth) {
+        case XRAN_BFWCOMPMETHOD_NONE:
+            parm_size = 0;
+            break;
+
+        case XRAN_BFWCOMPMETHOD_BLKFLOAT:
+            parm_size = 1;
+            extinfo->bfwCompParam.exponent = *data & 0x0f;
+            break;
+
+        case XRAN_BFWCOMPMETHOD_BLKSCALE:
+            parm_size = 1;
+            extinfo->bfwCompParam.blockScaler = *data;
+            break;
+
+        case XRAN_BFWCOMPMETHOD_ULAW:
+            parm_size = 1;
+            extinfo->bfwCompParam.compBitWidthShift = *data;
+            break;
+
+        case XRAN_BFWCOMPMETHOD_BEAMSPACE:
+            parm_size = N>>3; if(N%8) parm_size++; parm_size *= 8;
+            rte_memcpy(data, extinfo->bfwCompParam.activeBeamspaceCoeffMask, parm_size);
+            break;
+
+        default:
+            print_err("Invalid BfComp method - %d", ext1->bfwCompMeth);
+            parm_size = 0;
+        }
+
+    len     += parm_size;
+    data    += parm_size;
+
+    /* Get BF weights */
+    iq_size = N * extinfo->bfwiqWidth * 2;  // total in bits
+    parm_size = iq_size>>3;                 // total in bytes (/8)
+    if(iq_size%8) parm_size++;              // round up
+
+    //rte_memcpy(data, extinfo->p_bfwIQ, parm_size);
+    extinfo->p_bfwIQ =  (int16_t*)data;
+
+    len += parm_size;
+
+    parm_size = len % XRAN_SECTIONEXT_ALIGN;
+    if(parm_size)
+        len += (XRAN_SECTIONEXT_ALIGN - parm_size);
+
+    if(len != total_len) {
+        // TODO: fix this print_err("The size of extension 1 is not correct! [%d:%d]", len, total_len);
+    }
+
+    return (total_len);
+}
+
+int xran_parse_section_ext2(void *ext,
+                struct xran_sectionext2_info *extinfo)
+{
+  int len;
+  int total_len;
+  struct xran_cp_radioapp_section_ext2 *ext2;
+  uint8_t *data;
+  int parm_size;
+  uint32_t val;
+  int val_size;
+
+
+    ext2 = (struct xran_cp_radioapp_section_ext2 *)ext;
+    data = (uint8_t *)ext;
+    *(uint32_t *)ext2 = rte_cpu_to_be_32(*(uint32_t *)ext2);
+
+    len = 0;
+    total_len = ext2->extLen * XRAN_SECTIONEXT_ALIGN;   /* from word to byte */
+
+    parm_size = sizeof(struct xran_cp_radioapp_section_ext2);
+
+    extinfo->bfAzPtWidth    = ext2->bfAzPtWidth;
+    extinfo->bfZePtWidth    = ext2->bfZePtWidth;
+    extinfo->bfAz3ddWidth   = ext2->bfAz3ddWidth;
+    extinfo->bfZe3ddWidth   = ext2->bfZe3ddWidth;
+
+    if(ext2->bfaCompResv0 || ext2->bfaCompResv1)
+        print_err("Incorrect reserved field - %d, %d", ext2->bfaCompResv0, ext2->bfaCompResv1);
+
+    data    += parm_size;
+    len     += parm_size;
+
+    val_size = (extinfo->bfAzPtWidth ? extinfo->bfAzPtWidth+1 : 0)
+                + (extinfo->bfZePtWidth ? extinfo->bfZePtWidth+1 : 0)
+                + (extinfo->bfAz3ddWidth ? extinfo->bfAz3ddWidth+1 : 0)
+                + (extinfo->bfZe3ddWidth ? extinfo->bfZe3ddWidth+ 1: 0);
+    if(val_size) {
+        val = rte_cpu_to_be_32(*(uint32_t *)data);
+        val >>= (32 - val_size);
+
+        if(extinfo->bfZe3ddWidth) {
+            extinfo->bfZe3dd    = val & bitmask[extinfo->bfZe3ddWidth];
+            val >>= (extinfo->bfZe3ddWidth + 1);
+            }
+        if(extinfo->bfAz3ddWidth) {
+            extinfo->bfAz3dd    = val & bitmask[extinfo->bfAz3ddWidth];
+            val >>= (extinfo->bfAz3ddWidth + 1);
+            }
+        if(extinfo->bfZePtWidth) {
+            extinfo->bfZePt     = val & bitmask[extinfo->bfZePtWidth];
+            val >>= (extinfo->bfZePtWidth + 1);
+            }
+        if(extinfo->bfAzPtWidth) {
+            extinfo->bfAzPt     = val & bitmask[extinfo->bfAzPtWidth];
+            val >>= (extinfo->bfAzPtWidth + 1);
+            }
+        }
+
+    parm_size = val_size/8;
+    if(val_size%8) parm_size += 1;
+
+    data    += parm_size;
+    len     += parm_size;
+
+    extinfo->bfAzSI = (*data >> 3) & 0x07;
+    extinfo->bfZeSI = *data & 0x07;
+
+    data++;
+    len++;
+
+    parm_size = len % XRAN_SECTIONEXT_ALIGN;
+    if(parm_size)
+        len += (XRAN_SECTIONEXT_ALIGN - parm_size);
+
+    if(len != total_len) {
+        print_err("The size of extension 2 is not correct! [%d:%d]", len, total_len);
+        }
+
+    return (total_len);
+
+}
+
+int xran_parse_section_ext4(void *ext,
+                struct xran_sectionext4_info *extinfo)
+{
+  int len;
+  struct xran_cp_radioapp_section_ext4 *ext4;
+  int total_len;
+
+
+    ext4 = (struct xran_cp_radioapp_section_ext4 *)ext;
+
+    *(uint32_t *)ext4 = rte_cpu_to_be_32(*(uint32_t *)ext4);
+
+    len = 0;
+    total_len = ext4->extLen * XRAN_SECTIONEXT_ALIGN;   /* from word to byte */
+
+    extinfo->modCompScaler  = ext4->modCompScaler;
+    extinfo->csf            = ext4->csf;
+//    extinfo->pad0;
+
+    len += sizeof(struct xran_cp_radioapp_section_ext4);
+    if(len != total_len) {
+        print_err("The size of extension 4 is not correct! [%d:%d]", len, total_len);
+        }
+
+    return (total_len);
+}
+
+int xran_parse_section_ext5(void *ext,
+                struct xran_sectionext5_info *extinfo)
+{
+  int len;
+  struct xran_cp_radioapp_section_ext_hdr *ext_hdr;
+  struct xran_cp_radioapp_section_ext5 ext5;
+  int parm_size;
+  int total_len;
+  uint8_t *data;
+  uint16_t i;
+
+
+    ext_hdr = (struct xran_cp_radioapp_section_ext_hdr *)ext;
+    *(uint16_t *)ext_hdr = rte_cpu_to_be_16(*(uint16_t *)ext_hdr);
+
+    total_len = ext_hdr->extLen * XRAN_SECTIONEXT_ALIGN;   /* from word to byte */
+
+    // one set has 3.5 bytes, so enforcing double to do integer calculation
+    parm_size = ((total_len-sizeof(struct xran_cp_radioapp_section_ext_hdr))*2) / 7;
+
+    if(parm_size > XRAN_MAX_MODCOMP_ADDPARMS) {
+        print_err("Exceeds maximum number of parameters - %d", parm_size);
+        parm_size = XRAN_MAX_MODCOMP_ADDPARMS;
+    }
+
+    len = 0;
+    data = (uint8_t *)(ext_hdr + 1);
+
+    i = 0;
+    while(i < parm_size) {
+        // For odd number set, more data can be copied
+        *((uint64_t *)&ext5) = rte_cpu_to_be_64(*((uint64_t *)data));
+
+        extinfo->mc[i].mcScaleOffset    = ext5.mcScaleOffset1;
+        extinfo->mc[i].csf              = ext5.csf1;
+        extinfo->mc[i].mcScaleReMask    = ext5.mcScaleReMask1;
+        i++;
+
+        extinfo->mc[i].mcScaleOffset    = ext5.mcScaleOffset2;
+        extinfo->mc[i].csf              = ext5.csf2;
+        extinfo->mc[i].mcScaleReMask    = ext5.mcScaleReMask2;
+        i++;
+
+        data += sizeof(struct xran_cp_radioapp_section_ext5);
+        }
+
+    // check the values of last set
+    // due to alignment, it cannot be identified by the length that 3 or 4, 11 or 12 and etc
+    // don't check mcScaleOffset might not be zero (some part is out of zero-padding)
+    i--;
+    if(i < XRAN_MAX_MODCOMP_ADDPARMS) {
+        if(extinfo->mc[i].csf == 0 && extinfo->mc[i].mcScaleReMask == 0)
+            extinfo->num_sets = i;
+        else
+            extinfo->num_sets = i+1;
+    }else {
+        print_err("Maximum total number %d is not correct!", i);
+    }
+
+    return (total_len);
+}
+
+int xran_parse_section_extension(struct rte_mbuf *mbuf,
+                    void *ext,
+                    struct xran_section_gen_info *section)
+{
+  int total_len, len, numext;
+  uint8_t *ptr;
+  int flag_last;
+  int ext_type;
+  int i;
+
+    total_len = 0;
+    ptr = (uint8_t *)ext;
+
+    numext = 0;
+
+    flag_last = 1;
+    i = 0;
+    while(flag_last) {
+        /* check ef */
+        flag_last = (*ptr & 0x80);
+
+        ext_type = *ptr & 0x7f;
+        section->exData[numext].type = ext_type;
+        switch(ext_type) {
+            case XRAN_CP_SECTIONEXTCMD_1:
+                section->exData[numext].data = &section->m_ext1[numext];
+                len = xran_parse_section_ext1(ptr, section->exData[numext].data);
+                section->exData[numext].len = len;
+                break;
+            case XRAN_CP_SECTIONEXTCMD_2:
+                section->exData[numext].data = &section->m_ext2[numext];
+                len = xran_parse_section_ext2(ptr, section->exData[numext].data);
+                break;
+            case XRAN_CP_SECTIONEXTCMD_4:
+                section->exData[numext].data = &section->m_ext4[numext];
+                len = xran_parse_section_ext4(ptr, section->exData[numext].data);
+                break;
+            case XRAN_CP_SECTIONEXTCMD_5:
+                section->exData[numext].data = &section->m_ext5[numext];
+                len = xran_parse_section_ext5(ptr, section->exData[numext].data);
+                break;
+
+            case XRAN_CP_SECTIONEXTCMD_0:
+            case XRAN_CP_SECTIONEXTCMD_3:
+            default:
+                print_err("Extension %d is not supported!", ext_type);
+                len = 0;
+            }
+
+        section->exData[numext].len = len;
+        ptr += len; total_len += len;
+
+        i++;
+        if(++numext < XRAN_MAX_NUM_EXTENSIONS) continue;
+
+        /* exceeds maximum number of extensions */
+        break;
+        }
+
+    section->exDataSize = numext;
+
+    return (total_len);
+
+}
+
 /**
  * @brief Parse a C-Plane packet (for RU emulation)
  *  Transport layer fragmentation is not supported.
@@ -1362,14 +1870,8 @@ int xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                     result->sections[i].info.beamId     = section->hdr.u.s1.beamId;
                     result->sections[i].info.ef         = section->hdr.u.s1.ef;
 
-                    if(section->hdr.u.s1.ef) {
-                        // TODO: handle section extension
-                        extlen = 0;
-                        }
-                    else extlen = 0;
-
                     section = (void *)rte_pktmbuf_adj(mbuf,
-                                    sizeof(struct xran_cp_radioapp_section1)+extlen);
+                                    sizeof(struct xran_cp_radioapp_section1));
                     if(section == NULL) {
                         print_err("Invalid packet 1 - number of section [%d:%d]!",
                                     result->numSections, i);
@@ -1377,6 +1879,20 @@ int xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                         ret = XRAN_STATUS_INVALID_PACKET;
                         break;
                         }
+
+                    if(result->sections[i].info.ef) {
+                        // parse section extension
+                        extlen = xran_parse_section_extension(mbuf, (void *)section, &result->sections[i]);
+                        if(extlen > 0) {
+                            section = (void *)rte_pktmbuf_adj(mbuf, extlen);
+                            if(section == NULL) {
+                                print_err("Invalid packet 1 - section extension [%d]!", i);
+                                ret = XRAN_STATUS_INVALID_PACKET;
+                                break;
+                                }
+                            }
+                        }
+                    else extlen = 0;
                     }
             }
             break;
@@ -1421,14 +1937,7 @@ int xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                         ret = XRAN_STATUS_INVALID_PACKET;
                         }
 
-                    if(section->hdr.u.s3.ef) {
-                        // TODO: handle section extension
-                        extlen = 0;
-                        }
-                    else extlen = 0;
-
-                    section = (void *)rte_pktmbuf_adj(mbuf,
-                                    sizeof(struct xran_cp_radioapp_section3)+extlen);
+                    section = (void *)rte_pktmbuf_adj(mbuf, sizeof(struct xran_cp_radioapp_section3));
                     if(section == NULL) {
                         print_err("Invalid packet 3 - number of section [%d:%d]!",
                                     result->numSections, i);
@@ -1436,6 +1945,20 @@ int xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                         ret = XRAN_STATUS_INVALID_PACKET;
                         break;
                         }
+
+                    if(result->sections[i].info.ef) {
+                        // parse section extension
+                        extlen = xran_parse_section_extension(mbuf, (void *)section, &result->sections[i]);
+                        if(extlen > 0) {
+                            section = (void *)rte_pktmbuf_adj(mbuf, extlen);
+                            if(section == NULL) {
+                                print_err("Invalid packet 3 - section extension [%d]!", i);
+                                ret = XRAN_STATUS_INVALID_PACKET;
+                                break;
+                                }
+                            }
+                        }
+                    else extlen = 0;
                     }
             }
             break;
@@ -1458,7 +1981,7 @@ int xran_parse_cp_pkt(struct rte_mbuf *mbuf,
             result->hdr.iqWidth, result->hdr.compMeth);
 
     for(i=0; i<result->numSections; i++) {
-        printf("  >> %3d:%04X| rb=%d symInc=%d numSym=%d startPrbc=%02d numPrbc=%d reMask=%03X beamId=%04X freqOffset=%d ef=%d\n",
+        printf("  || %3d:%04X| rb=%d symInc=%d numSym=%d startPrbc=%02d numPrbc=%d reMask=%03X beamId=%04X freqOffset=%d ef=%d\n",
             i, result->sections[i].info.id,
             result->sections[i].info.rb,
             result->sections[i].info.symInc, result->sections[i].info.numSymbol,
@@ -1467,7 +1990,60 @@ int xran_parse_cp_pkt(struct rte_mbuf *mbuf,
             result->sections[i].info.beamId,
             result->sections[i].info.freqOffset,
             result->sections[i].info.ef);
-//                    result->sections[i].info.type
+
+        if(result->sections[i].info.ef) {
+            for(int j=0; j<result->sections[i].exDataSize; j++) {
+                printf("      || %2d : type=%d len=%d\n",
+                        j, result->sections[i].exData[j].type, result->sections[i].exData[j].len);
+                switch(result->sections[i].exData[j].type) {
+                    case XRAN_CP_SECTIONEXTCMD_1:
+                        {
+                        struct xran_sectionext1_info *ext1;
+                        ext1 = result->sections[i].exData[j].data;
+                        printf("      ||    bfwNumber=%d bfwiqWidth=%d bfwCompMeth=%d\n",
+                                ext1->bfwNumber, ext1->bfwiqWidth, ext1->bfwCompMeth);
+                        }
+                        break;
+                    case XRAN_CP_SECTIONEXTCMD_2:
+                        {
+                        struct xran_sectionext2_info *ext2;
+                        ext2 = result->sections[i].exData[j].data;
+                        printf("      ||    AzPt=%02x(%d) ZePt=%02x(%d) Az3dd=%02x(%d) Ze3dd=%02x(%d) AzSI=%02x ZeSI=%02x\n",
+                                ext2->bfAzPt, ext2->bfAzPtWidth,
+                                ext2->bfZePt, ext2->bfZePtWidth,
+                                ext2->bfAz3dd, ext2->bfAz3ddWidth,
+                                ext2->bfZe3dd, ext2->bfZe3ddWidth,
+                                ext2->bfAzSI, ext2->bfZeSI);
+                        }
+                        break;
+                    case XRAN_CP_SECTIONEXTCMD_4:
+                        {
+                        struct xran_sectionext4_info *ext4;
+                        ext4 = result->sections[i].exData[j].data;
+                        printf("      ||    csf=%d modCompScaler=%d\n",
+                                ext4->csf, ext4->modCompScaler);
+                        }
+                        break;
+                    case XRAN_CP_SECTIONEXTCMD_5:
+                        {
+                        struct xran_sectionext5_info *ext5;
+                        ext5 = result->sections[i].exData[j].data;
+                        printf("      ||    num_sets=%d\n", ext5->num_sets);
+                        for(int k=0; k<ext5->num_sets; k++) {
+                            printf("          || %d - csf=%d mcScaleReMask=%04x mcScaleOffset=%04x\n",
+                                k, ext5->mc[k].csf,
+                                ext5->mc[k].mcScaleReMask, ext5->mc[k].mcScaleOffset);
+                            }
+                        }
+                        break;
+
+                    case XRAN_CP_SECTIONEXTCMD_0:
+                    case XRAN_CP_SECTIONEXTCMD_3:
+                    default:
+                        printf("Invalid section extension type!\n");
+                    }
+                }
+            }
         }
 #endif
 

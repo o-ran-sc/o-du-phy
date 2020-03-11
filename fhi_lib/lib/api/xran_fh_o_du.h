@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file provides public interface to xRAN Front Haul layer implementation as defined in the
  *      ORAN-WG4.CUS.0-v01.00 spec. Implementation specific to
@@ -100,23 +99,34 @@ extern "C" {
 /** Macro to calculate Symbol number for given slot from symbol index  */
 #define XranGetSymNum(symIdx, numSymPerTti) (((uint32_t)symIdx % (uint32_t)numSymPerTti))
 /** Macro to calculate Frame number for given tti */
-#define XranGetFrameNum(tti,numSubFramePerSystemFrame, numSlotPerSubFrame)  ((uint32_t)tti / ((uint32_t)numSubFramePerSystemFrame * (uint32_t)numSlotPerSubFrame))
+#define XranGetFrameNum(tti,SFNatSecStart,numSubFramePerSystemFrame, numSlotPerSubFrame)  ((((uint32_t)tti / ((uint32_t)numSubFramePerSystemFrame * (uint32_t)numSlotPerSubFrame)) + SFNatSecStart) & 0x3FF)
 /** Macro to calculate Subframe number for given tti */
 #define XranGetSubFrameNum(tti, numSlotPerSubFrame, numSubFramePerSystemFrame) (((uint32_t)tti/(uint32_t)numSlotPerSubFrame) % (uint32_t)numSubFramePerSystemFrame)
 /** Macro to calculate Slot number */
 #define XranGetSlotNum(tti, numSlotPerSfn) ((uint32_t)tti % ((uint32_t)numSlotPerSfn))
 
-#define XRAN_PORTS_NUM      (1)  /**< number of XRAN ports (aka O-RU devices) supported */
-#define XRAN_N_FE_BUF_LEN   (80) /**< Number of TTIs (slots) */
-#define XRAN_MAX_SECTOR_NR  (12) /**< Max sectors per XRAN port */
-#define XRAN_MAX_ANTENNA_NR (4)  /**< Max antenna per port */
+#define XRAN_PORTS_NUM               (1)    /**< number of XRAN ports (aka O-RU devices) supported */
+#define XRAN_N_FE_BUF_LEN            (40)   /**< Number of TTIs (slots) */
+#define XRAN_MAX_SECTOR_NR           (12)   /**< Max sectors per XRAN port */
+#define XRAN_MAX_ANTENNA_NR          (16)    /**< Max number of extended Antenna-Carriers:
+                                                a data flow for a single antenna (or spatial stream) for a single carrier in a single sector */
+
+/* see 10.2	Hierarchy of Radiation Structure in O-RU (assume TX and RX pannel are the same dimensions)*/
+#define XRAN_MAX_PANEL_NR            (1)   /**< Max number of Panels supported per O-RU */
+#define XRAN_MAX_TRX_ANTENNA_ARRAY   (1)   /**< Max number of TX and RX arrays per panel in O-RU */
+#define XRAN_MAX_ANT_ARRAY_ELM_NR    (64)  /**< Maximum number of Antenna Array Elemets in Antenna Array in the O-RU */
+
+
+
 #define XRAN_NUM_OF_SYMBOL_PER_SLOT  (14) /**< Number of symbols per slot */
-#define XRAN_MAX_TDD_PERIODICITY     (80)   /**< Max TDD pattern period */
+#define XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT  XRAN_NUM_OF_SYMBOL_PER_SLOT /**< Max Number of SRS symbols per slot */
+#define XRAN_MAX_TDD_PERIODICITY     (80) /**< Max TDD pattern period */
 #define XRAN_MAX_CELLS_PER_PORT      (XRAN_MAX_SECTOR_NR) /**< Max cells mapped to XRAN port */
 #define XRAN_COMPONENT_CARRIERS_MAX  (XRAN_MAX_SECTOR_NR) /**< number of CCs */
 #define XRAN_NUM_OF_ANT_RADIO        (XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR) /**< Max Number of Antennas supported for all CC on single XRAN port */
 #define XRAN_MAX_PRBS                (275) /**< Max of PRBs per CC per antanna for 5G NR */
 
+#define XRAN_MAX_SECTIONS_PER_SYM    (16)  /**< Max number of different sections in single symbol (section is equal to RB allocation for UE) */
 
 #define XRAN_MAX_PKT_BURST (448+4) /**< 4x14x8 symbols per ms */
 #define XRAN_N_MAX_BUFFER_SEGMENT XRAN_MAX_PKT_BURST /**< Max number of segments per ms */
@@ -213,6 +223,15 @@ enum callback_to_phy_id
     XRAN_CB_MAX /**< max number of callbacks */
 };
 
+/**  Beamforming type, enumerated as "frequency", "time" or "hybrid"
+     section 10.4.2	Weight-based dynamic beamforming */
+enum xran_weight_based_beamforming_type {
+    XRAN_BF_T_FREQUENCY = 0,
+    XRAN_BF_T_TIME      = 1,
+    XRAN_BF_T_HYBRID    = 2,
+    XRAN_BF_T_MAX
+};
+
 typedef int32_t xran_status_t; /**< Xran status return value */
 
 /** callback function type for Symbol packet */
@@ -222,14 +241,13 @@ typedef void (*xran_callback_sym_fn)(void*);
 typedef int (*xran_fh_tti_callback_fn)(void*);
 
 /** Callback function type packet arrival from transport layer (ETH or IP) */
-typedef void (*xran_transport_callback_fn)(void*, int32_t);
+typedef void (*xran_transport_callback_fn)(void*, xran_status_t);
 
 /** Callback functions to poll BBdev encoder */
 typedef int16_t (*phy_encoder_poll_fn)(void);
 
 /** Callback functions to poll BBdev secoder */
 typedef int16_t (*phy_decoder_poll_fn)(void);
-
 
 /** XRAN port enum */
 enum xran_vf_ports
@@ -242,9 +260,9 @@ enum xran_vf_ports
 /** XRAN category enum */
 enum xran_category
 {
-    XRAN_CATRGORY_A = 0,
-    XRAN_CATRGORY_B = 1,
-    XRAN_CATRGORY_MAX
+    XRAN_CATEGORY_A = 0,
+    XRAN_CATEGORY_B = 1,
+    XRAN_CATEGORY_MAX
 };
 
 /** type of beamforming */
@@ -262,6 +280,13 @@ enum xran_bbdev_init
     XRAN_BBDEV_MODE_HW_OFF = 0,  /**< BBDEV is enabled for SW sim mode */
     XRAN_BBDEV_MODE_HW_ON  = 1,  /**< BBDEV is enable for HW */
     XRAN_BBDEV_MODE_MAX
+};
+
+/** callback return information */
+struct xran_cb_tag {
+    uint16_t cellId;
+    uint32_t symbol;
+    uint32_t slotiId;
 };
 
 /** DPDK IO configuration for XRAN layer */
@@ -302,12 +327,12 @@ struct xran_fh_init {
     char *dpdkBasebandDevice;     /**< DPDK Baseband device address */
     char *filePrefix;             /**< DPDK prefix */
 
-    enum xran_category xranCat;   /**< mode: Catergory A or Category B */
-
     uint32_t mtu; /**< maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single
                        xRAN network layer transaction. supported 1500 bytes and 9600 bytes (Jumbo Frame) */
-    int8_t   *p_o_du_addr;  /**<  O-DU Ethernet Mac Address */
-    int8_t   *p_o_ru_addr;  /**<  O-RU Ethernet Mac Address */
+    int8_t *p_o_du_addr;  /**<  O-DU Ethernet Mac Address */
+    int8_t *p_o_ru_addr;  /**<  O-RU Ethernet Mac Address */
+
+    uint16_t totalBfWeights;/**< The total number of beamforming weights on RU for extensions */
 
     uint16_t Tadv_cp_dl;    /**< Table 2 7 : xRAN Delay Management Model Parameters */
     uint16_t T2a_min_cp_dl; /**< Table 2 7 : xRAN Delay Management Model Parameters */
@@ -329,15 +354,21 @@ struct xran_fh_init {
 
     uint8_t enableCP;       /**<  enable C-plane */
     uint8_t prachEnable;    /**<  enable PRACH   */
+    uint8_t srsEnable;      /**<  enable SRS (Cat B specific) */
     uint8_t cp_vlan_tag;    /**<  C-plane vlan tag */
     uint8_t up_vlan_tag;    /**<  U-plane vlan tag */
     int32_t debugStop;      /**<  enable auto stop */
     int32_t debugStopCount;      /**<  enable auto stop after number of Tx packets */
     int32_t DynamicSectionEna; /**<  enable dynamic C-Plane section allocation */
+    int32_t GPS_Alpha;  // refer to alpha as defined in section 9.7.2 of ORAN spec. this value should be alpha*(1/1.2288ns), range 0 - 1e7 (ns)
+    int32_t GPS_Beta;   //beta value as defined in section 9.7.2 of ORAN spec. range -32767 ~ +32767
 };
 
+/** Beamforming waights for single stream for each PRBs  given number of Antenna elements */
 struct xran_cp_bf_weight{
-    int16_t weight[64];
+    int16_t nAntElmTRx;        /**< num TRX for this allocation */
+    int8_t*  p_ext_section;    /**< pointer to form extType */
+    int16_t  ext_section_sz;   /**< extType section size */
 };
 struct xran_cp_bf_attribute{
     int16_t weight[4];
@@ -346,15 +377,32 @@ struct xran_cp_bf_precoding{
     int16_t weight[4];
 };
 
+/** section descriptor for given number of PRBs used on U-plane packet creation */
+struct xran_section_desc {
+    uint16_t section_id; /**< section id used for this element */
+
+    int16_t iq_buffer_offset;    /**< Offset in bytes for the content of IQs with in main symb buffer */
+    int16_t iq_buffer_len;       /**< Length in bytes for the content of IQs with in main symb buffer */
+
+    uint8_t *pData;      /**< optional pointer to data buffer */
+    void    *pCtrl;      /**< optional poitner to mbuf */
+};
+
 /** PRB element structure */
 struct xran_prb_elm {
-    int16_t nRBStart; /**< start RB of RB allocation */
-    int16_t nRBSize;  /**< number of RBs used */
-    int16_t nStartSymb; /**< start symbol ID */
-    int16_t numSymb;  /**< number of symbol */
-    int16_t nBeamIndex; /**< beam index for given PRB */
-    int16_t compMethod; /**< compression index for given PRB */
-    int16_t BeamFormingType;
+    int16_t nRBStart;    /**< start RB of RB allocation */
+    int16_t nRBSize;     /**< number of RBs used */
+    int16_t nStartSymb;  /**< start symbol ID */
+    int16_t numSymb;     /**< number of symbols */
+    int16_t nBeamIndex;  /**< beam index for given PRB */
+    int16_t bf_weight_update; /** need to update beam weights or not */
+    int16_t compMethod;  /**< compression index for given PRB */
+    int16_t iqWidth;     /**< compression bit width for given PRB */
+    int16_t BeamFormingType; /**< index based, weights based or attribute based beam forming*/
+
+    struct xran_section_desc * p_sec_desc[XRAN_NUM_OF_SYMBOL_PER_SLOT]; /**< section desctiptors to U-plane data given RBs */
+    struct xran_cp_bf_weight   bf_weight; /**< beam forming information relevant for given RBs */
+
     union {
         struct xran_cp_bf_attribute bf_attribute;
         struct xran_cp_bf_precoding bf_precoding;
@@ -370,10 +418,10 @@ struct xran_prb_map {
     uint16_t  ru_port_id; /**< RU device antenna port id [0 - (XRAN_MAX_ANTENNA_NR-1) */
     uint16_t  tti_id;     /**< xRAN slot id [0 - (max tti-1)] */
     uint8_t   start_sym_id;     /**< start symbol Id [0-13] */
-    uint8_t   bf_weight_update;     /**need to update beam weight or not*/
-    uint32_t  nPrbElm;    /**< total number of PRBs for given map [0- (XRAN_MAX_PRBS-1)] */
+    uint32_t  nPrbElm;    /**< total number of PRB elements for given map [0- (XRAN_MAX_PRBS-1)] */
     struct xran_prb_elm prbMap[XRAN_MAX_PRBS];
-    struct xran_cp_bf_weight bf_weight;
+
+
 };
 
 /* PRACH config required for XRAN based FH */
@@ -392,6 +440,12 @@ struct xran_prach_config
     uint16_t     nPrachFreqStart;  /**< PRACH prach-frequency-start  */
     int32_t      nPrachFreqOffset; /**< PRACH prach-frequency-offset */
     uint8_t      nPrachFilterIdx;  /**< PRACH Filter index */
+};
+
+/**< SRS configuration required for XRAN based FH */
+struct xran_srs_config {
+    uint16_t   symbMask;    /**< symbols used for SRS with in U/S slot [bits 0-13] */
+    uint8_t    eAxC_offset; /**< starting value of eAxC for SRS packets */
 };
 
 /** XRAN slot configuration */
@@ -426,11 +480,14 @@ enum xran_input_i_q_order {
 
 /** XRAN front haul IQ compression settings */
 struct xran_ru_config {
+    enum xran_category xranCat;   /**< mode: Catergory A or Category B */
+
     uint8_t iqWidth;        /**< IQ bit width */
     uint8_t compMeth;       /**< Compression method */
     uint8_t fftSize;        /**< FFT Size */
     enum xran_input_byte_order byteOrder; /**< Order of bytes in int16_t in buffer. Big or little endian */
     enum xran_input_i_q_order  iqOrder;   /**< order of IQs in the buffer */
+    uint16_t xran_max_frame; /**< max frame number supported */
 };
 
 /**
@@ -441,6 +498,8 @@ struct xran_fh_config {
     uint32_t            sector_id; /**< Band sector ID for FH */
     uint32_t            nCC;       /**< number of Component carriers supported on FH */
     uint32_t            neAxc;     /**< number of eAxc supported on one CC*/
+    uint32_t            neAxcUl;     /**< number of eAxc supported on one CC for UL direction */
+    uint32_t            nAntElmTRx;  /**< Number of antenna elements for TX and RX */
     uint16_t            nDLFftSize;  /**< DL FFT size */
     uint16_t            nULFftSize;  /**< UL FFT size */
     uint16_t            nDLRBs;      /**< DL PRB  */
@@ -453,6 +512,7 @@ struct xran_fh_config {
     void                *ttiCbParam;  /**< parameters of call back function */
 
     struct xran_prach_config     prach_conf;   /**< PRACH specific configurations for FH */
+    struct xran_srs_config       srs_conf;     /**< SRS specific configurations for FH */
     struct xran_frame_config     frame_conf;   /**< frame config */
     struct xran_ru_config        ru_conf;      /**< config of RU as per XRAN spec */
 
@@ -730,6 +790,49 @@ int32_t xran_5g_prach_req (void *  pHandle,
 /**
  * @ingroup xran
  *
+ *   Function configures SRS output buffers and callback for XRAN layer with given handle
+ *
+ * @param pHandle
+ *   Pointer to XRAN layer handle for given CC
+ * @param pDstBuffer
+ *   list of memory buffers to use to deliver SRS IQs from xran layer to PHY
+ * @param xran_transport_callback_fn pCallback
+ *   Callback function to call with arrival of SRS packets for given CC
+ * @param pCallbackTag
+ *   Parameters of Callback function
+ *
+ * @return
+ *   0  - on success
+ *   -1 - on error
+ */
+int32_t xran_5g_srs_req (void *  pHandle,
+                struct xran_buffer_list *pDstBuffer[XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_N_FE_BUF_LEN],
+                xran_transport_callback_fn pCallback,
+                void *pCallbackTag);
+
+
+/**
+ * @ingroup xran
+ *
+ *   Function returns XRAN core utilization stats
+ *
+ * @param total_time (out)
+ *   Pointer to variable to store Total time thread has been running
+ * @param used_time (out)
+ *   Pointer to variable to store Total time essential tasks have been running on the thread
+ * @param core_used (out)
+ *   Pointer to variable to store Core on which the XRAN thread is running
+ * @param clear (in)
+ *   If set to 1, then internal variables total_time and used_time are cleared
+ *
+ * @return
+ *   0 - on success
+ */
+uint32_t xran_get_time_stats(uint64_t *total_time, uint64_t *used_time, uint32_t *core_used, uint32_t clear);
+
+/**
+ * @ingroup xran
+ *
  *   Function opens XRAN layer with given handle
  *
  * @param pHandle
@@ -864,8 +967,48 @@ int32_t xran_get_slot_idx (uint32_t *nFrameIdx, uint32_t *nSubframeIdx,  uint32_
  */
 int32_t xran_get_common_counters(void *pXranLayerHandle, struct xran_common_counters *pStats);
 
+
+/**
+ * @ingroup xran
+ *
+ *   Function returns status of operation of FH layer
+ *
+ * @return
+ *  XRAN_INIT    - init state
+ *  XRAN_RUNNING - running
+ *  XRAN_STOPPED - stopped
+ */
 enum xran_if_state xran_get_if_state(void);
 
+
+/**
+ * @ingroup xran
+ *
+ *   Function allocates memory of given size from heap
+ *
+ * @param buf_len
+ *   buffer size
+ *
+ * @return
+ *   ptr - to memory buffer or NULL
+ */
+void*    xran_malloc(size_t buf_len);
+
+
+/**
+ * @ingroup xran
+ *
+ *   Function calculates offset for ptr according to ORAN headers requared
+ *
+ * @param dst
+ *   pointer to be addjusted
+ * @compMethod
+ *   compression method according to enum xran_compression_method
+ *
+ * @return
+ *   ptr - pointer to payload given header requared
+ */
+uint8_t* xran_add_hdr_offset(uint8_t  *dst, int16_t compMethod);
 
 #ifdef __cplusplus
 }

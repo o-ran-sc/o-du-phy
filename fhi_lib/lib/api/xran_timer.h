@@ -42,7 +42,9 @@ extern "C" {
 #define XranIncrementSymIdx(sym_idx, numSymPerMs)  (((uint32_t)sym_idx >= (((uint32_t)numSymPerMs * MSEC_PER_SEC) - 1)) ? 0 : (uint32_t)sym_idx+1)
 #define XranDecrementSymIdx(sym_idx, numSymPerMs)  (((uint32_t)sym_idx == 0) ? (((uint32_t)numSymPerMs * MSEC_PER_SEC)) - 1) : (uint32_t)sym_idx-1)
 
-long poll_next_tick(long interval_ns);
+uint64_t xran_tick(void);
+unsigned long get_ticks_diff(unsigned long curr_tick, unsigned long last_tick);
+long poll_next_tick(long interval_ns, unsigned long *used_tick);
 long sleep_next_tick(long interval);
 int timing_set_debug_stop(int value, int count);
 int timing_get_debug_stop(void);

@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief XRAN layer common functionality for both lls-CU and RU as well as C-plane and
  *    U-plane
@@ -95,6 +94,7 @@ static int16_t nCpSizeF2[2][4][2] =
 };
 
 static uint32_t xran_fs_max_slot_num = 8000;
+static uint32_t xran_fs_max_slot_num_SFN = 20480; /* max slot number counted as SFN is 0-1023 */
 static uint16_t xran_fs_num_slot_tdd_loop[XRAN_MAX_SECTOR_NR] = { XRAN_NUM_OF_SLOT_IN_TDD_LOOP };
 static uint16_t xran_fs_num_dl_sym_sp[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {0};
 static uint16_t xran_fs_num_ul_sym_sp[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {0};
@@ -102,6 +102,8 @@ static uint8_t xran_fs_slot_type[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOO
 static uint8_t xran_fs_slot_symb_type[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP][XRAN_NUM_OF_SYMBOL_PER_SLOT] = {{{XRAN_SLOT_TYPE_INVALID}}};
 static float xran_fs_ul_rate[XRAN_MAX_SECTOR_NR] = {0.0};
 static float xran_fs_dl_rate[XRAN_MAX_SECTOR_NR] = {0.0};
+
+extern uint16_t xran_max_frame;
 
 uint32_t xran_fs_get_tti_interval(uint8_t nMu)
 {
@@ -307,12 +309,18 @@ uint32_t xran_fs_cal_nrarfcn(uint32_t nCenterFreq)
 uint32_t  xran_fs_slot_limit_init(int32_t tti_interval_us)
 {
     xran_fs_max_slot_num = (1000/tti_interval_us)*1000;
+    xran_fs_max_slot_num_SFN = (1000/tti_interval_us)*(xran_max_frame+1)*10;
     return xran_fs_max_slot_num;
 }
 
 uint32_t xran_fs_get_max_slot(void)
 {
     return xran_fs_max_slot_num;
+}
+
+uint32_t xran_fs_get_max_slot_SFN(void)
+{
+    return xran_fs_max_slot_num_SFN;
 }
 
 int32_t xran_fs_slot_limit(int32_t nSfIdx)

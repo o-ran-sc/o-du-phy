@@ -16,7 +16,6 @@
 #*
 #*******************************************************************************/
 
-
 MYCUSTOMTAB='     '
 MYCUSTOMSPACE='============================================================================================'
 MYCUSTOMSPACE1='------------------------------------------------------------'
@@ -24,18 +23,11 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 ##############################################################
 #  Tools configuration
 ##############################################################
-ifeq ($(BUILD_GCC),)
 CC  := icc
-LD := icc
-else
-CC := gcc
-LD := gcc
-endif
-
 CPP := icpc
 AS := as
 AR := ar
-
+LD := icc
 OBJDUMP := objdump
 
 ifeq ($(SHELL),cmd.exe)
@@ -84,49 +76,20 @@ CC_SRC = $(ETH_DIR)/ethdi.c \
 	$(SRC_DIR)/xran_app_frag.c \
 	$(SRC_DIR)/xran_main.c
 
-#CPP_SRC = $(SRC_DIR)/xran_compression.cpp
-ifeq ($(BUILD_GCC),)
+CPP_SRC = $(SRC_DIR)/xran_compression.cpp
+
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
 	-ffunction-sections \
 	-g \
 	-Wall \
 	-Wimplicit-function-declaration \
-        -g -O3
+	-g -O3 -wd1786
 
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
                 -no-prec-div -fp-model fast=2\
                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
         -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
-else
-CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations -Wextra \
-	-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
-        -Wold-style-definition -Wpointer-arith -Wcast-align -Wnested-externs \
-        -Wcast-qual -Wformat-nonliteral -Wformat-security -Wundef -Wwrite-strings \
-        -Wdeprecated -Wunused-parameter -Wunused-variable\
-        -fdata-sections \
-	-ffunction-sections \
-	-g \
-	-Wimplicit-function-declaration \
-	-m64 \
-	-pthread \
-	-march=native \
-	-DRTE_MACHINE_CPUFLAG_SSE \
-	-DRTE_MACHINE_CPUFLAG_SSE2 \
-	-DRTE_MACHINE_CPUFLAG_SSE3 \
- 	-DRTE_MACHINE_CPUFLAG_SSSE3 \
-	-DRTE_MACHINE_CPUFLAG_SSE4_1 \
-	-DRTE_MACHINE_CPUFLAG_SSE4_2 \
-	-DRTE_MACHINE_CPUFLAG_AES \
-	-DRTE_MACHINE_CPUFLAG_PCLMULQDQ \
-	-DRTE_MACHINE_CPUFLAG_AVX \
-	-DRTE_MACHINE_CPUFLAG_RDRAND \
-	-DRTE_MACHINE_CPUFLAG_FSGSBASE \
- 	-DRTE_MACHINE_CPUFLAG_F16C \
-	-DRTE_MACHINE_CPUFLAG_AVX2 \
-	-I$(API_DIR) -I$(ETH_DIR) -I$(MLOG_DIR)/source -I$(RTE_INC) -g -O3 \
-	-DALLOW_EXPERIMENTAL_API 
-endif
 
 INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
 DEF :=
@@ -136,6 +99,8 @@ ifeq ($(MLOG),1)
 else
 	DEF += -UMLOG_ENABLED
 endif
+
+#DEF += -DFCN_ADAPT
 
 AS_FLAGS :=
 AR_FLAGS := rc
@@ -152,9 +117,9 @@ CC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CC_OBJS))
 CPP_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS))
 
 AS_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(AS_OBJS))
-
+CPP_COMP       := -O3 -xcore-avx512 -restrict -g -fasm-blocks
 CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
-CPP_FLAGS_FULL := $(CPP_FLAGS) $(INC) $(DEF)
+CPP_FLAGS_FULL := $(CPP_FLAGS) $(CPP_COMP) $(INC) $(DEF)
 
 AS_FLAGS := $(AS_FLAGS) $(INC)
 

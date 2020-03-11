@@ -58,6 +58,8 @@ extern "C" {
 #define PID_GNB_PROC_TIMING_TIMEOUT                     71
 #define PID_GNB_SYM_CB                                  72
 #define PID_GNB_PRACH_CB                                73
+#define PID_GNB_SRS_CB                                  74
+
 
 #ifdef __cplusplus
 }

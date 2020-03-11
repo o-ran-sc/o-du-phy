@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 /**
  * @brief This file has all definitions for the Ethernet Data Interface Layer
  * @file ethdi.c
@@ -293,11 +292,12 @@ int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
     uint16_t port[2] = {0xffff, 0xffff};
     struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
     int i;
-    char core_mask[20];
+    char core_mask[64];
+    long c_mask=0;
     char bbdev_wdev[32] = "";
     char bbdev_vdev[32] = "";
 
-    char *argv[] = { name, "-c ffffffff", "-n2", "--socket-mem=8192", "--proc-type=auto",
+    char *argv[] = { name, /*"-c 0xFFFFF00000FFFFF"*/core_mask, "-n2", "--socket-mem=8192", "--proc-type=auto",
         "--file-prefix", name, "-w", "0000:00:00.0", bbdev_wdev, bbdev_vdev};
 
     if (io_cfg == NULL)
@@ -320,12 +320,16 @@ int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
         }
     }
 
-    snprintf(core_mask, sizeof(core_mask), "-c%x",
-            (1 << io_cfg->core) |
-            (1 << io_cfg->system_core) |
-            (1 << io_cfg->pkt_proc_core) |
-            (1 << io_cfg->pkt_aux_core) |
-            (1 << io_cfg->timing_core));
+    c_mask = (long)(1L << io_cfg->core) |
+            (long)(1L << io_cfg->system_core) |
+            (long)(1L << io_cfg->pkt_proc_core) |
+            (long)(1L << io_cfg->pkt_aux_core) |
+            (long)(1L << io_cfg->timing_core);
+
+    printf("c_mask 0x%lx core %d system_core %d pkt_proc_core %d pkt_aux_core %d timing_core %d\n",
+        c_mask, io_cfg->core, io_cfg->system_core, io_cfg->pkt_proc_core, io_cfg->pkt_aux_core, io_cfg->timing_core);
+
+    snprintf(core_mask, sizeof(core_mask), "-c 0x%lx", c_mask);
 
     ctx->io_cfg = *io_cfg;
     ctx->ping_state           = PING_IDLE;
@@ -352,6 +356,10 @@ int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
 
     xran_init_mbuf_pool();
 
+#ifdef RTE_LIBRTE_PDUMP
+    /* initialize packet capture framework */
+    rte_pdump_init(NULL);
+#endif
 
     /* Timers. */
     rte_timer_subsystem_init();
@@ -426,6 +434,7 @@ static inline uint16_t xran_tx_from_ring(int port, struct rte_ring *r)
     while (1) {     /* When tx queue is full it is trying again till succeed */
         t1 = MLogTick();
         sent += rte_eth_tx_burst(port, 0, &mbufs[sent], dequeued - sent);
+
         MLogTask(PID_RADIO_ETH_TX_BURST, t1, MLogTick());
 
         if (sent == dequeued)
@@ -442,7 +451,8 @@ int32_t process_dpdk_io(void)
 
     for (port_id = 0; port_id < ETHDI_VF_MAX; port_id++){
         struct rte_mbuf *mbufs[BURST_RX_IO_SIZE];
-        if(port[port_id] == 0xFF);
+        if(port[port_id] == 0xFF)
+            return 0;
         /* RX */
         const uint16_t rxed = rte_eth_rx_burst(port[port_id], 0, mbufs, BURST_RX_IO_SIZE);
         if (rxed != 0){

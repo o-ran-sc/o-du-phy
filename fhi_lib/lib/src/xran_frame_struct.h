@@ -73,6 +73,7 @@ int32_t xran_fs_set_slot_type(uint32_t nCcId, uint32_t nFrameDuplexType, uint32_
 int32_t xran_fs_get_slot_type(int32_t nCcId, int32_t nSlotIdx, int32_t nType);
 uint32_t xran_fs_slot_limit_init(int32_t tti_interval_us);
 uint32_t xran_fs_get_max_slot(void);
+uint32_t xran_fs_get_max_slot_SFN(void);
 int32_t xran_fs_get_symbol_type(int32_t nCellIdx, int32_t nSlotdx,  int32_t nSymbIdx);
 
 #ifdef __cplusplus

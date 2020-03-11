@@ -55,28 +55,79 @@ namespace BlockFloatCompander
   static constexpr int k_numRE = 12;
   static constexpr int k_numREReal = k_numRE * 2;
   static constexpr int k_numSampsExpanded = k_numRB * k_numREReal;
-  static constexpr int k_numSampsCompressed = k_numSampsExpanded + k_numRB;
-  static constexpr int k_iqWidth = 8;
-
+  static constexpr int k_numSampsCompressed = (k_numSampsExpanded * 2) + k_numRB;
 
   struct CompressedData
   {
     /// Compressed data
-    CACHE_ALIGNED int8_t dataCompressed[k_numSampsCompressed];
+    CACHE_ALIGNED uint8_t dataCompressedDataOut[k_numSampsCompressed];
+    CACHE_ALIGNED uint8_t *dataCompressed;
+    /// Size of mantissa including sign bit
+    int iqWidth;
   };
 
   struct ExpandedData
   {
     /// Expanded data or input data to compressor
-    CACHE_ALIGNED int16_t dataExpanded[k_numSampsExpanded];
+    CACHE_ALIGNED int16_t dataExpandedIn[k_numSampsExpanded];
+    CACHE_ALIGNED int16_t *dataExpanded;
+
+    /// Size of mantissa including sign bit
+    int iqWidth;
   };
 
-  void BlockFloatCompress_AVX512(const ExpandedData& dataIn, CompressedData* dataOut);
-
-  void BlockFloatExpand_AVX512(const CompressedData& dataIn, ExpandedData* dataOut);
-
   void BlockFloatCompress_Basic(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BlockFloatCompress_8b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BlockFloatCompress_9b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BlockFloatCompress_10b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BlockFloatCompress_12b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut);
 
   void BlockFloatExpand_Basic(const CompressedData& dataIn, ExpandedData* dataOut);
-
+  void BlockFloatExpand_8b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut);
+  void BlockFloatExpand_9b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut);
+  void BlockFloatExpand_10b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut);
+  void BlockFloatExpand_12b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut);
 }
+
+namespace BlockFloatCompanderBFW
+{
+  /// Compute 32 RB at a time
+  static constexpr int k_numBitsIQ = 16;
+  static constexpr int k_numRB = 1;
+  static constexpr int k_numRE = 32;
+  static constexpr int k_numREReal = k_numRE * 2;
+  static constexpr int k_numSampsExpanded = k_numRB * k_numREReal;
+  static constexpr int k_numSampsCompressed = (k_numSampsExpanded * 2) + k_numRB;
+
+  struct CompressedData
+  {
+    /// Compressed data
+    CACHE_ALIGNED uint8_t dataCompressedDataOut[k_numSampsCompressed];
+    CACHE_ALIGNED uint8_t *dataCompressed;
+    /// Size of mantissa including sign bit
+    int iqWidth;
+  };
+
+  struct ExpandedData
+  {
+    /// Expanded data or input data to compressor
+    CACHE_ALIGNED int16_t dataExpandedIn[k_numSampsExpanded];
+    CACHE_ALIGNED int16_t *dataExpanded;
+
+    /// Size of mantissa including sign bit
+    int iqWidth;
+  };
+
+  void BlockFloatCompress_Basic(const ExpandedData& dataIn, CompressedData* dataOut);
+/*  void BlockFloatCompress_8b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BlockFloatCompress_9b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BlockFloatCompress_10b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BlockFloatCompress_12b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut); */
+
+  void BlockFloatExpand_Basic(const CompressedData& dataIn, ExpandedData* dataOut);
+/*  void BlockFloatExpand_8b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut);
+  void BlockFloatExpand_9b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut);
+  void BlockFloatExpand_10b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut);
+  void BlockFloatExpand_12b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut);*/
+}
+

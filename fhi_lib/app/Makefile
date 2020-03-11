@@ -16,7 +16,6 @@
 #*
 #*******************************************************************************/
 
-
 MYCUSTOMTAB='     '
 MYCUSTOMSPACE='============================================================================================'
 MYCUSTOMSPACE1='------------------------------------------------------------'
@@ -73,7 +72,7 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-g \
 	-Wall \
 	-Wimplicit-function-declaration \
-       -g -O3
+	-g -O3 -wd1786
 
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
                 -no-prec-div -fp-model fast=2\

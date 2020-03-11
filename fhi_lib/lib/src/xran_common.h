@@ -34,7 +34,7 @@ extern "C" {
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/param.h>
-
+#include <sys/queue.h>
 
 #include <rte_common.h>
 #include <rte_mbuf.h>
@@ -58,8 +58,10 @@ extern "C" {
 /* PRACH data samples are 32 bits wide, 16bits for I and 16bits for Q. Each packet contains 839 samples for long sequence or 144*14 (max) for short sequence. The payload length is 3356 octets.*/
 #define PRACH_PLAYBACK_BUFFER_BYTES (144*14*4L)
 
-#define XRAN_MAX_NUM_SECTIONS       (N_SYM_PER_SLOT*2)    /* just an example, no special meaning on this number */
-                                                          /*  and this is the configuration of M-plane */
+#define PRACH_SRS_BUFFER_BYTES (144*14*4L)
+
+/**<  this is the configuration of M-plane */
+#define XRAN_MAX_NUM_SECTIONS       (N_SYM_PER_SLOT* (XRAN_MAX_ANTENNA_NR*2) + XRAN_MAX_ANT_ARRAY_ELM_NR)
 
 #define XRAN_MAX_MBUF_LEN 9600 /**< jumbo frame */
 #define NSEC_PER_SEC 1000000000L
@@ -120,7 +122,7 @@ typedef struct
     uint16_t   nRaCp;
 }xRANPrachPreambleLRAStruct;
 
-typedef struct
+struct xran_prach_cp_config
 {
     uint8_t    filterIdx;
     uint8_t    startSymId;
@@ -134,9 +136,10 @@ typedef struct
     uint8_t    x;
     uint8_t    y[XRAN_PRACH_CANDIDATE_Y];
     uint8_t    isPRACHslot[XRAN_PRACH_CANDIDATE_SLOT];
-}xRANPrachCPConfigStruct;
+    uint8_t    eAxC_offset;  /**< starting eAxC for PRACH stream */
+};
 
-#define XRAN_MAX_POOLS_PER_SECTOR_NR 3 /**< TX_OUT, RX_IN, PRACH_IN */
+#define XRAN_MAX_POOLS_PER_SECTOR_NR 8 /**< 2x(TX_OUT, RX_IN, PRACH_IN, SRS_IN) with C-plane */
 
 typedef struct sectorHandleInfo
 {
@@ -155,6 +158,15 @@ typedef struct sectorHandleInfo
 }XranSectorHandleInfo, *PXranSectorHandleInfo;
 
 typedef void (*XranSymCallbackFn)(struct rte_timer *tim, void* arg);
+
+struct cb_elem_entry{
+    XranSymCallbackFn pSymCallback;
+    void *pSymCallbackTag;
+    LIST_ENTRY(cb_elem_entry) pointers;
+};
+
+/* Callback function to send mbuf to the ring */
+typedef int (*xran_ethdi_mbuf_send_fn)(struct rte_mbuf *mb, uint16_t ethertype);
 
 /*
  * manage one cell's all Ethernet frames for one DL or UL LTE subframe
@@ -175,10 +187,6 @@ typedef struct {
     struct xran_buffer_list sBufferList;
 } BbuIoBufCtrlStruct;
 
-struct xran_sym_job {
-    uint32_t sym_idx;
-	uint32_t status;
-}__rte_cache_aligned;
 
 #define XranIncrementJob(i)                  ((i >= (XRAN_SYM_JOB_SIZE-1)) ? 0 : (i+1))
 
@@ -196,19 +204,27 @@ struct xran_device_ctx
 {
     uint8_t sector_id;
     uint8_t xran_port_id;
-    struct xran_eaxcid_config eAxc_id_cfg;
-    struct xran_fh_init   fh_init;
-    struct xran_fh_config fh_cfg;
+    struct xran_eaxcid_config    eAxc_id_cfg;
+    struct xran_fh_init          fh_init;
+    struct xran_fh_config        fh_cfg;
+    struct xran_prach_cp_config  PrachCPConfig;
+
     uint32_t enablePrach;
-    xRANPrachCPConfigStruct PrachCPConfig;
     uint32_t enableCP;
+
     int32_t DynamicSectionEna;
+    int64_t offset_sec;
+    int64_t offset_nsec;    //offset to GPS time calcuated based on alpha and beta
+
+    uint32_t enableSrs;
+    struct xran_srs_config srs_cfg; /** configuration of SRS */
 
     BbuIoBufCtrlStruct sFrontHaulTxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     BbuIoBufCtrlStruct sFrontHaulTxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     BbuIoBufCtrlStruct sFrontHaulRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     BbuIoBufCtrlStruct sFrontHaulRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     BbuIoBufCtrlStruct sFHPrachRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+    BbuIoBufCtrlStruct sFHSrsRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
 
     /* buffers lists */
     struct xran_flat_buffer sFrontHaulTxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
@@ -217,14 +233,18 @@ struct xran_device_ctx
     struct xran_flat_buffer sFrontHaulRxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFHPrachRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
 
+    struct xran_flat_buffer sFHSrsRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT];
+
     xran_transport_callback_fn pCallback[XRAN_MAX_SECTOR_NR];
     void *pCallbackTag[XRAN_MAX_SECTOR_NR];
 
     xran_transport_callback_fn pPrachCallback[XRAN_MAX_SECTOR_NR];
     void *pPrachCallbackTag[XRAN_MAX_SECTOR_NR];
 
-    XranSymCallbackFn pSymCallback[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
-    void *pSymCallbackTag[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
+    xran_transport_callback_fn pSrsCallback[XRAN_MAX_SECTOR_NR];
+    void *pSrsCallbackTag[XRAN_MAX_SECTOR_NR];
+
+    LIST_HEAD(sym_cb_elem_list, cb_elem_entry) sym_cb_list_head[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
 
     int32_t sym_up; /**< when we start sym 0 of up with respect to OTA time as measured in symbols */
     int32_t sym_up_ul;
@@ -252,10 +272,18 @@ struct xran_device_ctx
 
     phy_encoder_poll_fn bbdev_enc; /**< call back to poll BBDev encoder */
     phy_decoder_poll_fn bbdev_dec; /**< call back to poll BBDev decoder */
+
+    xran_ethdi_mbuf_send_fn send_cpmbuf2ring;   /**< callback to send mbufs of C-Plane packets to the ring */
+    xran_ethdi_mbuf_send_fn send_upmbuf2ring;   /**< callback to send mbufs of U-Plane packets to the ring */
 };
 
 extern long rx_counter;
 extern long tx_counter;
+extern long tx_bytes_counter;
+extern long rx_bytes_counter;
+extern long tx_bytes_per_sec;
+extern long rx_bytes_per_sec;
+
 
 extern const xRANPrachConfigTableStruct gxranPrachDataTable_sub6_fdd[XRAN_PRACH_CONFIG_TABLE_SIZE];
 extern const xRANPrachConfigTableStruct gxranPrachDataTable_sub6_tdd[XRAN_PRACH_CONFIG_TABLE_SIZE];
@@ -286,6 +314,8 @@ int32_t prepare_symbol_ex(enum xran_pkt_dir direction,
                 uint16_t section_id,
                 struct rte_mbuf *mb,
                 struct rb_map *data,
+                uint8_t     compMeth,
+                uint8_t     iqWidth,
                 const enum xran_input_byte_order iq_buf_byte_order,
                 uint8_t frame_id,
                 uint8_t subframe_id,
@@ -301,10 +331,10 @@ int32_t prepare_symbol_ex(enum xran_pkt_dir direction,
 int send_cpmsg(void *pHandle, struct rte_mbuf *mbuf,struct xran_cp_gen_params *params,
                 struct xran_section_gen_info *sect_geninfo, uint8_t cc_id, uint8_t ru_port_id, uint8_t seq_id);
 
-int generate_cpmsg_dlul(void *pHandle, struct xran_cp_gen_params *params, struct xran_section_gen_info *sect_geninfo, struct rte_mbuf *mbuf,
+int32_t generate_cpmsg_dlul(void *pHandle, struct xran_cp_gen_params *params, struct xran_section_gen_info *sect_geninfo, struct rte_mbuf *mbuf,
     enum xran_pkt_dir dir, uint8_t frame_id, uint8_t subframe_id, uint8_t slot_id,
-    uint8_t startsym, uint8_t numsym, uint16_t prb_start, uint16_t prb_num,
-    uint16_t beam_id, uint8_t cc_id, uint8_t ru_port_id, uint8_t comp_method, uint8_t seq_id, uint8_t symInc);
+    uint8_t startsym, uint8_t numsym, uint16_t prb_start, uint16_t prb_num,int16_t iq_buffer_offset, int16_t iq_buffer_len,
+    uint16_t beam_id, uint8_t cc_id, uint8_t ru_port_id, uint8_t comp_method, uint8_t iqWidth,  uint8_t seq_id, uint8_t symInc);
 
 int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struct xran_section_gen_info *sect_geninfo, struct rte_mbuf *mbuf, struct xran_device_ctx *pxran_lib_ctx,
                 uint8_t frame_id, uint8_t subframe_id, uint8_t slot_id,
@@ -316,15 +346,26 @@ uint8_t xran_get_conf_fftsize(void *pHandle);
 uint8_t xran_get_conf_numerology(void *pHandle);
 uint8_t xran_get_conf_iqwidth(void *pHandle);
 uint8_t xran_get_conf_compmethod(void *pHandle);
+uint8_t xran_get_conf_num_bfweights(void *pHandle);
 
 uint8_t xran_get_num_cc(void *pHandle);
 uint8_t xran_get_num_eAxc(void *pHandle);
+uint8_t xran_get_num_eAxcUl(void *pHandle);
+uint8_t xran_get_num_ant_elm(void *pHandle);
+enum xran_category xran_get_ru_category(void *pHandle);
+
 struct xran_device_ctx *xran_dev_get_ctx(void);
+
+int xran_register_cb_mbuf2ring(xran_ethdi_mbuf_send_fn mbuf_send_cp, xran_ethdi_mbuf_send_fn mbuf_send_up);
 
 uint16_t xran_alloc_sectionid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t slot_id);
 uint8_t xran_get_seqid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t slot_id);
 int32_t ring_processing_func(void);
 int xran_init_prach(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_dev_ctx);
+void xran_updateSfnSecStart(void);
+
+struct cb_elem_entry *xran_create_cb(XranSymCallbackFn cb_fn, void *cb_data);
+int xran_destroy_cb(struct cb_elem_entry * cb_elm);
 
 #ifdef __cplusplus
 }
