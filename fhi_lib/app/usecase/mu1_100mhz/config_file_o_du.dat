@@ -116,7 +116,7 @@ iqswap=0 #do swap of IQ before send buffer to eth
 nebyteorderswap=1 #do swap of byte order for each I and Q from CPU byte order to network byte order
 
 ##Debug
-debugStop=1 #stop app on 1pps boundary (gps_second % 30)
+debugStop=0 #stop app on 1pps boundary (gps_second % 30)
 debugStopCount=0 #if this value is >0 then stop app after x transmission packets, otherwise app will stop at 1pps boundary
 bbdevMode=-1 #bbdev mode, -1 = not use bbdev, 0: use software mode, 1: use hardware mode
 

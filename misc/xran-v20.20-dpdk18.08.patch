@@ -1,0 +1,47 @@
+diff -Naur a/drivers/net/i40e/i40e_ethdev.c b/drivers/net/i40e/i40e_ethdev.c
+--- a/drivers/net/i40e/i40e_ethdev.c	2018-08-10 05:11:26.000000000 +0800
++++ b/drivers/net/i40e/i40e_ethdev.c	2020-03-19 18:58:31.033622891 +0800
+@@ -2207,7 +2207,7 @@
+ 	/* Map queues with MSIX interrupt */
+ 	main_vsi->nb_used_qps = dev->data->nb_rx_queues -
+ 		pf->nb_cfg_vmdq_vsi * RTE_LIBRTE_I40E_QUEUE_NUM_PER_VM;
+-	i40e_vsi_queues_bind_intr(main_vsi, I40E_ITR_INDEX_DEFAULT);
++	i40e_vsi_queues_bind_intr(main_vsi, I40E_ITR_INDEX_NONE);
+ 	i40e_vsi_enable_queues_intr(main_vsi);
+ 
+ 	/* Map VMDQ VSI queues with MSIX interrupt */
+@@ -2217,6 +2217,10 @@
+ 					  I40E_ITR_INDEX_DEFAULT);
+ 		i40e_vsi_enable_queues_intr(pf->vmdq[i].vsi);
+ 	}
++	i40e_aq_debug_write_global_register(hw,
++					0x0012A504,
++					0, NULL);
++
+ 
+ 	/* enable FDIR MSIX interrupt */
+ 	if (pf->fdir.fdir_vsi) {
+diff -Naur a/drivers/net/i40e/i40e_ethdev_vf.c b/drivers/net/i40e/i40e_ethdev_vf.c
+--- a/drivers/net/i40e/i40e_ethdev_vf.c	2018-08-10 05:11:26.000000000 +0800
++++ b/drivers/net/i40e/i40e_ethdev_vf.c	2020-03-19 18:59:39.875620796 +0800
+@@ -640,7 +640,7 @@
+ 
+ 	map_info = (struct virtchnl_irq_map_info *)cmd_buffer;
+ 	map_info->num_vectors = 1;
+-	map_info->vecmap[0].rxitr_idx = I40E_ITR_INDEX_DEFAULT;
++	map_info->vecmap[0].rxitr_idx = I40E_ITR_INDEX_NONE;
+ 	map_info->vecmap[0].vsi_id = vf->vsi_res->vsi_id;
+ 	/* Alway use default dynamic MSIX interrupt */
+ 	map_info->vecmap[0].vector_id = vector_id;
+diff -Naur a/drivers/net/ixgbe/ixgbe_ethdev.c b/drivers/net/ixgbe/ixgbe_ethdev.c
+--- a/drivers/net/ixgbe/ixgbe_ethdev.c	2018-08-10 05:11:26.000000000 +0800
++++ b/drivers/net/ixgbe/ixgbe_ethdev.c	2020-03-19 19:00:48.164618719 +0800
+@@ -3705,7 +3705,7 @@
+ 		 * except for 82598EB, which remains constant.
+ 		 */
+ 		if (dev_conf->txmode.mq_mode == ETH_MQ_TX_NONE &&
+-				hw->mac.type != ixgbe_mac_82598EB)
++				hw->mac.type != ixgbe_mac_82598EB && hw->mac.type != ixgbe_mac_82599EB)
+ 			dev_info->max_tx_queues = IXGBE_NONE_MODE_TX_NB_QUEUES;
+ 	}
+ 	dev_info->min_rx_bufsize = 1024; /* cf BSIZEPACKET in SRRCTL register */
