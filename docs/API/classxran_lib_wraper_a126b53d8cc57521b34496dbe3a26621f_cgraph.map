@@ -1,0 +1,18 @@
+<map id="SetUp" name="SetUp">
+<area shape="rect" id="node2" href="$xran__fh__o__du_8h.html#a3efe8aba779b0a2f90adc02065579f5f" title="xran_init" alt="" coords="112,123,183,149"/>
+<area shape="rect" id="node3" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="1237,245,1363,272"/>
+<area shape="rect" id="node4" href="$ethdi_8c.html#a69c763967ba7e28c4a589ce624c226ff" title="xran_register_ethertype\l_handler" alt="" coords="231,86,389,127"/>
+<area shape="rect" id="node5" href="$xran__main_8c.html#a7a412a9cd0ac919dccb2112fb386d64a" title="handle_ecpri_ethertype" alt="" coords="232,152,388,179"/>
+<area shape="rect" id="node17" href="$ethdi_8c.html#a97dcf8200aebed714f47764c302a06b5" title="xran_ethdi_init_dpdk_io" alt="" coords="231,203,389,229"/>
+<area shape="rect" id="node6" href="$xran__common_8c.html#a3d4bd5c7eec6da4ab71688e209100761" title="process_mbuf" alt="" coords="442,195,546,221"/>
+<area shape="rect" id="node16" href="$xran__main_8c.html#a4eb2b37a85455e8078520bcea40296cc" title="process_cplane" alt="" coords="437,245,551,272"/>
+<area shape="rect" id="node7" href="$xran__common_8h.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="619,93,745,120"/>
+<area shape="rect" id="node8" href="$xran__common_8h.html#a3fc01469558ddf728239d59038ac5803" title="Get the configuration of the number of antenna for UL. " alt="" coords="611,144,753,171"/>
+<area shape="rect" id="node9" href="$xran__up__api_8h.html#adfc5ea408600c8de1384be020b359d95" title="Function extracts IQ samples from received mbuf packet. " alt="" coords="599,195,765,221"/>
+<area shape="rect" id="node12" href="$xran__common_8c.html#ac5201df2d161091f7319ff2f57432823" title="xran_pkt_validate" alt="" coords="837,245,961,272"/>
+<area shape="rect" id="node13" href="$xran__common_8c.html#a300b87c29358bb161404c0122a9b2a46" title="xran_process_srs_sym" alt="" coords="1032,296,1189,323"/>
+<area shape="rect" id="node14" href="$xran__common_8c.html#aec7f5a73cca88563e12b7e82e7c75b50" title="xran_process_prach_sym" alt="" coords="813,347,984,373"/>
+<area shape="rect" id="node15" href="$xran__common_8c.html#acb6ecf7858c99c963182b9b7884deca6" title="xran_process_rx_sym" alt="" coords="1035,397,1186,424"/>
+<area shape="rect" id="node10" href="$xran__transport_8h.html#ab08a85b6527f45a9ba22d25061a96a3c" title="Decompose ecpriRtcid/ecpriPcid. " alt="" coords="826,195,971,221"/>
+<area shape="rect" id="node11" href="$xran__common_8h.html#a761e3947dcc547008a12a9cca10b1ea0" title="Get the configuration of eAxC ID. " alt="" coords="1039,195,1183,221"/>
+</map>

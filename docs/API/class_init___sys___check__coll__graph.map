@@ -1,0 +1,7 @@
+<map id="Init_Sys_Check" name="Init_Sys_Check">
+<area shape="rect" id="node2" href="$class_kernel_tests.html" title="{KernelTests\n|+ test_type\l# division_factor\l# result_units\l# parallelization_factor\l|+ SetUpTestCase()\l+ TearDownTestCase()\l+ get_number_of_cases()\l# set_division_factor()\l# set_results_units()\l# set_parallelization\l_factor()\l# performance()\l# print_test_description()\l# get_case_name()\l# init_test()\l# get_input_parameter()\l# get_reference_parameter()\l* get_input_parameter()\l* get_reference_parameter()\l}" alt="" coords="262,2529,447,2856"/>
+<area shape="rect" id="node4" href="$classnlohmann_1_1basic__json.html" title="a class to store JSON values " alt="" coords="219,219,491,2408"/>
+<area shape="rect" id="node5" href="$struct_bbu_io_buf_ctrl_struct.html" title="{BbuIoBufCtrlStruct\n|+ bValid\l+ nSegToBeGen\l+ nSegGenerated\l+ nSegTransferred\l+ pData\l|}" alt="" coords="618,2625,750,2761"/>
+<area shape="rect" id="node6" href="$structxran__buffer__list.html" title="{xran_buffer_list\n|+ nNumBuffers\l+ pUserData\l+ pPrivateMetaData\l|}" alt="" coords="625,1260,764,1367"/>
+<area shape="rect" id="node7" href="$structxran__flat__buffer.html" title="{xran_flat_buffer\n|+ nElementLenInBytes\l+ nNumberOfElements\l+ nOffsetInBytes\l+ nIsPhyAddr\l+ pData\l+ pCtrl\l|}" alt="" coords="471,5,627,156"/>
+</map>

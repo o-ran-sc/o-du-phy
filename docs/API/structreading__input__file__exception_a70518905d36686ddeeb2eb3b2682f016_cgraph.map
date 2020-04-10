@@ -1,0 +1,10 @@
+<map id="what" name="what">
+<area shape="rect" id="node2" href="$common_8hpp.html#ae39390f41ba978a1f0d79691436c074a" title="Attach current process to the selected core. " alt="" coords="131,5,223,32"/>
+<area shape="rect" id="node3" href="$common_8hpp.html#a8265b710246f9019ff14556adf5eb35a" title="Calculate the mean and variance from the result of the run_benchmark. " alt="" coords="109,56,244,83"/>
+<area shape="rect" id="node4" href="$common_8hpp.html#a39bf4f7770751080f5b72046abfd01a5" title="For a given number return sequence of number from 0 to number &#45; 1. " alt="" coords="125,107,228,133"/>
+<area shape="rect" id="node5" href="$common_8hpp.html#ad8c062e9b24e4b3a8408b23a0d8ab428" title="Read JSON from the given file. " alt="" coords="109,157,244,184"/>
+<area shape="rect" id="node6" href="$common_8hpp.html#a876ed07783b27d38779f7cef4db673e6" title="Read binary data from the file. " alt="" coords="104,209,249,250"/>
+<area shape="rect" id="node7" href="$common_8hpp.html#a56c41cbb9de4bce25da45ecd74b46a81" title="Measure the TSC on the machine. " alt="" coords="128,275,225,301"/>
+<area shape="rect" id="node9" href="$common_8hpp.html#a0ab5719a5f67d4d52057b2c4550fe930" title="Return the current value of the TSC. " alt="" coords="143,325,211,352"/>
+<area shape="rect" id="node8" href="$common_8cpp.html#a0ab5719a5f67d4d52057b2c4550fe930" title="Return the current value of the TSC. " alt="" coords="297,275,365,301"/>
+</map>

@@ -1,0 +1,6 @@
+<map id="networkBytePack12b" name="networkBytePack12b">
+<area shape="rect" id="node2" href="$namespace_block_float_compander.html#a2a8db4c5039bc3d5237b31ca2a129815" title="12 bit compression " alt="" coords="200,16,352,72"/>
+<area shape="rect" id="node3" href="$compander__functional_8cc.html#a53f55fd621ce0edd0b50933321ae7ade" title="TEST_P" alt="" coords="451,5,523,32"/>
+<area shape="rect" id="node4" href="$xran__compression_8cpp.html#a0651de68e87558106615163f96b3e599" title="xranlib_compress_avx512" alt="" coords="400,56,573,83"/>
+<area shape="rect" id="node5" href="$compander__functional_8cc.html#a45d64e11a1ecc040577b7f22b27dde51" title="TEST_P" alt="" coords="621,56,693,83"/>
+</map>

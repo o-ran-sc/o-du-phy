@@ -1,0 +1,14 @@
+<map id="xran_fs_get_max_slot" name="xran_fs_get_max_slot">
+<area shape="rect" id="node2" href="$xran__lib__wrap_8hpp.html#a9c3700d61ba446fa9b05cca2ca9018ab" title="tti_ota_cb" alt="" coords="204,81,283,108"/>
+<area shape="rect" id="node3" href="$classxran_lib_wraper.html#a3783fbb2a26b8a0530c489850a905a38" title="xranLibWraper::update_tti" alt="" coords="331,56,501,83"/>
+<area shape="rect" id="node13" href="$xran__main_8c.html#a195da46c3cb90e36da543594416cbba7" title="sym_ota_cb" alt="" coords="369,107,463,133"/>
+<area shape="rect" id="node4" href="$chain__tests_8cc.html#af4e08ea14f09b53fce43ec39aba7a605" title="xran_ut_tx_cp_dl" alt="" coords="565,5,687,32"/>
+<area shape="rect" id="node7" href="$chain__tests_8cc.html#a61f8088ed26f5ccc6a323c3b0feb66c2" title="xran_ut_tx_cp_ul" alt="" coords="565,56,687,83"/>
+<area shape="rect" id="node9" href="$classxran_lib_wraper.html#ac4ce5a18c687ee515676e035359a1e89" title="xranLibWraper::update\l_symbol_index" alt="" coords="549,107,703,149"/>
+<area shape="rect" id="node5" href="$chain__tests_8cc.html#a6c5f599800ca755367ad7df4da60eb86" title="TEST_P" alt="" coords="782,5,854,32"/>
+<area shape="rect" id="node6" href="$chain__tests_8cc.html#a9dc1e3a47b655cad97eed3db3cdebd92" title="TEST_P" alt="" coords="933,56,1005,83"/>
+<area shape="rect" id="node8" href="$chain__tests_8cc.html#a54a43b6c3ece3e568457002dbe5b5c1a" title="TEST_P" alt="" coords="782,56,854,83"/>
+<area shape="rect" id="node10" href="$chain__tests_8cc.html#a73639c0dcf18fe068dc350fc0c8ba2f2" title="xran_ut_tx_up_dl" alt="" coords="757,157,879,184"/>
+<area shape="rect" id="node12" href="$chain__tests_8cc.html#ad274ca70e6c47c2c549422b1cba1f0b0" title="xran_ut_tx_cpup_dl" alt="" coords="751,107,885,133"/>
+<area shape="rect" id="node11" href="$chain__tests_8cc.html#a2bc2178388f6edfa69905ff5f52fbcdc" title="TEST_P" alt="" coords="933,157,1005,184"/>
+</map>

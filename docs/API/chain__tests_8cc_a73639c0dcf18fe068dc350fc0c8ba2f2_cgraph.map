@@ -1,0 +1,9 @@
+<map id="xran_ut_tx_up_dl" name="xran_ut_tx_up_dl">
+<area shape="rect" id="node2" href="$classxran_lib_wraper.html#ac4ce5a18c687ee515676e035359a1e89" title="xranLibWraper::update\l_symbol_index" alt="" coords="175,5,328,47"/>
+<area shape="rect" id="node7" href="$classxran_lib_wraper.html#a1ffad42e0cccdbc800d3dbef66f52d45" title="xranLibWraper::get\l_timer_ctx" alt="" coords="595,61,727,103"/>
+<area shape="rect" id="node8" href="$chain__tests_8cc.html#a5b3b3bf6af57ee77a2bb1701ad24c7db" title="xran_process_tx_sym" alt="" coords="386,123,537,150"/>
+<area shape="rect" id="node3" href="$classxran_lib_wraper.html#a3783fbb2a26b8a0530c489850a905a38" title="xranLibWraper::update_tti" alt="" coords="376,13,547,39"/>
+<area shape="rect" id="node4" href="$xran__lib__wrap_8hpp.html#a9c3700d61ba446fa9b05cca2ca9018ab" title="tti_ota_cb" alt="" coords="621,10,700,37"/>
+<area shape="rect" id="node5" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="787,94,913,121"/>
+<area shape="rect" id="node6" href="$xran__frame__struct_8c.html#a7f5a87395d3930f222e58976960c99e2" title="xran_fs_get_max_slot" alt="" coords="775,10,925,37"/>
+</map>

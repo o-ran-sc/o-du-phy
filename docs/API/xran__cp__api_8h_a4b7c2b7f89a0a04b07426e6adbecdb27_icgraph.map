@@ -1,0 +1,9 @@
+<map id="xran_get_freqoffset" name="xran_get_freqoffset">
+<area shape="rect" id="node2" href="$xran__main_8c.html#a00025c5bad7b7b6eea4374226f8c54bb" title="xran_init_prach" alt="" coords="188,31,299,57"/>
+<area shape="rect" id="node3" href="$prach__functional_8cc.html#a62307393b7f454a2b348ada67997b796" title="TEST_P" alt="" coords="514,5,586,32"/>
+<area shape="rect" id="node4" href="$xran__main_8c.html#a03f408f45e97aa68ca47c92e4e7d1a70" title="xran_open" alt="" coords="347,56,429,83"/>
+<area shape="rect" id="node5" href="$classxran_lib_wraper.html#ad93226058ef4fd59bd7d0cd55701b752" title="xranLibWraper::Open" alt="" coords="477,56,623,83"/>
+<area shape="rect" id="node6" href="$chain__tests_8cc.html#a6c5f599800ca755367ad7df4da60eb86" title="TEST_P" alt="" coords="715,31,787,57"/>
+<area shape="rect" id="node8" href="$class_init___sys___check.html#a3a1707f6479611fdc609a3eb8a0cef1b" title="Init_Sys_Check::SetUp" alt="" coords="671,81,831,108"/>
+<area shape="rect" id="node7" href="$chain__tests_8cc.html#a9dc1e3a47b655cad97eed3db3cdebd92" title="TEST_P" alt="" coords="879,31,951,57"/>
+</map>

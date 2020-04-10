@@ -1,0 +1,16 @@
+<map id="xran_main.c" name="xran_main.c">
+<area shape="rect" id="node22" href="$xran__fh__o__du_8h.html" title="This file provides public interface to xRAN Front Haul layer implementation as defined in the ORAN&#45;WG..." alt="" coords="2012,229,2123,256"/>
+<area shape="rect" id="node34" href="$ethdi_8h.html" title="This file has all definitions for the Ethernet Data Interface Layer. " alt="" coords="690,80,751,107"/>
+<area shape="rect" id="node39" href="$xran__pkt_8h.html" title="Definitions and support functions to process XRAN packet. " alt="" coords="958,155,1041,181"/>
+<area shape="rect" id="node41" href="$xran__up__api_8h.html" title="This file provides the definitions for User Plane Messages APIs. " alt="" coords="563,80,665,107"/>
+<area shape="rect" id="node42" href="$xran__cp__api_8h.html" title="This file provides the definitions for Control Plane Messages APIs. " alt="" coords="2092,155,2195,181"/>
+<area shape="rect" id="node43" href="$xran__sync__api_8h.html" title="This file provides interface to synchronization related APIs (PTP/1588) for XRAN. ..." alt="" coords="2131,80,2249,107"/>
+<area shape="rect" id="node44" href="$xran__lib__mlog__tasks__id_8h.html" title="xran_lib_mlog_tasks_id.h" alt="" coords="2273,80,2443,107"/>
+<area shape="rect" id="node45" href="$xran__timer_8h.html" title="This file provides interface to Timing for XRAN. " alt="" coords="2559,229,2653,256"/>
+<area shape="rect" id="node46" href="$xran__common_8h.html" title="XRAN layer common functionality for both lls&#45;CU and RU as well as C&#45;plane and U&#45;plane. " alt="" coords="1638,80,1753,107"/>
+<area shape="rect" id="node47" href="$xran__frame__struct_8h.html" title="Header file for function to work with 5G NR frame structure and related routines. ..." alt="" coords="1878,155,2017,181"/>
+<area shape="rect" id="node48" href="$xran__printf_8h.html" title="Modules provide debug prints and utility functions. " alt="" coords="2729,229,2824,256"/>
+<area shape="rect" id="node49" href="$xran__app__frag_8h.html" title="Header file for functions to perform application level fragmentation. " alt="" coords="2467,80,2582,107"/>
+<area shape="rect" id="node50" href="$xran__mlog__lnx_8h.html" title="xran_mlog_lnx.h" alt="" coords="2950,80,3067,107"/>
+<area shape="rect" id="node37" href="$ethernet_8h.html" title="This file has all definitions for the Ethernet Data Interface Layer. " alt="" coords="753,155,833,181"/>
+</map>

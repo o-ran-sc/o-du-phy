@@ -1,0 +1,3 @@
+<map id="xran_cp_radioapp_section6_header" name="xran_cp_radioapp_section6_header">
+<area shape="rect" id="node2" href="$structxran__cp__radioapp__common__header.html" title="{xran_cp_radioapp_common\l_header\n|+ startSymbolId\l+ slotId\l+ subframeId\l+ frameId\l+ filterIndex\l+ payloadVer\l+ dataDirection\l+ numOfSections\l+ sectionType\l|}" alt="" coords="5,5,187,215"/>
+</map>

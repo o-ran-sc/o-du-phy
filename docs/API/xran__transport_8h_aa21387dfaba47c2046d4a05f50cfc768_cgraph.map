@@ -1,0 +1,6 @@
+<map id="xran_build_ecpri_hdr" name="xran_build_ecpri_hdr">
+<area shape="rect" id="node2" href="$xran__transport_8c.html#ae834080139ba785f1a3ac5781bf2ec88" title="Compose ecpriRtcid/ecpriPcid. " alt="" coords="211,5,341,32"/>
+<area shape="rect" id="node5" href="$xran__transport_8c.html#a0f378609208ec66467c58f0702ced85c" title="return eCPRI header size without eCPRI common header " alt="" coords="195,56,357,83"/>
+<area shape="rect" id="node3" href="$xran__common_8h.html#a761e3947dcc547008a12a9cca10b1ea0" title="Get the configuration of eAxC ID. " alt="" coords="405,5,549,32"/>
+<area shape="rect" id="node4" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="597,5,723,32"/>
+</map>

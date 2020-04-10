@@ -1,0 +1,15 @@
+<map id="xranLibWraper" name="xranLibWraper">
+<area shape="rect" id="node2" href="$struct_bbu_io_buf_ctrl_struct.html" title="{BbuIoBufCtrlStruct\n|+ bValid\l+ nSegToBeGen\l+ nSegGenerated\l+ nSegTransferred\l+ pData\l|}" alt="" coords="141,593,273,729"/>
+<area shape="rect" id="node3" href="$structxran__buffer__list.html" title="{xran_buffer_list\n|+ nNumBuffers\l+ pUserData\l+ pPrivateMetaData\l|}" alt="" coords="123,270,262,377"/>
+<area shape="rect" id="node4" href="$structxran__flat__buffer.html" title="{xran_flat_buffer\n|+ nElementLenInBytes\l+ nNumberOfElements\l+ nOffsetInBytes\l+ nIsPhyAddr\l+ pData\l+ pCtrl\l|}" alt="" coords="5,5,161,156"/>
+<area shape="rect" id="node5" href="$structxran_lib_wraper_1_1xran__timer__ctx.html" title="{xran_timer_ctx\n|+ tti_to_process\l|}" alt="" coords="317,623,433,700"/>
+<area shape="rect" id="node6" href="$structxran__fh__init.html" title="{xran_fh_init\n|+ dpdkBasebandFecMode\l+ dpdkBasebandDevice\l+ filePrefix\l+ mtu\l+ p_o_du_addr\l+ p_o_ru_addr\l+ totalBfWeights\l+ Tadv_cp_dl\l+ T2a_min_cp_dl\l+ T2a_max_cp_dl\land 24 more...\l|}" alt="" coords="457,549,632,773"/>
+<area shape="rect" id="node7" href="$structxran__eaxcid__config.html" title="{xran_eaxcid_config\n|+ mask_cuPortId\l+ mask_bandSectorId\l+ mask_ccId\l+ mask_ruPortId\l+ bit_cuPortId\l+ bit_bandSectorId\l+ bit_ccId\l+ bit_ruPortId\l|}" alt="" coords="312,233,463,413"/>
+<area shape="rect" id="node8" href="$structxran__io__cfg.html" title="{xran_io_cfg\n|+ id\l+ dpdk_dev\l+ bbdev_dev\l+ bbdev_mode\l+ core\l+ system_core\l+ pkt_proc_core\l+ pkt_aux_core\l+ timing_core\l+ port\l|}" alt="" coords="487,219,603,428"/>
+<area shape="rect" id="node9" href="$structxran__fh__config.html" title="{xran_fh_config\n|+ dpdk_port\l+ sector_id\l+ nCC\l+ neAxc\l+ neAxcUl\l+ nAntElmTRx\l+ nDLFftSize\l+ nULFftSize\l+ nDLRBs\l+ nULRBs\land 9 more...\l|}" alt="" coords="826,549,935,773"/>
+<area shape="rect" id="node10" href="$structxran__prach__config.html" title="{xran_prach_config\n|+ nPrachConfIdx\l+ nPrachSubcSpacing\l+ nPrachZeroCorrConf\l+ nPrachRestrictSet\l+ nPrachRootSeqIdx\l+ nPrachFreqStart\l+ nPrachFreqOffset\l+ nPrachFilterIdx\l|}" alt="" coords="627,233,782,413"/>
+<area shape="rect" id="node11" href="$structxran__frame__config.html" title="{xran_frame_config\n|+ nFrameDuplexType\l+ nNumerology\l+ nTddPeriod\l|}" alt="" coords="807,270,955,377"/>
+<area shape="rect" id="node12" href="$structxran__slot__config.html" title="{xran_slot_config\n|+ nSymbolType\l+ reserved\l|}" alt="" coords="822,35,939,127"/>
+<area shape="rect" id="node13" href="$structxran__ru__config.html" title="{xran_ru_config\n|+ xranCat\l+ iqWidth\l+ compMeth\l+ fftSize\l+ byteOrder\l+ iqOrder\l+ xran_max_frame\l|}" alt="" coords="979,241,1110,406"/>
+<area shape="rect" id="node14" href="$structxran__srs__config.html" title="{xran_srs_config\n|+ symbMask\l+ eAxC_offset\l|}" alt="" coords="1134,277,1249,369"/>
+</map>

@@ -1,0 +1,12 @@
+<map id="process_mbuf" name="process_mbuf">
+<area shape="rect" id="node2" href="$xran__common_8h.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="178,5,303,32"/>
+<area shape="rect" id="node3" href="$xran__common_8h.html#a3fc01469558ddf728239d59038ac5803" title="Get the configuration of the number of antenna for UL. " alt="" coords="170,56,311,83"/>
+<area shape="rect" id="node4" href="$xran__up__api_8h.html#adfc5ea408600c8de1384be020b359d95" title="Function extracts IQ samples from received mbuf packet. " alt="" coords="157,107,324,133"/>
+<area shape="rect" id="node8" href="$xran__common_8c.html#ac5201df2d161091f7319ff2f57432823" title="xran_pkt_validate" alt="" coords="395,157,519,184"/>
+<area shape="rect" id="node9" href="$xran__common_8c.html#a300b87c29358bb161404c0122a9b2a46" title="xran_process_srs_sym" alt="" coords="591,208,748,235"/>
+<area shape="rect" id="node10" href="$xran__common_8c.html#aec7f5a73cca88563e12b7e82e7c75b50" title="xran_process_prach_sym" alt="" coords="372,259,543,285"/>
+<area shape="rect" id="node11" href="$xran__common_8c.html#acb6ecf7858c99c963182b9b7884deca6" title="xran_process_rx_sym" alt="" coords="594,309,745,336"/>
+<area shape="rect" id="node5" href="$xran__transport_8h.html#ab08a85b6527f45a9ba22d25061a96a3c" title="Decompose ecpriRtcid/ecpriPcid. " alt="" coords="385,107,530,133"/>
+<area shape="rect" id="node6" href="$xran__common_8h.html#a761e3947dcc547008a12a9cca10b1ea0" title="Get the configuration of eAxC ID. " alt="" coords="597,107,741,133"/>
+<area shape="rect" id="node7" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="796,208,921,235"/>
+</map>

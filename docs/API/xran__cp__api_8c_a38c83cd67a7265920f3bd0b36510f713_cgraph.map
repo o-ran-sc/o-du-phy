@@ -1,0 +1,12 @@
+<map id="xran_parse_cp_pkt" name="xran_parse_cp_pkt">
+<area shape="rect" id="node2" href="$xran__transport_8h.html#ad199c3f4bfa018f5d0846471206217d1" title="Parse ECPRI header. " alt="" coords="185,27,332,53"/>
+<area shape="rect" id="node6" href="$xran__cp__api_8c.html#a9d4ed2d1226eb004597b69dfd86c7c93" title="xran_parse_section\l_extension" alt="" coords="191,99,326,141"/>
+<area shape="rect" id="node3" href="$xran__transport_8c.html#ab08a85b6527f45a9ba22d25061a96a3c" title="Decompose ecpriRtcid/ecpriPcid. " alt="" coords="391,5,536,32"/>
+<area shape="rect" id="node4" href="$xran__common_8h.html#a761e3947dcc547008a12a9cca10b1ea0" title="Get the configuration of eAxC ID. " alt="" coords="622,5,766,32"/>
+<area shape="rect" id="node5" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="841,31,967,57"/>
+<area shape="rect" id="node7" href="$xran__cp__api_8c.html#aaa0c6012a36b539f8880c45ac909c331" title="xran_parse_section_ext1" alt="" coords="380,56,547,83"/>
+<area shape="rect" id="node9" href="$xran__cp__api_8c.html#af3d96c5ccff84bf6a444f260f58a49f2" title="xran_parse_section_ext2" alt="" coords="380,107,547,133"/>
+<area shape="rect" id="node10" href="$xran__cp__api_8c.html#ad4a3ae88412a933d953fc0f8ae9bb352" title="xran_parse_section_ext4" alt="" coords="380,157,547,184"/>
+<area shape="rect" id="node11" href="$xran__cp__api_8c.html#af03e99a3b1e9498ca15458e0440c12a1" title="xran_parse_section_ext5" alt="" coords="380,208,547,235"/>
+<area shape="rect" id="node8" href="$xran__common_8h.html#ad749041bcf50616bac96e4d13b661272" title="Get the configuration of the total number of beamforming weights on RU. " alt="" coords="595,56,793,83"/>
+</map>

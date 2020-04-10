@@ -1,0 +1,10 @@
+<map id="xran_ut_prepare_cp" name="xran_ut_prepare_cp">
+<area shape="rect" id="node2" href="$xran__cp__api_8h.html#af9eb550e92ea270af41b4b6bcda363db" title="Create a C&#45;Plane packet Transport layer fragmentation is not supported. " alt="" coords="189,89,336,116"/>
+<area shape="rect" id="node3" href="$xran__transport_8h.html#aa21387dfaba47c2046d4a05f50cfc768" title="Build ECPRI header and returns added length. " alt="" coords="389,31,531,57"/>
+<area shape="rect" id="node8" href="$xran__cp__api_8c.html#a1261c107d1103c8bd1b3376db4aa7951" title="add a radio application header in a C&#45;Plane packet " alt="" coords="384,82,536,123"/>
+<area shape="rect" id="node9" href="$xran__cp__api_8c.html#ad50ae862f0707dab5e7b8e6a774fd225" title="add sections to C&#45;Plane packet Section type 1 and 3 are supported. " alt="" coords="389,147,531,189"/>
+<area shape="rect" id="node4" href="$xran__transport_8c.html#ae834080139ba785f1a3ac5781bf2ec88" title="Compose ecpriRtcid/ecpriPcid. " alt="" coords="600,5,731,32"/>
+<area shape="rect" id="node7" href="$xran__transport_8c.html#a0f378609208ec66467c58f0702ced85c" title="return eCPRI header size without eCPRI common header " alt="" coords="584,56,747,83"/>
+<area shape="rect" id="node5" href="$xran__common_8h.html#a761e3947dcc547008a12a9cca10b1ea0" title="Get the configuration of eAxC ID. " alt="" coords="795,5,939,32"/>
+<area shape="rect" id="node6" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="987,5,1112,32"/>
+</map>

@@ -1,0 +1,10 @@
+<map id="TEST_P" name="TEST_P">
+<area shape="rect" id="node2" href="$namespace_block_float_compander.html#a45cc83687ca392534168cb8f4d64182f" title="Reference compression. " alt="" coords="125,5,317,47"/>
+<area shape="rect" id="node3" href="$namespace_block_float_compander.html#a5f4776cd07aac0ae2d9dbd02aaba3435" title="Reference expansion. " alt="" coords="133,71,309,112"/>
+<area shape="rect" id="node4" href="$namespace_block_float_compander.html#ae525362ca026142cab4ac983e29ad0ff" title="10 bit compression " alt="" coords="145,137,297,193"/>
+<area shape="rect" id="node7" href="$namespace_block_float_compander.html#a8fae7506e2b9c9f9365b306375ab6eff" title="10 bit expansion " alt="" coords="139,217,303,273"/>
+<area shape="rect" id="node9" href="$compander__functional_8cc.html#a1b6359dcad38667a5625c184cf490bef" title="checkData" alt="" coords="179,297,264,323"/>
+<area shape="rect" id="node5" href="$xran__compression_8cpp.html#a74512492194fcab6a55f769e02aa37b4" title="Compute exponent value for a set of RB from the maximum absolute value. " alt="" coords="383,115,509,142"/>
+<area shape="rect" id="node6" href="$xran__compression_8cpp.html#a4a2767bece9b74bb6348b416af70a3de" title="networkBytePack10b" alt="" coords="373,166,519,193"/>
+<area shape="rect" id="node8" href="$xran__compression_8cpp.html#a27043376e22397cc933d3c4d9450677b" title="networkByteUnpack10b" alt="" coords="365,231,527,258"/>
+</map>

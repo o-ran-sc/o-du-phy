@@ -1,0 +1,4 @@
+<map id="xran_sectioninfo_db" name="xran_sectioninfo_db">
+<area shape="rect" id="node2" href="$structxran__section__info.html" title="{xran_section_info\n|+ type\l+ startSymId\l+ numSymbol\l+ symInc\l+ id\l+ reMask\l+ startPrbc\l+ numPrbc\l+ rb\l+ compMeth\land 7 more...\l|}" alt="" coords="13,204,137,428"/>
+<area shape="rect" id="node3" href="$structxran__section__desc.html" title="{xran_section_desc\n|+ section_id\l+ iq_buffer_offset\l+ iq_buffer_len\l+ pData\l+ pCtrl\l|}" alt="" coords="9,5,140,141"/>
+</map>
