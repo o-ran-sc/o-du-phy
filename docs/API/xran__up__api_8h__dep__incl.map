@@ -1,0 +1,8 @@
+<map id="xran_up_api.h" name="xran_up_api.h">
+<area shape="rect" id="node2" href="$common_8c.html" title="common.c" alt="" coords="5,80,88,107"/>
+<area shape="rect" id="node3" href="$xran__common_8c.html" title="XRAN layer common functionality for both O&#45;DU and O&#45;RU as well as C&#45;plane and U&#45;plane. " alt="" coords="112,80,227,107"/>
+<area shape="rect" id="node4" href="$xran__main_8c.html" title="XRAN main functionality module. " alt="" coords="251,80,344,107"/>
+<area shape="rect" id="node5" href="$xran__transport_8c.html" title="This file provides the implementation for Transport lyaer (eCPRI) API. " alt="" coords="369,80,485,107"/>
+<area shape="rect" id="node6" href="$xran__up__api_8c.html" title="This file provides the implementation of User Plane Messages APIs. " alt="" coords="509,80,611,107"/>
+<area shape="rect" id="node7" href="$u__plane__functional_8cc.html" title="u_plane_functional.cc" alt="" coords="635,80,783,107"/>
+</map>

@@ -1,0 +1,12 @@
+<map id="patch" name="patch">
+<area shape="rect" id="node2" href="$classnlohmann_1_1basic__json.html#a3d5717f39bfe485057850f116fb2ed12" title="access specified array element with bounds checking " alt="" coords="131,5,170,32"/>
+<area shape="rect" id="node3" href="$classnlohmann_1_1basic__json.html#aaf38acbc4aaada0a40549bc606f99c4f" title="add an object to an array " alt="" coords="108,56,193,83"/>
+<area shape="rect" id="node4" href="$classnlohmann_1_1basic__json.html#a0801762a3fe36fe32dca5f16e515478d" title="returns the number of elements " alt="" coords="127,107,174,133"/>
+<area shape="rect" id="node5" href="$classnlohmann_1_1basic__json.html#a61546bf37d98e9b0d098220009e8376d" title="inserts element " alt="" coords="123,157,178,184"/>
+<area shape="rect" id="node6" href="$classnlohmann_1_1basic__json.html#a979556eb331ec35eb33472a90a160f99" title="returns an iterator to the first element " alt="" coords="124,208,177,235"/>
+<area shape="rect" id="node7" href="$classnlohmann_1_1basic__json.html#ad6a2a9425ea3806424417c2e7dcdbc01" title="return whether value is an object " alt="" coords="113,259,188,285"/>
+<area shape="rect" id="node8" href="$classnlohmann_1_1basic__json.html#a4cf2116be00a99de7addd2c32d71f99d" title="find an element in a JSON object " alt="" coords="129,309,172,336"/>
+<area shape="rect" id="node9" href="$classnlohmann_1_1basic__json.html#afc5380afa64b233d0df01a147616974b" title="returns an iterator to one past the last element " alt="" coords="129,360,172,387"/>
+<area shape="rect" id="node10" href="$classnlohmann_1_1basic__json.html#a05a2d4678b130a13b4bcbc62f4318d72" title="remove element given an iterator " alt="" coords="123,411,178,437"/>
+<area shape="rect" id="node11" href="$classnlohmann_1_1basic__json.html#a286a1af9e72e4e41a359b6d01a7b9be9" title="return whether value is an array " alt="" coords="117,461,185,488"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="rx_ul_deadline_half_cb" name="rx_ul_deadline_half_cb">
+<area shape="rect" id="node2" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="208,5,333,32"/>
+<area shape="rect" id="node3" href="$xran__main_8c.html#a2816fdf0ed3269e998720d01c2b6bf76" title="xran_get_slot_idx" alt="" coords="209,56,333,83"/>
+<area shape="rect" id="node4" href="$xran__main_8c.html#ad51ee5b7f1f27c770f1eb658b5ee523e" title="Get the configuration of the number of component carriers. " alt="" coords="208,107,333,133"/>
+</map>

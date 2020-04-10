@@ -1,0 +1,15 @@
+<map id="xran_common.c" name="xran_common.c">
+<area shape="rect" id="node7" href="$xran__common_8h.html" title="XRAN layer common functionality for both lls&#45;CU and RU as well as C&#45;plane and U&#45;plane. " alt="" coords="939,80,1054,107"/>
+<area shape="rect" id="node27" href="$xran__pkt__up_8h.html" title="Definitions and support functions to process XRAN packet. " alt="" coords="1333,229,1437,256"/>
+<area shape="rect" id="node28" href="$xran__pkt_8h.html" title="Definitions and support functions to process XRAN packet. " alt="" coords="1529,304,1611,331"/>
+<area shape="rect" id="node34" href="$ethdi_8h.html" title="This file has all definitions for the Ethernet Data Interface Layer. " alt="" coords="1654,155,1715,181"/>
+<area shape="rect" id="node37" href="$xran__up__api_8h.html" title="This file provides the definitions for User Plane Messages APIs. " alt="" coords="1212,155,1315,181"/>
+<area shape="rect" id="node38" href="$xran__lib__mlog__tasks__id_8h.html" title="xran_lib_mlog_tasks_id.h" alt="" coords="1705,80,1875,107"/>
+<area shape="rect" id="node39" href="$xran__printf_8h.html" title="Modules provide debug prints and utility functions. " alt="" coords="127,229,255,256"/>
+<area shape="rect" id="node40" href="$xran__mlog__lnx_8h.html" title="xran_mlog_lnx.h" alt="" coords="1899,80,2017,107"/>
+<area shape="rect" id="node15" href="$xran__fh__o__du_8h.html" title="This file provides public interface to xRAN Front Haul layer implementation as defined in the ORAN&#45;WG..." alt="" coords="852,229,963,256"/>
+<area shape="rect" id="node31" href="$xran__cp__api_8h.html" title="This file provides the definitions for Control Plane Messages APIs. " alt="" coords="945,155,1048,181"/>
+<area shape="rect" id="node32" href="$xran__pkt__cp_8h.html" title="This file provides the definition of Control Plane Messages for XRAN Front Haul layer as defined in X..." alt="" coords="723,229,827,256"/>
+<area shape="rect" id="node33" href="$xran__transport_8h.html" title="This file provides the definitions for Transport layer (eCPRI) API. " alt="" coords="1040,229,1156,256"/>
+<area shape="rect" id="node36" href="$ethernet_8h.html" title="This file has all definitions for the Ethernet Data Interface Layer. " alt="" coords="1722,229,1802,256"/>
+</map>

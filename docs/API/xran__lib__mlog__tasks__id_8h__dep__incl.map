@@ -1,0 +1,6 @@
+<map id="xran_lib_mlog_tasks_id.h" name="xran_lib_mlog_tasks_id.h">
+<area shape="rect" id="node2" href="$ethdi_8c.html" title="This file has all definitions for the Ethernet Data Interface Layer. " alt="" coords="5,80,67,107"/>
+<area shape="rect" id="node3" href="$xran__common_8c.html" title="XRAN layer common functionality for both O&#45;DU and O&#45;RU as well as C&#45;plane and U&#45;plane. " alt="" coords="91,80,205,107"/>
+<area shape="rect" id="node4" href="$xran__main_8c.html" title="XRAN main functionality module. " alt="" coords="229,80,323,107"/>
+<area shape="rect" id="node5" href="$xran__timer_8c.html" title="This file provides implementation to Timing for XRAN. " alt="" coords="347,80,442,107"/>
+</map>

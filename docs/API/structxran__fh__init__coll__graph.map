@@ -1,0 +1,4 @@
+<map id="xran_fh_init" name="xran_fh_init">
+<area shape="rect" id="node2" href="$structxran__eaxcid__config.html" title="{xran_eaxcid_config\n|+ mask_cuPortId\l+ mask_bandSectorId\l+ mask_ccId\l+ mask_ruPortId\l+ bit_cuPortId\l+ bit_bandSectorId\l+ bit_ccId\l+ bit_ruPortId\l|}" alt="" coords="5,20,156,200"/>
+<area shape="rect" id="node3" href="$structxran__io__cfg.html" title="{xran_io_cfg\n|+ id\l+ dpdk_dev\l+ bbdev_dev\l+ bbdev_mode\l+ core\l+ system_core\l+ pkt_proc_core\l+ pkt_aux_core\l+ timing_core\l+ port\l|}" alt="" coords="180,5,296,215"/>
+</map>

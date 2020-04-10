@@ -1,0 +1,5 @@
+<map id="performance" name="performance">
+<area shape="rect" id="node2" href="$common_8hpp.html#ae39390f41ba978a1f0d79691436c074a" title="Attach current process to the selected core. " alt="" coords="157,5,249,32"/>
+<area shape="rect" id="node3" href="$common_8hpp.html#af69d779517f2bdee3aba95bc38022074" title="Run the given function and return the mean run time and stddev. " alt="" coords="148,56,259,83"/>
+<area shape="rect" id="node4" href="$common_8hpp.html#a8265b710246f9019ff14556adf5eb35a" title="Calculate the mean and variance from the result of the run_benchmark. " alt="" coords="307,56,441,83"/>
+</map>

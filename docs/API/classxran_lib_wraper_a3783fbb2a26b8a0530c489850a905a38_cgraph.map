@@ -1,0 +1,6 @@
+<map id="update_tti" name="update_tti">
+<area shape="rect" id="node2" href="$xran__lib__wrap_8hpp.html#a9c3700d61ba446fa9b05cca2ca9018ab" title="tti_ota_cb" alt="" coords="143,31,222,57"/>
+<area shape="rect" id="node5" href="$classxran_lib_wraper.html#a1ffad42e0cccdbc800d3dbef66f52d45" title="get_timer_ctx" alt="" coords="132,81,233,108"/>
+<area shape="rect" id="node3" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="294,5,419,32"/>
+<area shape="rect" id="node4" href="$xran__frame__struct_8c.html#a7f5a87395d3930f222e58976960c99e2" title="xran_fs_get_max_slot" alt="" coords="281,56,432,83"/>
+</map>

@@ -1,0 +1,5 @@
+<map id="compression_params" name="compression_params">
+<area shape="rect" id="node2" href="$structcompression__params_1_1u__law.html" title="{u_law\n|+ compShift\l+ compBitWidth\l|}" alt="" coords="5,5,121,97"/>
+<area shape="rect" id="node3" href="$structcompression__params_1_1block__fl__point.html" title="{block_fl_point\n|+ exponent\l+ reserved\l|}" alt="" coords="145,5,248,97"/>
+<area shape="rect" id="node4" href="$structcompression__params_1_1block__scaling.html" title="{block_scaling\n|+ sblockScaler\l|}" alt="" coords="273,13,382,90"/>
+</map>

@@ -1,0 +1,9 @@
+<map id="xran_mlog_lnx.h" name="xran_mlog_lnx.h">
+<area shape="rect" id="node2" href="$common_8c.html" title="common.c" alt="" coords="5,80,88,107"/>
+<area shape="rect" id="node3" href="$sample-app_8c.html" title="sample&#45;app.c" alt="" coords="113,80,213,107"/>
+<area shape="rect" id="node4" href="$ethdi_8c.html" title="This file has all definitions for the Ethernet Data Interface Layer. " alt="" coords="237,80,299,107"/>
+<area shape="rect" id="node5" href="$xran__common_8c.html" title="XRAN layer common functionality for both O&#45;DU and O&#45;RU as well as C&#45;plane and U&#45;plane. " alt="" coords="323,80,437,107"/>
+<area shape="rect" id="node6" href="$xran__main_8c.html" title="XRAN main functionality module. " alt="" coords="461,80,555,107"/>
+<area shape="rect" id="node7" href="$xran__timer_8c.html" title="This file provides implementation to Timing for XRAN. " alt="" coords="579,80,674,107"/>
+<area shape="rect" id="node8" href="$xran__up__api_8c.html" title="This file provides the implementation of User Plane Messages APIs. " alt="" coords="698,80,801,107"/>
+</map>

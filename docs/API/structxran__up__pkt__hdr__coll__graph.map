@@ -1,0 +1,7 @@
+<map id="xran_up_pkt_hdr" name="xran_up_pkt_hdr">
+<area shape="rect" id="node2" href="$structdata__section__hdr.html" title="{data_section_hdr\n|+ all_bits\l+ num_prbu\l+ start_prbu\l+ sym_inc\l+ rb\l+ sect_id\l+ fields\l|}" alt="" coords="5,219,127,384"/>
+<area shape="rect" id="node3" href="$structradio__app__common__hdr.html" title="{radio_app_common_hdr\n|+ filter_id\l+ payl_ver\l+ data_direction\l+ frame_id\l+ value\l+ symb_id\l+ slot_id\l+ subframe_id\l+ sf_slot_sym\l|}" alt="" coords="151,204,311,399"/>
+<area shape="rect" id="node4" href="$structxran__ecpri__hdr.html" title="{xran_ecpri_hdr\n|+ ecpri_xtc_id\l|}" alt="" coords="335,263,442,340"/>
+<area shape="rect" id="node5" href="$structecpri__seq__id.html" title="{ecpri_seq_id\n|+ seq_id\l+ sub_seq_id\l+ e_bit\l|}" alt="" coords="267,20,367,127"/>
+<area shape="rect" id="node6" href="$structxran__ecpri__cmn__hdr.html" title="{xran_ecpri_cmn_hdr\n|+ ecpri_concat\l+ ecpri_resv\l+ ecpri_ver\l+ ecpri_mesg_type\l+ ecpri_payl_size\l|}" alt="" coords="391,5,530,141"/>
+</map>
