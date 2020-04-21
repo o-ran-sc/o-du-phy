@@ -1,7 +1,0 @@
-<map id="xran_alloc_sectionid" name="xran_alloc_sectionid">
-<area shape="rect" id="node2" href="$xran__common_8h.html#aaa01e98d3b3439a332302aebe21459dd" title="generate_cpmsg_dlul" alt="" coords="199,5,345,32"/>
-<area shape="rect" id="node3" href="$xran__common_8h.html#ab8a6ed3cee8fa183142d0c23d0b4971d" title="generate_cpmsg_prach" alt="" coords="193,56,351,83"/>
-<area shape="rect" id="node4" href="$prach__functional_8cc.html#a62307393b7f454a2b348ada67997b796" title="TEST_P" alt="" coords="420,31,492,57"/>
-<area shape="rect" id="node5" href="$prach__performance_8cc.html#a540e426541deb753f7c69d8df5d5b090" title="performance_cp" alt="" coords="399,81,513,108"/>
-<area shape="rect" id="node6" href="$prach__performance_8cc.html#a048e029f091d3d395e44cc24b3f197ee" title="TEST_P" alt="" coords="561,81,633,108"/>
-</map>

@@ -1,8 +1,0 @@
-<map id="sym_ota_cb" name="sym_ota_cb">
-<area shape="rect" id="node2" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="341,107,466,133"/>
-<area shape="rect" id="node3" href="$xran__timer_8h.html#a1d2f23e35725cd993cbb72de9f4f565a" title="xran_tick" alt="" coords="176,56,251,83"/>
-<area shape="rect" id="node4" href="$xran__main_8c.html#a9c3700d61ba446fa9b05cca2ca9018ab" title="tti_ota_cb" alt="" coords="174,208,253,235"/>
-<area shape="rect" id="node6" href="$xran__timer_8h.html#a2c22baf2fd259384ee376d438bb461c1" title="get_ticks_diff" alt="" coords="163,157,263,184"/>
-<area shape="rect" id="node7" href="$xran__main_8c.html#a96de765800aa6de0788fc530cbc16825" title="xran_timer_arm_ex" alt="" coords="147,5,280,32"/>
-<area shape="rect" id="node5" href="$xran__frame__struct_8c.html#a7f5a87395d3930f222e58976960c99e2" title="xran_fs_get_max_slot" alt="" coords="328,208,479,235"/>
-</map>

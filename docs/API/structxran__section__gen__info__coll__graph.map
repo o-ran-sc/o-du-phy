@@ -1,9 +1,0 @@
-<map id="xran_section_gen_info" name="xran_section_gen_info">
-<area shape="rect" id="node2" href="$structxran__sectionext5__info.html" title="{xran_sectionext5_info\n|+ num_sets\l+ csf\l+ mcScaleReMask\l+ mcScaleOffset\l+ mc\l|}" alt="" coords="5,248,155,384"/>
-<area shape="rect" id="node3" href="$structxran__sectionext4__info.html" title="{xran_sectionext4_info\n|+ csf\l+ pad0\l+ modCompScaler\l|}" alt="" coords="179,263,328,369"/>
-<area shape="rect" id="node4" href="$structxran__sectionext3__info.html" title="{xran_sectionext3_info\n|+ codebookIdx\l+ layerId\l+ numLayers\l+ txScheme\l+ crsReMask\l+ crsShift\l+ crsSymNum\l+ beamIdAP1\l+ beamIdAP2\l+ beamIdAP3\l|}" alt="" coords="352,211,501,421"/>
-<area shape="rect" id="node5" href="$structxran__sectionext2__info.html" title="{xran_sectionext2_info\n|+ bfAzPtWidth\l+ bfAzPt\l+ bfZePtWidth\l+ bfZePt\l+ bfAz3ddWidth\l+ bfAz3dd\l+ bfZe3ddWidth\l+ bfZe3dd\l+ bfAzSI\l+ bfZeSI\l|}" alt="" coords="525,211,675,421"/>
-<area shape="rect" id="node6" href="$structxran__sectionext1__info.html" title="{xran_sectionext1_info\n|+ rbNumber\l+ bfwNumber\l+ bfwiqWidth\l+ bfwCompMeth\l+ p_bfwIQ\l+ bfwIQ_sz\l+ exponent\l+ blockScaler\l+ compBitWidthShift\l+ activeBeamspaceCoeffMask\l+ bfwCompParam\l|}" alt="" coords="699,204,901,428"/>
-<area shape="rect" id="node7" href="$structxran__section__info.html" title="{xran_section_info\n|+ type\l+ startSymId\l+ numSymbol\l+ symInc\l+ id\l+ reMask\l+ startPrbc\l+ numPrbc\l+ rb\l+ compMeth\land 7 more...\l|}" alt="" coords="926,204,1050,428"/>
-<area shape="rect" id="node8" href="$structxran__section__desc.html" title="{xran_section_desc\n|+ section_id\l+ iq_buffer_offset\l+ iq_buffer_len\l+ pData\l+ pCtrl\l|}" alt="" coords="923,5,1053,141"/>
-</map>

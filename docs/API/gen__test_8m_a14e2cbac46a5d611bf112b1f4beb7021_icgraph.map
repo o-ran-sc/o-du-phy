@@ -1,7 +1,0 @@
-<map id="fclose" name="fclose">
-<area shape="rect" id="node2" href="$common_8h.html#acd37223937d89e77a1ccbdc6e94b38cc" title="sys_save_buf_to_file" alt="" coords="121,5,267,32"/>
-<area shape="rect" id="node3" href="$common_8h.html#a8f27f0a8b6843f5e32ecbce83d487262" title="sys_load_file_to_buff" alt="" coords="121,56,267,83"/>
-<area shape="rect" id="node4" href="$common_8h.html#ab022cdd736a497eb5cfa7d5dcab0634c" title="sys_save_buf_to_file_txt" alt="" coords="111,107,277,133"/>
-<area shape="rect" id="node5" href="$config_8h.html#add16264aa9472e4e90d1a77e086c7f93" title="parseConfigFile" alt="" coords="137,157,251,184"/>
-<area shape="rect" id="node6" href="$sample-app_8c.html#a0ddf1224851353fc92bfbff6f499fa97" title="main" alt="" coords="325,157,376,184"/>
-</map>

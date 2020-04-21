@@ -1,8 +1,0 @@
-<map id="ethdi.c" name="ethdi.c">
-<area shape="rect" id="node36" href="$ethernet_8h.html" title="This file has all definitions for the Ethernet Data Interface Layer. " alt="" coords="3453,169,3533,196"/>
-<area shape="rect" id="node38" href="$ethdi_8h.html" title="This file has all definitions for the Ethernet Data Interface Layer. " alt="" coords="3343,87,3405,114"/>
-<area shape="rect" id="node39" href="$xran__fh__o__du_8h.html" title="This file provides public interface to xRAN Front Haul layer implementation as defined in the ORAN&#45;WG..." alt="" coords="668,169,779,196"/>
-<area shape="rect" id="node46" href="$xran__mlog__lnx_8h.html" title="xran_mlog_lnx.h" alt="" coords="3479,87,3597,114"/>
-<area shape="rect" id="node47" href="$xran__printf_8h.html" title="Modules provide debug prints and utility functions. " alt="" coords="1169,169,1264,196"/>
-<area shape="rect" id="node48" href="$xran__lib__mlog__tasks__id_8h.html" title="../src/xran_lib_mlog\l_tasks_id.h" alt="" coords="3671,80,3807,121"/>
-</map>

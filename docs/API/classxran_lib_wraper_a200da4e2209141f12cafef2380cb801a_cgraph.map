@@ -1,8 +1,0 @@
-<map id="Init" name="Init">
-<area shape="rect" id="node2" href="$classxran_lib_wraper.html#aeeef9211b4ee7d22934db64125b538dd" title="get_num_cc" alt="" coords="113,5,207,32"/>
-<area shape="rect" id="node3" href="$classxran_lib_wraper.html#a25afbf449e11f9e290e0fdbef77702c2" title="get_rucategory" alt="" coords="106,56,214,83"/>
-<area shape="rect" id="node4" href="$classxran_lib_wraper.html#adde1d671cf6532a577f13d85875ee3b4" title="get_num_antelmtrx" alt="" coords="93,107,227,133"/>
-<area shape="rect" id="node5" href="$classxran_lib_wraper.html#ad2b06001d76c9a773c242b28fc7c92f4" title="get_num_dlrbs" alt="" coords="107,157,213,184"/>
-<area shape="rect" id="node6" href="$classxran_lib_wraper.html#a967a0c58430104684cf2f9b1fdb444da" title="get_num_ulrbs" alt="" coords="107,208,213,235"/>
-<area shape="rect" id="node7" href="$classxran_lib_wraper.html#aef8068804ca7393d92edd9ed22d90070" title="get_num_eaxc" alt="" coords="107,259,213,285"/>
-</map>

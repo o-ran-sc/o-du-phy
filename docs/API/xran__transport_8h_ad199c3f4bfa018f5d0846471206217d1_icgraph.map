@@ -1,7 +1,0 @@
-<map id="xran_parse_ecpri_hdr" name="xran_parse_ecpri_hdr">
-<area shape="rect" id="node2" href="$xran__cp__api_8c.html#a38c83cd67a7265920f3bd0b36510f713" title="Parse a C&#45;Plane packet (for RU emulation) Transport layer fragmentation is not supported. " alt="" coords="200,31,332,57"/>
-<area shape="rect" id="node3" href="$c__plane__tests_8cc.html#a11a0b914a08e5375cae792dc6db08c7a" title="TEST_P" alt="" coords="412,5,484,32"/>
-<area shape="rect" id="node4" href="$chain__tests_8cc.html#aa17765d107c851ebcc3d202cef78aa75" title="send_mbuf_cp_perf" alt="" coords="380,56,516,83"/>
-<area shape="rect" id="node5" href="$chain__tests_8cc.html#a6c5f599800ca755367ad7df4da60eb86" title="TEST_P" alt="" coords="564,56,636,83"/>
-<area shape="rect" id="node6" href="$chain__tests_8cc.html#a9dc1e3a47b655cad97eed3db3cdebd92" title="TEST_P" alt="" coords="684,56,756,83"/>
-</map>

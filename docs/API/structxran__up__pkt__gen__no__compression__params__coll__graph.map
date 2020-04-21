@@ -1,4 +1,0 @@
-<map id="xran_up_pkt_gen_no_compression_params" name="xran_up_pkt_gen_no_compression_params">
-<area shape="rect" id="node2" href="$structdata__section__hdr.html" title="{data_section_hdr\n|+ all_bits\l+ num_prbu\l+ start_prbu\l+ sym_inc\l+ rb\l+ sect_id\l+ fields\l|}" alt="" coords="5,20,127,185"/>
-<area shape="rect" id="node3" href="$structradio__app__common__hdr.html" title="{radio_app_common_hdr\n|+ filter_id\l+ payl_ver\l+ data_direction\l+ frame_id\l+ value\l+ symb_id\l+ slot_id\l+ subframe_id\l+ sf_slot_sym\l|}" alt="" coords="151,5,311,200"/>
-</map>

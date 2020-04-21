@@ -1,4 +1,0 @@
-<map id="xran_ecpri_hdr" name="xran_ecpri_hdr">
-<area shape="rect" id="node2" href="$structecpri__seq__id.html" title="{ecpri_seq_id\n|+ seq_id\l+ sub_seq_id\l+ e_bit\l|}" alt="" coords="5,20,105,127"/>
-<area shape="rect" id="node3" href="$structxran__ecpri__cmn__hdr.html" title="{xran_ecpri_cmn_hdr\n|+ ecpri_concat\l+ ecpri_resv\l+ ecpri_ver\l+ ecpri_mesg_type\l+ ecpri_payl_size\l|}" alt="" coords="130,5,269,141"/>
-</map>

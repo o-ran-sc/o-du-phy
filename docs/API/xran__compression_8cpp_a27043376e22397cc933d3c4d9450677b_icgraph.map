@@ -1,6 +1,0 @@
-<map id="networkByteUnpack10b" name="networkByteUnpack10b">
-<area shape="rect" id="node2" href="$namespace_block_float_compander.html#a8fae7506e2b9c9f9365b306375ab6eff" title="10 bit expansion " alt="" coords="215,20,379,76"/>
-<area shape="rect" id="node3" href="$compander__functional_8cc.html#a3351c323474adfa4b66c985141776b2f" title="TEST_P" alt="" coords="460,5,532,32"/>
-<area shape="rect" id="node4" href="$xran__compression_8cpp.html#a2bd6ebeefb6ca9674598d443e697918c" title="xranlib_decompress\l_avx512" alt="" coords="427,57,565,98"/>
-<area shape="rect" id="node5" href="$compander__functional_8cc.html#a45d64e11a1ecc040577b7f22b27dde51" title="TEST_P" alt="" coords="613,64,685,91"/>
-</map>

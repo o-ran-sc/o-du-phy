@@ -1,6 +1,0 @@
-var searchData=
-[
-  ['value',['value',['../classnlohmann_1_1basic__json.html#a13f9440aff453090f573a39f4713668f',1,'nlohmann::basic_json::value(const typename object_t::key_type &amp;key, ValueType default_value) const'],['../classnlohmann_1_1basic__json.html#a47ae67764aed69ccdbf53dac54249070',1,'nlohmann::basic_json::value(const typename object_t::key_type &amp;key, const char *default_value) const'],['../classnlohmann_1_1basic__json.html#ab2b8ceec8ed782b929dcb426bac15966',1,'nlohmann::basic_json::value(const json_pointer &amp;ptr, ValueType default_value) const'],['../classnlohmann_1_1basic__json.html#afd2fc91538dba07614e9c1da44fafad7',1,'nlohmann::basic_json::value(const json_pointer &amp;ptr, const char *default_value) const'],['../classnlohmann_1_1basic__json_1_1iter__impl.html#a964fb45284debd5434cd10dc6b59adab',1,'nlohmann::basic_json::iter_impl::value()'],['../classnlohmann_1_1basic__json_1_1json__reverse__iterator.html#a964fb45284debd5434cd10dc6b59adab',1,'nlohmann::basic_json::json_reverse_iterator::value()']]],
-  ['verify_5fsections',['verify_sections',['../class_c__plane.html#a2d5e33dd093724772a1447910bd34e15',1,'C_plane']]],
-  ['version_5fprint',['version_print',['../sample-app_8c.html#a24a2bdc164076e67087d8fa480d18728',1,'sample-app.c']]]
-];

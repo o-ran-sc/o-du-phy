@@ -1,5 +1,0 @@
-<map id="xran_sync_api.h" name="xran_sync_api.h">
-<area shape="rect" id="node2" href="$sample-app_8c.html" title="sample&#45;app.c" alt="" coords="5,80,105,107"/>
-<area shape="rect" id="node3" href="$xran__main_8c.html" title="XRAN main functionality module. " alt="" coords="130,80,223,107"/>
-<area shape="rect" id="node4" href="$xran__sync__api_8c.html" title="This file provides implementation of synchronization related APIs (PTP/1588) for XRAN. " alt="" coords="247,80,365,107"/>
-</map>

@@ -1,6 +1,0 @@
-<map id="xran_pkt_validate" name="xran_pkt_validate">
-<area shape="rect" id="node2" href="$chain__tests_8cc.html#a3d4bd5c7eec6da4ab71688e209100761" title="process_mbuf" alt="" coords="177,5,281,32"/>
-<area shape="rect" id="node3" href="$xran__main_8c.html#a7a412a9cd0ac919dccb2112fb386d64a" title="handle_ecpri_ethertype" alt="" coords="329,5,485,32"/>
-<area shape="rect" id="node4" href="$xran__main_8c.html#a4ea0e9c036a1dc7605f53f1f862f4952" title="xran_init" alt="" coords="533,5,604,32"/>
-<area shape="rect" id="node5" href="$classxran_lib_wraper.html#a126b53d8cc57521b34496dbe3a26621f" title="xranLibWraper::SetUp" alt="" coords="652,5,803,32"/>
-</map>

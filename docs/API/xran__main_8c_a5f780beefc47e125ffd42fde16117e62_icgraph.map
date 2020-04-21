@@ -1,6 +1,0 @@
-<map id="xran_get_conf_iqwidth" name="xran_get_conf_iqwidth">
-<area shape="rect" id="node2" href="$xran__common_8h.html#ab8a6ed3cee8fa183142d0c23d0b4971d" title="generate_cpmsg_prach" alt="" coords="205,31,363,57"/>
-<area shape="rect" id="node3" href="$prach__functional_8cc.html#a62307393b7f454a2b348ada67997b796" title="TEST_P" alt="" coords="432,5,504,32"/>
-<area shape="rect" id="node4" href="$prach__performance_8cc.html#a540e426541deb753f7c69d8df5d5b090" title="performance_cp" alt="" coords="411,56,525,83"/>
-<area shape="rect" id="node5" href="$prach__performance_8cc.html#a048e029f091d3d395e44cc24b3f197ee" title="TEST_P" alt="" coords="573,56,645,83"/>
-</map>

@@ -1,6 +1,0 @@
-<map id="SetUpTestCase" name="SetUpTestCase">
-<area shape="rect" id="node2" href="$common_8hpp.html#ad8c062e9b24e4b3a8408b23a0d8ab428" title="Read JSON from the given file. " alt="" coords="169,5,304,32"/>
-<area shape="rect" id="node3" href="$structmissing__config__file__exception.html#a70518905d36686ddeeb2eb3b2682f016" title="missing_config_file\l_exception::what" alt="" coords="170,57,303,98"/>
-<area shape="rect" id="node4" href="$common_8hpp.html#a56c41cbb9de4bce25da45ecd74b46a81" title="Measure the TSC on the machine. " alt="" coords="188,123,285,149"/>
-<area shape="rect" id="node5" href="$common_8cpp.html#a0ab5719a5f67d4d52057b2c4550fe930" title="Return the current value of the TSC. " alt="" coords="352,123,420,149"/>
-</map>

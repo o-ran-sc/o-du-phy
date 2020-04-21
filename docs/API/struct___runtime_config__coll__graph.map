@@ -1,9 +1,0 @@
-<map id="_RuntimeConfig" name="_RuntimeConfig">
-<area shape="rect" id="node2" href="$structxran__prb__map.html" title="{xran_prb_map\n|+ dir\l+ xran_port\l+ band_id\l+ cc_id\l+ ru_port_id\l+ tti_id\l+ start_sym_id\l+ nPrbElm\l|}" alt="" coords="256,476,365,656"/>
-<area shape="rect" id="node3" href="$structxran__prb__elm.html" title="{xran_prb_elm\n|+ nRBStart\l+ nRBSize\l+ nStartSymb\l+ numSymb\l+ nBeamIndex\l+ bf_weight_update\l+ compMethod\l+ iqWidth\l+ BeamFormingType\l+ @4\l|}" alt="" coords="239,204,383,413"/>
-<area shape="rect" id="node4" href="$structxran__cp__bf__weight.html" title="{xran_cp_bf_weight\n|+ nAntElmTRx\l+ p_ext_section\l+ ext_section_sz\l|}" alt="" coords="5,20,136,127"/>
-<area shape="rect" id="node5" href="$structxran__cp__bf__attribute.html" title="{xran_cp_bf_attribute\n|+ weight\l|}" alt="" coords="161,35,301,112"/>
-<area shape="rect" id="node6" href="$structxran__section__desc.html" title="{xran_section_desc\n|+ section_id\l+ iq_buffer_offset\l+ iq_buffer_len\l+ pData\l+ pCtrl\l|}" alt="" coords="325,5,456,141"/>
-<area shape="rect" id="node7" href="$structxran__cp__bf__precoding.html" title="{xran_cp_bf_precoding\n|+ weight\l|}" alt="" coords="480,35,629,112"/>
-<area shape="rect" id="node8" href="$structxran__slot__config.html" title="{xran_slot_config\n|+ nSymbolType\l+ reserved\l|}" alt="" coords="389,520,507,612"/>
-</map>

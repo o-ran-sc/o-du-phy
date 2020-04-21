@@ -1,9 +1,0 @@
-<map id="xran_ul_tables.c" name="xran_ul_tables.c">
-<area shape="rect" id="node5" href="$xran__common_8h.html" title="XRAN layer common functionality for both lls&#45;CU and RU as well as C&#45;plane and U&#45;plane. " alt="" coords="1037,80,1152,107"/>
-<area shape="rect" id="node12" href="$xran__fh__o__du_8h.html" title="This file provides public interface to xRAN Front Haul layer implementation as defined in the ORAN&#45;WG..." alt="" coords="659,229,770,256"/>
-<area shape="rect" id="node22" href="$xran__pkt__up_8h.html" title="Definitions and support functions to process XRAN packet. " alt="" coords="1552,229,1656,256"/>
-<area shape="rect" id="node26" href="$xran__cp__api_8h.html" title="This file provides the definitions for Control Plane Messages APIs. " alt="" coords="903,155,1006,181"/>
-<area shape="rect" id="node23" href="$xran__pkt_8h.html" title="Definitions and support functions to process XRAN packet. " alt="" coords="1508,304,1591,331"/>
-<area shape="rect" id="node27" href="$xran__pkt__cp_8h.html" title="This file provides the definition of Control Plane Messages for XRAN Front Haul layer as defined in X..." alt="" coords="903,229,1007,256"/>
-<area shape="rect" id="node28" href="$xran__transport_8h.html" title="This file provides the definitions for Transport layer (eCPRI) API. " alt="" coords="1411,229,1527,256"/>
-</map>

@@ -1,5 +1,0 @@
-<map id="get_number_of_cases" name="get_number_of_cases">
-<area shape="rect" id="node2" href="$common_8hpp.html#ad8c062e9b24e4b3a8408b23a0d8ab428" title="Read JSON from the given file. " alt="" coords="211,5,345,32"/>
-<area shape="rect" id="node3" href="$classnlohmann_1_1basic__json.html#a0801762a3fe36fe32dca5f16e515478d" title="returns the number of elements " alt="" coords="204,57,352,98"/>
-<area shape="rect" id="node4" href="$structmissing__config__file__exception.html#a70518905d36686ddeeb2eb3b2682f016" title="missing_config_file\l_exception::what" alt="" coords="211,122,345,163"/>
-</map>

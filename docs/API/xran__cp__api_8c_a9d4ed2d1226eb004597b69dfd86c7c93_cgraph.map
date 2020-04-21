@@ -1,8 +1,0 @@
-<map id="xran_parse_section_extension" name="xran_parse_section_extension">
-<area shape="rect" id="node2" href="$xran__cp__api_8c.html#aaa0c6012a36b539f8880c45ac909c331" title="xran_parse_section_ext1" alt="" coords="188,5,355,32"/>
-<area shape="rect" id="node5" href="$xran__cp__api_8c.html#af3d96c5ccff84bf6a444f260f58a49f2" title="xran_parse_section_ext2" alt="" coords="188,56,355,83"/>
-<area shape="rect" id="node6" href="$xran__cp__api_8c.html#ad4a3ae88412a933d953fc0f8ae9bb352" title="xran_parse_section_ext4" alt="" coords="188,107,355,133"/>
-<area shape="rect" id="node7" href="$xran__cp__api_8c.html#af03e99a3b1e9498ca15458e0440c12a1" title="xran_parse_section_ext5" alt="" coords="188,157,355,184"/>
-<area shape="rect" id="node3" href="$xran__common_8h.html#ad749041bcf50616bac96e4d13b661272" title="Get the configuration of the total number of beamforming weights on RU. " alt="" coords="403,5,601,32"/>
-<area shape="rect" id="node4" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="649,5,775,32"/>
-</map>

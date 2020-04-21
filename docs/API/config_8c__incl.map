@@ -1,8 +1,0 @@
-<map id="config.c" name="config.c">
-<area shape="rect" id="node3" href="$config_8h.html" title="config.h" alt="" coords="1005,155,1073,181"/>
-<area shape="rect" id="node20" href="$common_8h.html" title="common.h" alt="" coords="1317,80,1399,107"/>
-<area shape="rect" id="node25" href="$debug_8h.html" title="debug.h" alt="" coords="1077,80,1145,107"/>
-<area shape="rect" id="node6" href="$xran__fh__o__du_8h.html" title="This file provides public interface to xRAN Front Haul layer implementation as defined in the ORAN&#45;WG..." alt="" coords="748,229,859,256"/>
-<area shape="rect" id="node21" href="$xran__pkt__up_8h.html" title="Definitions and support functions to process XRAN packet. " alt="" coords="1351,155,1455,181"/>
-<area shape="rect" id="node22" href="$xran__pkt_8h.html" title="Definitions and support functions to process XRAN packet. " alt="" coords="1421,229,1503,256"/>
-</map>

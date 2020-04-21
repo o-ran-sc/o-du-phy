@@ -1,5 +1,0 @@
-<map id="find" name="find">
-<area shape="rect" id="node2" href="$classnlohmann_1_1basic__json.html#a21e205d45fed194dec979bc1ea5388ac" title="read&#45;only access specified object element " alt="" coords="96,5,173,32"/>
-<area shape="rect" id="node3" href="$classnlohmann_1_1basic__json.html#a614dd03ce3e99e79c52bedcf55945645" title="applies a JSON patch " alt="" coords="107,56,162,83"/>
-<area shape="rect" id="node4" href="$classnlohmann_1_1basic__json.html#a2fb1e92221746ff32c5f5c8ff1e7a7f7" title="creates a diff as a JSON patch " alt="" coords="115,107,155,133"/>
-</map>

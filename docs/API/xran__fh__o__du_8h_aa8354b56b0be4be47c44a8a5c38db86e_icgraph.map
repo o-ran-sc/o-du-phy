@@ -1,7 +1,0 @@
-<map id="xran_reg_physide_cb" name="xran_reg_physide_cb">
-<area shape="rect" id="node2" href="$init__sys__functional_8cc.html#a74a4819defc7dbd1cfa7e793456be743" title="TEST_P" alt="" coords="235,5,307,32"/>
-<area shape="rect" id="node3" href="$classxran_lib_wraper.html#ad93226058ef4fd59bd7d0cd55701b752" title="xranLibWraper::Open" alt="" coords="199,56,344,83"/>
-<area shape="rect" id="node4" href="$chain__tests_8cc.html#a6c5f599800ca755367ad7df4da60eb86" title="TEST_P" alt="" coords="436,31,508,57"/>
-<area shape="rect" id="node6" href="$class_init___sys___check.html#a3a1707f6479611fdc609a3eb8a0cef1b" title="Init_Sys_Check::SetUp" alt="" coords="392,81,552,108"/>
-<area shape="rect" id="node5" href="$chain__tests_8cc.html#a9dc1e3a47b655cad97eed3db3cdebd92" title="TEST_P" alt="" coords="600,31,672,57"/>
-</map>

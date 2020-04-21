@@ -1,8 +1,0 @@
-<map id="TEST_P" name="TEST_P">
-<area shape="rect" id="node2" href="$namespace_block_float_compander.html#a45cc83687ca392534168cb8f4d64182f" title="Reference compression. " alt="" coords="125,5,317,47"/>
-<area shape="rect" id="node3" href="$namespace_block_float_compander.html#a5f4776cd07aac0ae2d9dbd02aaba3435" title="Reference expansion. " alt="" coords="133,71,309,112"/>
-<area shape="rect" id="node4" href="$namespace_block_float_compander.html#a5b3ddd524752c8f556bc4c654e392321" title="8 bit compression " alt="" coords="145,137,297,193"/>
-<area shape="rect" id="node6" href="$namespace_block_float_compander.html#ae4ad42b117d59e2e7ff8fad2d5da506e" title="8 bit expansion " alt="" coords="143,217,300,273"/>
-<area shape="rect" id="node7" href="$compander__functional_8cc.html#a1b6359dcad38667a5625c184cf490bef" title="checkData" alt="" coords="179,297,264,323"/>
-<area shape="rect" id="node5" href="$xran__compression_8cpp.html#a74512492194fcab6a55f769e02aa37b4" title="Compute exponent value for a set of RB from the maximum absolute value. " alt="" coords="365,151,492,178"/>
-</map>

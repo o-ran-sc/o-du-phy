@@ -1,8 +1,0 @@
-<map id="xran_common.h" name="xran_common.h">
-<area shape="rect" id="node9" href="$xran__fh__o__du_8h.html" title="This file provides public interface to xRAN Front Haul layer implementation as defined in the ORAN&#45;WG..." alt="" coords="632,155,743,181"/>
-<area shape="rect" id="node21" href="$xran__pkt__up_8h.html" title="Definitions and support functions to process XRAN packet. " alt="" coords="1547,155,1651,181"/>
-<area shape="rect" id="node25" href="$xran__cp__api_8h.html" title="This file provides the definitions for Control Plane Messages APIs. " alt="" coords="1156,80,1259,107"/>
-<area shape="rect" id="node22" href="$xran__pkt_8h.html" title="Definitions and support functions to process XRAN packet. " alt="" coords="1558,229,1641,256"/>
-<area shape="rect" id="node26" href="$xran__pkt__cp_8h.html" title="This file provides the definition of Control Plane Messages for XRAN Front Haul layer as defined in X..." alt="" coords="1419,155,1523,181"/>
-<area shape="rect" id="node27" href="$xran__transport_8h.html" title="This file provides the definitions for Transport layer (eCPRI) API. " alt="" coords="1279,155,1395,181"/>
-</map>

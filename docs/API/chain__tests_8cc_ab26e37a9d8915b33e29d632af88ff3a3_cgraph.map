@@ -1,7 +1,0 @@
-<map id="tx_cp_ul_cb" name="tx_cp_ul_cb">
-<area shape="rect" id="node2" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="160,5,285,32"/>
-<area shape="rect" id="node3" href="$xran__main_8c.html#ae3663b3f472b4003acc7f91e61669735" title="Get configuration of O&#45;RU (Cat A or Cat B) " alt="" coords="149,56,296,83"/>
-<area shape="rect" id="node4" href="$xran__main_8c.html#a3fc01469558ddf728239d59038ac5803" title="Get the configuration of the number of antenna for UL. " alt="" coords="152,107,293,133"/>
-<area shape="rect" id="node5" href="$xran__main_8c.html#aaf7b03037e0687819501554a42fb3c52" title="Get the configuration of the number of antenna. " alt="" coords="145,157,300,184"/>
-<area shape="rect" id="node6" href="$xran__main_8c.html#ad51ee5b7f1f27c770f1eb658b5ee523e" title="Get the configuration of the number of component carriers. " alt="" coords="160,208,285,235"/>
-</map>

@@ -1,8 +1,0 @@
-<map id="calculate_statistics" name="calculate_statistics">
-<area shape="rect" id="node2" href="$structreading__input__file__exception.html#a70518905d36686ddeeb2eb3b2682f016" title="reading_input_file\l_exception::what" alt="" coords="188,71,311,112"/>
-<area shape="rect" id="node5" href="$common_8hpp.html#af69d779517f2bdee3aba95bc38022074" title="Run the given function and return the mean run time and stddev. " alt="" coords="194,137,305,163"/>
-<area shape="rect" id="node3" href="$class_kernel_tests.html#a6dc1bccfd02f1a94b5c799c15cd98135" title="Load selected data from a JSON object. get_input_parameter loads data from parameters section of the ..." alt="" coords="371,5,525,47"/>
-<area shape="rect" id="node4" href="$class_kernel_tests.html#adfbe724335d86320c9839c426c4d5715" title="KernelTests::get_reference\l_parameter" alt="" coords="359,71,537,112"/>
-<area shape="rect" id="node6" href="$class_kernel_tests.html#a3cf2e25a99be565a4ab570737cfeac41" title="Run performance test case for a given function. " alt="" coords="362,137,534,163"/>
-<area shape="rect" id="node7" href="$c__plane__tests_8cc.html#a21d05f2c6607fc534e67ed32883de81f" title="TEST_P" alt="" coords="585,137,657,163"/>
-</map>

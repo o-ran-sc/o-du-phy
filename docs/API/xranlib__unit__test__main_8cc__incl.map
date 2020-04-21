@@ -1,9 +1,0 @@
-<map id="xranlib_unit_test_main.cc" name="xranlib_unit_test_main.cc">
-<area shape="rect" id="node5" href="$common_8hpp.html" title="common.hpp" alt="" coords="1907,155,2005,181"/>
-<area shape="rect" id="node44" href="$xran__lib__wrap_8hpp.html" title="xran_lib_wrap.hpp" alt="" coords="2255,80,2382,107"/>
-<area shape="rect" id="node15" href="$common__typedef__xran_8h.html" title="This header file defines those data type both used by eNB and UE. " alt="" coords="2433,229,2599,256"/>
-<area shape="rect" id="node19" href="$json_8hpp.html" title="json.hpp" alt="" coords="1357,229,1427,256"/>
-<area shape="rect" id="node45" href="$xran__fh__o__du_8h.html" title="This file provides public interface to xRAN Front Haul layer implementation as defined in the ORAN&#45;WG..." alt="" coords="2727,229,2838,256"/>
-<area shape="rect" id="node49" href="$xran__common_8h.html" title="XRAN layer common functionality for both lls&#45;CU and RU as well as C&#45;plane and U&#45;plane. " alt="" coords="2631,155,2745,181"/>
-<area shape="rect" id="node50" href="$xran__frame__struct_8h.html" title="Header file for function to work with 5G NR frame structure and related routines. ..." alt="" coords="2820,155,2959,181"/>
-</map>

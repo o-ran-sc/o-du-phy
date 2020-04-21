@@ -1,5 +1,0 @@
-<map id="xran_extract_iq_samples" name="xran_extract_iq_samples">
-<area shape="rect" id="node2" href="$xran__transport_8h.html#ab08a85b6527f45a9ba22d25061a96a3c" title="Decompose ecpriRtcid/ecpriPcid. " alt="" coords="220,5,365,32"/>
-<area shape="rect" id="node3" href="$xran__common_8h.html#a761e3947dcc547008a12a9cca10b1ea0" title="Get the configuration of eAxC ID. " alt="" coords="413,5,557,32"/>
-<area shape="rect" id="node4" href="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21" title="xran_dev_get_ctx" alt="" coords="605,5,731,32"/>
-</map>

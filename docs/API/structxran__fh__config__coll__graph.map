@@ -1,7 +1,0 @@
-<map id="xran_fh_config" name="xran_fh_config">
-<area shape="rect" id="node2" href="$structxran__prach__config.html" title="{xran_prach_config\n|+ nPrachConfIdx\l+ nPrachSubcSpacing\l+ nPrachZeroCorrConf\l+ nPrachRestrictSet\l+ nPrachRootSeqIdx\l+ nPrachFreqStart\l+ nPrachFreqOffset\l+ nPrachFilterIdx\l|}" alt="" coords="5,160,160,340"/>
-<area shape="rect" id="node3" href="$structxran__frame__config.html" title="{xran_frame_config\n|+ nFrameDuplexType\l+ nNumerology\l+ nTddPeriod\l|}" alt="" coords="185,197,333,303"/>
-<area shape="rect" id="node4" href="$structxran__slot__config.html" title="{xran_slot_config\n|+ nSymbolType\l+ reserved\l|}" alt="" coords="200,5,317,97"/>
-<area shape="rect" id="node5" href="$structxran__ru__config.html" title="{xran_ru_config\n|+ xranCat\l+ iqWidth\l+ compMeth\l+ fftSize\l+ byteOrder\l+ iqOrder\l+ xran_max_frame\l|}" alt="" coords="357,167,488,333"/>
-<area shape="rect" id="node6" href="$structxran__srs__config.html" title="{xran_srs_config\n|+ symbMask\l+ eAxC_offset\l|}" alt="" coords="512,204,627,296"/>
-</map>
