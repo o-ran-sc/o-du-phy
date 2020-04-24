@@ -1,0 +1,8 @@
+digraph "Graphical Class Hierarchy"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node0 [label="xRANPrachPreambleLRAStruct",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structx_r_a_n_prach_preamble_l_r_a_struct.html",tooltip=" "];
+}

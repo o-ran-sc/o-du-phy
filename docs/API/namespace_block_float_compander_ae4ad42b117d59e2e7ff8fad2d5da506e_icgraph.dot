@@ -1,0 +1,14 @@
+digraph "BlockFloatExpand_8b_AVX512"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="RL";
+  Node1 [label="BlockFloatExpand_8b\l_AVX512",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip="8 bit expansion"];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="TEST_P",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$compander__functional_8cc.html#af62cc2e23934ba7efa6a132a26a339fe",tooltip=" "];
+  Node1 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="xranlib_decompress\l_avx512",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__compression_8cpp.html#a2bd6ebeefb6ca9674598d443e697918c",tooltip=" "];
+  Node3 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="TEST_P",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$compander__functional_8cc.html#a45d64e11a1ecc040577b7f22b27dde51",tooltip=" "];
+}

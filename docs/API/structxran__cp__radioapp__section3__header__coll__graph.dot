@@ -1,0 +1,13 @@
+digraph "xran_cp_radioapp_section3_header"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_cp_radioapp_section3\l_header\n|+ timeOffset\l+ cpLength\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +frameStructure" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{xran_cp_radioapp_frameStructure\n|+ uScs\l+ fftSize\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__cp__radioapp__frame_structure.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +cmnhdr" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{xran_cp_radioapp_common\l_header\n|+ startSymbolId\l+ slotId\l+ subframeId\l+ frameId\l+ filterIndex\l+ payloadVer\l+ dataDirection\l+ numOfSections\l+ sectionType\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__cp__radioapp__common__header.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +udComp" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{xran_radioapp_udComp\l_header\n|+ udCompMeth\l+ udIqWidth\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__radioapp__ud_comp__header.html",tooltip=" "];
+}

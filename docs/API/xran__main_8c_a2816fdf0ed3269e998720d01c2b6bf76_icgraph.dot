@@ -1,0 +1,14 @@
+digraph "xran_get_slot_idx"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="RL";
+  Node1 [label="xran_get_slot_idx",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="rx_ul_deadline_full_cb",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__main_8c.html#a63aa00dad3b771f4db5df8ca8ac68323",tooltip=" "];
+  Node1 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="rx_ul_deadline_half_cb",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__main_8c.html#ad4544f4d6f4713c010f083bce5758d14",tooltip=" "];
+  Node1 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="TEST_P",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$init__sys__functional_8cc.html#a593270c79e8ce298caeb715272c65173",tooltip=" "];
+}

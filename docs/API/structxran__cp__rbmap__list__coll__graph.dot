@@ -1,0 +1,7 @@
+digraph "xran_cp_rbmap_list"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_cp_rbmap_list\n|+ grp_id\l+ sym_start\l+ sym_num\l+ rb_start\l+ rb_num\l+ iq_buff_offset\l+ iq_buff_len\l+ beam_id\l+ iqWidth\l+ comp_meth\l+ pad0\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

@@ -1,0 +1,15 @@
+digraph "xran_prb_elm"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_prb_elm\n|+ nRBStart\l+ nRBSize\l+ nStartSymb\l+ numSymb\l+ nBeamIndex\l+ bf_weight_update\l+ compMethod\l+ iqWidth\l+ BeamFormingType\l+ @4\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +bf_weight" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{xran_cp_bf_weight\n|+ nAntElmTRx\l+ p_ext_section\l+ ext_section_sz\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__cp__bf__weight.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +bf_attribute" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{xran_cp_bf_attribute\n|+ weight\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__cp__bf__attribute.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +p_sec_desc" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{xran_section_desc\n|+ section_id\l+ iq_buffer_offset\l+ iq_buffer_len\l+ pData\l+ pCtrl\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__section__desc.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +bf_precoding" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{xran_cp_bf_precoding\n|+ weight\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__cp__bf__precoding.html",tooltip=" "];
+}

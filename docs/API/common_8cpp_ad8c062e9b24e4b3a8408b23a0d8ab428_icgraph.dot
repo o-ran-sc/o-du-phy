@@ -1,0 +1,14 @@
+digraph "read_json_from_file"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="RL";
+  Node1 [label="read_json_from_file",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip="Read JSON from the given file."];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="KernelTests::get_number\l_of_cases",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$class_kernel_tests.html#a6157ff083be863bba0a7804cd1788d96",tooltip=" "];
+  Node1 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="KernelTests::SetUpTestCase",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$class_kernel_tests.html#aad8181b222f27240e9f07dcb6e620fa3",tooltip=" "];
+  Node1 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="xranLibWraper::xranLibWraper",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#a2e64fc338fcfaac25af91aae564777fa",tooltip=" "];
+}

@@ -1,0 +1,16 @@
+digraph "performance"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="performance",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip="Run performance test case for a given function."];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="bind_to_cpu",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$common_8hpp.html#ae39390f41ba978a1f0d79691436c074a",tooltip="Attach current process to the selected core."];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="get_case_name",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$class_kernel_tests.html#a5a1ec6ee393f8538815bc0a82eac2e88",tooltip="Get name of the test case from JSON file."];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="run_benchmark",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$common_8hpp.html#af69d779517f2bdee3aba95bc38022074",tooltip="Run the given function and return the mean run time and stddev."];
+  Node4 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="calculate_statistics",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$common_8hpp.html#a8265b710246f9019ff14556adf5eb35a",tooltip="Calculate the mean and variance from the result of the run_benchmark."];
+}

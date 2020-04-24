@@ -1,0 +1,17 @@
+digraph "xran_up_pkt_hdr"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_up_pkt_hdr\n||}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +data_sec_hdr" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{data_section_hdr\n|+ all_bits\l+ num_prbu\l+ start_prbu\l+ sym_inc\l+ rb\l+ sect_id\l+ fields\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structdata__section__hdr.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +app_hdr" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{radio_app_common_hdr\n|+ filter_id\l+ payl_ver\l+ data_direction\l+ frame_id\l+ value\l+ symb_id\l+ slot_id\l+ subframe_id\l+ sf_slot_sym\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structradio__app__common__hdr.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +ecpri_hdr" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{xran_ecpri_hdr\n|+ ecpri_xtc_id\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__ecpri__hdr.html",tooltip=" "];
+  Node5 -> Node4 [color="grey25",fontsize="10",style="solid",label=" +ecpri_seq_id" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{ecpri_seq_id\n|+ seq_id\l+ sub_seq_id\l+ e_bit\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structecpri__seq__id.html",tooltip=" "];
+  Node6 -> Node4 [color="grey25",fontsize="10",style="solid",label=" +cmnhdr" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node6 [label="{xran_ecpri_cmn_hdr\n|+ ecpri_concat\l+ ecpri_resv\l+ ecpri_ver\l+ ecpri_mesg_type\l+ ecpri_payl_size\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__ecpri__cmn__hdr.html",tooltip=" "];
+}

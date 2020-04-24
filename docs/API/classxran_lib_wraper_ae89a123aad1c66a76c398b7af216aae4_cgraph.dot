@@ -1,0 +1,14 @@
+digraph "Cleanup"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="Cleanup",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="get_num_cc",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#aeeef9211b4ee7d22934db64125b538dd",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="get_num_eaxc",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#aef8068804ca7393d92edd9ed22d90070",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="get_rucategory",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#a25afbf449e11f9e290e0fdbef77702c2",tooltip=" "];
+}

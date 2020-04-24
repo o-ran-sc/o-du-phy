@@ -1,0 +1,12 @@
+digraph "sys_save_buf_to_file"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="sys_save_buf_to_file",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="fclose",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$gen__test_8m.html#a14e2cbac46a5d611bf112b1f4beb7021",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="fwrite",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$gen__test_8m.html#a8e50d67d4be6daacbf6522b5950a6a4d",tooltip=" "];
+}

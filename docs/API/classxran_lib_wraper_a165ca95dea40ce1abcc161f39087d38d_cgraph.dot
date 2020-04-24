@@ -1,0 +1,14 @@
+digraph "apply_cpenable"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="apply_cpenable",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="is_running",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#a61da580fc69a74f3ef17956ba5fd88a0",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="xran_get_if_state",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__fh__o__du_8h.html#a937105f52446cfcb951e43e1dc3c4d8b",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="xran_dev_get_ctx",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__common_8h.html#aa09e72e94d2a1d891e86f4c09b0f8b21",tooltip=" "];
+}

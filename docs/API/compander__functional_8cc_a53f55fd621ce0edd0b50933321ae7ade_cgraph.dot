@@ -1,0 +1,24 @@
+digraph "TEST_P"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="TEST_P",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="BlockFloatCompander\l::BlockFloatCompress\l_12b_AVX512",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespace_block_float_compander.html#a2a8db4c5039bc3d5237b31ca2a129815",tooltip="12 bit compression"];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="computeExponent",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__compression_8cpp.html#a74512492194fcab6a55f769e02aa37b4",tooltip="Compute exponent value for a set of RB from the maximum absolute value."];
+  Node2 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="networkBytePack12b",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__compression_8cpp.html#aafe7eae735c4ebf8f028e7baa6783c22",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="BlockFloatCompander\l::BlockFloatCompress_Basic",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespace_block_float_compander.html#a45cc83687ca392534168cb8f4d64182f",tooltip="Reference compression."];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="BlockFloatCompander\l::BlockFloatExpand_12b\l_AVX512",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespace_block_float_compander.html#a65b09b78fac0c8dcfc9edd5091b728dd",tooltip="12 bit expansion"];
+  Node6 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="networkByteUnpack12b",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__compression_8cpp.html#a91aa9bdb6901711b43d848a4a5a94d2f",tooltip=" "];
+  Node1 -> Node8 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="BlockFloatCompander\l::BlockFloatExpand_Basic",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespace_block_float_compander.html#a5f4776cd07aac0ae2d9dbd02aaba3435",tooltip="Reference expansion."];
+  Node1 -> Node9 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node9 [label="checkData",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$compander__functional_8cc.html#a1b6359dcad38667a5625c184cf490bef",tooltip=" "];
+}

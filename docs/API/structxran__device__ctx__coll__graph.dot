@@ -1,0 +1,40 @@
+digraph "xran_device_ctx"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_device_ctx\n|+ sector_id\l+ xran_port_id\l+ enablePrach\l+ enableCP\l+ DynamicSectionEna\l+ offset_sec\l+ offset_nsec\l+ enableSrs\l+ pCallback\l+ pCallbackTag\land 23 more...\l|+ LIST_HEAD()\l}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +sFrontHaulTxBbuIoBufCtrl\n+sFHPrachRxBbuIoBufCtrl\n+sFHSrsRxBbuIoBufCtrl\n+sFrontHaulRxBbuIoBufCtrl\n+sFrontHaulTxPrbMapBbuIoBufCtrl\n+sFrontHaulRxPrbMapBbuIoBufCtrl" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{BbuIoBufCtrlStruct\n|+ bValid\l+ nSegToBeGen\l+ nSegGenerated\l+ nSegTransferred\l+ pData\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$struct_bbu_io_buf_ctrl_struct.html",tooltip=" "];
+  Node3 -> Node2 [color="grey25",fontsize="10",style="solid",label=" +sBufferList" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{xran_buffer_list\n|+ nNumBuffers\l+ pUserData\l+ pPrivateMetaData\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__buffer__list.html",tooltip=" "];
+  Node4 -> Node3 [color="grey25",fontsize="10",style="solid",label=" +pBuffers" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{xran_flat_buffer\n|+ nElementLenInBytes\l+ nNumberOfElements\l+ nOffsetInBytes\l+ nIsPhyAddr\l+ pData\l+ pCtrl\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__flat__buffer.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +eAxc_id_cfg" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{xran_eaxcid_config\n|+ mask_cuPortId\l+ mask_bandSectorId\l+ mask_ccId\l+ mask_ruPortId\l+ bit_cuPortId\l+ bit_bandSectorId\l+ bit_ccId\l+ bit_ruPortId\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__eaxcid__config.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +PrachCPConfig" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node6 [label="{xran_prach_cp_config\n|+ filterIdx\l+ startSymId\l+ startPrbc\l+ numPrbc\l+ numSymbol\l+ timeOffset\l+ freqOffset\l+ nrofPrachInSlot\l+ occassionsInPrachSlot\l+ x\l+ y\l+ isPRACHslot\l+ eAxC_offset\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__prach__cp__config.html",tooltip=" "];
+  Node7 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +fh_counters" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node7 [label="{xran_common_counters\n|+ Rx_on_time\l+ Rx_early\l+ Rx_late\l+ Rx_corrupt\l+ Rx_pkt_dupl\l+ Total_msgs_rcvd\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__common__counters.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +sFHPrachRxBuffers\n+sFrontHaulTxPrbMapBuffers\n+sFrontHaulRxPrbMapBuffers\n+sFHSrsRxBuffers\n+sFrontHaulTxBuffers\n+sFrontHaulRxBuffers" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node8 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +tx_mbufs" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node8 [label="{mbuf_table\n|+ len\l+ m_table\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmbuf__table.html",tooltip=" "];
+  Node9 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +fh_init" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node9 [label="{xran_fh_init\n|+ dpdkBasebandFecMode\l+ dpdkBasebandDevice\l+ filePrefix\l+ mtu\l+ p_o_du_addr\l+ p_o_ru_addr\l+ totalBfWeights\l+ Tadv_cp_dl\l+ T2a_min_cp_dl\l+ T2a_max_cp_dl\land 24 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__fh__init.html",tooltip=" "];
+  Node5 -> Node9 [color="grey25",fontsize="10",style="solid",label=" +eAxCId_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node10 -> Node9 [color="grey25",fontsize="10",style="solid",label=" +io_cfg" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node10 [label="{xran_io_cfg\n|+ id\l+ dpdk_dev\l+ bbdev_dev\l+ bbdev_mode\l+ core\l+ system_core\l+ pkt_proc_core\l+ pkt_aux_core\l+ timing_core\l+ port\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__io__cfg.html",tooltip=" "];
+  Node11 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +srs_cfg" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node11 [label="{xran_srs_config\n|+ symbMask\l+ eAxC_offset\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__srs__config.html",tooltip=" "];
+  Node12 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +fh_cfg" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node12 [label="{xran_fh_config\n|+ dpdk_port\l+ sector_id\l+ nCC\l+ neAxc\l+ neAxcUl\l+ nAntElmTRx\l+ nDLFftSize\l+ nULFftSize\l+ nDLRBs\l+ nULRBs\land 9 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__fh__config.html",tooltip=" "];
+  Node13 -> Node12 [color="grey25",fontsize="10",style="solid",label=" +prach_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node13 [label="{xran_prach_config\n|+ nPrachConfIdx\l+ nPrachSubcSpacing\l+ nPrachZeroCorrConf\l+ nPrachRestrictSet\l+ nPrachRootSeqIdx\l+ nPrachFreqStart\l+ nPrachFreqOffset\l+ nPrachFilterIdx\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__prach__config.html",tooltip=" "];
+  Node14 -> Node12 [color="grey25",fontsize="10",style="solid",label=" +frame_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node14 [label="{xran_frame_config\n|+ nFrameDuplexType\l+ nNumerology\l+ nTddPeriod\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__frame__config.html",tooltip=" "];
+  Node15 -> Node14 [color="grey25",fontsize="10",style="solid",label=" +sSlotConfig" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node15 [label="{xran_slot_config\n|+ nSymbolType\l+ reserved\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__slot__config.html",tooltip=" "];
+  Node16 -> Node12 [color="grey25",fontsize="10",style="solid",label=" +ru_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node16 [label="{xran_ru_config\n|+ xranCat\l+ iqWidth\l+ compMeth\l+ fftSize\l+ byteOrder\l+ iqOrder\l+ xran_max_frame\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__ru__config.html",tooltip=" "];
+  Node11 -> Node12 [color="grey25",fontsize="10",style="solid",label=" +srs_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+}

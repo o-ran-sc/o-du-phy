@@ -1,0 +1,24 @@
+digraph "xranlib_decompress_avx512"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="xranlib_decompress\l_avx512",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="BlockFloatCompander\l::BlockFloatExpand_10b\l_AVX512",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespace_block_float_compander.html#a8fae7506e2b9c9f9365b306375ab6eff",tooltip="10 bit expansion"];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="networkByteUnpack10b",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__compression_8cpp.html#a27043376e22397cc933d3c4d9450677b",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="BlockFloatCompander\l::BlockFloatExpand_12b\l_AVX512",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespace_block_float_compander.html#a65b09b78fac0c8dcfc9edd5091b728dd",tooltip="12 bit expansion"];
+  Node4 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="networkByteUnpack12b",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__compression_8cpp.html#a91aa9bdb6901711b43d848a4a5a94d2f",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="BlockFloatCompander\l::BlockFloatExpand_8b\l_AVX512",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespace_block_float_compander.html#ae4ad42b117d59e2e7ff8fad2d5da506e",tooltip="8 bit expansion"];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="BlockFloatCompander\l::BlockFloatExpand_9b\l_AVX512",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespace_block_float_compander.html#a32917a78ac1596d9aa95e4089ec88ba9",tooltip="9 bit expansion"];
+  Node7 -> Node8 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="networkByteUnpack9b",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__compression_8cpp.html#afb29866152e84d42cd2e3bc116454493",tooltip=" "];
+  Node1 -> Node9 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node9 [label="BlockFloatCompander\l::BlockFloatExpand_Basic",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespace_block_float_compander.html#a5f4776cd07aac0ae2d9dbd02aaba3435",tooltip="Reference expansion."];
+}

@@ -1,0 +1,14 @@
+digraph "BlockFloatCompress_12b_AVX512"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="RL";
+  Node1 [label="BlockFloatCompress\l_12b_AVX512",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip="12 bit compression"];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="TEST_P",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$compander__functional_8cc.html#a53f55fd621ce0edd0b50933321ae7ade",tooltip=" "];
+  Node1 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="xranlib_compress_avx512",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__compression_8cpp.html#a0651de68e87558106615163f96b3e599",tooltip=" "];
+  Node3 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="TEST_P",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$compander__functional_8cc.html#a45d64e11a1ecc040577b7f22b27dde51",tooltip=" "];
+}

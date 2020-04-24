@@ -1,0 +1,11 @@
+digraph "BbuIoBufCtrlStruct"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{BbuIoBufCtrlStruct\n|+ bValid\l+ nSegToBeGen\l+ nSegGenerated\l+ nSegTransferred\l+ pData\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +sBufferList" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{xran_buffer_list\n|+ nNumBuffers\l+ pUserData\l+ pPrivateMetaData\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__buffer__list.html",tooltip=" "];
+  Node3 -> Node2 [color="grey25",fontsize="10",style="solid",label=" +pBuffers" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{xran_flat_buffer\n|+ nElementLenInBytes\l+ nNumberOfElements\l+ nOffsetInBytes\l+ nIsPhyAddr\l+ pData\l+ pCtrl\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__flat__buffer.html",tooltip=" "];
+}

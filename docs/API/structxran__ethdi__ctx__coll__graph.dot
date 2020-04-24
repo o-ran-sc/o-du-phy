@@ -1,0 +1,9 @@
+digraph "xran_ethdi_ctx"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_ethdi_ctx\n|+ entities\l+ ping_state\l+ ping_times\l+ known_peers\l+ tx_ring\l+ rx_ring\l+ pkt_dump_ring\l+ timer_autodetect\l+ timer_ping\l+ timer_sync\l+ timer_tx\l+ busy_poll_till\l+ pkt_stats\l+ cp_vtag\l+ up_vtag\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +io_cfg" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{xran_io_loop_cfg\n|+ id\l+ dpdk_dev\l+ bbdev_dev\l+ bbdev_mode\l+ core\l+ system_core\l+ pkt_proc_core\l+ pkt_aux_core\l+ timing_core\l+ port\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__io__loop__cfg.html",tooltip=" "];
+}

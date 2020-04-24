@@ -1,0 +1,7 @@
+digraph "xran_prach_cp_config"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_prach_cp_config\n|+ filterIdx\l+ startSymId\l+ startPrbc\l+ numPrbc\l+ numSymbol\l+ timeOffset\l+ freqOffset\l+ nrofPrachInSlot\l+ occassionsInPrachSlot\l+ x\l+ y\l+ isPRACHslot\l+ eAxC_offset\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

@@ -1,0 +1,7 @@
+digraph "basic_json&lt; ObjectType, ArrayType, StringType, BooleanType, NumberIntegerType, NumberUnsignedType, NumberFloatType, AllocatorType, JSONSerializer &gt;::lexer::strtonum"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{basic_json\< ObjectType,\l ArrayType, StringType,\l BooleanType, NumberIntegerType,\l NumberUnsignedType, NumberFloatType,\l AllocatorType, JSONSerializer \>\l::lexer::strtonum\n||+ strtonum()\l+ to()\l}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip="parse string into a built-in arithmetic type as if the current locale is POSIX."];
+}

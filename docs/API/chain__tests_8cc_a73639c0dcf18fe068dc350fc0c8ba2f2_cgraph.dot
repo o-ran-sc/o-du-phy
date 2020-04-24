@@ -1,0 +1,24 @@
+digraph "xran_ut_tx_up_dl"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="xran_ut_tx_up_dl",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="xranLibWraper::get\l_timer_ctx",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#a1ffad42e0cccdbc800d3dbef66f52d45",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="xranLibWraper::update\l_symbol_index",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#ac4ce5a18c687ee515676e035359a1e89",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="xranLibWraper::update_tti",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#a3783fbb2a26b8a0530c489850a905a38",tooltip=" "];
+  Node4 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="tti_ota_cb",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__lib__wrap_8hpp.html#a9c3700d61ba446fa9b05cca2ca9018ab",tooltip=" "];
+  Node5 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="xran_dev_get_ctx",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21",tooltip=" "];
+  Node5 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="xran_fs_get_max_slot",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__frame__struct_8c.html#a7f5a87395d3930f222e58976960c99e2",tooltip=" "];
+  Node1 -> Node8 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="xran_process_tx_sym",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$chain__tests_8cc.html#a5b3b3bf6af57ee77a2bb1701ad24c7db",tooltip=" "];
+  Node8 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

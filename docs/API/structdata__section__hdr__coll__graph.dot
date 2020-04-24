@@ -1,0 +1,7 @@
+digraph "data_section_hdr"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{data_section_hdr\n|+ all_bits\l+ num_prbu\l+ start_prbu\l+ sym_inc\l+ rb\l+ sect_id\l+ fields\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

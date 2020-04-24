@@ -1,0 +1,20 @@
+digraph "Init"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="Init",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="get_num_antelmtrx",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#adde1d671cf6532a577f13d85875ee3b4",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="get_num_cc",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#aeeef9211b4ee7d22934db64125b538dd",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="get_num_dlrbs",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#ad2b06001d76c9a773c242b28fc7c92f4",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="get_num_eaxc",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#aef8068804ca7393d92edd9ed22d90070",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="get_num_ulrbs",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#a967a0c58430104684cf2f9b1fdb444da",tooltip=" "];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="get_rucategory",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#a25afbf449e11f9e290e0fdbef77702c2",tooltip=" "];
+}

@@ -1,0 +1,11 @@
+digraph "xran_fh_init"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_fh_init\n|+ dpdkBasebandFecMode\l+ dpdkBasebandDevice\l+ filePrefix\l+ mtu\l+ p_o_du_addr\l+ p_o_ru_addr\l+ totalBfWeights\l+ Tadv_cp_dl\l+ T2a_min_cp_dl\l+ T2a_max_cp_dl\land 24 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +eAxCId_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{xran_eaxcid_config\n|+ mask_cuPortId\l+ mask_bandSectorId\l+ mask_ccId\l+ mask_ruPortId\l+ bit_cuPortId\l+ bit_bandSectorId\l+ bit_ccId\l+ bit_ruPortId\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__eaxcid__config.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +io_cfg" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{xran_io_cfg\n|+ id\l+ dpdk_dev\l+ bbdev_dev\l+ bbdev_mode\l+ core\l+ system_core\l+ pkt_proc_core\l+ pkt_aux_core\l+ timing_core\l+ port\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__io__cfg.html",tooltip=" "];
+}

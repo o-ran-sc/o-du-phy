@@ -1,0 +1,8 @@
+digraph "Graphical Class Hierarchy"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node0 [label="basic_json\< ObjectType,\l ArrayType, StringType,\l BooleanType, NumberIntegerType,\l NumberUnsignedType, NumberFloatType,\l AllocatorType, JSONSerializer \>\l::json_reverse_iterator\< Base \>",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classnlohmann_1_1basic__json_1_1json__reverse__iterator.html",tooltip="a template for a reverse iterator class"];
+}

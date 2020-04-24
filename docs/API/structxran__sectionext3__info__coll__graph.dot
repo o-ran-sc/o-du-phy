@@ -1,0 +1,7 @@
+digraph "xran_sectionext3_info"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_sectionext3_info\n|+ codebookIdx\l+ layerId\l+ numLayers\l+ txScheme\l+ crsReMask\l+ crsShift\l+ crsSymNum\l+ beamIdAP1\l+ beamIdAP2\l+ beamIdAP3\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

@@ -1,0 +1,16 @@
+digraph "SetUpTestCase"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="SetUpTestCase",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="read_json_from_file",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$common_8hpp.html#ad8c062e9b24e4b3a8408b23a0d8ab428",tooltip="Read JSON from the given file."];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="tsc_recovery",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$common_8hpp.html#a56c41cbb9de4bce25da45ecd74b46a81",tooltip="Measure the TSC on the machine."];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="tsc_tick",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$common_8cpp.html#a0ab5719a5f67d4d52057b2c4550fe930",tooltip="Return the current value of the TSC."];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="missing_config_file\l_exception::what",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmissing__config__file__exception.html#a70518905d36686ddeeb2eb3b2682f016",tooltip=" "];
+}

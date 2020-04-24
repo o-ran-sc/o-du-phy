@@ -1,0 +1,8 @@
+digraph "Graphical Class Hierarchy"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node0 [label="xranlib_decompress\l_request",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxranlib__decompress__request.html",tooltip="Request structure containing pointer to data and its length."];
+}

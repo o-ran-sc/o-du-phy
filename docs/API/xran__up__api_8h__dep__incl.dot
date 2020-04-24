@@ -1,0 +1,19 @@
+digraph "xran_up_api.h"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="xran_up_api.h",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip="This file provides the definitions for User Plane Messages APIs."];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="common.c",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$common_8c.html",tooltip=" "];
+  Node1 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="xran_common.c",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__common_8c.html",tooltip="XRAN layer common functionality for both O-DU and O-RU as well as C-plane and U-plane."];
+  Node1 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="xran_main.c",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__main_8c.html",tooltip="XRAN main functionality module."];
+  Node1 -> Node5 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="xran_transport.c",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__transport_8c.html",tooltip="This file provides the implementation for Transport lyaer (eCPRI) API."];
+  Node1 -> Node6 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="xran_up_api.c",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__up__api_8c.html",tooltip="This file provides the implementation of User Plane Messages APIs."];
+  Node1 -> Node7 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="u_plane_functional.cc",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$u__plane__functional_8cc.html",tooltip=" "];
+}

@@ -1,0 +1,7 @@
+digraph "radio_app_common_hdr"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{radio_app_common_hdr\n|+ filter_id\l+ payl_ver\l+ data_direction\l+ frame_id\l+ value\l+ symb_id\l+ slot_id\l+ subframe_id\l+ sf_slot_sym\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

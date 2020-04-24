@@ -1,0 +1,26 @@
+digraph "xran_ut_tx_cp_dl"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="xran_ut_tx_cp_dl",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="xranLibWraper::get\l_timer_ctx",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#a1ffad42e0cccdbc800d3dbef66f52d45",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="tx_cp_dl_cb",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$chain__tests_8cc.html#a4474e27c827459f3af40954b0c6f962b",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="xran_dev_get_ctx",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__main_8c.html#aa09e72e94d2a1d891e86f4c09b0f8b21",tooltip=" "];
+  Node3 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="xran_get_num_cc",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__main_8c.html#ad51ee5b7f1f27c770f1eb658b5ee523e",tooltip="Get the configuration of the number of component carriers."];
+  Node3 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="xran_get_num_eAxc",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__main_8c.html#a3fc01469558ddf728239d59038ac5803",tooltip="Get the configuration of the number of antenna for UL."];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="xranLibWraper::update_tti",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$classxran_lib_wraper.html#a3783fbb2a26b8a0530c489850a905a38",tooltip=" "];
+  Node7 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 -> Node8 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="tti_ota_cb",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__lib__wrap_8hpp.html#a9c3700d61ba446fa9b05cca2ca9018ab",tooltip=" "];
+  Node8 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 -> Node9 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node9 [label="xran_fs_get_max_slot",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$xran__frame__struct_8c.html#a7f5a87395d3930f222e58976960c99e2",tooltip=" "];
+}

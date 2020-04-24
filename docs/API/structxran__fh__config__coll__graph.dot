@@ -1,0 +1,17 @@
+digraph "xran_fh_config"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_fh_config\n|+ dpdk_port\l+ sector_id\l+ nCC\l+ neAxc\l+ neAxcUl\l+ nAntElmTRx\l+ nDLFftSize\l+ nULFftSize\l+ nDLRBs\l+ nULRBs\land 9 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +prach_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{xran_prach_config\n|+ nPrachConfIdx\l+ nPrachSubcSpacing\l+ nPrachZeroCorrConf\l+ nPrachRestrictSet\l+ nPrachRootSeqIdx\l+ nPrachFreqStart\l+ nPrachFreqOffset\l+ nPrachFilterIdx\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__prach__config.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +frame_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{xran_frame_config\n|+ nFrameDuplexType\l+ nNumerology\l+ nTddPeriod\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__frame__config.html",tooltip=" "];
+  Node4 -> Node3 [color="grey25",fontsize="10",style="solid",label=" +sSlotConfig" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{xran_slot_config\n|+ nSymbolType\l+ reserved\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__slot__config.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +ru_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{xran_ru_config\n|+ xranCat\l+ iqWidth\l+ compMeth\l+ fftSize\l+ byteOrder\l+ iqOrder\l+ xran_max_frame\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__ru__config.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +srs_conf" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node6 [label="{xran_srs_config\n|+ symbMask\l+ eAxC_offset\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__srs__config.html",tooltip=" "];
+}

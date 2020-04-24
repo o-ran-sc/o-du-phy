@@ -1,0 +1,25 @@
+digraph "xran_cp_gen_params"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_cp_gen_params\n|+ dir\l+ sectionType\l+ numSections\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +hdr" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{xran_cp_header_params\n|+ filterIdx\l+ frameId\l+ subframeId\l+ slotId\l+ startSymId\l+ fftSize\l+ scs\l+ iqWidth\l+ compMeth\l+ numUEs\l+ timeOffset\l+ cpLength\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__cp__header__params.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +sections" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{xran_section_gen_info\n|+ exDataSize\l+ type\l+ len\l+ data\l+ exData\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__section__gen__info.html",tooltip=" "];
+  Node4 -> Node3 [color="grey25",fontsize="10",style="solid",label=" +m_ext5" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{xran_sectionext5_info\n|+ num_sets\l+ csf\l+ mcScaleReMask\l+ mcScaleOffset\l+ mc\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__sectionext5__info.html",tooltip=" "];
+  Node5 -> Node3 [color="grey25",fontsize="10",style="solid",label=" +m_ext4" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{xran_sectionext4_info\n|+ csf\l+ pad0\l+ modCompScaler\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__sectionext4__info.html",tooltip=" "];
+  Node6 -> Node3 [color="grey25",fontsize="10",style="solid",label=" +m_ext3" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node6 [label="{xran_sectionext3_info\n|+ codebookIdx\l+ layerId\l+ numLayers\l+ txScheme\l+ crsReMask\l+ crsShift\l+ crsSymNum\l+ beamIdAP1\l+ beamIdAP2\l+ beamIdAP3\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__sectionext3__info.html",tooltip=" "];
+  Node7 -> Node3 [color="grey25",fontsize="10",style="solid",label=" +m_ext2" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node7 [label="{xran_sectionext2_info\n|+ bfAzPtWidth\l+ bfAzPt\l+ bfZePtWidth\l+ bfZePt\l+ bfAz3ddWidth\l+ bfAz3dd\l+ bfZe3ddWidth\l+ bfZe3dd\l+ bfAzSI\l+ bfZeSI\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__sectionext2__info.html",tooltip=" "];
+  Node8 -> Node3 [color="grey25",fontsize="10",style="solid",label=" +m_ext1" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node8 [label="{xran_sectionext1_info\n|+ rbNumber\l+ bfwNumber\l+ bfwiqWidth\l+ bfwCompMeth\l+ p_bfwIQ\l+ bfwIQ_sz\l+ exponent\l+ blockScaler\l+ compBitWidthShift\l+ activeBeamspaceCoeffMask\l+ bfwCompParam\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__sectionext1__info.html",tooltip=" "];
+  Node9 -> Node3 [color="grey25",fontsize="10",style="solid",label=" +info" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node9 [label="{xran_section_info\n|+ type\l+ startSymId\l+ numSymbol\l+ symInc\l+ id\l+ reMask\l+ startPrbc\l+ numPrbc\l+ rb\l+ compMeth\land 7 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__section__info.html",tooltip=" "];
+  Node10 -> Node9 [color="grey25",fontsize="10",style="solid",label=" +sec_desc" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node10 [label="{xran_section_desc\n|+ section_id\l+ iq_buffer_offset\l+ iq_buffer_len\l+ pData\l+ pCtrl\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__section__desc.html",tooltip=" "];
+}

@@ -1,0 +1,9 @@
+digraph "xran_cp_radioapp_section1"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{xran_cp_radioapp_section1\n||}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" +hdr" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{xran_cp_radioapp_section\l_header\n|+ reserved\l+ numSymbol\l+ reMask\l+ s0\l+ beamId\l+ ef\l+ s1\l+ s3\l+ ueId\l+ s5\land 6 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structxran__cp__radioapp__section__header.html",tooltip=" "];
+}
