@@ -55,6 +55,10 @@ Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
 
 ioCore=5
+systemCore=5
+pktProcCore=5
+pktAuxCore=5
+timingCore=6
 llsCUMac=00:11:22:33:44:66 # asigned MAC of lls-CU VF
 ruMac=00:11:22:33:44:55    # RU VF for RU app
 #ruMac=3c:fd:fe:9e:93:68 #RU PF for tcpdump
@@ -116,7 +120,7 @@ iqswap=0 #do swap of IQ before send buffer to eth
 nebyteorderswap=1 #do swap of byte order for each I and Q from CPU byte order to network byte order
 
 ##Debug
-debugStop=0 #stop app on 1pps boundary (gps_second % 30)
+debugStop=1 #stop app on 1pps boundary (gps_second % 30)
 debugStopCount=0 #if this value is >0 then stop app after x transmission packets, otherwise app will stop at 1pps boundary
 bbdevMode=-1 #bbdev mode, -1 = not use bbdev, 0: use software mode, 1: use hardware mode
 

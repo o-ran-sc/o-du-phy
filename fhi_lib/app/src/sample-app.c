@@ -32,7 +32,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-
 #include "common.h"
 #include "config.h"
 #include "xran_mlog_lnx.h"
@@ -1417,19 +1416,30 @@ int main(int argc, char *argv[])
         printf("set O-DU\n");
         xranInit.io_cfg.id = 0;/* O-DU */
         xranInit.io_cfg.core          = startupConfiguration.io_core;
-        xranInit.io_cfg.system_core   = 0;
-        xranInit.io_cfg.pkt_proc_core = startupConfiguration.io_core+1;
-        xranInit.io_cfg.pkt_aux_core  = 0; /* do not start*/
-        xranInit.io_cfg.timing_core   = startupConfiguration.io_core+2;
+        xranInit.io_cfg.system_core   = startupConfiguration.system_core;
+        xranInit.io_cfg.pkt_proc_core = startupConfiguration.pkt_proc_core;
+        xranInit.io_cfg.pkt_aux_core  = startupConfiguration.pkt_aux_core; /* do not start*/
+        xranInit.io_cfg.timing_core   = startupConfiguration.timing_core;
     } else {
         printf("set O-RU\n");
         xranInit.io_cfg.id = 1; /* O-RU*/
         xranInit.io_cfg.core          = startupConfiguration.io_core;
-        xranInit.io_cfg.system_core   = 0;
-        xranInit.io_cfg.pkt_proc_core = startupConfiguration.io_core+1;
-        xranInit.io_cfg.pkt_aux_core  = 0; /* do not start */
-        xranInit.io_cfg.timing_core   = startupConfiguration.io_core+2;
+        xranInit.io_cfg.system_core   = startupConfiguration.system_core;
+        xranInit.io_cfg.pkt_proc_core = startupConfiguration.pkt_proc_core;
+        xranInit.io_cfg.pkt_aux_core  = startupConfiguration.pkt_aux_core; /* do not start*/
+        xranInit.io_cfg.timing_core   = startupConfiguration.timing_core;
     }
+
+    cpu_set_t cpuset;
+    pthread_t thread;
+
+   thread = pthread_self();
+   CPU_ZERO(&cpuset);
+   CPU_SET(xranInit.io_cfg.system_core,&cpuset);
+   pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+/*       if (s != 0)
+               handle_error_en(s, "pthread_setaffinity_np");
+*/
 
     xranInit.io_cfg.bbdev_mode = XRAN_BBDEV_NOT_USED;
 

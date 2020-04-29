@@ -54,6 +54,10 @@ Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
 
 ioCore=10
+systemCore=10
+pktProcCore=10
+pktAuxCore=10
+timingCore=11
 llsCUMac=00:11:22:33:44:66 # asigned MAC of lls-CU VF
 #llsCUMac=3c:fd:fe:a8:e0:70
 ruMac=00:11:22:33:44:55    # RU VF for RU app

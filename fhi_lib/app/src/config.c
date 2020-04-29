@@ -29,6 +29,7 @@
 #include "debug.h"
 
 #include <rte_ethdev.h>
+#include <inttypes.h>
 
 #define MAX_LINE_SIZE 512
 /* Configuration file maximum supported line length */
@@ -67,6 +68,11 @@
 
 #define KEY_MTU_SIZE        "MTUSize"
 #define KEY_IO_CORE         "ioCore"
+#define KEY_SYSTEM_CORE         "systemCore"
+#define KEY_PKT_PROC_CORE         "pktProcCore"
+#define KEY_PKT_AUX_CORE         "pktAuxCore"
+#define KEY_TIMING_CORE         "timingCore"
+
 #define KEY_INSTANCE_ID     "instanceId"
 
 #define KEY_LLS_CU_MAC      "llsCUMac"
@@ -244,6 +250,18 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
     } else if (strcmp(key, KEY_IO_CORE) == 0) {
         config->io_core = atoi(value);
         printf("io_core %d\n", config->io_core);
+    } else if (strcmp(key, KEY_SYSTEM_CORE) == 0) {
+        config->system_core = atoi(value);
+        printf("system_core -c %" PRIx64 "\n", config->system_core);
+    } else if (strcmp(key, KEY_PKT_PROC_CORE) == 0) {
+        config->pkt_proc_core = atoi(value);
+        printf("pkt_proc_core -c %" PRIx64 "\n", config->pkt_proc_core);
+    } else if (strcmp(key, KEY_PKT_AUX_CORE) == 0) {
+        config->pkt_aux_core = atoi(value);
+        printf("pkt_aux_core -c %" PRIx64 "\n", config->pkt_aux_core);
+    } else if (strcmp(key, KEY_TIMING_CORE) == 0) {
+        config->timing_core = atoi(value);
+        printf("timing_core -c %" PRIx64 "\n", config->timing_core);
     }else if (strcmp(key, KEY_INSTANCE_ID) == 0) {
         config->instance_id = atoi(value);
         printf("instance_id %d\n", config->instance_id);
