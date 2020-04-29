@@ -2325,7 +2325,14 @@ int32_t xran_init(int argc, char *argv[],
     struct xran_io_loop_cfg *p_io_cfg = (struct xran_io_loop_cfg *)&p_xran_fh_init->io_cfg;
     struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
 
-    int32_t  lcore_id = 0;
+    cpu_set_t system_cpuset;
+    pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &system_cpuset);
+    for (j = 0; j < CPU_SETSIZE; j++)
+        if (CPU_ISSET(j, &system_cpuset))
+            break;
+
+    int32_t  lcore_id = j;
+
     char filename[64];
     int64_t offset_sec, offset_nsec;
 

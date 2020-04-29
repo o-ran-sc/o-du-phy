@@ -52,7 +52,11 @@ typedef struct _RuntimeConfig
 
     uint32_t instance_id; /**<  Instance ID of application */
     uint32_t io_core; /**<  Core used for IO */
-
+    uint64_t system_core; /* <system core ID> */
+    uint64_t pkt_proc_core;
+    uint64_t pkt_aux_core;
+    uint64_t timing_core;
+    
     uint32_t mtu; /**< maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single
                        xRAN network layer transaction. supported 1500 bytes and 9600 bytes (Jumbo Frame) */
     int numSlots;  /**< number of slots in IQ vector */
