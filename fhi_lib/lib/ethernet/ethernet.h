@@ -51,7 +51,7 @@ extern "C" {
 
 #define MAX_RX_LEN 9600
 #define MAX_TX_LEN (MAX_RX_LEN - 14) /* headroom for rx driver */
-#define MAX_DATA_SIZE (MAX_TX_LEN - sizeof(struct ether_hdr) - \
+#define MAX_DATA_SIZE (MAX_TX_LEN - sizeof(struct rte_ether_hdr) - \
     sizeof(struct ethdi_hdr) - sizeof(struct burst_hdr))
 
 /* Looks like mbuf size is limited to 16 bits - see the buf_len field. */
@@ -125,8 +125,8 @@ void xran_add_eth_hdr_vlan(struct rte_ether_addr *dst, uint16_t ethertype, struc
 
 #if 0
 void xran_memdump(void *addr, int len);
-void xran_add_eth_hdr(struct ether_addr *dst, uint16_t ethertype, struct rte_mbuf *);
-int xran_send_mbuf(struct ether_addr *dst, struct rte_mbuf *mb);
+void xran_add_eth_hdr(struct rte_ether_addr *dst, uint16_t ethertype, struct rte_mbuf *);
+int xran_send_mbuf(struct rte_ether_addr *dst, struct rte_mbuf *mb);
 int xran_send_message_burst(int dst_id, int pkt_type, void *body, int len);
 int xran_show_delayed_message(void);
 #endif

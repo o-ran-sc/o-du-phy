@@ -160,11 +160,11 @@ int xran_ethdi_filter_packet(struct rte_mbuf *pkt, uint64_t rx_time)
 
 #if defined(DPDKIO_DEBUG) && DPDKIO_DEBUG > 1
     {
-        char dst[ETHER_ADDR_FMT_SIZE] = "(empty)";
-        char src[ETHER_ADDR_FMT_SIZE] = "(empty)";
+        char dst[RTE_ETHER_ADDR_FMT_SIZE] = "(empty)";
+        char src[RTE_ETHER_ADDR_FMT_SIZE] = "(empty)";
 
-        ether_format_addr(dst, sizeof(dst), &eth_hdr->d_addr);
-        ether_format_addr(src, sizeof(src), &eth_hdr->s_addr);
+        rte_ether_format_addr(dst, sizeof(dst), &eth_hdr->d_addr);
+        rte_ether_format_addr(src, sizeof(src), &eth_hdr->s_addr);
         nlog("src: %s dst: %s ethertype: %.4X", dst, src,
                 rte_be_to_cpu_16(eth_hdr->ether_type));
     }

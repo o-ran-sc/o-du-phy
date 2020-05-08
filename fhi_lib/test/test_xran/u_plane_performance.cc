@@ -51,7 +51,7 @@ protected:
         test_buffer = (struct rte_mbuf*)rte_pktmbuf_alloc(test_eth_mbuf_pool);
 
         iq_offset = rte_pktmbuf_mtod(test_buffer, char * );
-        iq_offset = iq_offset + sizeof(struct ether_hdr) +
+        iq_offset = iq_offset + sizeof(struct rte_ether_hdr) +
                                     sizeof (struct xran_ecpri_hdr) +
                                     sizeof (struct radio_app_common_hdr) +
                                     sizeof(struct data_section_hdr);
