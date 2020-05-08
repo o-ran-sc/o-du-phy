@@ -307,14 +307,14 @@ int xran_ethdi_init_dpdk_io(char *name, const struct xran_io_loop_cfg *io_cfg,
         if (io_cfg->bbdev_mode == XRAN_BBDEV_MODE_HW_ON){
             // hw-accelerated bbdev
             printf("hw-accelerated bbdev %s\n", io_cfg->bbdev_dev[0]);
-            sprintf(bbdev_wdev, "-w %s", io_cfg->bbdev_dev[0]);
+            snprintf(bbdev_wdev, sizeof(bbdev_wdev), "-w %s", io_cfg->bbdev_dev[0]);
         } else if (io_cfg->bbdev_mode == XRAN_BBDEV_MODE_HW_OFF){
             // hw-accelerated bbdev disable
             if(io_cfg->bbdev_dev[0]){
                 printf("hw-accelerated bbdev disable %s\n", io_cfg->bbdev_dev[0]);
-                sprintf(bbdev_wdev, "-b %s", io_cfg->bbdev_dev[0]);
+                snprintf(bbdev_wdev, sizeof(bbdev_wdev), "-b %s", io_cfg->bbdev_dev[0]);
             }
-            sprintf(bbdev_wdev, "%s", "--vdev=baseband_turbo_sw");
+            snprintf(bbdev_wdev, sizeof(bbdev_wdev), "%s", "--vdev=baseband_turbo_sw");
         } else {
             rte_panic("Cannot init DPDK incorrect [bbdev_mode %d]\n", io_cfg->bbdev_mode);
         }

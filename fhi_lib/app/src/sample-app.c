@@ -1460,7 +1460,7 @@ int main(int argc, char *argv[])
     xranInit.p_o_du_addr = (int8_t *)&startupConfiguration.o_du_addr;
     xranInit.p_o_ru_addr = (int8_t *)&startupConfiguration.o_ru_addr;
 
-    sprintf(prefix_name, "wls_%d",startupConfiguration.instance_id);
+    snprintf(prefix_name, sizeof(prefix_name), "wls_%d",startupConfiguration.instance_id);
     xranInit.filePrefix  = prefix_name;
 
     xranInit.totalBfWeights = startupConfiguration.totalBfWeights;
@@ -1664,14 +1664,14 @@ int main(int argc, char *argv[])
 
     for (i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
 
-        sprintf(filename, "./logs/%s-play_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+        snprintf(filename, sizeof(filename), "./logs/%s-play_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
         sys_save_buf_to_file_txt(filename,
                             "DL IFFT IN IQ Samples in human readable format",
                             (uint8_t*) p_tx_play_buffer[i],
                             tx_play_buffer_size[i],
                             1);
 
-        sprintf(filename, "./logs/%s-play_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+        snprintf(filename, sizeof(filename),"./logs/%s-play_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
         sys_save_buf_to_file(filename,
                             "DL IFFT IN IQ Samples in binary format",
                             (uint8_t*) p_tx_play_buffer[i],
@@ -1680,14 +1680,14 @@ int main(int argc, char *argv[])
 
 
         if (startupConfiguration.appMode == APP_O_DU && startupConfiguration.xranCat == XRAN_CATEGORY_B){
-            sprintf(filename, "./logs/%s-dl_bfw_ue%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            snprintf(filename, sizeof(filename),"./logs/%s-dl_bfw_ue%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
             sys_save_buf_to_file_txt(filename,
                                 "DL Beamformig weights IQ Samples in human readable format",
                                 (uint8_t*) p_tx_dl_bfw_buffer[i],
                                 tx_dl_bfw_buffer_size[i],
                                 1);
 
-            sprintf(filename, "./logs/%s-dl_bfw_ue%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            snprintf(filename, sizeof(filename),"./logs/%s-dl_bfw_ue%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
             sys_save_buf_to_file(filename,
                                 "DL Beamformig weightsIQ Samples in binary format",
                                 (uint8_t*) p_tx_dl_bfw_buffer[i],
@@ -1695,14 +1695,14 @@ int main(int argc, char *argv[])
                                 sizeof(short));
 
 
-            sprintf(filename, "./logs/%s-ul_bfw_ue%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            snprintf(filename, sizeof(filename), "./logs/%s-ul_bfw_ue%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
             sys_save_buf_to_file_txt(filename,
                                 "UL Beamformig weights IQ Samples in human readable format",
                                 (uint8_t*) p_tx_ul_bfw_buffer[i],
                                 tx_ul_bfw_buffer_size[i],
                                 1);
 
-            sprintf(filename, "./logs/%s-ul_bfw_ue%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            snprintf(filename, sizeof(filename),"./logs/%s-ul_bfw_ue%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
             sys_save_buf_to_file(filename,
                                 "UL Beamformig weightsIQ Samples in binary format",
                                 (uint8_t*) p_tx_ul_bfw_buffer[i],
@@ -1712,14 +1712,14 @@ int main(int argc, char *argv[])
         }
 
         if (startupConfiguration.appMode == APP_O_RU && startupConfiguration.enablePrach){
-            sprintf(filename, "./logs/%s-play_prach_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            snprintf(filename, sizeof(filename), "./logs/%s-play_prach_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
             sys_save_buf_to_file_txt(filename,
                                 "PRACH IQ Samples in human readable format",
                                 (uint8_t*) p_tx_prach_play_buffer[i],
                                 tx_prach_play_buffer_size[i],
                                 1);
 
-            sprintf(filename, "./logs/%s-play_prach_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            snprintf(filename, sizeof(filename), "./logs/%s-play_prach_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
             sys_save_buf_to_file(filename,
                                 "PRACH IQ Samples in binary format",
                                 (uint8_t*) p_tx_prach_play_buffer[i],
@@ -1734,14 +1734,14 @@ int main(int argc, char *argv[])
            i++) {
 
 
-            sprintf(filename, "./logs/%s-play_srs_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            snprintf(filename, sizeof(filename), "./logs/%s-play_srs_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
             sys_save_buf_to_file_txt(filename,
                             "SRS IQ Samples in human readable format",
                             (uint8_t*) p_tx_srs_play_buffer[i],
                             tx_srs_play_buffer_size[i],
                             1);
 
-            sprintf(filename, "./logs/%s-play_srs_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            snprintf(filename,sizeof(filename), "./logs/%s-play_srs_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
             sys_save_buf_to_file(filename,
                                 "SRS IQ Samples in binary format",
                                 (uint8_t*) p_tx_srs_play_buffer[i],
@@ -2026,7 +2026,7 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    sprintf(filename, "mlog-%s", startupConfiguration.appMode == 0 ? "o-du" : "o-ru");
+    snprintf(filename, sizeof(filename),"mlog-%s", startupConfiguration.appMode == 0 ? "o-du" : "o-ru");
 
     /* MLogOpen(0, 32, 0, 0xFFFFFFFF, filename);*/
 
@@ -2186,14 +2186,14 @@ int main(int argc, char *argv[])
 
     for (i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
 
-        sprintf(filename, "./logs/%s-rx_log_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+        snprintf(filename, sizeof(filename), "./logs/%s-rx_log_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
         sys_save_buf_to_file_txt(filename,
                             "UL FFT OUT IQ Samples in human readable format",
                             (uint8_t*) p_rx_log_buffer[i],
                             rx_log_buffer_size[i],
                             1);
 
-        sprintf(filename, "./logs/%s-rx_log_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+        snprintf(filename, sizeof(filename), "./logs/%s-rx_log_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
         sys_save_buf_to_file(filename,
                             "UL FFT OUT IQ Samples in binary format",
                             (uint8_t*) p_rx_log_buffer[i],
@@ -2205,14 +2205,14 @@ int main(int argc, char *argv[])
         for(i = 0;
         i < MAX_ANT_CARRIER_SUPPORTED_CAT_B && i < (uint32_t)(numCCPorts * startupConfiguration.antElmTRx);
         i++) {
-            sprintf(filename, "./logs/%s-srs_log_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            snprintf(filename, sizeof(filename), "./logs/%s-srs_log_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
             sys_save_buf_to_file_txt(filename,
                                 "SRS UL FFT OUT IQ Samples in human readable format",
                                 (uint8_t*) p_srs_log_buffer[i],
                                 srs_log_buffer_size[i],
                                 1);
 
-            sprintf(filename, "./logs/%s-srs_log_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            snprintf(filename, sizeof(filename),  "./logs/%s-srs_log_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
             sys_save_buf_to_file(filename,
                                 "SRS UL FFT OUT IQ Samples in binary format",
                                 (uint8_t*) p_srs_log_buffer[i],
@@ -2253,14 +2253,14 @@ int main(int argc, char *argv[])
 
         for (i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(numCCPorts * num_eAxc); i++) {
 
-            sprintf(filename, "./logs/%s-prach_log_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
+            snprintf(filename, sizeof(filename), "./logs/%s-prach_log_ant%d.txt",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"),  i);
             sys_save_buf_to_file_txt(filename,
                                 "PRACH FFT OUT IQ Samples in human readable format",
                                 (uint8_t*) p_prach_log_buffer[i],
                                 prach_log_buffer_size[i],
                                 1);
 
-            sprintf(filename, "./logs/%s-prach_log_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
+            snprintf(filename, sizeof(filename), "./logs/%s-prach_log_ant%d.bin",((startupConfiguration.appMode == APP_O_DU) ? "o-du" : "o-ru"), i);
             sys_save_buf_to_file(filename,
                                 "PRACH FFT OUT IQ Samples in binary format",
                                 (uint8_t*) p_prach_log_buffer[i],
