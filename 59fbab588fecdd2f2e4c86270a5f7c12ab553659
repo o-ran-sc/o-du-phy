@@ -1,0 +1,142 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "3d5e4b94_096f38b2",
+        "filename": "INFO.yaml",
+        "patchSetId": 1
+      },
+      "lineNbr": 2,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2020-05-11T14:04:50Z",
+      "side": 1,
+      "message": "the project repository name is \"phy\" but the title here is \"Low\", are those the same thing?",
+      "range": {
+        "startLine": 2,
+        "startChar": 15,
+        "endLine": 2,
+        "endChar": 18
+      },
+      "revId": "59fbab588fecdd2f2e4c86270a5f7c12ab553659",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "3a6bdae0_21eeb521",
+        "filename": "INFO.yaml",
+        "patchSetId": 1
+      },
+      "lineNbr": 6,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2020-05-11T14:04:50Z",
+      "side": 1,
+      "message": "same question about \"low\"",
+      "range": {
+        "startLine": 6,
+        "startChar": 19,
+        "endLine": 6,
+        "endChar": 22
+      },
+      "revId": "59fbab588fecdd2f2e4c86270a5f7c12ab553659",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "5851c281_8088e620",
+        "filename": "INFO.yaml",
+        "patchSetId": 1
+      },
+      "lineNbr": 8,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2020-05-11T14:04:50Z",
+      "side": 1,
+      "message": "this probably should be @intel.com",
+      "range": {
+        "startLine": 8,
+        "startChar": 24,
+        "endLine": 8,
+        "endChar": 32
+      },
+      "revId": "59fbab588fecdd2f2e4c86270a5f7c12ab553659",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "3d694af5_afb21e9c",
+        "filename": "INFO.yaml",
+        "patchSetId": 1
+      },
+      "lineNbr": 37,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2020-05-11T14:04:50Z",
+      "side": 1,
+      "message": "instead of repeating Zhimin\u0027s information, pull it in using the Yaml anchor you defined above, like this:\n\n    - \u003c\u003c: *odu_low_ptl",
+      "range": {
+        "startLine": 33,
+        "startChar": 0,
+        "endLine": 37,
+        "endChar": 4
+      },
+      "revId": "59fbab588fecdd2f2e4c86270a5f7c12ab553659",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "4f44f812_581a05fa",
+        "filename": "INFO.yaml",
+        "patchSetId": 1
+      },
+      "lineNbr": 41,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2020-05-11T14:04:50Z",
+      "side": 1,
+      "message": "must supply LFID",
+      "range": {
+        "startLine": 41,
+        "startChar": 10,
+        "endLine": 41,
+        "endChar": 12
+      },
+      "revId": "59fbab588fecdd2f2e4c86270a5f7c12ab553659",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "28adefbe_db0f7804",
+        "filename": "INFO.yaml",
+        "patchSetId": 1
+      },
+      "lineNbr": 46,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2020-05-11T14:04:50Z",
+      "side": 1,
+      "message": "must supply LFID",
+      "range": {
+        "startLine": 46,
+        "startChar": 9,
+        "endLine": 46,
+        "endChar": 12
+      },
+      "revId": "59fbab588fecdd2f2e4c86270a5f7c12ab553659",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    }
+  ]
+}
