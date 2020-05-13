@@ -1,0 +1,50 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "4325e739_98820772",
+        "filename": "INFO.yaml",
+        "patchSetId": 2
+      },
+      "lineNbr": 12,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2020-05-13T10:24:46Z",
+      "side": 1,
+      "message": "please change to odu_low_ptl as defined on line 6",
+      "range": {
+        "startLine": 12,
+        "startChar": 18,
+        "endLine": 12,
+        "endChar": 30
+      },
+      "revId": "60663dff6643a82e9d58218144109b64714dbcdc",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "dd708cc1_9a5763ea",
+        "filename": "INFO.yaml",
+        "patchSetId": 2
+      },
+      "lineNbr": 37,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2020-05-13T10:24:46Z",
+      "side": 1,
+      "message": "don\u0027t repeat, reuse the PTL details using that anchor:\n\n    - \u003c\u003c: *odu_low_ptl",
+      "range": {
+        "startLine": 33,
+        "startChar": 6,
+        "endLine": 37,
+        "endChar": 30
+      },
+      "revId": "60663dff6643a82e9d58218144109b64714dbcdc",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    }
+  ]
+}
