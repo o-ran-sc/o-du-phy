@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "609de012_a6a2b95a",
+        "filename": "INFO.yaml",
+        "patchSetId": 6
+      },
+      "lineNbr": 5,
+      "author": {
+        "id": 1000014
+      },
+      "writtenOn": "2020-05-14T12:12:03Z",
+      "side": 1,
+      "message": "suggest the value:   Incubation\n\nPOC is not accepted by the INFO.yaml schema",
+      "range": {
+        "startLine": 5,
+        "startChar": 18,
+        "endLine": 5,
+        "endChar": 21
+      },
+      "revId": "9da569be3fc7d46803f1aa7db64ca5e443afa1d4",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53",
+      "unresolved": true
+    }
+  ]
+}
