@@ -1,21 +1,6 @@
-#/******************************************************************************
-#*
-#*   Copyright (c) 2019 Intel.
-#*
-#*   Licensed under the Apache License, Version 2.0 (the "License");
-#*   you may not use this file except in compliance with the License.
-#*   You may obtain a copy of the License at
-#*
-#*       http://www.apache.org/licenses/LICENSE-2.0
-#*
-#*   Unless required by applicable law or agreed to in writing, software
-#*   distributed under the License is distributed on an "AS IS" BASIS,
-#*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#*   See the License for the specific language governing permissions and
-#*   limitations under the License.
-#*
-#*******************************************************************************/
-
+###############################################################################
+# <COPYRIGHT_TAG>
+###############################################################################
 
 .SUFFIXES: .o .c .s .i .cpp
 
@@ -64,7 +49,7 @@ USER_API = $(XRAN_DIR)/lib/api
 CPPFLAGS += -isystem $(GTEST_ROOT)/include
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -std=gnu++11 -Wall -Wextra -pthread -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I $(COMMON_TEST_DIR) -I$(RTE_INC)
+CXXFLAGS += -g -std=gnu++11 -Wall -Wextra -fstack-protector-strong -z noexecstack -Wformat -Wformat-security -Werror=format-security -fno-strict-overflow -fwrapv -pthread -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I $(COMMON_TEST_DIR) -I$(RTE_INC)
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.

@@ -73,6 +73,7 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-Wall \
 	-Wimplicit-function-declaration \
 	-g -O3 -wd1786
+CC_FLAGS += -fstack-protector-strong -z,now, -z,relro -z noexecstack -Wformat -Wformat-security -Werror=format-security -fno-strict-overflow -fwrapv
 
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
                 -no-prec-div -fp-model fast=2\

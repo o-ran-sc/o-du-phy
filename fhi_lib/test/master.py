@@ -1,9 +1,21 @@
 #!/usr/bin/python
-#######################################################################
+#******************************************************************************
 #
-# <COPYRIGHT_TAG>
+#   Copyright (c) 2019 Intel.
 #
-#######################################################################
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+#******************************************************************************/
 
 """This script run test cases with O-DU and O-RU
 """
@@ -320,31 +332,12 @@ def make_copy_mlog(cat, mu, bw, tcase, xran_path):
     else:
         logging.info("Mlog was copied\n")
 
-    print("Destination path:", d_bin)
-    print("Destination path:", d_csv)
-
-    d_bin  = shutil.copyfile(src_bin, dst_bin)
-    d_csv  = shutil.copyfile(src_csv, dst_csv)
-
-    #print("After copying file:")
-    #print(os.listdir(xran_path+"/app/"))
-
-    #print("Destination path:", d_bin)
-    #print("Destination path:", d_csv)
 
     src_bin = xran_path+"/app/mlog-o-ru-c0.bin"
     src_csv = xran_path+"/app/mlog-o-ru-hist.csv"
     dst_bin = xran_path+"/app/mlog-o-ru-c0-cat"+str(cat)+"-mu"+str(mu)+"-bw"+str(bw)+"-tcase"+str(tcase)+".bin"
     dst_csv = xran_path+"/app/mlog-o-ru-hist-cat"+str(cat)+"-mu"+str(mu)+"-bw"+str(bw)+"-tcase"+str(tcase)+".csv"
 
-    d_bin  = shutil.copyfile(src_bin, dst_bin)
-    d_csv  = shutil.copyfile(src_csv, dst_csv)
-
-    #print("After copying file:")
-    #print(os.listdir(xran_path+"/app/"))
-
-    #print("Destination path:", d_bin)
-    #print("Destination path:", d_csv)
 
     try:
         d_bin  = shutil.copyfile(src_bin, dst_bin)
@@ -355,11 +348,6 @@ def make_copy_mlog(cat, mu, bw, tcase, xran_path):
     else:
         logging.info("Mlog was copied\n")
 
-    #print("After copying file:")
-    #print(os.listdir(xran_path+"/app/"))
-
-    #print("Destination path:", d_bin)
-    #print("Destination path:", d_csv)
 
     return res
 
