@@ -1,0 +1,34 @@
+../build/mac//home/Luis/Integration/oran_wls_lib/test/mac/mac_main.o: \
+ /home/Luis/Integration/oran_wls_lib/test/mac/mac_main.c \
+ /usr/include/stdc-predef.h /home/Luis/Integration/oran_wls_lib/wls_lib.h \
+ /home/Luis/Integration/oran_wls_lib/test/mac/mac_wls.h \
+ /home/Luis/Integration/oran_5g_fapi/include/fapi_interface.h
+../build/mac//home/Luis/Integration/oran_wls_lib/test/mac/mac_wls.o: \
+ /home/Luis/Integration/oran_wls_lib/test/mac/mac_wls.c \
+ /usr/include/stdc-predef.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_eal.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_config.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_compat.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_common.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_per_lcore.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_bus.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_log.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_dev.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_pci_dev_feature_defs.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_cfgfile.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_string_fns.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_lcore.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_launch.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_debug.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_branch_prediction.h \
+ /home/Luis/Integration/oran_wls_lib/wls.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_atomic.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/generic/rte_atomic.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_atomic_64.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_memzone.h \
+ /home/samuelwo/dpdk-18.08/x86_64-native-linuxapp-icc/include/rte_memory.h \
+ /home/Luis/Integration/oran_wls_lib/ttypes.h \
+ /home/Luis/Integration/oran_wls_lib/syslib.h \
+ /home/Luis/Integration/oran_wls_lib/wls_lib.h \
+ /home/Luis/Integration/oran_wls_lib/test/mac/mac_wls.h \
+ /home/Luis/Integration/oran_5g_fapi/include/fapi_interface.h
