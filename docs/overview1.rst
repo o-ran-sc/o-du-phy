@@ -140,27 +140,25 @@ Reference Documents
 
 Table 2. Reference Documents
 
-+----------------------------------+----------------------------------+
-| Document or Reference            | Document No./                    |
-|                                  | Location                         |
-+----------------------------------+----------------------------------+
-| 3GPP\* specification series      | http://www.3                     |
-|                                  | gpp.org/DynaReport/38-series.htm |
-+----------------------------------+----------------------------------+
-| Wolf Pass Server Documentation   | https://ark.intel.com/p          |
-|                                  | roducts/codename/80739/Wolf-Pass |
-+----------------------------------+----------------------------------+
-| *Intel® C++ Compiler             |https://software.intel.com/en-us/ |
-| system Studio XE*                |system-studio/choose-download     |
-+----------------------------------+----------------------------------+
-| DPDK documentation               | http://dpdk.org/doc/guides/      |
-+----------------------------------+----------------------------------+
-| O-RAN Fronthaul Working Group    | `https://www.o-ran.org/          |
-| Control, User and                | specifications <https://         |
-| Synchronization Plane            | www.o-ran.org/specifications>`__ |
-| Specification                    |                                  |
-| (ORAN-WG4.CUS.0-v02.00)          |                                  |
-+----------------------------------+----------------------------------+
++----------------------------------+--------------------------------------------------------------------------------+
+| Document or Reference            | Document No./                                                                  |
+|                                  | Location                                                                       |
++----------------------------------+--------------------------------------------------------------------------------+
+| 3GPP\* specification series      | http://www.3gpp.org/DynaReport/38-series.htm                                   |
++----------------------------------+----------------------------------+---------------------------------------------+
+| Wolf Pass Server Documentation   | https://ark.intel.com/products/codename/80739/Wolf-Pass                        |
++----------------------------------+----------------------------------+---------------------------------------------+
+| *Intel® C++ Compiler             | https://software.intel.com/en-us/system-studio/choose-download                 |
+| system Studio XE*                |                                                                                |
++----------------------------------+--------------------------------------------------------------------------------+
+| DPDK documentation               | http://dpdk.org/doc/guides/                                                    |
++----------------------------------+--------------------------------------------------------------------------------+
+| O-RAN Fronthaul Working Group    | https://www.o-ran.org/specifications                                           |
+| Control, User and                |                                                                                |
+| Synchronization Plane            |                                                                                |
+| Specification                    |                                                                                |
+| (ORAN-WG4.CUS.0-v02.00)          |                                                                                |
++----------------------------------+--------------------------------------------------------------------------------+
 
 
 
