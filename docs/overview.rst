@@ -12,12 +12,17 @@
 ..  See the License for the specific language governing permissions and
 ..  limitations under the License.
 
+.. |br| raw:: html
+
+   <br />
+
 Front Haul Interface Library Overview
 =====================================
 
 The O-RAN FHI Lib is built on top of DPDK to perform U-plane and C-plane functions according to the 
-ORAN Fronthaul Interface specification between O-DU and O-RU.
-S-Plane support requires PTP for Linux version 2.0 or later
+ORAN Fronthaul |br|
+Interface specification between O-DU and O-RU.
+S-Plane support requires PTP for Linux version 2.0 or later |br|
 The management plane is outside of the scope of this library implementation.
 
 
@@ -25,18 +30,15 @@ Project Resources
 -----------------
 
 The source code is available from the Linux Foundation Gerrit server:
-    `<https://gerrit.o-ran-sc.org/r/a/o-du/phy/fhi_lib/src>`_
+    `<https://gerrit.o-ran-sc.org/r/gitweb?p=o-du%2Fphy.git;a=summary>`_
  
 The build (CI) jobs will be in the Linux Foundation Jenkins server:
-
     `<https://jenkins.o-ran-sc.org>`_
 
 Issues are tracked in the Linux Foundation Jira server:
-
     `<https://jira.o-ran-sc.org/secure/Dashboard.jspa>`_
 
 Project information is available in the Linux Foundation Wiki:
-
     `<https://wiki.o-ran-sc.org>`_
 
 
