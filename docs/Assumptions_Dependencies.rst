@@ -41,7 +41,7 @@ Requirements
 * Only Xeon® series Processor with Intel Architecture are supported and the platform should be |br|
   Intel® Xeon® SkyLake / CascadeLake platforms with at least 2.0 GHz core frequency
 * FPGA/ASIC card for FEC acceleration that's compliance with BBDev framework and interface if you need run high throughput case with HW FEC card assistant.
-* Bios setting steps and options might have difference, however at least you should have the same Bios setting as decribed in the https://github.com/intel/FlexRAN/README.md Bios settings section
+* Bios setting steps and options might have difference, however at least you should have the same Bios setting as decribed in the README.me file available at https://github.com/intel/FlexRAN Bios settings section
 * Runing with FH requires PTP for Linux\* version 2.0 (or later) to be installed to provide IEEE 1588 synchronization.
 
 Dependencies
