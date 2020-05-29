@@ -12,15 +12,32 @@
 ..  See the License for the specific language governing permissions and
 ..  limitations under the License.
 
+.. |br| raw:: html
+
+   <br /> 
+   
 Front Haul Interface Library Release Notes
 ==========================================
+
+Version ORAN-seedcode_v1.3, May 2020
+--------------------------------------
+
+* Third version released to ORAN in support of Release B
+* Add scripts to run refPHY in Docker* containers, Kubernetes* clusters, Multus*, and Data Plane
+  Development Kit-Single-Root Input/Output Visualization (DPDK-SRIOV) plugin.
+* Integration and optimization of block floating point compression and decompression.
+* Category B support
+* Add support for alpha and beta value when calculating SFN based on GPS time.
+* Support End to End integration with commercial UE with xRAN/ORAN RRU for both mmWave and
+  sub-6 scenarios
 
 Version ORAN-seedcode_v1.2, 1 Nov 2019
 --------------------------------------
 * Second version released to ORAN in support of Release A
 * Incorporates support for 5G NR sub 6 and mmWave
 * Support for Application fragementation under Transport features was added
-* This release has been designed and implemented to support the following numerologies defined in the 3GPP specification 
+* This release has been designed and implemented to support the following numerologies defined in the 3GPP |br|
+  specification 
 *	Numerology 0 with bandwidth 5/10/20 MHz with up to 12 cells
 *	Numerology 1 with bandwidth 100MHz with up to 1 cell
 *	Numerology 3 with bandwidth 100MHz with up to 1 cell
