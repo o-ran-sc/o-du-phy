@@ -31,13 +31,10 @@
 #else /* __KERNEL__ */
 #include <sys/ioctl.h>
 #include <stdint.h>
-
-#ifdef DPDK_WLS
 #include <semaphore.h>
 #include <rte_common.h>
 #include <rte_atomic.h>
 #include <rte_memzone.h>
-#endif /* DPDK_WLS */
 
 #endif
 #include "ttypes.h"
@@ -143,11 +140,7 @@ typedef struct hugepage_tabl_s
 #define WLS_GET_QUEUE_N_ELEMENTS  384
 #define WLS_PUT_QUEUE_N_ELEMENTS  384
 
-#ifdef DPDK_WLS
 #define WLS_DEV_SHM_NAME_LEN      RTE_MEMZONE_NAMESIZE
-#else
-#define WLS_DEV_SHM_NAME_LEN          256
-#endif
 
 #define FIFO_LEN 384
 
@@ -159,7 +152,6 @@ typedef struct wls_wait_req_s {
     uint64_t nMsg;
 }wls_wait_req_t;
 
-#ifdef DPDK_WLS
 typedef struct wls_sema_priv_s
 {
     sem_t                     sem;
@@ -176,8 +168,6 @@ typedef struct wls_us_priv_s
     U8                isWait;
     volatile V32      pid;
 } wls_us_priv_t;
-
-#endif
 
 typedef struct wls_us_ctx_s
 {
@@ -222,11 +212,7 @@ typedef struct wls_us_ctx_s
     volatile uint64_t    dst_pa;
 
     uint32_t  alloc_size;
-#ifdef DPDK_WLS
     wls_us_priv_t wls_us_private;
-#else
-    HANDLE wls_us_private;
-#endif
     uint32_t  mode;
     uint32_t  secmode;
     char wls_dev_name[WLS_DEV_SHM_NAME_LEN];
@@ -246,28 +232,6 @@ typedef struct wls_connect_req_s {
     uint64_t wls_us_kernel_va;
 }wls_connect_req_t;
 
-#ifdef __KERNEL__
-
-typedef struct wls_sema_priv_s
-{
-    wait_queue_head_t         queue;
-    atomic_t                  is_irq;
-    wls_wait_req_t            drv_block[FIFO_LEN];
-    volatile unsigned int     drv_block_put;
-    volatile unsigned int     drv_block_get;
-}wls_sema_priv_t;
-
-typedef struct wls_drv_ctx_s
-{
-    uint32_t            init_mask;
-    uint32_t            us_ctx_cout;
-    wls_us_ctx_t*       p_wls_us_ctx[WLS_US_CLIENTS_MAX];
-    wls_us_ctx_t*       p_wls_us_pa_ctx[WLS_US_CLIENTS_MAX];
-    uint32_t            nWlsClients;
-}wls_drv_ctx_t;
-
-#elif defined DPDK_WLS
-
 typedef struct wls_drv_ctx_s
 {
     uint32_t            init_mask;
@@ -278,7 +242,6 @@ typedef struct wls_drv_ctx_s
     pthread_mutex_t mng_mutex;
 }wls_drv_ctx_t;
 
-#endif
 typedef struct wls_open_req_s {
     uint64_t  ctx;
     uint64_t  ctx_pa;

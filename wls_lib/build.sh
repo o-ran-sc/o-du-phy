@@ -21,15 +21,7 @@
 #        Build script to comapile kernel module, library and test application.
 #
 
-#if [ "$1" = "dpdk_wls" ]; then
     echo "Building dpdk based wls library" 
-    make DPDK_WLS=1 ${*:2}
+make ${*:2}
     cd testapp
-    make DPDK_WLS=1 ${*:2}
-#else
-#    echo "Building driver based wls library" 
-#    make -C /lib/modules/`uname -r`/build  M=$PWD $*
-#    make libwls.so $*
-#    cd testapp
-#    make $*
-#fi
+make ${*:2}

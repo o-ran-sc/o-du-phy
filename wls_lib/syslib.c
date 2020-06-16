@@ -387,7 +387,7 @@ int WLS_MsgDequeue(
     }
 
     pLocalStorage = (PWLS_MSG_HANDLE) pq->pStorage; // kernel VA
-    PRINT_DEBUG("WLS_MsgDequeue with pq->pStorage %lX\n",pq->pStorage);
+
     if (pq->put != get)
 	{
 

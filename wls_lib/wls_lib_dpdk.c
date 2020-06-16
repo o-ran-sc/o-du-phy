@@ -788,7 +788,7 @@ void* WLS_Alloc(void* h, unsigned int size)
 
     hp_memzone = (struct rte_memzone *)mng_memzone;
     pvirtAddr = (void *)hp_memzone->addr;
-    PLIB_DEBUG("pvirtAddr is %p\n", pvirtAddr);
+
     if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
         memset(pvirtAddr, 0, sizeof (wls_drv_ctx_t));
     }
@@ -862,6 +862,7 @@ int WLS_Put(void *h, unsigned long long pMsg, unsigned int MsgSize, unsigned sho
 {
     wls_us_ctx_t* pWls_us = (wls_us_ctx_t*) h;
     int ret = 0;
+    unsigned short nFlags = Flags & (~WLS_TF_URLLC);
 
     if (wls_check_ctx(h))
         return -1;
@@ -873,22 +874,22 @@ int WLS_Put(void *h, unsigned long long pMsg, unsigned int MsgSize, unsigned sho
 
     wls_mutex_lock(&wls_put_lock);
 
-    if ((WLS_FLAGS_MASK & Flags)) { // multi block transaction
-        if (Flags & WLS_TF_SYN) {
+    if ((WLS_FLAGS_MASK & nFlags)) { // multi block transaction
+        if (nFlags & WLS_TF_SYN) {
             PLIB_DEBUG("WLS_SG_FIRST\n");
             if (WLS_MsgEnqueue(&pWls_us->put_queue, pMsg, MsgSize, MsgTypeID,
                     Flags, NULL, (void*) pWls_us)) {
                 PLIB_DEBUG("WLS_Get %lx %d type %d\n", (U64) pMsg, MsgSize, MsgTypeID);
             }
-        } else if ((Flags & WLS_TF_SCATTER_GATHER)
-                    && !(Flags & WLS_TF_SYN)
-                    && !(Flags & WLS_TF_FIN)) {
+        } else if ((nFlags & WLS_TF_SCATTER_GATHER)
+                    && !(nFlags & WLS_TF_SYN)
+                    && !(nFlags & WLS_TF_FIN)) {
             PLIB_DEBUG("WLS_SG_NEXT\n");
             if (WLS_MsgEnqueue(&pWls_us->put_queue, pMsg, MsgSize, MsgTypeID,
                     Flags, NULL, (void*) pWls_us)) {
                 PLIB_DEBUG("WLS_Put %lx %d type %d\n", (U64) pMsg, MsgSize, MsgTypeID);
             }
-        } else if (Flags & WLS_TF_FIN) {
+        } else if (nFlags & WLS_TF_FIN) {
             if (WLS_MsgEnqueue(&pWls_us->put_queue, pMsg, MsgSize, MsgTypeID,
                     Flags, NULL, (void*) pWls_us)) {
                 PLIB_DEBUG("WLS_Put %lx %d type %d\n", (U64) pMsg, MsgSize, MsgTypeID);
@@ -903,7 +904,7 @@ int WLS_Put(void *h, unsigned long long pMsg, unsigned int MsgSize, unsigned sho
                 }
             }
         } else
-            PLIB_ERR("unsaported flags %x\n", WLS_FLAGS_MASK & Flags);
+            PLIB_ERR("unsupported flags %x\n", WLS_FLAGS_MASK & Flags);
     } else { // one block transaction
         if (WLS_MsgEnqueue(&pWls_us->put_queue, pMsg, MsgSize, MsgTypeID,
                 Flags, NULL, (void*) pWls_us)) {
@@ -932,6 +933,7 @@ int WLS_Put1(void *h, unsigned long long pMsg, unsigned int MsgSize, unsigned sh
 {
     wls_us_ctx_t* pWls_us = (wls_us_ctx_t*) h;
     int ret = 0;
+    unsigned short nFlags = Flags & (~WLS_TF_URLLC);    
 
     if (wls_check_ctx1(h))
         return -1;
@@ -943,22 +945,22 @@ int WLS_Put1(void *h, unsigned long long pMsg, unsigned int MsgSize, unsigned sh
 
     wls_mutex_lock(&wls_put_lock1);
 
-    if ((WLS_FLAGS_MASK & Flags)) { // multi block transaction
-        if (Flags & WLS_TF_SYN) {
+    if ((WLS_FLAGS_MASK & nFlags)) { // multi block transaction
+        if (nFlags & WLS_TF_SYN) {
             PLIB_DEBUG("WLS_SG_FIRST\n");
             if (WLS_MsgEnqueue(&pWls_us->put_queue, pMsg, MsgSize, MsgTypeID,
                     Flags, NULL, (void*) pWls_us)) {
                 PLIB_DEBUG("WLS_Get %lx %d type %d\n", (U64) pMsg, MsgSize, MsgTypeID);
             }
-        } else if ((Flags & WLS_TF_SCATTER_GATHER)
-                    && !(Flags & WLS_TF_SYN)
-                    && !(Flags & WLS_TF_FIN)) {
+        } else if ((nFlags & WLS_TF_SCATTER_GATHER)
+                    && !(nFlags & WLS_TF_SYN)
+                    && !(nFlags & WLS_TF_FIN)) {
             PLIB_DEBUG("WLS_SG_NEXT\n");
             if (WLS_MsgEnqueue(&pWls_us->put_queue, pMsg, MsgSize, MsgTypeID,
                     Flags, NULL, (void*) pWls_us)) {
                 PLIB_DEBUG("WLS_Put %lx %d type %d\n", (U64) pMsg, MsgSize, MsgTypeID);
             }
-        } else if (Flags & WLS_TF_FIN) {
+        } else if (nFlags & WLS_TF_FIN) {
             if (WLS_MsgEnqueue(&pWls_us->put_queue, pMsg, MsgSize, MsgTypeID,
                     Flags, NULL, (void*) pWls_us)) {
                 PLIB_DEBUG("WLS_Put %lx %d type %d\n", (U64) pMsg, MsgSize, MsgTypeID);

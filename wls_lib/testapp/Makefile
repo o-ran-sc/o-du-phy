@@ -16,7 +16,7 @@
 #
 ###############################################################################
 
-ifdef DPDK_WLS
+
 ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
 endif
@@ -33,29 +33,8 @@ LDFLAGS += -L../.. -l wls -lpthread -lhugetlbfs
 # all source are stored in SRCS-y
 SRCS-y := pool.c testapp.c
 
-CFLAGS += $(WERROR_FLAGS) -I../.. -DDPDK_WLS
+CFLAGS += $(WERROR_FLAGS) -I../.. 
 EXTRA_CFLAGS += -g
 
 include $(RTE_SDK)/mk/rte.extapp.mk
 
-else
-
-#EXTRA_CFLAGS +=-g -Wall -wd9 -I../
-EXTRA_CFLAGS +=-g -Wall -I../
-LDFLAGS += -L../ -lwls
-
-# all source are stored in SRCS-y
-SRCS-y := pool.c testapp.c
-wls_test: testapp.o pool.o
-	$(CC) $(LDFLAGS) $(EXTRA_CFLAGS) -o $@ testapp.o pool.o -L . -l wls -l pthread -l hugetlbfs
-
-CFLAGS += $(WERROR_FLAGS) -g -I../../
-testapp.o: testapp.c
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ -c $<
-
-pool.o: pool.c
-	$(CC) $(CFLAGS) $(EXTRA_CFLAGS) -o $@ -c $<
-
-clean:
-	rm -f *.o wls_test
-endif
