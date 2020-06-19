@@ -84,8 +84,8 @@ COPY misc $BUILD_DIR/misc
 
 ENV WIRELESS_SDK_TARGET_ISA avx512
 
-####Download and Build FlexRAN FEC SDK
-RUN cd $BUILD_DIR/ && wget https://software.intel.com/sites/default/files/managed/23/b8/FlexRAN-FEC-SDK-19-04.tar.gz && tar -zxvf FlexRAN-FEC-SDK-19-04.tar.gz && misc/extract-flexran-fec-sdk.ex && cd FlexRAN-FEC-SDK-19-04/sdk && source /opt/intel/system_studio_2019/bin/iccvars.sh intel64 && ./create-makefiles-linux.sh && cd build-avx512-icc && make && make install
+####Download and Build FlexRAN FEC SDK, not needed for run L1
+#RUN cd $BUILD_DIR/ && wget https://software.intel.com/sites/default/files/managed/23/b8/FlexRAN-FEC-SDK-19-04.tar.gz && tar -zxvf #FlexRAN-FEC-SDK-19-04.tar.gz && misc/extract-flexran-fec-sdk.ex && cd FlexRAN-FEC-SDK-19-04/sdk && source #/opt/intel/system_studio_2019/bin/iccvars.sh intel64 && ./create-makefiles-linux.sh && cd build-avx512-icc && #make && make install
 
 ####Build XRAN lib, unittests, sample app
 RUN cd $BUILD_DIR/fhi_lib/ && ./build.sh xclean && ./build.sh && cd app && octave gen_test.m

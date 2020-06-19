@@ -62,21 +62,6 @@ Set env for ICC::
 
 Build DPDK
 -----------
-   - download FEC SDK lib::
-   
-         #wget https://software.intel.com/sites/default/files/managed/23/b8/FlexRAN-FEC-SDK-19-04.tar.gz
-         #tar -xzvf FlexRAN-FEC-SDK-19-04.tar.gz
-
-   - build FEC SDK lib::
-        
-         #./FlexRAN-FEC-SDK-19-04.sh
-         #cd FlexRAN-FEC-SDK-19-04/sdk
-         #./create-makefiles-linux.sh
-         #cd build-avx512-icc
-         #make;make install
-
-   *note: you need to accept the Intel OBL commercial use license during the installation*
-
    - download DPDK::
      
          #wget http://fast.dpdk.org/rel/dpdk-18.08.tar.xz
@@ -84,41 +69,25 @@ Build DPDK
          #export RTE_TARGET=x86_64-native-linuxapp-icc
          #export RTE_SDK=Intallation_DIR/dpdk-18.08
 
-
    - patch DPDK for O-RAN FHI lib, this patch is specific for O-RAN FHI to reduce the data transmission latency of Intel NIC. This may not be needed for some NICs, please refer to O-RAN FHI Lib Introduction -> setup configuration -> A.2 prerequisites
 
+   - SW FEC was enabled by default, to enable HW FEC with specific accelerator card, you need get the associated driver and build steps from the accelerator card vendors.
 
-   - change DPDK config to enable SW FEC support
-
-     check the configuration as below in dpdk-18.08/config/common_base::
-     
-         CONFIG_RTE_LIBRTE_BBDEV=y
-         CONFIG_RTE_LIBRTE_BBDEV_DEBUG=n
-         CONFIG_RTE_BBDEV_MAX_DEVS=128
-         CONFIG_RTE_BBDEV_OFFLOAD_COST=y
-         CONFIG_RTE_BBDEV_SDK_AVX2=y
-         CONFIG_RTE_BBDEV_SDK_AVX512=y
-
-   - enable FEC accelerator card, DPDK BBDev framework support any kind of accelerator card to plug in the associated driver while using the same interface. Right now there is no open source driver available yet, so you need to get the associated vendor's driver to enable the capability to use an accelerator card. 
-
-   - enable IGB UIO for FEC card and NIC configure::
+   - enable IGB UIO for NIC card::
    
          CONFIG_RTE_EAL_IGB_UIO=y
          CONFIG_RTE_KNI_KMOD=y
 
    - build DPDK
-      setup Env for BBDev SW::
-
-        #export FLEXRAN_SDK=$Intallation_DIR/FlexRAN-FEC-SDK-19-04/sdk/build-avx512-icc/install
-
       build DPDK::
 
         #./usertools/dpdk-setup.sh
         select [16] x86_64-native-linuxapp-icc
         select [19] Insert VFIO module
         exit   [35] Exit Script
+
    - set DPDK path
-     this path should be always there during you build and run lib/app::
+       DPDK path is needed during build and run lib/app::
 
         #export RTE_SDK="your DPDK path"
 
