@@ -22,7 +22,10 @@
  *  supported by WLS interface)
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
+
 #include <stdio.h>   // for printf
 #include <string.h>  // for memset
 #include <signal.h>  // for SIGINT
@@ -1418,14 +1421,12 @@ int main(int argc, char* argv[])
     memset(&AppContext, 0, sizeof (AppContext));
     memset(&params, 0, sizeof (params));
 
-#ifdef DPDK_WLS
     int ret = rte_eal_init(argc, argv);
     if (ret < 0)
         rte_exit(EXIT_FAILURE, "Error with EAL initialization\n");
 
     argc -= ret;
     argv += ret;
-#endif
 
     app_ParseArgs(argc, argv, &params);
     app_ApplyParams(&params);
