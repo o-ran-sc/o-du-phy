@@ -16,7 +16,6 @@
 *
 *******************************************************************************/
 
-
 #include "common.hpp"
 #include "xran_common.h"
 #include "xran_up_api.h"
@@ -44,7 +43,7 @@ protected:
             return;
         }
         iq_offset = rte_pktmbuf_mtod(test_buffer, char * );
-        iq_offset = iq_offset + sizeof(struct ether_hdr) +
+        iq_offset = iq_offset + sizeof(struct rte_ether_hdr) +
                                     sizeof (struct xran_ecpri_hdr) +
                                     sizeof (struct radio_app_common_hdr) +
                                     sizeof(struct data_section_hdr);
@@ -107,10 +106,10 @@ TEST_P(U_planeCheck, Test_DLUL)
 
     pChar = rte_pktmbuf_mtod(test_buffer, char*);
 
-    ecpri_hdr = (struct xran_ecpri_hdr *)(pChar + sizeof(struct ether_hdr));
-    app_hdr = (struct radio_app_common_hdr *)(pChar + sizeof(struct ether_hdr)
+    ecpri_hdr = (struct xran_ecpri_hdr *)(pChar + sizeof(struct rte_ether_hdr));
+    app_hdr = (struct radio_app_common_hdr *)(pChar + sizeof(struct rte_ether_hdr)
                                               + sizeof (struct xran_ecpri_hdr));
-    section_hdr = (struct data_section_hdr *)(pChar + sizeof(struct ether_hdr) +
+    section_hdr = (struct data_section_hdr *)(pChar + sizeof(struct rte_ether_hdr) +
                                             sizeof (struct xran_ecpri_hdr) +
                                             sizeof(struct radio_app_common_hdr));
 

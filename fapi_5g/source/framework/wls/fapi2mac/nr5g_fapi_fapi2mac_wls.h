@@ -26,11 +26,14 @@
 #define _5G_FAPI_FAPI2MAC_WLS_H
 
 #include "fapi_interface.h"
+#include "fapi_vendor_extension.h"
 
 uint8_t nr5g_fapi_fapi2mac_is_valid_wls_ptr(
     void *data);
+
 uint8_t nr5g_fapi_fapi2mac_wls_send(
     p_fapi_api_queue_elem_t p_list_elem);
+
 p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_wls_recv(
     );
 
@@ -41,5 +44,8 @@ uint8_t nr5g_fapi_fapi2mac_wls_wait(
 
 void *nr5g_fapi_fapi2mac_wls_alloc_buffer(
     );
+
+void nr5g_fapi_fapi2mac_wls_free_buffer(
+    void *buffers);
 
 #endif /*_5G_FAPI_FAPI2MAC_WLS_H*/

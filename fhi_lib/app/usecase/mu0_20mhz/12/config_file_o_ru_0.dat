@@ -31,9 +31,17 @@ Gps_Beta=0
 
 ioCore=3
 
-llsCUMac=00:11:22:33:44:66 # asigned MAC of lls-CU VF
-#llsCUMac=3c:fd:fe:a8:e0:70 #lls-CU PF for tcpdump
-ruMac=00:11:22:33:44:55  #RU VF for RU app
+# Eth 0
+duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
+ruMac0=00:11:22:33:44:55 # O-RU VF for O-RU app
+duMac1=00:11:22:33:44:66 # asigned MAC of O-DU VF
+ruMac1=00:11:22:33:44:55 # O-RU VF for O-RU app
+
+#Eth 1
+duMac2=00:11:22:33:44:77 # asigned MAC of O-DU VF
+ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
+duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
+ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
 numSlots=20 #number of slots per IQ files
 #fd 10Mhz 2

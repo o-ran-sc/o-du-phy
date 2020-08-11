@@ -96,8 +96,7 @@ uint8_t nr5g_fapi_srs_indication(
     p_stats->fapi_stats.fapi_srs_ind++;
     NR5G_FAPI_LOG(DEBUG_LOG, ("[SRS.indication][%d][%d,%d]",
             p_phy_instance->phy_id,
-            p_phy_srs_ind->sSFN_Slot.nSFN,
-            p_phy_srs_ind->sSFN_Slot.nSlot));
+            p_phy_srs_ind->sSFN_Slot.nSFN, p_phy_srs_ind->sSFN_Slot.nSlot));
 
     return SUCCESS;
 }

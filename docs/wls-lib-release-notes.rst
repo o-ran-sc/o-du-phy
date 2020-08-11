@@ -15,7 +15,12 @@
 WLS Library Release Notes
 =========================
 
-Version oran_release_bronze_v1.0, May 2020
-------------------------------------------
+Version WLS oran_release_bronze_v1.1, Aug 2020
+--------------------------------------------------
+* Second release of this library aligned with FlexRAN 20.04
+* No changes to external interfaces,
+
+Version WLS oran_release_bronze_v1.0, May 2020
+--------------------------------------------------
 * First release of the wls library to ORAN in support of the Bronze Release
 * This version supports both single and dual instances using a single Open function

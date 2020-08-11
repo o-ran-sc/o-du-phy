@@ -46,11 +46,11 @@ uint8_t nr5g_fapi_shutdown_response(
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,
     PSHUTDOWNRESPONSEStruct p_iapi_resp);
 
-#ifdef DEBUG_MODE
 uint8_t nr5g_fapi_start_resp(
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,
     PSTARTRESPONSEStruct p_iapi_resp);
 
+#ifdef DEBUG_MODE
 uint8_t nr5g_fapi_dl_iq_samples_response(
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,
     PADD_REMOVE_BBU_CORES p_iapi_resp);

@@ -116,7 +116,7 @@ static void nr5g_fapi_cmd_print_version(
 static void nr5g_fapi_cmd_exit(
     p_nr5g_fapi_phy_ctx_t p_phy_ctx)
 {
-    p_phy_ctx->process_exit = 0;
+    p_phy_ctx->process_exit = 1;
     printf("Exitting App...\n");
     exit(0);
 }

@@ -46,7 +46,7 @@ void nr5g_fapi_fill_pdsch_pdu(
     fapi_dl_pdsch_pdu_t * p_pdsch_pdu,
     PDLSCHPDUStruct p_dlsch_pdu);
 
-uint8_t nr5g_fapi_calculate_nEpreRatioOfPDCCHToSSB(
+uint16_t nr5g_fapi_calculate_nEpreRatioOfPDCCHToSSB(
     uint8_t beta_pdcch_1_0);
 
 void nr5g_fapi_fill_ssb_pdu(

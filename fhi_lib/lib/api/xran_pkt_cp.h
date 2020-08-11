@@ -201,29 +201,27 @@ struct xran_cp_radioapp_section_ext2 {
  *      DL Precoding Extension Type(ExtType 3) for first data layer.
  *      Defined in 5.4.7.3 Table 5-22.
  *      Only be used for LTE TM2-4 and not for other LTE TMs nor NR.
- *      The structure is reordered for byte order conversion. Not supported.
+ *      The structure is reordered for byte order conversion.
  */
 struct xran_cp_radioapp_section_ext3_first {
-    /* 16 bytes, need to convert byte order for two parts
-     *   - 8 / 8 bytes
-     */
-    uint32_t    reserved1:8;
-    uint32_t    crsSymNum:4;        /**< 5.4.7.3.6 CRS symbol number indication */
-    uint32_t    reserved0:3;
-    uint32_t    crsShift:1;         /**< 5.4.7.3.7 CRS shift used for DL transmission */
-    uint32_t    crsReMask:12;       /**< 5.4.7.3.5 CRS resource element mask */
-    uint32_t    txScheme:4;         /**< 5.4.7.3.3 transmission scheme */
-    uint32_t    numLayers:4;        /**< 5.4.7.3.4 number of layers used for DL transmission */
-    uint32_t    layerId:4;          /**< 5.4.7.3.2 Layer ID for DL transmission */
-    uint32_t    codebookIndex:8;    /**< 5.4.7.3.1 precoder codebook used for transmission */
-    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
-    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
-    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+    /* 16 bytes, need to convert byte order for two parts - 8/8 bytes */
+    uint64_t    reserved1:8;
+    uint64_t    crsSymNum:4;        /**< 5.4.7.3.6 CRS symbol number indication */
+    uint64_t    reserved0:3;
+    uint64_t    crsShift:1;         /**< 5.4.7.3.7 CRS shift used for DL transmission */
+    uint64_t    crsReMask:12;       /**< 5.4.7.3.5 CRS resource element mask */
+    uint64_t    txScheme:4;         /**< 5.4.7.3.3 transmission scheme */
+    uint64_t    numLayers:4;        /**< 5.4.7.3.4 number of layers used for DL transmission */
+    uint64_t    layerId:4;          /**< 5.4.7.3.2 Layer ID for DL transmission */
+    uint64_t    codebookIndex:8;    /**< 5.4.7.3.1 precoder codebook used for transmission */
+    uint64_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+    uint64_t    extType:7;          /**< 5.4.6.1 extension type */
+    uint64_t    ef:1;               /**< 5.4.6.2 extension flag */
 
-    uint16_t    beamIdAP3;          /**< 5.4.7.3.10 beam id to be used for antenna port 3 */
-    uint16_t    beamIdAP2;          /**< 5.4.7.3.9 beam id to be used for antenna port 2 */
-    uint16_t    beamIdAP1;          /**< 5.4.7.3.8 beam id to be used for antenna port 1 */
-    uint16_t    reserved2;
+    uint64_t    beamIdAP1:16;       /**< 5.4.7.3.8 beam id to be used for antenna port 1 */
+    uint64_t    beamIdAP2:16;       /**< 5.4.7.3.9 beam id to be used for antenna port 2 */
+    uint64_t    beamIdAP3:16;       /**< 5.4.7.3.10 beam id to be used for antenna port 3 */
+    uint64_t    reserved2:16;
     } __attribute__((__packed__));
 
 /**
@@ -233,7 +231,7 @@ struct xran_cp_radioapp_section_ext3_first {
  *      DL Precoding Extension Type(ExtType 3) for non-first data layer.
  *      Defined in 5.4.7.3 Table 5-23.
  *      Only be used for LTE TM2-4 and not for other LTE TMs nor NR.
- *      The structure is reordered for byte order conversion. Not supported.
+ *      The structure is reordered for byte order conversion.
  */
 struct xran_cp_radioapp_section_ext3_non_first {
     /* 4 bytes, need to convert byte order at once */
@@ -264,57 +262,15 @@ struct xran_cp_radioapp_section_ext4 {
     uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
     } __attribute__((__packed__));
 
-#if 0
 /**
  * @ingroup xran_cp_pkt
  *
  * @description
  *      Modulation Compression Additional Parameter Extension Type(ExtType 5) for one scaler value.
- *      Defined in 5.4.7.5 Table 5-26
+ *      Defined in 5.4.7.5 Table 5-26 and Table 5-27.
  *      Only applies to section type 1 3, and 5.
  *      The structure is reordered for byte order conversion.
  */
-struct xran_cp_radioapp_section_ext5_1 {
-    /* 8 bytes, need to convert byte order at once */
-    uint32_t    reserved:20;
-    uint32_t    mcScaleOffset:15;   /**< 5.4.7.5.3 scaling value for modulation compression */
-    uint32_t    csf:1;              /**< 5.4.7.5.2 constellation shift flag */
-    uint32_t    mcScaleReMask:12;   /**< 5.4.7.5.1 modulation compression power scale RE mask */
-
-    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
-    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
-    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
-    } __attribute__((__packed__));
-
-/**
- * @ingroup xran_cp_pkt
- *
- * @description
- *      Modulation Compression Additional Parameter Extension Type(ExtType 5) for two scaler values.
- *      Defined in 5.4.7.5 Table 5-27
- *      Only applies to section type 1 3, and 5.
- *      The structure is reordered for byte order conversion.
- */
-struct xran_cp_radioapp_section_ext5_2 {
-    /* 12 bytes, need to convert byte order for two parts respectively
-     *  - 2 and 8 bytes, reserved1 would be OK if it is zero
-     */
-    uint16_t     extLen:8;          /**< 5.4.6.3 extension length, in 32bits words */
-    uint16_t     extType:7;         /**< 5.4.6.1 extension type */
-    uint16_t     ef:1;              /**< 5.4.6.2 extension flag */
-
-    uint32_t    reserved0:8;
-    uint32_t    mcScaleOffset2:15;  /**< 5.4.7.5.3 scaling value for modulation compression */
-    uint32_t    csf2:1;             /**< 5.4.7.5.2 constellation shift flag */
-    uint32_t    mcScaleReMask2:12;  /**< 5.4.7.5.1 modulation compression power scale RE mask */
-    uint32_t    mcScaleOffset1:15;  /**< 5.4.7.5.3 scaling value for modulation compression */
-    uint32_t    csf1:1;             /**< 5.4.7.5.2 constellation shift flag */
-    uint32_t    mcScaleReMask1:12;  /**< 5.4.7.5.1 modulation compression power scale RE mask */
-
-    uint16_t    reserved1;
-    } __attribute__((__packed__));
-#endif
-
 struct xran_cp_radioapp_section_ext5 {
     uint32_t    reserved0:8;
     uint32_t    mcScaleOffset2:15;  /**< 5.4.7.5.3 scaling value for modulation compression */
@@ -324,6 +280,7 @@ struct xran_cp_radioapp_section_ext5 {
     uint32_t    csf1:1;             /**< 5.4.7.5.2 constellation shift flag */
     uint32_t    mcScaleReMask1:12;  /**< 5.4.7.5.1 modulation compression power scale RE mask */
     } __attribute__((__packed__));
+
 
 /**********************************************************
  * Scheduling and Beam-forming Commands 5.4.2
@@ -451,7 +408,7 @@ struct xran_cp_radioapp_section6_header {   // 8bytes (6+1+1)
  * @ingroup xran_cp_pkt
  *
  * @description
- *      Section definition for type 5: Channel Information (Table 5-6)
+ *      Section definition for type 6: Channel Information (Table 5-6)
  *      Not supported in this release
  */
 struct xran_cp_radioapp_section6 {

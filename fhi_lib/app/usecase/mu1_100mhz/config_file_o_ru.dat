@@ -55,13 +55,17 @@ Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
 
 ioCore=10
-systemCore=10
-pktProcCore=10
-pktAuxCore=10
-timingCore=11
-llsCUMac=00:11:22:33:44:66 # asigned MAC of lls-CU VF
-#llsCUMac=3c:fd:fe:a8:e0:70
-ruMac=00:11:22:33:44:55    # RU VF for RU app
+# Eth 0
+duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
+ruMac0=00:11:22:33:44:55 # O-RU VF for O-RU app
+duMac1=00:11:22:33:44:66 # asigned MAC of O-DU VF
+ruMac1=00:11:22:33:44:55 # O-RU VF for O-RU app
+
+# Eth 1
+duMac2=00:11:22:33:44:77 # asigned MAC of O-DU VF
+ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
+duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
+ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
 numSlots=40 #number of slots per IQ files
 antC0=./usecase/mu1_100mhz/ant_0.bin   #CC0
@@ -148,7 +152,7 @@ Tadv_cp_dl=25 # in us
               # C-Plane messages must arrive at the RU some amount of time in advance (Tcp_adv_dl) of the corresponding U-Plane messages
 #Reception Window C-plane DL
 T2a_min_cp_dl=285 # 285.42us
-T2a_max_cp_dl=429 # 428.12us
+T2a_max_cp_dl=392 # 428.12us
 
 #Reception Window C-plane UL
 T2a_min_cp_ul=285 # 285.42us
@@ -167,7 +171,7 @@ Ta3_max=32 # in us
 #C-plane
 #Transmission Window Fast C-plane DL
 T1a_min_cp_dl=285
-T1a_max_cp_dl=429
+T1a_max_cp_dl=392
 
 ##Transmission Window Fast C-plane UL
 T1a_min_cp_ul=285

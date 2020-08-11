@@ -25,12 +25,15 @@
 #ifndef NR5G_FAPI_FAPI2MAC_API_H
 #define NR5G_FAPI_FAPI2MAC_API_H
 
-#include "fapi_interface.h"
+#include "fapi_vendor_extension.h"
+#include "nr5g_fapi_std.h"
 
 typedef struct _nr5g_fapi_fapi2mac_queue {
-    p_fapi_api_queue_elem_t p_send_list_head;   // list head to, send to MAC
-    p_fapi_api_queue_elem_t p_send_list_tail;   // list tail to, send to MAC
-} nr5g_fapi_fapi2mac_queue_t, *p_nr5g_fapi_fapi2mac_queue_t;
+    volatile pthread_mutex_t lock;
+    volatile p_fapi_api_queue_elem_t p_send_list_head;  // list head to, send to MAC
+    volatile p_fapi_api_queue_elem_t p_send_list_tail;  // list tail to, send to MAC
+} nr5g_fapi_fapi2mac_queue_t,
+*p_nr5g_fapi_fapi2mac_queue_t;
 
 // Function definitions
 // -----------------------------------------------------------------------------
@@ -46,4 +49,6 @@ void nr5g_fapi_fapi2mac_add_api_to_list(
     uint8_t phy_id,
     p_fapi_api_queue_elem_t p_list_elem);
 
+void nr5g_fapi_fapi2mac_init_api_list(
+    );
 #endif

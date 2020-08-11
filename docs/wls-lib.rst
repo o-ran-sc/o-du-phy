@@ -19,9 +19,9 @@
 Wls Lib Overview
 ================
 
-The Wls_lib is a Wireless Service library that supports shared memory and buffer management used by applications |br| 
-implementing a gNb or eNb. |br|
-This library uses DPDK, libhugetlbfs and pthreads to provide memcpy less data exchange between an L2 application, |br|
+The Wls_lib is a Wireless Service library that supports shared memory and buffer management used by applications 
+implementing a gNb or eNb. 
+This library uses DPDK, libhugetlbfs and pthreads to provide memcpy less data exchange between an L2 application,
 API Translator Module and a L1 application by sharing the same memory zone from the DPDK perspective.
 
 Project Resources
@@ -74,3 +74,5 @@ Library Functions
 * **WLS_NumBlocks()** returns number of current available blocks provided by master for a new transfer of data from the slave.
 
 The **_1()** functions are only needed when using the WLS_Open_Dual().
+
+The source code and documentation will be updated in the next release to use inclusive engineering terms.

@@ -36,7 +36,9 @@
 typedef struct _nr5g_fapi_phy_config {
     uint8_t n_nr_of_rx_ant;
     uint16_t phy_cell_id;
-} nr5g_fapi_phy_config_t, *pnr5g_fapi_phy_config_t;
+    uint8_t nSSBPrbOffset;
+} nr5g_fapi_phy_config_t,
+*pnr5g_fapi_phy_config_t;
 
 typedef struct _nr5g_fapi_rach_info {
     uint16_t phy_cell_id;
@@ -178,7 +180,8 @@ typedef struct _nr5g_fapi_phy_instance {
     // parameters from config request
     nr5g_fapi_stats_t stats;
     nr5g_fapi_ul_slot_info_t ul_slot_info[MAX_UL_SLOT_INFO_COUNT];
-} nr5g_fapi_phy_instance_t, *p_nr5g_fapi_phy_instance_t;
+} nr5g_fapi_phy_instance_t,
+*p_nr5g_fapi_phy_instance_t;
 
 // Phy Context
 typedef struct _nr5g_fapi_phy_context {
@@ -187,9 +190,10 @@ typedef struct _nr5g_fapi_phy_context {
     uint8_t phy2mac_worker_core_id;
     pthread_t phy2mac_tid;
     pthread_t mac2phy_tid;
-    uint64_t process_exit;
+    volatile uint64_t process_exit;
     nr5g_fapi_phy_instance_t phy_instance[FAPI_MAX_PHY_INSTANCES];
-} nr5g_fapi_phy_ctx_t, *p_nr5g_fapi_phy_ctx_t;
+} nr5g_fapi_phy_ctx_t,
+*p_nr5g_fapi_phy_ctx_t;
 
 // Function Declarations
 inline p_nr5g_fapi_phy_ctx_t nr5g_fapi_get_nr5g_fapi_phy_ctx(

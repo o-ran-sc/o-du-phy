@@ -94,9 +94,8 @@ uint8_t nr5g_fapi_crc_indication(
     p_stats->fapi_stats.fapi_crc_ind++;
 
     NR5G_FAPI_LOG(DEBUG_LOG, ("[CRC.indication][%d][%d,%d]",
-                p_phy_instance->phy_id,
-                p_phy_crc_ind->sSFN_Slot.nSFN,
-                p_phy_crc_ind->sSFN_Slot.nSlot));
+            p_phy_instance->phy_id,
+            p_phy_crc_ind->sSFN_Slot.nSFN, p_phy_crc_ind->sSFN_Slot.nSlot));
 
     return SUCCESS;
 }

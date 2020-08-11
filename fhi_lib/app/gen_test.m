@@ -9,6 +9,13 @@
 close all;
 clear all;
 
+     %  5MHz    10MHz   15MHz   20 MHz  
+nLteNumRbsPerSymF1 = ...
+[
+     %  5MHz    10MHz   15MHz   20 MHz  
+        [25,    50,     75,     100]         % Numerology 0 (15KHz)
+];
+
      %  5MHz    10MHz   15MHz   20 MHz  25 MHz  30 MHz  40 MHz  50MHz   60 MHz  70 MHz  80 MHz   90 MHz  100 MHz
 nNumRbsPerSymF1 = ...
 [
@@ -26,35 +33,40 @@ nNumRbsPerSymF2 = ...
 ];
 
 % total number of tests
-tests_total = 6
+tests_total = 12
+tech_all = ... % 0 - NR 1- LTE
+    [ 
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1  
+    ]
+
 sub6_all = ...
     [ 
-      true, true, true, true, false, true,   
+      true, true, true, true, false, true, true, true, true, true, true, true
     ]
 
 mu_all = ...
     [
-      0, 0, 0, 1, 3, 1
+      0, 0, 0, 1, 3, 1, 0, 0, 0, 0, 0, 0
     ]
 
 bw_all = ...
     [
-      5, 10, 20, 100, 100, 100
+      5, 10, 20, 100, 100, 100, 20, 10, 5, 20, 10, 5
     ]
 
 ant_num_all = ...
     [
-      4, 4, 4, 4, 4, 8
+      4, 4, 4, 4, 4, 8, 4, 4, 4, 8, 8, 8
     ]
 
 bfw_gen_all = ...
     [
-      false, false, false, false, false, true
+      false, false, false, false, false, true, false, false, false, true, true, true,
     ]
 
 trx_all = ...
     [ 
-      32, 32, 32, 32, 32, 32
+      32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32
     ]
 path_to_usecase_all = ... 
     [
@@ -64,18 +76,25 @@ path_to_usecase_all = ...
       "./usecase/mu1_100mhz/"; 
       "./usecase/mu3_100mhz/"; 
       "./usecase/cat_b/mu1_100mhz/";
+      "./usecase/lte_a/mu0_20mhz/";
+      "./usecase/lte_a/mu0_10mhz/";
+      "./usecase/lte_a/mu0_5mhz/";
+      "./usecase/lte_b/mu0_20mhz/";
+      "./usecase/lte_b/mu0_10mhz/";
+      "./usecase/lte_b/mu0_5mhz/";      
     ]
 
 path_to_usecase_all = cellstr(path_to_usecase_all) 
 
 nSlots_all = ...
     [
-       40,40,40,40,40,10 
+       40,40,40,40,40,10,40,40,40,10,10,10 
     ]
 
 %select mu and bw to generate test files
 for test_num =(1:1:tests_total)
     test_num
+    isLte=tech_all(test_num)  %false 
     sub6=sub6_all(test_num)  %false
     mu=mu_all(test_num) % 0,1, or 3
     bw=bw_all(test_num) %5,10,20,100 MHz
@@ -87,60 +106,76 @@ for test_num =(1:1:tests_total)
 
     nSlots=nSlots_all(test_num) % any 40 and 160
 
-    if sub6
-        disp('Sub6')
+    if isLte
+        disp('LTE')
         if mu < 3
             nNumerology = mu+1;
             switch (bw)
                 case {5}
-                    numRBs = nNumRbsPerSymF1(nNumerology,0+1);
+                    numRBs = nLteNumRbsPerSymF1(nNumerology,0+1);
                 case {10}
-                    numRBs = nNumRbsPerSymF1(nNumerology,1+1);
+                    numRBs = nLteNumRbsPerSymF1(nNumerology,1+1);
                 case {15}
-                    numRBs = nNumRbsPerSymF1(nNumerology,2+1);
+                    numRBs = nLteNumRbsPerSymF1(nNumerology,2+1);
                 case {20}
-                    numRBs = nNumRbsPerSymF1(nNumerology,3+1);
-                case {25}
-                    numRBs = nNumRbsPerSymF1(nNumerology,4+1);
-                case {30}
-                    numRBs = nNumRbsPerSymF1(nNumerology,5+1);
-                case {40}
-                    numRBs = nNumRbsPerSymF1(nNumerology,6+1);
-                case {50}
-                    numRBs = nNumRbsPerSymF1(nNumerology,7+1);
-                case {60}
-                    numRBs = nNumRbsPerSymF1(nNumerology,8+1);
-                case {70}
-                    numRBs = nNumRbsPerSymF1(nNumerology,9+1);
-                case {80}
-                    numRBs = nNumRbsPerSymF1(nNumerology,10+1);
-                case {90}
-                    numRBs = nNumRbsPerSymF1(nNumerology,11+1);
-                case {100}
-                    numRBs = nNumRbsPerSymF1(nNumerology,12+1);
-                otherwise
-                    disp('Unknown BW && mu')
+                    numRBs = nLteNumRbsPerSymF1(nNumerology,3+1);
             end
         end
     else
-        disp('mmWave')
-        if  (mu >=2) && (mu <= 3)
-            nNumerology = mu;
-            switch (bw)
-                case {50}
-                    numRBs = nNumRbsPerSymF2(nNumerology-1,0+1);
-                case {100}
-                    numRBs = nNumRbsPerSymF2(nNumerology-1,1+1);
-                case {200}
-                    numRBs = nNumRbsPerSymF2(nNumerology-1,2+1);
-                case {400}
-                    numRBs = nNumRbsPerSymF2(nNumerology-1,3+1);
-                otherwise
-                    disp('Unknown BW && mu')
+        if sub6
+            disp('Sub6')
+            if mu < 3
+                nNumerology = mu+1;
+                switch (bw)
+                    case {5}
+                        numRBs = nNumRbsPerSymF1(nNumerology,0+1);
+                    case {10}
+                        numRBs = nNumRbsPerSymF1(nNumerology,1+1);
+                    case {15}
+                        numRBs = nNumRbsPerSymF1(nNumerology,2+1);
+                    case {20}
+                        numRBs = nNumRbsPerSymF1(nNumerology,3+1);
+                    case {25}
+                        numRBs = nNumRbsPerSymF1(nNumerology,4+1);
+                    case {30}
+                        numRBs = nNumRbsPerSymF1(nNumerology,5+1);
+                    case {40}
+                        numRBs = nNumRbsPerSymF1(nNumerology,6+1);
+                    case {50}
+                        numRBs = nNumRbsPerSymF1(nNumerology,7+1);
+                    case {60}
+                        numRBs = nNumRbsPerSymF1(nNumerology,8+1);
+                    case {70}
+                        numRBs = nNumRbsPerSymF1(nNumerology,9+1);
+                    case {80}
+                        numRBs = nNumRbsPerSymF1(nNumerology,10+1);
+                    case {90}
+                        numRBs = nNumRbsPerSymF1(nNumerology,11+1);
+                    case {100}
+                        numRBs = nNumRbsPerSymF1(nNumerology,12+1);
+                    otherwise
+                        disp('Unknown BW && mu')
+                end
+            end
+        else
+            disp('mmWave')
+            if  (mu >=2) && (mu <= 3)
+                nNumerology = mu;
+                switch (bw)
+                    case {50}
+                        numRBs = nNumRbsPerSymF2(nNumerology-1,0+1);
+                    case {100}
+                        numRBs = nNumRbsPerSymF2(nNumerology-1,1+1);
+                    case {200}
+                        numRBs = nNumRbsPerSymF2(nNumerology-1,2+1);
+                    case {400}
+                        numRBs = nNumRbsPerSymF2(nNumerology-1,3+1);
+                    otherwise
+                        disp('Unknown BW && mu')
+                end
             end
         end
     end
-
     if numRBs ==0
         disp('Incorrect Numerology and BW combination.')
         return

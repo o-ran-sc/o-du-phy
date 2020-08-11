@@ -30,19 +30,23 @@ Download L1 and testmac
 
 Download L1 and testmac through https://github.com/intel/FlexRAN
 
+CheckList Before Running the code
+---------------------------------
+Before running the L1 and Testmac code make sure that you have built the wls_lib, FHI_lib and 5G_FAPI_TM using the instructions provided earlier in this 
+document and in the order specified in this documentation.
 
 Run L1 with testmac
 --------------------
-Three console windows are needed, one for L1 app, one for FAPI TM, one for testmac. They need to run in the following order L1-> FAPI TM-> testmac. |br|
-In each console window, the environment needs to be set using a shell script of example::
+Three console windows are needed, one for L1 app, one for FAPI TM, one for testmac. They need to run in the following order L1-> FAPI TM-> testmac.
+In each console window, the environment needs to be set using a shell script under folder phy/  example::
 
-       #source ./setupenv.sh
+     #source ./setupenv.sh
 
 * Run L1 under folder FlexRAN/l1/bin/nr5g/gnb/l1 in timer mode using::
 
      #l1.sh -e
 
-**Note** that the markups dpdkBasebandFecMode and dpdkBasebandDevice needs to be adjusted in the relevant phycfg.xml under folder |br|
+**Note** that the markups dpdkBasebandFecMode and dpdkBasebandDevice needs to be adjusted in the relevant phycfg.xml under folder
  FlexRAN/l1/bin/nr5g/gnb/l1 before starting L1. |br|
  dpdkBasebandFecMode = 0 for LDPC Encoder/Decoder in software. |br|
  dpdkBasebandFecMode = 1 for LDPC Encoder/Decoder in FPGA. (Not supported in the Bronze Release for the Open Source Community) |br|
@@ -70,13 +74,13 @@ Once the application comes up, you will see a *<TESTMAC>* prompt. The same Unit 
 testnum is always a 4 digit number. First digit represents the number of carriers to run.
 For example, to run Test Case 5 for Uplink Rx mu=3, 100Mhz for 1 carrier, the command would be:
 run 1 3 100 1005
-All the pre-defined test cases for the Bronze Release are defined in the Test Cases section in https://github.com/intel/FlexRAN and also in the Test |br|
+All the pre-defined test cases for the Bronze Release are defined in the Test Cases section in https://github.com/intel/FlexRAN and also in the Test 
 Cases section of this document.
-If user wants to run more slots (than specified in test config file) or change the mode or change the TTI interval of the test, then the command phystart can be used as follows:
+If the user wants to run more slots (than specified in test config file) or change the mode or change the TTI interval of the test, then the command phystart can be used as follows:
 
 - **phystart   mode   interval   num_tti**
 
-- **mode** is 0 (Radio) or 1 (Timer)
+- **mode** is 4 (ORAN compatible Radio) or 1 (Timer)
 
 - **interval** is the TTI duration scaled as per Numerology (only used in timer mode).
 

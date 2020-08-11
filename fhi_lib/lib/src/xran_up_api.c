@@ -34,6 +34,7 @@
 #include "xran_up_api.h"
 #include "xran_printf.h"
 #include "xran_mlog_lnx.h"
+#include "xran_common.h"
 
 extern uint32_t xran_lib_ota_tti;
 
@@ -111,7 +112,7 @@ static int xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
                               uint8_t comp_meth)
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
-    struct xran_ecpri_hdr *ecpri_hdr = (struct xran_ecpri_hdr *)(pChar + sizeof(struct ether_hdr));
+    struct xran_ecpri_hdr *ecpri_hdr = (struct xran_ecpri_hdr *)(pChar + sizeof(struct rte_ether_hdr));
     uint16_t    ecpri_payl_size = payl_size
                                 + sizeof(struct data_section_hdr)
                                 + sizeof(struct radio_app_common_hdr)
@@ -155,7 +156,7 @@ static int build_application_layer(
     const struct radio_app_common_hdr *app_hdr_input)
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
-    struct radio_app_common_hdr *app_hdr = (struct radio_app_common_hdr *)(pChar + sizeof(struct ether_hdr)
+    struct radio_app_common_hdr *app_hdr = (struct radio_app_common_hdr *)(pChar + sizeof(struct rte_ether_hdr)
         + sizeof (struct xran_ecpri_hdr));
 
     if (NULL == app_hdr)
@@ -179,7 +180,7 @@ static int build_section_hdr(
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
     struct data_section_hdr *section_hdr = (struct data_section_hdr *)
-        (pChar + sizeof(struct ether_hdr) + sizeof (struct xran_ecpri_hdr) + sizeof(struct radio_app_common_hdr));
+        (pChar + sizeof(struct rte_ether_hdr) + sizeof (struct xran_ecpri_hdr) + sizeof(struct radio_app_common_hdr));
 
     if (NULL == section_hdr)
         return 1;
@@ -205,7 +206,7 @@ static uint16_t append_iq_samples_ex(
     uint32_t do_copy)
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
-    void *iq_sam_buf  = (pChar + sizeof(struct ether_hdr) + sizeof (struct xran_ecpri_hdr)
+    void *iq_sam_buf  = (pChar + sizeof(struct rte_ether_hdr) + sizeof (struct xran_ecpri_hdr)
                         + sizeof(struct radio_app_common_hdr)
                         + sizeof(struct data_section_hdr));
 
@@ -223,14 +224,11 @@ static uint16_t append_iq_samples_ex(
         }
     }
 
-#if 0
-    /* do not expect to do copy anymore */
     else if(iq_buf_byte_order == XRAN_NE_BE_BYTE_ORDER){
         if(do_copy) {
            rte_memcpy(iq_sam_buf, (uint8_t *)iq_data_start,  iq_data_num_bytes);
         }
     }
-#endif
 
     return iq_data_num_bytes;
 }
@@ -284,7 +282,7 @@ static int build_compression_hdr(
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
     struct data_section_compression_hdr *compression_hdr = (struct data_section_compression_hdr *)
-        (pChar + sizeof(struct ether_hdr) + sizeof (struct xran_ecpri_hdr) + sizeof(struct radio_app_common_hdr)
+        (pChar + sizeof(struct rte_ether_hdr) + sizeof (struct xran_ecpri_hdr) + sizeof(struct radio_app_common_hdr)
         + sizeof(struct data_section_hdr));
 
     if (NULL == compression_hdr)
@@ -381,7 +379,7 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
         *subframe_id = radio_hdr->sf_slot_sym.subframe_id;
 
     if (slot_id)
-        *slot_id     = radio_hdr->sf_slot_sym.slot_id;
+        *slot_id     = xran_slotid_convert(radio_hdr->sf_slot_sym.slot_id, 1);
 
     if (symb_id)
         *symb_id = radio_hdr->sf_slot_sym.symb_id;

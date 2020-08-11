@@ -31,8 +31,7 @@ Introduction
 ------------
 
 The front haul interface, according to the ORAN Fronthaul specification,
-performs communication between O-RAN |br|
-Distributed Unit (O-DU) and O-RAN
+performs communication between O-RAN Distributed Unit (O-DU) and O-RAN
 Radio Unit (O-RU) and consists of multiple HW and SW components.
 
 The logical representation of HW and SW components is shown in Figure 1.
@@ -49,41 +48,39 @@ Figure 1. Architecture Block Diagram
 From the hardware perspective, two networking ports are used to
 communicate to the Front Haul and Back (Mid) Haul network as well as to
 receive PTP synchronization. The system timer is used to provide a
-“sense” of time to the gNB |br|
-application.
+“sense” of time to the gNB application.
 
 From the software perspective, the following components are used:
 
--  Linux PTP provides synchronization of system timer to GPS time:
+*  Linux PTP provides synchronization of system timer to GPS time:
 
--  Ptp4l is used to synchronize oscillator on Network Interface
-   Controller (NIC) to PTP GM.
+    - Ptp4l is used to synchronize oscillator on Network Interface
+      Controller (NIC) to PTP GM.
 
--  Phc2sys is used to synchronize system timer to oscillator on NIC.
+    - Phc2sys is used to synchronize system timer to oscillator on NIC.
 
--  DPDK to provide the interface to the Ethernet port.
+*  DPDK to provide the interface to the Ethernet port.
 
--  xRAN library is built on top of DPDK to perform U-plane and C-plane
+*  xRAN library is built on top of DPDK to perform U-plane and C-plane
    functionality according to the ORAN Fronthaul specification.
 
--  5GNR reference PHY uses the xRAN library to access interface to O-RU.
+*  5GNR reference PHY uses the xRAN library to access interface to O-RU.
    The interface between the library and PHY is defined to communicate
    TTI event, symbol time, C-plane information as well as IQ sample
    data.
 
--  5G NR PHY communicates with the L2 application using the set of
+*  5G NR PHY communicates with the L2 application using the set of
    MAC/PHY APIs and the shared memory interface defined as WLS.
 
--  L2, in turn, can use Back (Mid) Haul networking port to connect to
+*  L2, in turn, can use Back (Mid) Haul networking port to connect to
    the CU unit in the context of 3GPP specification.
 
 In this document, we focus on the details of the design and
 implementation of the xRAN library with respect to providing Front Haul
-functionality for both mmWave and Sub-6 scenarios
+functionality for both mmWave and Sub-6 scenarios.
 
 The xRAN M-plane is not implemented and is outside of the scope of this
-description. Configuration files are used to |br|
-specify selected M-plane
+description. Configuration files are used to specify selected M-plane
 level parameters.
 
 ORAN FH Threads
@@ -92,9 +89,9 @@ ORAN FH Threads
 ORAN FH Thread Performs:
 
 -  Symbol base “time event” to the rest of the system based on System
-   Clock synchronized to GPS time via PTP
+   Clock synchronized to GPS time via PTP.
 
--  Baseline polling mode driver performing TX and RX of Ethernet packets
+-  Baseline polling mode driver performing TX and RX of Ethernet packets.
 
 -  Most of the packet processing such as Transport header, Application
    header, Data section header and interactions with the rest of the PHY
@@ -108,16 +105,14 @@ to the Radio.
 Communication between L1 and xRAN layer is performed using a set of
 callback functions where L1 assigned callback and xRAN layer executes
 those functions at a particular event or time moment. Detailed
-information on callback function |br|
-options and setting as well as design,
+information on callback function options and setting as well as design,
 can be found in the sections below.
 
 Sample Application Thread Model
 -------------------------------
 
 Configuration of a sample application for both O-DU and O-RU follows the
-model of 5G NR l1app application in the |br|
-section of xRAN only. No BBU or
+model of 5G NR l1app application in the section of xRAN only. No BBU or
 FEC related threads are needed as minimal xRAN functionality is used
 only.
 
@@ -137,8 +132,7 @@ Functional Split
 ----------------
 
 Figure 1 corresponds to the O-RU part of the xRAN split. Implementation
-of the RU side of the xRAN protocol is not |br|
-covered in this document.
+of the RU side of the xRAN protocol is not covered in this document.
 
 .. image:: images/eNB-gNB-Architecture-with-O-DU-and-RU.jpg
   :width: 600
@@ -222,8 +216,7 @@ Figure 6. Data Flows
 |br|
 
 Information on specific features of C-Plane and U-plane provided in
-Section 6.0. Configuration of S-plane used on test |br|
-setup for simulation
+Section 6.0. Configuration of S-plane used on test setup for simulation
 is provided in Appendix Appendix 2.
 
 Data flow separation is based on VLAN (applicable when layer 2 or layer
@@ -253,25 +246,20 @@ Timing, Latency, and Synchronization to GPS
 -------------------------------------------
 
 The ORAN Fronthaul specification defines the latency model of the front
-haul interface and interaction between O-DU and 0-RU. This
+haul interface and interaction between O-DU and O-RU. This
 implementation of the xRAN library supports only the category with fixed
 timing advance and Defined Transport method. It determines O-DU transmit
-and receive windows based on pre-defined transport network |br|
-characteristics, and the delay characteristics of the RUs within the
+and receive windows based on pre-defined transport network characteristics, and the delay characteristics of the RUs within the
 timing domain.
 
 Table 4 below provides default values used for the implementation of
 O-DU – O-RU simulation with mmWave scenario. Table 5 and Table 6 below
 provide default values used for the implementation of O-DU – O-RU
-simulation with |br|
-numerology 0 and numerology 1 for Sub6 scenarios.
+simulation with numerology 0 and numerology 1 for Sub6 scenarios.
 Configuration can be adjusted via configuration files for sample |br|
 application and reference PHY. However, simulation of the different
-range of the settings was not performed, and |bR|
-additional implementation changes might be required as well as testing with actual O-RU. |br|
-The
-parameters for the front haul network are out of scope as a direct
-connection between O-DU and 0-RU is used for simulation.
+range of the settings was not performed, and additional implementation changes might be required as well as testing with actual O-RU. The
+parameters for the front haul network are out of scope as a direct connection between O-DU and 0-RU is used for simulation.
 
 |br|
 |br|
@@ -387,8 +375,7 @@ IEEE 1588 protocol and PTP for Linux\* implementations are used to
 synchronize local time to GPS time. Details of the configuration used
 are provided in Appendix Appendix 2. Local time is used to get Top of
 the Second (ToS) as a 1pps event for SW implementation. Timing event is
-obtained by performing polling of local time using |br|
-clock_gettime(CLOCK_REALTIME,..)
+obtained by performing polling of local time using clock_gettime(CLOCK_REALTIME,..)
 
 All-time intervals are specified with respect to GPS time which
 corresponds to OTA time.

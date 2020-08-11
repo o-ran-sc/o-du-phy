@@ -22,13 +22,13 @@ PTP configuration
 A.5 PTP Synchronization
 -----------------------
 Precision Time Protocol (PTP) provides an efficient way to synchronize
-time on the network nodes. This protocol uses Master-Slave architecture.
-Grandmaster Clock (Master) is a reference clock for the other nodes,
-which adapt their clocks to the master.
+time on the network nodes. This protocol uses Primary-Slave architecture.
+Main Reference Clock (Primary) is a reference clock for the other nodes,
+which adapt their clocks to the Primary.
 
-Using Physical Hardware Clock (PHC) from the Grandmaster Clock, NIC port
-precision timestamp packets can be served for other network nodes. Slave
-nodes adjust their PHC to the master following the IEEE 1588
+Using Physical Hardware Clock (PHC) from the Main Reference Clock, NIC port
+precision timestamp packets can be served for other network nodes. Secondary
+nodes adjust their PHC to the Primary following the IEEE 1588
 specification.
 
 There are existing implementations of PTP protocol that are widely used
@@ -128,8 +128,7 @@ ptp4l
 ----------
 
 This tool handles all PTP traffic on the provided NIC port and updated
-PHC. It also determines the Grandmaster Clock and tracks |br|
-synchronization
+PHC. It also determines the Primary Reference Clock and tracks synchronization
 status. This tool can be run as a daemon or as a regular Linux\*
 application. When the synchronization is reached, it gives output on the
 screen for precision tracking. The configuration file of ptp4l contains
@@ -142,61 +141,59 @@ To start the synchronization process run::
     
     ./ptp4l -f ./configs/default.cfg -2 -i <if_name> -m
 
-The output below shows what the output on non-master node should look
+The output below shows what the output on non-Primary node should look
 like when synchronization is started. This means that PHC on this
-machine is synchronized to the master PHC::
+machine is synchronized to the Primary PHC::
 
     ptp4l[1434165.358]: port 1: INITIALIZING to LISTENING on INIT_COMPLETE
     
     ptp4l[1434165.358]: port 0: INITIALIZING to LISTENING on INIT_COMPLETE
     
-    ptp4l[1434166.384]: port 1: new foreign master fcaf6a.fffe.029708-1
+    ptp4l[1434166.384]: port 1: new foreign primary fcaf6a.fffe.029708-1
     
-    ptp4l[1434170.352]: selected best master clock fcaf6a.fffe.029708
+    ptp4l[1434170.352]: selected best primary clock fcaf6a.fffe.029708
     
     ptp4l[1434170.352]: updating UTC offset to 37
     
     ptp4l[1434170.352]: port 1: LISTENING to UNCALIBRATED on RS_SLAVE
     
-    ptp4l[1434171.763]: master offset -5873 s0 freq -18397 path delay 2778
+    ptp4l[1434171.763]: primary offset -5873 s0 freq -18397 path delay 2778
     
-    ptp4l[1434172.763]: master offset -6088 s2 freq -18612 path delay 2778
+    ptp4l[1434172.763]: primary offset -6088 s2 freq -18612 path delay 2778
     
     ptp4l[1434172.763]: port 1: UNCALIBRATED to SLAVE on
     MASTER_CLOCK_SELECTED
     
-    ptp4l[1434173.763]: master offset -5886 s2 freq -24498 path delay 2732
+    ptp4l[1434173.763]: primary offset -5886 s2 freq -24498 path delay 2732
     
-    ptp4l[1434174.763]: master offset 221 s2 freq -20157 path delay 2728
+    ptp4l[1434174.763]: primary offset 221 s2 freq -20157 path delay 2728
     
-    ptp4l[1434175.763]: master offset 1911 s2 freq -18401 path delay 2724
+    ptp4l[1434175.763]: primary offset 1911 s2 freq -18401 path delay 2724
     
-    ptp4l[1434176.763]: master offset 1774 s2 freq -17964 path delay 2728
+    ptp4l[1434176.763]: primary offset 1774 s2 freq -17964 path delay 2728
     
-    ptp4l[1434177.763]: master offset 1198 s2 freq -18008 path delay 2728
+    ptp4l[1434177.763]: primary offset 1198 s2 freq -18008 path delay 2728
     
-    ptp4l[1434178.763]: master offset 746 s2 freq -18101 path delay 2755
+    ptp4l[1434178.763]: primary offset 746 s2 freq -18101 path delay 2755
     
-    ptp4l[1434179.763]: master offset 218 s2 freq -18405 path delay 2792
+    ptp4l[1434179.763]: primary offset 218 s2 freq -18405 path delay 2792
     
-    ptp4l[1434180.763]: master offset 103 s2 freq -18454 path delay 2792
+    ptp4l[1434180.763]: primary offset 103 s2 freq -18454 path delay 2792
     
-    ptp4l[1434181.763]: master offset -13 s2 freq -18540 path delay 2813
+    ptp4l[1434181.763]: primary offset -13 s2 freq -18540 path delay 2813
     
-    ptp4l[1434182.763]: master offset 9 s2 freq -18521 path delay 2813
+    ptp4l[1434182.763]: primary offset 9 s2 freq -18521 path delay 2813
     
-    ptp4l[1434183.763]: master offset 11 s2 freq -18517 path delay 2813
+    ptp4l[1434183.763]: primary offset 11 s2 freq -18517 path delay 2813
     
 phc2sys
 -----------
 
 The PHC clock is independent from the system clock. Synchronizing only
-PHC does not make the system clock exactly the same as the master. The
+PHC does not make the system clock exactly the same as the primary. The
 xRAN library requires use of the system clock to determine a common
-point in time on two |br|
-machines (O-DU and RU) to start transmission at the
-same moment and keep time frames defined by ORAN Fronthaul |br|
-specification.
+point in time on two machines (O-DU and RU) to start transmission at the
+same moment and keep time frames defined by ORAN Fronthaul specification.
 
 This application keeps the system clock updated to PHC. It makes it
 possible to use POSIX timers as a time reference in xRAN application.
@@ -264,9 +261,8 @@ Configuration C3
 
 Configuration C3 27 can be simulated for O-DU using a separate server
 acting as Fronthaul Network and O-RU at the same time. O-RU server can
-be configured to relay PTP and act as PTP master for O-DU. Settings
-below can be used to |br|
-instantiate this scenario. The difference is that
+be configured to relay PTP and act as PTP primary for O-DU. Settings
+below can be used to instantiate this scenario. The difference is that
 on the O-DU side, the Fronthaul port can be used as the source of PTP as
 well as for U-plane and C-plane traffic.
 
@@ -369,7 +365,7 @@ copied file as below::
     
     # Run time options
 
-1.Start slave port toward PTP GM:: 
+1.Start secondary port toward PTP GM:: 
 
     ./ptp4l -f ./configs/default_slave.cfg -2 -i enp25s0f0 –m
 
@@ -383,28 +379,28 @@ Example of output::
     
     ptp4l[3904470.275]: port 0: INITIALIZING to LISTENING on INIT_COMPLETE
     
-    ptp4l[3904471.085]: port 1: new foreign master fcaf6a.fffe.029708-1
+    ptp4l[3904471.085]: port 1: new foreign primary fcaf6a.fffe.029708-1
     
-    ptp4l[3904475.053]: selected best master clock fcaf6a.fffe.029708
+    ptp4l[3904475.053]: selected best primary clock fcaf6a.fffe.029708
     
     ptp4l[3904475.053]: updating UTC offset to 37
     
     ptp4l[3904475.053]: port 1: LISTENING to UNCALIBRATED on RS_SLAVE
     
-    ptp4l[3904477.029]: master offset 196 s0 freq -18570 path delay 1109
+    ptp4l[3904477.029]: primary offset 196 s0 freq -18570 path delay 1109
     
-    ptp4l[3904478.029]: master offset 212 s2 freq -18554 path delay 1109
+    ptp4l[3904478.029]: primary offset 212 s2 freq -18554 path delay 1109
     
     ptp4l[3904478.029]: port 1: UNCALIBRATED to SLAVE on
     MASTER_CLOCK_SELECTED
     
-    ptp4l[3904479.029]: master offset 86 s2 freq -18468 path delay 1109
+    ptp4l[3904479.029]: primary offset 86 s2 freq -18468 path delay 1109
     
-    ptp4l[3904480.029]: master offset 23 s2 freq -18505 path delay 1124
+    ptp4l[3904480.029]: primary offset 23 s2 freq -18505 path delay 1124
     
-    ptp4l[3904481.029]: master offset 3 s2 freq -18518 path delay 1132
+    ptp4l[3904481.029]: primary offset 3 s2 freq -18518 path delay 1132
     
-    ptp4l[3904482.029]: master offset -169 s2 freq -18689 path delay 1141
+    ptp4l[3904482.029]: primary offset -169 s2 freq -18689 path delay 1141
 
 2.Synchronize local timer clock on O-RU for sample application::
 
@@ -450,7 +446,7 @@ Example of output::
    phc2sys[3904512.268]: CLOCK_REALTIME phc offset -300 s2 freq -38892
    delay 1532
 
-3. Modify configs/default.cfg as shown below to run PTP master on
+3. Modify configs/default.cfg as shown below to run PTP primary on
 Fronthaul of O-RU::
 
     diff --git a/configs/default.cfg b/configs/default.cfg
@@ -517,7 +513,7 @@ Fronthaul of O-RU::
     
     # Run time options
 
-4.Start PTP master toward O-DU::
+4.Start PTP primary toward O-DU::
 
    ./ptp4l -f ./configs/default.cfg -2 -i enp175s0f1 –m
 
@@ -535,11 +531,11 @@ Example of output::
    ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
    
    ptp4l[3903863.734]: selected local clock 3cfdfe.fffe.bd005d as best
-   master
+   primary
    
-   ptp4l[3903863.734]: assuming the grand master role
+   ptp4l[3903863.734]: assuming the main reference role
 
-5.Synchronize local NIC PTP master clock to local NIC PTP slave clock::
+5.Synchronize local NIC PTP primary clock to local NIC PTP secondary clock::
 
    ./phc2sys -c enp175s0f1 -s enp25s0f0 -w -m -R 8
 
@@ -594,7 +590,7 @@ Example of output::
 6. On O-DU Install PTP for Linux tools from source code the same way as
 on O-RU above but no need to apply the patch for msg.c
 
-7. Start slave port toward PTP master from O-RU using the same
+7. Start secondary port toward PTP primary from O-RU using the same
 default_slave.cfg as on O-RU (see above)::
 
     ./ptp4l -f ./configs/default_slave.cfg -2 -i enp181s0f0 –m
@@ -609,9 +605,9 @@ Example of output::
     
     ptp4l[809092.934]: port 0: INITIALIZING to LISTENING on INIT_COMPLETE
     
-    ptp4l[809092.949]: port 1: new foreign master 3cfdfe.fffe.bd005d-1
+    ptp4l[809092.949]: port 1: new foreign primary 3cfdfe.fffe.bd005d-1
     
-    ptp4l[809096.949]: selected best master clock 3cfdfe.fffe.bd005d
+    ptp4l[809096.949]: selected best primary clock 3cfdfe.fffe.bd005d
     
     ptp4l[809096.950]: port 1: LISTENING to UNCALIBRATED on RS_SLAVE
     
@@ -711,8 +707,11 @@ checks if ptp4l and phc2sys are running in the system by making PMC tool
 requests for current port state and comparing it with the expected
 value. This verification should be done before initialization.
 
-*notes. “SLAVE” is the only expected value in this release; only a
-non-master scenario is supported currently.*
+*notes. “SECONDARY” is the only expected value in this release; only a
+non-primary scenario is supported currently.*
+
+*notes1. Inclusive language terms were used except for the PTP traces where the source code has 
+not been updated to support the inclusive language terms yet.*
 
 .. |image0| image:: media/image3.png
    :width: 2.52364in

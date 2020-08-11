@@ -30,11 +30,6 @@
 
 nr5g_fapi_wls_context_t g_wls_ctx;
 
-static uint32_t g_to_free_send_list_cnt[TO_FREE_SIZE] = { 0 };
-static uint64_t g_to_free_send_list[TO_FREE_SIZE][TOTAL_FREE_BLOCKS] = { {0L} };
-static uint32_t g_to_free_recv_list_cnt[TO_FREE_SIZE] = { 0 };
-static uint64_t g_to_free_recv_list[TO_FREE_SIZE][TOTAL_FREE_BLOCKS] = { {0L} };
-
 static uint8_t alloc_track[ALLOC_TRACK_SIZE];
 
 //------------------------------------------------------------------------------
@@ -53,6 +48,54 @@ inline p_nr5g_fapi_wls_context_t nr5g_fapi_wls_context(
     )
 {
     return &g_wls_ctx;
+}
+
+//----------------------------------------------------------------------------------
+/** @ingroup nr5g_fapi_source_framework_wls_fapi2phy_group
+ *
+ *  @param void
+ *
+ *  @return  0 if SUCCESS
+ *
+ *  @description
+ *  This function is called at WLS init and waits in an infinite for L1 to respond back with some information
+ *  needed by the L2
+ *
+**/
+//----------------------------------------------------------------------------------
+inline uint8_t nr5g_fapi_fapi2phy_wls_ready(
+    )
+{
+    int retval = 0;
+    p_nr5g_fapi_wls_context_t p_wls = nr5g_fapi_wls_context();
+
+    retval = WLS_Ready(p_wls->h_wls[NR5G_FAPI2PHY_WLS_INST]);
+
+    return retval;
+}
+
+//----------------------------------------------------------------------------------
+/** @ingroup nr5g_fapi_source_framework_wls_fapi2phy_group
+ *
+ *  @param void
+ *
+ *  @return  0 if SUCCESS
+ *
+ *  @description
+ *  This function is called at WLS init and waits in an infinite for L1 to respond back with some information
+ *  needed by the L2
+ *
+**/
+//----------------------------------------------------------------------------------
+inline uint8_t nr5g_fapi_fapi2mac_wls_ready(
+    )
+{
+    int retval = 0;
+    p_nr5g_fapi_wls_context_t p_wls = nr5g_fapi_wls_context();
+
+    retval = WLS_Ready1(p_wls->h_wls[NR5G_FAPI2MAC_WLS_INST]);
+
+    return retval;
 }
 
 //------------------------------------------------------------------------------
@@ -226,7 +269,7 @@ uint8_t nr5g_fapi_wls_init(
     p_nr5g_fapi_cfg_t cfg)
 {
     p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();
-    const char *dev_name = "wls";
+    const char *dev_name = "wls0";
 
     if (p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST] &&
         p_wls_ctx->h_wls[NR5G_FAPI2MAC_WLS_INST]) {
@@ -236,12 +279,11 @@ uint8_t nr5g_fapi_wls_init(
 
     p_wls_ctx->shmem_size = cfg->wls.shmem_size;
     p_wls_ctx->h_wls[NR5G_FAPI2MAC_WLS_INST] =
-        WLS_Open_Dual(dev_name /*"wls"cfg->wls.device_name */ ,
-        WLS_SLAVE_CLIENT,
+        WLS_Open_Dual(dev_name, WLS_SLAVE_CLIENT,
         cfg->wls.shmem_size, &p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST]);
     if ((NULL == p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST]) &&
         (NULL == p_wls_ctx->h_wls[NR5G_FAPI2MAC_WLS_INST])) {
-        // NR5G_FAPI_LOG(ERROR_LOG,("[NR5G_FAPI_ WLS] WLS instance connected."));
+        NR5G_FAPI_LOG(ERROR_LOG, ("[NR5G_FAPI_ WLS] WLS Open Dual Failed."));
         return FAILURE;
     }
     // Issue WLS_Alloc() for FAPI2MAC
@@ -261,15 +303,29 @@ uint8_t nr5g_fapi_wls_init(
         printf("Unable to alloc WLS Memory\n");
         return FAILURE;
     }
+    // Now the L2 is up so let's make sure that the L1 was started first
+    usleep(1000000);
+    // First let's wait for the L1 and L2 to be present
+    while (nr5g_fapi_fapi2phy_wls_ready()) ;
+    NR5G_FAPI_LOG(INFO_LOG, ("L1 is up..."));
+    // Now the L2 is up so let's make sure that the L1 was started first
+    while (nr5g_fapi_fapi2mac_wls_ready()) ;
+    NR5G_FAPI_LOG(INFO_LOG, ("L2 is up..."));
+
+    // Now that the L2 is up and has completed the Common Memory initialization
+    usleep(1000000);
+    if (FAILURE == nr5g_fapi_wls_memory_init()) {
+        return FAILURE;
+    }
 
     pthread_mutex_init((pthread_mutex_t *)
-            &p_wls_ctx->fapi2phy_lock_send, NULL);
+        & p_wls_ctx->fapi2phy_lock_send, NULL);
     pthread_mutex_init((pthread_mutex_t *)
-            &p_wls_ctx->fapi2phy_lock_alloc, NULL);
+        & p_wls_ctx->fapi2phy_lock_alloc, NULL);
     pthread_mutex_init((pthread_mutex_t *)
-            &p_wls_ctx->fapi2mac_lock_send, NULL);
+        & p_wls_ctx->fapi2mac_lock_send, NULL);
     pthread_mutex_init((pthread_mutex_t *)
-            &p_wls_ctx->fapi2mac_lock_alloc, NULL);
+        & p_wls_ctx->fapi2mac_lock_alloc, NULL);
     return SUCCESS;
 }
 
@@ -361,7 +417,7 @@ uint32_t wls_fapi_create_mem_array(
  *
 **/
 //-------------------------------------------------------------------------------------------
-int wls_fapi_create_partition(
+uint8_t wls_fapi_create_partition(
     p_nr5g_fapi_wls_context_t pWls)
 {
 #define WLS_HUGE_DEF_PAGE_SIZEA    0x40000000LL
@@ -643,273 +699,19 @@ void wls_fapi_free_buffer(
  *                  between FAPI and PHY.
 **/
 //------------------------------------------------------------------------------
-uint8_t nr5g_fapi2Phy_wls_init(
-    p_nr5g_fapi_wls_context_t pwls)
+uint8_t nr5g_fapi_wls_memory_init(
+    )
 {
     int nBlocks = 0;
-    uint8_t retval = SUCCESS;
+    p_nr5g_fapi_wls_context_t p_wls = nr5g_fapi_wls_context();
 
-    retval = wls_fapi_create_partition(pwls);
+    if (FAILURE == wls_fapi_create_partition(p_wls))
+        return FAILURE;
+
     if ((nBlocks = wls_fapi_add_blocks_to_ul()) == 0) {
+        NR5G_FAPI_LOG(ERROR_LOG, ("Unable to allocate blocks to PHY"));
         return FAILURE;
     }
 
-    return retval;
-}
-
-uint8_t get_stats_location(
-    uint8_t msg_type)
-{
-    uint8_t loc;
-    switch (msg_type) {
-        case MSG_TYPE_PHY_CONFIG_REQ:
-            loc = MEM_STAT_CONFIG_REQ;
-            break;
-        case MSG_TYPE_PHY_START_REQ:
-            loc = MEM_STAT_START_REQ;
-            break;
-        case MSG_TYPE_PHY_STOP_REQ:
-            loc = MEM_STAT_STOP_REQ;
-            break;
-        case MSG_TYPE_PHY_SHUTDOWN_REQ:
-            loc = MEM_STAT_SHUTDOWN_REQ;
-            break;
-        case MSG_TYPE_PHY_DL_CONFIG_REQ:
-            loc = MEM_STAT_DL_CONFIG_REQ;
-            break;
-        case MSG_TYPE_PHY_UL_CONFIG_REQ:
-            loc = MEM_STAT_UL_CONFIG_REQ;
-            break;
-        case MSG_TYPE_PHY_UL_DCI_REQ:
-            loc = MEM_STAT_UL_DCI_REQ;
-            break;
-        case MSG_TYPE_PHY_TX_REQ:
-            loc = MEM_STAT_TX_REQ;
-            break;
-        case MSG_TYPE_PHY_DL_IQ_SAMPLES:
-            loc = MEM_STAT_DL_IQ_SAMPLES;
-            break;
-        case MSG_TYPE_PHY_UL_IQ_SAMPLES:
-            loc = MEM_STAT_UL_IQ_SAMPLES;
-            break;
-        default:
-            loc = MEM_STAT_DEFAULT;
-    }
-
-    return loc;
-}
-
-//------------------------------------------------------------------------------
-/** @ingroup nr5g_fapi_source_framework_wls_lib_group
- *
- *  @param[in]      pListElem Pointer to List element header
- *  @param[in]      idx Subframe Number
- *
- *  @return         Number of blocks freed
- *
- *  @description    This function Frees all the blocks in a List Element Linked
- *                  List coming from L1 by storing them into an array to be 
- *                  freed at a later point in time.
-**/
-//------------------------------------------------------------------------------
-void wls_fapi_add_recv_apis_to_free(
-    PMAC2PHY_QUEUE_EL pListElem,
-    uint32_t idx)
-{
-    PMAC2PHY_QUEUE_EL pNextMsg = NULL;
-    L1L2MessageHdr *p_msg_header = NULL;
-    PRXULSCHIndicationStruct p_phy_rx_ulsch_ind = NULL;
-    int count, i;
-    uint8_t *ptr = NULL;
-
-    WLS_HANDLE h_wls;
-    p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();
-    h_wls = p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST];
-
-    count = g_to_free_recv_list_cnt[idx];
-    pNextMsg = pListElem;
-    while (pNextMsg) {
-        if (count >= TOTAL_FREE_BLOCKS) {
-            NR5G_FAPI_LOG(ERROR_LOG, ("%s: Reached max capacity of free list.\n"
-                    "\t\t\t\tlist index: %d list count: %d max list count: %d",
-                    __func__, idx, count, TOTAL_FREE_BLOCKS));
-            return;
-        }
-
-        g_to_free_recv_list[idx][count++] = (uint64_t) pNextMsg;
-        p_msg_header = (PL1L2MessageHdr) (pNextMsg + 1);
-        if (p_msg_header->nMessageType == MSG_TYPE_PHY_RX_ULSCH_IND) {
-            p_phy_rx_ulsch_ind = (PRXULSCHIndicationStruct) p_msg_header;
-            for (i = 0; i < p_phy_rx_ulsch_ind->nUlsch; i++) {
-                ptr = p_phy_rx_ulsch_ind->sULSCHPDUDataStruct[i].pPayload;
-                ptr = (uint8_t *) nr5g_fapi_wls_pa_to_va(h_wls, (uint64_t) ptr);
-
-                if (ptr) {
-                    g_to_free_recv_list[idx][count++] = (uint64_t) ptr;
-                }
-            }
-        }
-        pNextMsg = pNextMsg->pNext;
-    }
-
-    g_to_free_recv_list[idx][count] = 0L;
-    g_to_free_recv_list_cnt[idx] = count;
-
-    NR5G_FAPI_LOG(DEBUG_LOG, ("To Free %d\n", count));
-}
-
-//------------------------------------------------------------------------------
-/** @ingroup nr5g_fapi_source_framework_wls_lib_group 
- *
- *  @param[in]      idx subframe Number
- *
- *  @return         Number of blocks freed
- *
- *  @description    This function frees all blocks that have been added to the 
- *                  free array
-**/
-//------------------------------------------------------------------------------
-void wls_fapi_free_recv_free_list(
-    uint32_t idx)
-{
-    PMAC2PHY_QUEUE_EL pNextMsg = NULL;
-    int count = 0;
-
-    if (idx >= TO_FREE_SIZE) {
-        NR5G_FAPI_LOG(ERROR_LOG, ("%s: list index: %d\n", __func__, idx));
-        return;
-    }
-
-    pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_recv_list[idx][count];
-    while (pNextMsg) {
-        wls_fapi_free_buffer(pNextMsg, MIN_UL_BUF_LOCATIONS);
-        g_to_free_recv_list[idx][count++] = 0L;
-        if (g_to_free_recv_list[idx][count])
-            pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_recv_list[idx][count];
-        else
-            pNextMsg = 0L;
-    }
-
-    NR5G_FAPI_LOG(DEBUG_LOG, ("Free %d\n", count));
-    g_to_free_recv_list_cnt[idx] = 0;
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-/** @ingroup nr5g_fapi_source_framework_wls_lib_group
- *
- *  @param[in]      pListElem Pointer to List element header
- *  @param[in]      idx Subframe Number
- *
- *  @return         Number of blocks freed
- *
- *  @description    This function Frees all the blocks in a List Element Linked
- *                  List coming from L1 by storing them into an array to be 
- *                  freed at a later point in time.
-**/
-//------------------------------------------------------------------------------
-void wls_fapi_add_send_apis_to_free(
-    PMAC2PHY_QUEUE_EL pListElem,
-    uint32_t idx)
-{
-    PMAC2PHY_QUEUE_EL pNextMsg = NULL;
-    L1L2MessageHdr *p_msg_header = NULL;
-    PRXULSCHIndicationStruct p_phy_rx_ulsch_ind = NULL;
-    int count, i;
-    uint8_t *ptr = NULL;
-
-    count = g_to_free_send_list_cnt[idx];
-    pNextMsg = pListElem;
-    while (pNextMsg) {
-        if (count >= TOTAL_FREE_BLOCKS) {
-            NR5G_FAPI_LOG(ERROR_LOG, ("%s: Reached max capacity of free list.\n"
-                    "\t\t\t\tlist index: %d list count: %d max list count: %d",
-                    __func__, idx, count, TOTAL_FREE_BLOCKS));
-            return;
-        }
-
-        g_to_free_send_list[idx][count++] = (uint64_t) pNextMsg;
-        p_msg_header = (PL1L2MessageHdr) (pNextMsg + 1);
-        if (p_msg_header->nMessageType == MSG_TYPE_PHY_RX_ULSCH_IND) {
-            p_phy_rx_ulsch_ind = (PRXULSCHIndicationStruct) p_msg_header;
-            for (i = 0; i < p_phy_rx_ulsch_ind->nUlsch; i++) {
-                ptr = p_phy_rx_ulsch_ind->sULSCHPDUDataStruct[i].pPayload;
-                if (ptr) {
-                    g_to_free_send_list[idx][count++] = (uint64_t) ptr;
-                }
-            }
-        }
-        pNextMsg = pNextMsg->pNext;
-    }
-
-    g_to_free_send_list[idx][count] = 0L;
-    g_to_free_send_list_cnt[idx] = count;
-
-    NR5G_FAPI_LOG(DEBUG_LOG, ("To Free %d\n", count));
-}
-
-//------------------------------------------------------------------------------
-/** @ingroup nr5g_fapi_source_framework_wls_lib_group 
- *
- *  @param[in]      idx subframe Number
- *
- *  @return         Number of blocks freed
- *
- *  @description    This function frees all blocks that have been added to the 
- *                  free array
-**/
-//------------------------------------------------------------------------------
-void wls_fapi_free_send_free_list(
-    uint32_t idx)
-{
-    PMAC2PHY_QUEUE_EL pNextMsg = NULL;
-    L1L2MessageHdr *p_msg_header = NULL;
-    int count = 0, loc = 0;
-
-    if (idx >= TO_FREE_SIZE) {
-        NR5G_FAPI_LOG(ERROR_LOG, ("%s: list index: %d\n", __func__, idx));
-        return;
-    }
-
-    pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list[idx][count];
-    while (pNextMsg) {
-        p_msg_header = (PL1L2MessageHdr) (pNextMsg + 1);
-        loc = get_stats_location(p_msg_header->nMessageType);
-        wls_fapi_free_buffer(pNextMsg, loc);
-        g_to_free_send_list[idx][count++] = 0L;
-        if (g_to_free_send_list[idx][count])
-            pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list[idx][count];
-        else
-            pNextMsg = 0L;
-    }
-
-    NR5G_FAPI_LOG(DEBUG_LOG, ("Free %d\n", count));
-    g_to_free_send_list_cnt[idx] = 0;
-
-    return;
-}
-
-//------------------------------------------------------------------------------
-/** @ingroup nr5g_fapi_source_framework_wls_lib_group 
- *
- *  @param[in]      idx subframe Number
- *
- *  @return         Number of blocks freed
- *
- *  @description    This function frees all blocks that have been added to the 
- *                  free array
-**/
-//------------------------------------------------------------------------------
-void wls_fapi_free_list_all(
-    void)
-{
-    uint32_t idx;
-
-    for (idx = 0; idx < TO_FREE_SIZE; idx++) {
-        wls_fapi_free_send_free_list(idx);
-        wls_fapi_free_recv_free_list(idx);
-    }
-
-    nr5g_fapi_wls_print_stats();
+    return SUCCESS;
 }

@@ -36,18 +36,18 @@ extern "C" {
 
 #define BURST_SIZE 4096
 
-//#define VLAN_SUPPORT
-#define FLEXRAN_UP_VLAN_TAG 2
-#define ETHER_TYPE_ETHDI ETHER_TYPE_IPv4    /* hack needed for jumbo frames */
+#define ETHER_TYPE_ETHDI RTE_ETHER_TYPE_IPV4    /* hack needed for jumbo frames */
 #define ETHER_TYPE_ECPRI 0xAEFE
 #define ETHER_TYPE_SYNC 0xBEFE
 #define ETHER_TYPE_START_TX 0xCEFE
 
-#define NUM_MBUFS 65536
+#define NUM_MBUFS 65535/*16383*/ /*65535*/ /** optimal is n = (2^q - 1) */
+#define NUM_MBUFS_RING NUM_MBUFS+1 /** The size of the ring (must be a power of 2) */
+
 #define MBUF_CACHE 256
 
-#define MBUF_POOL_ELM_SMALL 1500 /* regular ethernet MTU, most compatible */
-#define MBUF_POOL_ELEMENT MAX_RX_LEN
+#define MBUF_POOL_ELM_SMALL (1500 + RTE_PKTMBUF_HEADROOM )/* regular ethernet MTU, most compatible */
+#define MBUF_POOL_ELEMENT (MAX_RX_LEN + RTE_PKTMBUF_HEADROOM)
 
 #define MAX_RX_LEN 9600
 #define MAX_TX_LEN (MAX_RX_LEN - 14) /* headroom for rx driver */
@@ -119,9 +119,9 @@ struct ethdi_hdr {
 
 void xran_init_mbuf_pool(void);
 
-void xran_init_port(int port, struct ether_addr *p_lls_cu_addr);
+void xran_init_port(int port);
 
-void xran_add_eth_hdr_vlan(struct ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb, uint16_t vlan_tci);
+void xran_add_eth_hdr_vlan(struct rte_ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb);
 
 #if 0
 void xran_memdump(void *addr, int len);

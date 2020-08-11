@@ -40,29 +40,26 @@ Figure 8 presents an overview of the ORAN Fronthaul process.
 Figure 8. ORAN Fronthaul Process
 
 The XRAN library provides support for transporting In-band and
-Quadrature (IQ) samples between the O-DU and O-RU within the RAN
+Quadrature (IQ) samples between the O-DU and O-RU within the xRAN
 architecture based on functional split 7.2x. The library defines the
 xRAN packet formats to be used to transport radio samples within Front
 Haul according to the ORAN Fronthaul specification. It provides
 functionality for generating xRAN packets, appending IQ samples in the
-packet payload, and extracting IQ samples from xRAN packets. The Bronze release version
-of the library supports U-plane and C-plane only. It is ready to
-be used in the PTP synchronized |br|
-environment.
+packet payload, and extracting IQ samples from xRAN packets. 
 
-Regarding the clock model and synchronization topology, configurations
+Note: The Bronze release version of the library supports U-plane and C-plane only. It is ready to be used in the PTP synchronized environment.
+
+Note: Regarding the clock model and synchronization topology, configurations
 C1 and C3 of the connection between O-DU and O-RU are the only
 configurations supported in this release of the xRAN implementation.
 
-Quality of PTP synchronization with respect to S-plane of ORAN Fronthaul
-requirements as defined for O-RU is out of the scope of this document.
-PTP master and PTP slave configuration are expected to satisfy only the
-O-DU side of |br|
-requirements and provide the “best-effort” PTP master for
+Note: Quality of PTP synchronization with respect to S-plane of ORAN 
+Fronthaul requirements as defined for O-RU is out of the scope of this
+document. PTP primary and PTP secondary configuration are expected to satisfy
+only the O-DU side of requirements and provide the “best-effort” PTP primary for
 O-RU. This may or may not be sufficient for achieving the end to end
 system requirements of S-plane. Specialized dedicated NIC card with
-additional HW functionality might be |br|
-required to achieve PTP master
+additional HW functionality might be required to achieve PTP primary
 functionality to satisfy O-RU precision requirements for RAN deployments
 scenarios.
 
@@ -83,13 +80,12 @@ Supported Feature Set
 ---------------------
 
 The ORAN Fronthaul specification defines a list of mandatory
-functionality. Not all features defined as Mandatory for |br|
-O-DU are
+functionality. Not all features defined as Mandatory for O-DU are
 currently supported to fully extended. The following tables contain
 information on what is available and the level of validation performed
 for this release.
 
-2. Cells with a red background are listed as mandatory in the
+Note. Cells with a red background are listed as mandatory in the
 specification but not supported in this implementation of xRAN.
 
 Table 7. ORAN Mandatory and Optional Feature Support
@@ -103,7 +99,7 @@ Table 7. ORAN Mandatory and Optional Feature Support
 |                 | 8 spatial       |           |                |
 |                 | streams)        |           |                |
 +-----------------+-----------------+-----------+----------------+
-|                 | Support for     |           | N              |
+|                 | Support for     |           | Y              |
 |                 | CAT-A RU (> 8   |           |                |
 |                 | spatial         |           |                |
 |                 | streams)        |           |                |
@@ -126,13 +122,12 @@ Table 7. ORAN Mandatory and Optional Feature Support
 |                 | UE Channel Info |           | N              |
 +-----------------+-----------------+-----------+----------------+
 | Bandwidth       | Programmable    | Mandatory | Y              |
-| Saving          | s               |           |                |
-|                 | tatic-bit-width |           |                |
+| Saving          | static-bit-width|           |                |
 |                 | Fixed Point IQ  |           |                |
 +-----------------+-----------------+-----------+----------------+
-|                 | Real-time       |           | Y              |
-|                 | var             |           |                |
-|                 | iable-bit-width |           |                |
+|                 | Real-time       |           | Y              |
+|                 | variable-bit    |           |                |
+|                 | -width          |           |                |
 +-----------------+-----------------+-----------+----------------+
 |                 | Compressed IQ   |           | Y              |
 +-----------------+-----------------+-----------+----------------+
@@ -247,7 +242,7 @@ Level of Validation Specified as:
 Table 8. Levels of Validation
 
 +------------+------------+------------+------------+-----+-----+---+
-| Category   | Item       | Q4 (20.02) |            |     |     |   |
+| Category   | Item       | Q4 (20.04) |            |     |     |   |
 +============+============+============+============+=====+=====+===+
 |            |            | Status     | C          | I   | T   |   |
 +------------+------------+------------+------------+-----+-----+---+
@@ -407,7 +402,7 @@ Table 8. Levels of Validation
 |            | and        |            |            |     |     |   |
 |            | U-plane    |            |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            | Max Number | 4          | Y          | Y   | N   |   |
+|            | Max Number | 16         | Y          | Y   | N   |   |
 |            | of VLAN    |            |            |     |     |   |
 |            | per        |            |            |     |     |   |
 |            | physical   |            |            |     |     |   |
@@ -430,7 +425,7 @@ Table 8. Levels of Validation
 |            | Total      | Supported  | Y          | N   | N   |   |
 |            | _msgs_rcvd |            |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-| B\         | RU         | Index and  | Y          | N   | N   |   |
+| B\         | RU         | Index and  | Y          | Y   | N   |   |
 | eamforming | b\         | weights    |            |     |     |   |
 |            | eamforming |            |            |     |     |   |
 |            | type       |            |            |     |     |   |
@@ -440,16 +435,16 @@ Table 8. Levels of Validation
 |            | control    |            |            |     |     |   |
 |            | method     |            |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            | Number of  | No-re      | Y          | N   | N   |   |
+|            | Number of  | No-re      | Y          | Y   | N   |   |
 |            | beams      | strictions |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-| IQ         | U-plane    | Supported  | Y          | N   | N   |   |
+| IQ         | U-plane    | Supported  | Y          | Y   | Y   |   |
 | c\         | data       |            |            |     |     |   |
 | ompression | c\         |            |            |     |     |   |
 |            | ompression |            |            |     |     |   |
 |            | method     |            |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            | U-plane    | BFP:       | Y          | N   | N   |   |
+|            | U-plane    | BFP:       | Y          | Y   | Y   |   |
 |            | data IQ    | 8,9,12,14  |            |     |     |   |
 |            | bitwidth   | bits       |            |     |     |   |
 |            | (Before /  |            |            |     |     |   |
@@ -457,7 +452,7 @@ Table 8. Levels of Validation
 |            | co         |            |            |     |     |   |
 |            | mpression) |            |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            | Static     | Supported  | Y          | Y   | N   |   |
+|            | Static     | Supported  | N          | N   | N   |   |
 |            | con\       |            |            |     |     |   |
 |            | figuration |            |            |     |     |   |
 |            | of U-plane |            |            |     |     |   |
@@ -516,7 +511,7 @@ Table 8. Levels of Validation
 |            | Section    | Supported  | Y          | Y   | Y   |   |
 |            | Type 1     |            |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            | Section    | Supported  | Y          | Y   | N   |   |
+|            | Section    | Supported  | Y          | Y   | Y   |   |
 |            | Type 3     |            |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
 |            | Section    | Not        | N          | N   | N   |   |
@@ -579,7 +574,7 @@ Table 8. Levels of Validation
 |            |            | (section   |            |     |     |   |
 |            |            | type)      |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            |            | udCompHdr  | Supported  | N   | N   | N |
+|            |            | udCompHdr  | Supported  | Y   | Y   | N |
 |            |            | (user data |            |     |     |   |
 |            |            | c\         |            |     |     |   |
 |            |            | ompression |            |     |     |   |
@@ -795,15 +790,15 @@ Table 8. Levels of Validation
 |            |            | Extension  |            |     |     |   |
 |            |            | Commands*  |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            |            | extType    | Supported  | Y   | N   | N |
+|            |            | extType    | Supported  | Y   | Y   | N |
 |            |            | (extension |            |     |     |   |
 |            |            | type)      |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            |            | ef         | Supported  | Y   | N   | N |
+|            |            | ef         | Supported  | Y   | Y   | N |
 |            |            | (extension |            |     |     |   |
 |            |            | flag)      |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            |            | extLen     | Supported  | Y   | N   | N |
+|            |            | extLen     | Supported  | Y   | Y   | N |
 |            |            | (extension |            |     |     |   |
 |            |            | length)    |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
@@ -818,7 +813,7 @@ Table 8. Levels of Validation
 |            | E\         |            |            |     |     |   |
 |            | xtensions  |            |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            | *ExtType=1:| bfwCompHdr | Supported  | Y   | N   | N |
+|            | *ExtType=1:| bfwCompHdr | Supported  | Y   | Y   | N |
 |            | B\         | (beam\     |            |     |     |   |
 |            | eamforming | forming    |            |     |     |   |
 |            | Weights    | weight     |            |     |     |   |
@@ -826,7 +821,7 @@ Table 8. Levels of Validation
 |            | Type*      | ompression |            |     |     |   |
 |            |            | header)    |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            |            | bf         | Supported  | Y   | N   | N |
+|            |            | bf         | Supported  | Y   | Y   | N |
 |            |            | wCompParam |            |     |     |   |
 |            |            | (b\        |            |     |     |   |
 |            |            | eamforming |            |     |     |   |
@@ -835,14 +830,14 @@ Table 8. Levels of Validation
 |            |            | ompression |            |     |     |   |
 |            |            | parameter) |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            |            | bfwl       | Supported  | Y   | N   | N |
+|            |            | bfwl       | Supported  | Y   | Y   | N |
 |            |            | (b\        |            |     |     |   |
 |            |            | eamforming |            |     |     |   |
 |            |            | weight     |            |     |     |   |
 |            |            | in-phase   |            |     |     |   |
 |            |            | value)     |            |     |     |   |
 +------------+------------+------------+------------+-----+-----+---+
-|            |            | bfwQ       | Supported  | Y   | N   | N |
+|            |            | bfwQ       | Supported  | Y   | Y   | N |
 |            |            | (b\        |            |     |     |   |
 |            |            | eamforming |            |     |     |   |
 |            |            | weight     |            |     |     |   |
@@ -1170,8 +1165,7 @@ Only ECPRI_IQ_DATA = 0x00 and ECPRI_RT_CONTROL_DATA= 0x02 message types
 are supported.
 
 Handling of ecpriRtcid/ecpriPcid Bit field size is configurable and can
-be defined on the initialization stage of the xRAN |br|
-library.
+be defined on the initialization stage of the xRAN library.
 
 .. image:: images/Bit-Allocations-of-ecpriRtcid-ecpriPcid.jpg
   :width: 600
@@ -1186,8 +1180,7 @@ U-plane
 -------
 
 The following diagrams show xRAN packet protocols’ headers and data
-arrangement with and without compression |br|
-support.
+arrangement with and without compression support.
 
 XRAN packet meant for traffic with compression enabled has the
 Compression Header added after each Application Header. According to
@@ -1233,8 +1226,7 @@ Data Section Application Data Header
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The Common Radio Application Header is followed by the Application
-Header that is repeated for each Data Section |br|
-within the eCPRI message.
+Header that is repeated for each Data Section within the eCPRI message.
 The relevant section of xRAN packet is shown in color.
 
 .. image:: images/Data-Section-Application-Data-Header.jpg
@@ -1255,9 +1247,7 @@ Data Payload
 ~~~~~~~~~~~~
 
 An xRAN packet data payload contains a number of PRBs. Each PRB is built
-of 12 IQ samples. The supported IQ bit width is 16. udCompParam is not
-included in the data payload as compression currently is not supported.
-The data section is shown in color.
+of 12 IQ samples. Flexible IQ bit width is supported. If compression is enabled udCompParam is included in the data payload. The data section is shown in colour. 
 
 .. image:: images/Data-Payload.jpg
   :width: 600
@@ -1271,15 +1261,11 @@ C-plane
 C-Plane messages are encapsulated using a two-layered header approach.
 The first layer consists of an eCPRI standard header, including
 corresponding fields used to indicate the message type, while the second
-layer is an application layer |br|
-including necessary fields for control and
-synchronization. Within the application layer, a “section” defines the |br|
-characteristics of U-plane data to be transferred or received from a
-beam with one pattern id. In general, the transport header, |br|
-application
+layer is an application layer including necessary fields for control and
+synchronization. Within the application layer, a “section” defines the characteristics of U-plane data to be transferred or received from a
+beam with one pattern id. In general, the transport header,application
 header, and sections are all intended to be aligned on 4-byte boundaries
-and are transmitted in “network byte |br|
-order” meaning the most significant
+and are transmitted in “network byte order” meaning the most significant
 byte of a multi-byte parameter is transmitted first.
 
 Table 9 is a list of sections currently supported.
@@ -1318,9 +1304,11 @@ Table 9. Section Types
 Section extensions are not supported in this release.
 
 The definition of the C-Plane packet can be found lib/api/xran_pkt_cp.h
-and the fields are appropriately re-ordered in |br|
-order to apply the
+and the fields are appropriately re-ordered in order to apply the
 conversion of network byte order after setting values.
+The comments in source code of xRAN lib can be used to see more information on 
+implementation specifics of handling sections as well as particular fields. 
+Additional changes may be needed on C-plane to perform IOT with O-RU depending on the scenario.
 
 Ethernet Header
 ~~~~~~~~~~~~~~~
@@ -1419,7 +1407,7 @@ to radio application common header.
 
 -  timeOffset
 
--  frameStrucutre: defined as the structure of
+-  frameStructure: defined as the structure of
    xran_cp_radioapp_frameStructure
 
 -  cpLength

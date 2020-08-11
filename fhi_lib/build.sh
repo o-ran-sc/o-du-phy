@@ -44,7 +44,11 @@ case $key in
     xclean)
     COMMAND_LINE+=$key
     COMMAND_LINE+=" "
-	;;
+    ;;
+    clean)
+    COMMAND_LINE+=$key
+    COMMAND_LINE+=" "
+    ;;
     *)
     echo $key is unknown command        # unknown option
     ;;
@@ -78,7 +82,6 @@ then
 else
 	echo 'Building xRAN Test Application ('$GTEST_ROOT')'
 	cd $XRAN_FH_TEST_DIR
-	make clean;
-	make
+	make $COMMAND_LINE;
 fi
 

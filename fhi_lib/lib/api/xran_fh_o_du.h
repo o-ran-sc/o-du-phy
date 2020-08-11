@@ -107,8 +107,8 @@ extern "C" {
 
 #define XRAN_PORTS_NUM               (1)    /**< number of XRAN ports (aka O-RU devices) supported */
 #define XRAN_N_FE_BUF_LEN            (40)   /**< Number of TTIs (slots) */
-#define XRAN_MAX_SECTOR_NR           (12)   /**< Max sectors per XRAN port */
-#define XRAN_MAX_ANTENNA_NR          (16)    /**< Max number of extended Antenna-Carriers:
+#define XRAN_MAX_SECTOR_NR           (12)    /**< Max sectors per XRAN port */
+#define XRAN_MAX_ANTENNA_NR          (16)   /**< Max number of extended Antenna-Carriers:
                                                 a data flow for a single antenna (or spatial stream) for a single carrier in a single sector */
 
 /* see 10.2	Hierarchy of Radiation Structure in O-RU (assume TX and RX pannel are the same dimensions)*/
@@ -246,7 +246,7 @@ typedef void (*xran_transport_callback_fn)(void*, xran_status_t);
 /** Callback functions to poll BBdev encoder */
 typedef int16_t (*phy_encoder_poll_fn)(void);
 
-/** Callback functions to poll BBdev secoder */
+/** Callback functions to poll BBdev decoder */
 typedef int16_t (*phy_decoder_poll_fn)(void);
 
 /** XRAN port enum */
@@ -254,14 +254,44 @@ enum xran_vf_ports
 {
     XRAN_UP_VF = 0, /**< port type for U-plane */
     XRAN_CP_VF,     /**< port type for C-plane */
+    XRAN_UP_VF1,    /**< port type for U-plane */
+    XRAN_CP_VF1,    /**< port type for C-plane */
+    XRAN_UP_VF2,    /**< port type for U-plane */
+    XRAN_CP_VF2,    /**< port type for C-plane */
+    XRAN_UP_VF3,    /**< port type for U-plane */
+    XRAN_CP_VF3,    /**< port type for C-plane */
+    XRAN_UP_VF4,    /**< port type for U-plane */
+    XRAN_CP_VF4,    /**< port type for C-plane */
+    XRAN_UP_VF5,    /**< port type for U-plane */
+    XRAN_CP_VF5,    /**< port type for C-plane */
+    XRAN_UP_VF6,    /**< port type for U-plane */
+    XRAN_CP_VF6,    /**< port type for C-plane */
+    XRAN_UP_VF7,    /**< port type for U-plane */
+    XRAN_CP_VF7,    /**< port type for C-plane */
     XRAN_VF_MAX
+};
+
+/** XRAN Radio Access technology enum */
+enum xran_ran_tech
+{
+    XRAN_RAN_5GNR     = 0, /**< 5G NR */
+    XRAN_RAN_LTE      = 1, /**< LTE   */
+    XRAN_RAN_MAX
+};
+
+/** XRAN user data compression header handling types */
+enum xran_comp_hdr_type
+{
+    XRAN_COMP_HDR_TYPE_DYNAMIC   = 0, /**< dynamic data format where U-plane udCompHdr controls compression parameters */
+    XRAN_COMP_HDR_TYPE_STATIC    = 1, /**< static data format where M-plane defines compression parameters */
+    XRAN_COMP_HDR_TYPE_MAX
 };
 
 /** XRAN category enum */
 enum xran_category
 {
-    XRAN_CATEGORY_A = 0,
-    XRAN_CATEGORY_B = 1,
+    XRAN_CATEGORY_A     = 0, /**< 5G NR Category A */
+    XRAN_CATEGORY_B     = 1, /**< 5G NR Category B */
     XRAN_CATEGORY_MAX
 };
 
@@ -292,15 +322,19 @@ struct xran_cb_tag {
 /** DPDK IO configuration for XRAN layer */
 struct xran_io_cfg {
     uint8_t id; /**< should be (0) for O-DU or (1) O-RU (debug) */
+    uint8_t num_vfs; /**< number of VFs for C-plane and U-plane (should be even) */
     char *dpdk_dev[XRAN_VF_MAX]; /**< VFs devices  */
-    char *bbdev_dev[1];     /**< BBDev dev name */
-    int32_t bbdev_mode;     /**< DPDK for BBDev */
-    int32_t core;           /**< reservd */
-    int32_t system_core;    /**< reservd */
-    int32_t pkt_proc_core;  /**< reservd */
-    int32_t pkt_aux_core;   /**< reservd */
-    int32_t timing_core;    /**< core used by xRAN */
-    int32_t port[XRAN_VF_MAX];  /**< VFs ports */
+    char *bbdev_dev[1];      /**< BBDev dev name */
+    int32_t bbdev_mode;      /**< DPDK for BBDev */
+    uint32_t dpdkIoVaMode;   /**< IOVA Mode */
+    uint32_t dpdkMemorySize; /**< DPDK max memory allocation */
+    int32_t  core;            /**< reservd */
+    int32_t  system_core;     /**< reservd */
+    uint64_t pkt_proc_core;  /**< worker mask */
+    int32_t  pkt_aux_core;    /**< reservd */
+    int32_t  timing_core;     /**< core used by xRAN */
+    int32_t  port[XRAN_VF_MAX];  /**< VFs ports */
+    int32_t  io_sleep;        /**< enable sleep on PMD cores */
 };
 
 /** XRAN spec section 3.1.3.1.6 ecpriRtcid / ecpriPcid define */
@@ -367,6 +401,7 @@ struct xran_fh_init {
 /** Beamforming waights for single stream for each PRBs  given number of Antenna elements */
 struct xran_cp_bf_weight{
     int16_t nAntElmTRx;        /**< num TRX for this allocation */
+    int8_t*  p_ext_start;      /**< pointer to start of buffer for full C-plane packet */
     int8_t*  p_ext_section;    /**< pointer to form extType */
     int16_t  ext_section_sz;   /**< extType section size */
 };
@@ -478,16 +513,17 @@ enum xran_input_i_q_order {
     XRAN_Q_I_ORDER       /**< Q , I */
 };
 
-/** XRAN front haul IQ compression settings */
+/** XRAN front haul O-RU settings */
 struct xran_ru_config {
-    enum xran_category xranCat;   /**< mode: Catergory A or Category B */
-
-    uint8_t iqWidth;        /**< IQ bit width */
-    uint8_t compMeth;       /**< Compression method */
-    uint8_t fftSize;        /**< FFT Size */
+    enum xran_ran_tech      xranTech;      /**< 5GNR or LTE */
+    enum xran_category      xranCat;       /**< mode: Catergory A or Category B */
+    enum xran_comp_hdr_type xranCompHdrType;   /**< dynamic or static udCompHdr handling*/
+    uint8_t                 iqWidth;           /**< IQ bit width */
+    uint8_t                 compMeth;      /**< Compression method */
+    uint8_t                 fftSize;       /**< FFT Size */
     enum xran_input_byte_order byteOrder; /**< Order of bytes in int16_t in buffer. Big or little endian */
     enum xran_input_i_q_order  iqOrder;   /**< order of IQs in the buffer */
-    uint16_t xran_max_frame; /**< max frame number supported */
+    uint16_t xran_max_frame;   /**< max frame number supported */
 };
 
 /**
@@ -519,6 +555,12 @@ struct xran_fh_config {
     phy_encoder_poll_fn bbdev_enc; /**< call back to poll BBDev encoder */
     phy_decoder_poll_fn bbdev_dec; /**< call back to poll BBDev decoder */
 
+    uint16_t tx_cp_eAxC2Vf[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR]; /**< mapping of C-Plane (ecpriRtcid) or U-Plane (ecpriPcid) to VF */
+    uint16_t tx_up_eAxC2Vf[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR]; /**< mapping of C-Plane (ecpriRtcid) or U-Plane (ecpriPcid) to VF */
+
+    uint16_t rx_cp_eAxC2Vf[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR]; /**< mapping of C-Plane (ecpriRtcid) or U-Plane (ecpriPcid) to VF */
+    uint16_t rx_up_eAxC2Vf[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR]; /**< mapping of C-Plane (ecpriRtcid) or U-Plane (ecpriPcid) to VF */
+
     uint32_t log_level; /**< configuration of log level */
 };
 
@@ -532,6 +574,18 @@ struct xran_common_counters{
     uint64_t Rx_corrupt;      /**< Corrupt/Incorrect header packet */
     uint64_t Rx_pkt_dupl;     /**< Duplicated packet */
     uint64_t Total_msgs_rcvd; /**< Total messages received (on all links) */
+
+    /* debug statistis */
+    uint64_t rx_counter;
+    uint64_t tx_counter;
+    uint64_t tx_bytes_counter;
+    uint64_t rx_bytes_counter;
+    uint64_t tx_bytes_per_sec;
+    uint64_t rx_bytes_per_sec;
+
+    uint64_t rx_pusch_packets[XRAN_MAX_ANTENNA_NR];
+    uint64_t rx_prach_packets[XRAN_MAX_ANTENNA_NR];
+    uint64_t rx_srs_packets;
 };
 
 /**
@@ -990,10 +1044,22 @@ enum xran_if_state xran_get_if_state(void);
  *   buffer size
  *
  * @return
- *   ptr - to memory buffer or NULL
+ *   buf_len - size of memory allocation
  */
 void*    xran_malloc(size_t buf_len);
 
+/**
+ * @ingroup xran
+ *
+ *   Function frees memory of given size from heap
+ *
+ * @param buf_len
+ *   addr - pointer to buffer
+ *
+ * @return
+ *   void
+ */
+void  xran_free(void *addr);
 
 /**
  * @ingroup xran
@@ -1009,6 +1075,19 @@ void*    xran_malloc(size_t buf_len);
  *   ptr - pointer to payload given header requared
  */
 uint8_t* xran_add_hdr_offset(uint8_t  *dst, int16_t compMethod);
+
+/**
+ * @ingroup xran
+ *
+ *   Function calculates offset for ptr according to ORAN C-plane headers requared
+ *
+ * @param dst
+ *   pointer to be addjusted
+ *
+ * @return
+ *   ptr - pointer to payload given header requared
+ */
+uint8_t  *xran_add_cp_hdr_offset(uint8_t  *dst);
 
 #ifdef __cplusplus
 }

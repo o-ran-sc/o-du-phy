@@ -71,6 +71,8 @@ extern "C" {
 #define PID_TIME_SYSTIME_POLL                   2104
 #define PID_TIME_SYSTIME_STOP                   2105
 #define PID_TIME_ARM_TIMER                      2106
+#define PID_TIME_ARM_TIMER_DEADLINE             2107
+
 
 
 #define PID_RADIO_FREQ_RX_PKT                   2400

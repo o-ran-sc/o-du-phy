@@ -24,6 +24,7 @@
 #include "nr5g_fapi_framework.h"
 #include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_api.h"
+#include "nr5g_fapi_fapi2phy_api.h"
 #include "nr5g_fapi_fapi2mac_p5_proc.h"
 #include "nr5g_fapi_stats.h"
 #include "nr5g_fapi_fapi2phy_p5_proc.h"
@@ -81,9 +82,9 @@ uint8_t nr5g_fapi_shutdown_response(
     if (p_iapi_resp->nStatus == SUCCESS) {
 #ifdef DEBUG_MODE
         p_list_elem =
-            nr5g_fapi_fapi2mac_create_api_list_elem(
-                    FAPI_VENDOR_EXT_SHUTDOWN_RESPONSE, 1,
-                    sizeof(fapi_vendor_ext_shutdown_res_t));
+            nr5g_fapi_fapi2mac_create_api_list_elem
+            (FAPI_VENDOR_EXT_SHUTDOWN_RESPONSE, 1,
+            sizeof(fapi_vendor_ext_shutdown_res_t));
         if (!p_list_elem) {
             NR5G_FAPI_LOG(ERROR_LOG, ("[SHUTDOWN.response] Unable to create "
                     "list element. Out of memory!!!"));
@@ -137,6 +138,7 @@ uint8_t nr5g_fapi_shutdown_response(
             fapi_req.slot = 0;
             fapi_req.test_type = p_phy_instance->shutdown_test_type;
             nr5g_fapi_shutdown_request(p_phy_instance, &fapi_req);
+            nr5g_fapi_fapi2phy_send_api_list();
         } else {
             NR5G_FAPI_LOG(ERROR_LOG, ("[SHUTDOWN.response] Invalid status "
                     "from PHY, hence triggering Error Indication"));

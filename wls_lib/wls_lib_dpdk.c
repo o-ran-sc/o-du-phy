@@ -130,36 +130,11 @@ static inline int wls_check_ctx1(void *h)
     return 0;
 }
 
-static int wls_VirtToPhys(const void* virtAddr, uint64_t* physAddr)
+static int wls_VirtToIova(const void* virtAddr, uint64_t* iovaAddr)
 {
-    int mapFd;
-    uint64_t page;
-    unsigned int pageSize;
-    unsigned long virtualPageNumber;
-
-    mapFd = open("/proc/self/pagemap", O_RDONLY);
-    if (mapFd < 0) {
-        PLIB_ERR("Could't open pagemap file\n");
+    *iovaAddr = rte_mem_virt2iova(virtAddr);
+    if (*iovaAddr==RTE_BAD_IOVA)
         return -1;
-    }
-
-    /*get standard page size*/
-    pageSize = getpagesize();
-
-    virtualPageNumber = (unsigned long) virtAddr / pageSize;
-
-    lseek(mapFd, virtualPageNumber * sizeof (uint64_t), SEEK_SET);
-
-    if (read(mapFd, &page, sizeof (uint64_t)) < 0) {
-        close(mapFd);
-        PLIB_ERR("Could't read pagemap file\n");
-        return -1;
-    }
-
-    *physAddr = ((page & 0x007fffffffffffffULL) * pageSize);
-
-    close(mapFd);
-
     return 0;
 }
 
@@ -801,7 +776,7 @@ void* WLS_Alloc(void* h, unsigned int size)
                                                 inorder to get pagemap*/
         *(unsigned char*) pHugePageTlb[count].pageVa = 1;
 
-        if (wls_VirtToPhys((uint64_t*) pHugePageTlb[count].pageVa,
+        if (wls_VirtToIova((uint64_t*) pHugePageTlb[count].pageVa,
                 &pHugePageTlb[count].pagePa) == -1) {
             PLIB_ERR("Virtual to physical conversion failed\n");
             return NULL;

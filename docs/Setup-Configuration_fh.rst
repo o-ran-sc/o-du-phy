@@ -74,87 +74,47 @@ Each server in Figure 26 requires the following:
 The recommended configuration for NICs is::
 
 
-    ethtool -i enp216s0f0
-    
+    ethtool -i enp33s0f0
     driver: i40e
-    
-    version: 2.9.21
-    
-    firmware-version: 6.80 0x80003d05 1.2007.0
-    
+    version: 2.10.19.82
+    firmware-version: 7.20 0x80007949 1.2585.0
     expansion-rom-version:
-    
-    bus-info: 0000:d8:00.0
-    
+    bus-info: 0000:21:00.0
     supports-statistics: yes
-    
     supports-test: yes
-    
     supports-eeprom-access: yes
-    
     supports-register-dump: yes
-    
     supports-priv-flags: yes
-    
-   [root@5gnr-sc12-xran testmac]# ethtool -T enp216s0f0::
-   
-   
-   Time stamping parameters for enp216s0f0:
-   
-   Capabilities:
-   
-   hardware-transmit (SOF_TIMESTAMPING_TX_HARDWARE)
-   
-   software-transmit (SOF_TIMESTAMPING_TX_SOFTWARE)
-   
-   hardware-receive (SOF_TIMESTAMPING_RX_HARDWARE)
-   
-   software-receive (SOF_TIMESTAMPING_RX_SOFTWARE)
-   
-   software-system-clock (SOF_TIMESTAMPING_SOFTWARE)
-   
-   hardware-raw-clock (SOF_TIMESTAMPING_RAW_HARDWARE)
-   
-   PTP Hardware Clock: 2
-   
-   Hardware Transmit Timestamp Modes:
-   
-   off (HWTSTAMP_TX_OFF)
-   
-   on (HWTSTAMP_TX_ON)
-   
-   Hardware Receive Filter Modes:
-   
-   none (HWTSTAMP_FILTER_NONE)
-   
-   ptpv1-l4-sync (HWTSTAMP_FILTER_PTP_V1_L4_SYNC)
-   
-   ptpv1-l4-delay-req (HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ)
-   
-   ptpv2-l4-event (HWTSTAMP_FILTER_PTP_V2_L4_EVENT)
-   
-   ptpv2-l4-sync (HWTSTAMP_FILTER_PTP_V2_L4_SYNC)
-   
-   ptpv2-l4-delay-req (HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ)
-   
-   ptpv2-l2-event (HWTSTAMP_FILTER_PTP_V2_L2_EVENT)
-   
-   ptpv2-l2-sync (HWTSTAMP_FILTER_PTP_V2_L2_SYNC)
-   
-   ptpv2-l2-delay-req (HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ)
-   
-   ptpv2-event (HWTSTAMP_FILTER_PTP_V2_EVENT)
-   
-   ptpv2-sync (HWTSTAMP_FILTER_PTP_V2_SYNC)
-   
-   ptpv2-delay-req (HWTSTAMP_FILTER_PTP_V2_DELAY_REQ)
+    ethtool -T enp33s0f0
+    Time stamping parameters for enp33s0f0:
+    Capabilities:
+        hardware-transmit     (SOF_TIMESTAMPING_TX_HARDWARE)
+        software-transmit     (SOF_TIMESTAMPING_TX_SOFTWARE)
+        hardware-receive      (SOF_TIMESTAMPING_RX_HARDWARE)
+        software-receive      (SOF_TIMESTAMPING_RX_SOFTWARE)
+        software-system-clock (SOF_TIMESTAMPING_SOFTWARE)
+        hardware-raw-clock    (SOF_TIMESTAMPING_RAW_HARDWARE)
+    PTP Hardware Clock: 4
+    Hardware Transmit Timestamp Modes:
+        off                   (HWTSTAMP_TX_OFF)
+        on                    (HWTSTAMP_TX_ON)
+    Hardware Receive Filter Modes:
+        none                  (HWTSTAMP_FILTER_NONE)
+        ptpv1-l4-sync         (HWTSTAMP_FILTER_PTP_V1_L4_SYNC)
+        ptpv1-l4-delay-req    (HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ)
+        ptpv2-l4-event        (HWTSTAMP_FILTER_PTP_V2_L4_EVENT)
+        ptpv2-l4-sync         (HWTSTAMP_FILTER_PTP_V2_L4_SYNC)
+        ptpv2-l4-delay-req    (HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ)
+        ptpv2-l2-event        (HWTSTAMP_FILTER_PTP_V2_L2_EVENT)
+        ptpv2-l2-sync         (HWTSTAMP_FILTER_PTP_V2_L2_SYNC)
+        ptpv2-l2-delay-req    (HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ)
+        ptpv2-event           (HWTSTAMP_FILTER_PTP_V2_EVENT)
+        ptpv2-sync            (HWTSTAMP_FILTER_PTP_V2_SYNC)
+        ptpv2-delay-req       (HWTSTAMP_FILTER_PTP_V2_DELAY_REQ)
 
-PTP Grand Master is required to be available in the network to provide
+
+A PTP Main Reference Clock is required to be available in the network to provide
 synchronization of both O-DU and RU to GPS time.
-
-The software package includes Linux\* CentOS\* operating system and RT
-patch according to *Cloud-Native*-platform *Setup* document (refer to
-Table 2). Only real-time HOST is required.
 
 1.Installing Intel® C++ Compiler v19.0.3 is preferred. or you could get
 Intel® C++ Compiler through below link with community license,
@@ -163,11 +123,9 @@ verification for that version might not be performed yet, please
 feedback through O-DU Low project WIKI page if you meet an issue. |br|
 `https://software.intel.com/en-us/system-studio/choose-download <https://software.intel.com/en-us/system-studio/choose-download%20>`__
 
-2.Download DPDK 18.08.
+2.Download DPDK 19.11.
 
-3.With FlexRAN BBDev patch as per release 20.02. (Note currently this may require a license from Intel)
-
-4.Change DPDK files according to below diff information which relevant to O-RAN FH::
+3.Change DPDK files according to below diff information which relevant to O-RAN FH::
 
     diff --git a/drivers/net/i40e/i40e_ethdev.c
     b/drivers/net/i40e/i40e_ethdev.c
@@ -282,11 +240,11 @@ feedback through O-DU Low project WIKI page if you meet an issue. |br|
 
    [root@xran dpdk]# ./usertools/dpdk-setup.sh
    
-   select [16] x86_64-native-linuxapp-icc
+   select [39] x86_64-native-linuxapp-icc
    
-   select [19] Insert VFIO module
+   select [46] Insert VFIO module
    
-   exit [35] Exit Script
+   exit [62] Exit Script
 
 6.Make below file changes in dpdk that assure i40e to get best
 latency of packet processing::
@@ -337,67 +295,49 @@ A.3 Configuration of System
 
     cat /proc/cmdline
     
-    BOOT_IMAGE=/vmlinuz-3.10.0-957.10.1.rt56.921.el7.x86_64
-    root=/dev/mapper/centos-root ro crashkernel=auto rd.lvm.lv=centos/root
-    rd.lvm.lv=centos/swap intel_iommu=on iommu=pt usbcore.autosuspend=-1
-    selinux=0 enforcing=0 nmi_watchdog=0 softlockup_panic=0 audit=0
-    intel_pstate=disable cgroup_memory=1 cgroup_enable=memory mce=off
-    idle=poll hugepagesz=1G hugepages=40 hugepagesz=2M hugepages=0
-    default_hugepagesz=1G isolcpus=1-19,21-39 rcu_nocbs=1-19,21-39
-    kthread_cpus=0,20 irqaffinity=0,20 nohz_full=1-19,21-39
+    BOOT_IMAGE=/vmlinuz-3.10.0-1062.12.1.rt56.1042.el7.x86_64 root=/dev/mapper/centos-root ro
+    crashkernel=auto rd.lvm.lv=centos/root rd.lvm.lv=centos/swap intel_iommu=on iommu=pt
+    usbcore.autosuspend=-1 selinux=0 enforcing=0 nmi_watchdog=0 softlockup_panic=0 audit=0
+    intel_pstate=disable cgroup_memory=1 cgroup_enable=memory mce=off idle=poll
+    hugepagesz=1G hugepages=16 hugepagesz=2M hugepages=0 default_hugepagesz=1G
+    isolcpus=1-19,21-39 rcu_nocbs=1-19,21-39 kthread_cpus=0,20 irqaffinity=0,20
+    nohz_full=1-19,21-39
     
 2.Download from Intel Website and install updated version of i40e
-driver if needed. The current recommended version of i40e is x2.9.21.
+driver if needed. The current recommended version of i40e is 2.10.19.82. 
+However, any latest version of i40e after  x2.9.21 expected to be functional for ORAN FH.
 
 3.Identify PCIe Bus address of the Front Haul NIC::
 
-    lspci \|grep Eth
-    
-    19:00.0 Ethernet controller: Intel Corporation 82599ES 10-Gigabit
-    SFI/SFP+ Network Connection (rev 01)
-    
-    19:00.1 Ethernet controller: Intel Corporation 82599ES 10-Gigabit
-    SFI/SFP+ Network Connection (rev 01)
-    
-    41:00.0 Ethernet controller: Intel Corporation Ethernet Connection X722
-    for 10GBASE-T (rev 04)
-    
-    41:00.1 Ethernet controller: Intel Corporation Ethernet Connection X722
-    for 10GBASE-T (rev 04)
-    
-    d8:00.0 Ethernet controller: Intel Corporation Ethernet Controller XL710
-    for 40GbE QSFP+ (rev 02) <<< port used for FH
-    
-    d8:00.1 Ethernet controller: Intel Corporation Ethernet Controller XL710
-    for 40GbE QSFP+ (rev 02)
+    lspci |grep Eth
+    19:00.0 Ethernet controller: Intel Corporation Ethernet Controller XXV710 Intel(R) FPGA Programmable Acceleration Card N3000 for Networking (rev 02)
+    19:00.1 Ethernet controller: Intel Corporation Ethernet Controller XXV710 Intel(R) FPGA Programmable Acceleration Card N3000 for Networking (rev 02)
+    1d:00.0 Ethernet controller: Intel Corporation Ethernet Controller XXV710 Intel(R) FPGA Programmable Acceleration Card N3000 for Networking (rev 02)
+    1d:00.1 Ethernet controller: Intel Corporation Ethernet Controller XXV710 Intel(R) FPGA Programmable Acceleration Card N3000 for Networking (rev 02)
+    21:00.0 Ethernet controller: Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28 (rev 02)
+    21:00.1 Ethernet controller: Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28 (rev 02)
+    67:00.0 Ethernet controller: Intel Corporation Ethernet Connection X722 for 10GBASE-T (rev 09)
+
     
 4.Identify the Ethernet device name::
 
-    ethtool -i enp216s0f0
-    
+    ethtool -i enp33s0f0
     driver: i40e
-    
-    version: 2.9.21
-    
-    firmware-version: 6.80 0x80003d05 1.2007.0
-    
+    version: 2.10.19.82
+    firmware-version: 7.20 0x80007949 1.2585.0
     expansion-rom-version:
-    
-    bus-info: 0000:d8:00.0
-    
+    bus-info: 0000:21:00.0
     supports-statistics: yes
-    
     supports-test: yes
-    
     supports-eeprom-access: yes
-    
     supports-register-dump: yes
-    
     supports-priv-flags: yes
+    Enable
+
 
 5.Enable two virtual functions (VF) on the device::
 
-    echo 2 > /sys/class/net/enp216s0f0/device/sriov_numvfs
+    echo 2 > /sys/class/net/enp33s0f0/device/sriov_numvfs
 
 More information about VFs supported by Intel NICs can be found at
 https://doc.dpdk.org/guides/nics/intel_vf.html.
@@ -407,110 +347,105 @@ new VFs were added::
 
     lspci|grep Eth
     
-    19:00.0 Ethernet controller: Intel Corporation 82599ES 10-Gigabit
-    SFI/SFP+ Network Connection (rev 01)
-    
-    19:00.1 Ethernet controller: Intel Corporation 82599ES 10-Gigabit
-    SFI/SFP+ Network Connection (rev 01)
-    
-    41:00.0 Ethernet controller: Intel Corporation Ethernet Connection X722
-    for 10GBASE-T (rev 04)
-    
-    41:00.1 Ethernet controller: Intel Corporation Ethernet Connection X722
-    for 10GBASE-T (rev 04)
-    
-    d8:00.0 Ethernet controller: Intel Corporation Ethernet Controller XL710
-    for 40GbE QSFP+ (rev 02)
-    
-    d8:00.1 Ethernet controller: Intel Corporation Ethernet Controller XL710
-    for 40GbE QSFP+ (rev 02)
-    
-    d8:02.0 Ethernet controller: Intel Corporation XL710/X710 Virtual
-    Function (rev 02)
-    
-    d8:02.1 Ethernet controller: Intel Corporation XL710/X710 Virtual
-    Function (rev 02)
+    21:00.0 Ethernet controller: Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28 (rev 02)
+    21:00.1 Ethernet controller: Intel Corporation Ethernet Controller XXV710 for 25GbE SFP28 (rev 02)
+    21:02.0 Ethernet controller: Intel Corporation Ethernet Virtual Function 700 Series (rev 02)
+    21:02.1 Ethernet controller: Intel Corporation Ethernet Virtual Function 700 Series (rev 02)
+
 
 6.Configure MAC address and VLAN settings for VFs for XRAN, based on
 requirements for xRAN scenario and assignment of VLAN ID using IP
-tool perform configuration of VF as shown below::
-
-    [root@xran app]# ip link set enp216s0f0 vf 0 mac 00:11:22:33:44:66 vlan
-    2
+tool perform configuration of VF.
     
-    [root@xran app]# ip link set enp216s0f0 vf 1 mac 00:11:22:33:44:66 vlan
-    1
+    Example where O-DU and O-RU simulation run on the same sytem::
+
+    #!/bin/bash
+    
+    echo 2 > /sys/bus/pci/devices/0000\:21\:00.0/sriov_numvfs
+    ip link set enp33s0f0 vf 1 mac 00:11:22:33:44:66 vlan 1
+    ip link set enp33s0f0 vf 0 mac 00:11:22:33:44:66 vlan 2
+    echo 2 > /sys/bus/pci/devices/0000\:21\:00.1/sriov_numvfs
+    ip link set enp33s0f1 vf 1 mac 00:11:22:33:44:55 vlan 1
+    ip link set enp33s0f1 vf 0 mac 00:11:22:33:44:55 vlan 2
+    
+    where output is next::
     
     [root@xran app]# ip link show
     
-    1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode
-    DEFAULT qlen 1
+    1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
     
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
     
-    2: enp65s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state
-    UP mode DEFAULT qlen 1000
+    2: enp25s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
     
-    link/ether a4:bf:01:3e:6b:79 brd ff:ff:ff:ff:ff:ff
+    link/ether 64:4c:36:10:1f:30 brd ff:ff:ff:ff:ff:ff
     
-    3: eno2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP
-    mode DEFAULT qlen 1000
+    3: enp25s0f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
     
-    link/ether a4:bf:01:3e:6b:7a brd ff:ff:ff:ff:ff:ff
+    link/ether 64:4c:36:10:1f:31 brd ff:ff:ff:ff:ff:ff
     
-    4: enp25s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state
-    UP mode DEFAULT qlen 1000
+    4: enp29s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
     
-    link/ether 90:e2:ba:d3:b2:ec brd ff:ff:ff:ff:ff:ff
+    link/ether 64:4c:36:10:1f:34 brd ff:ff:ff:ff:ff:ff
     
-    5: enp129s0f0: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq
-    state DOWN mode DEFAULT qlen 1000
+    5: enp29s0f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
     
-    link/ether 3c:fd:fe:a8:e0:70 brd ff:ff:ff:ff:ff:ff
+    link/ether 64:4c:36:10:1f:35 brd ff:ff:ff:ff:ff:ff
     
-    6: enp129s0f1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq
-    state DOWN mode DEFAULT qlen 1000
+    6: enp33s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
     
-    link/ether 3c:fd:fe:a8:e0:71 brd ff:ff:ff:ff:ff:ff
+    link/ether 3c:fd:fe:b9:f8:b4 brd ff:ff:ff:ff:ff:ff
     
-    7: enp216s0f0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state
-    UP mode DEFAULT qlen 1000
+    vf 0 MAC 00:11:22:33:44:66, vlan 2, spoof checking on, link-state auto, trust off
     
-    link/ether 3c:fd:fe:9e:93:68 brd ff:ff:ff:ff:ff:ff
+    vf 1 MAC 00:11:22:33:44:66, vlan 1, spoof checking on, link-state auto, trust off
     
-    vf 0 MAC 00:11:22:33:44:66, vlan 2, spoof checking on, link-state auto,
-    trust off
+    7: enp33s0f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
     
-    vf 1 MAC 00:11:22:33:44:66, vlan 1, spoof checking on, link-state auto,
-    trust off
+    link/ether 3c:fd:fe:b9:f8:b5 brd ff:ff:ff:ff:ff:ff
     
-    8: enp25s0f1: <NO-CARRIER,BROADCAST,MULTICAST,UP> mtu 1500 qdisc mq
-    state DOWN mode DEFAULT qlen 1000
+    vf 0 MAC 00:11:22:33:44:55, vlan 2, spoof checking on, link-state auto, trust off
     
-    link/ether 90:e2:ba:d3:b2:ed brd ff:ff:ff:ff:ff:ff
+    vf 1 MAC 00:11:22:33:44:55, vlan 1, spoof checking on, link-state auto, trust off
     
-    9: enp216s0f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state
-    UP mode DEFAULT qlen 1000
+    8: eno1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
     
-    link/ether 3c:fd:fe:9e:93:69 brd ff:ff:ff:ff:ff:ff
+    link/ether a4:bf:01:3e:1f:be brd ff:ff:ff:ff:ff:ff
     
-    12: enp216s2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state
-    UP mode DEFAULT qlen 1000
+    9: eno2: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
     
-    link/ether 96:fa:4d:04:4d:87 brd ff:ff:ff:ff:ff:ff
+    link/ether a4:bf:01:3e:1f:bf brd ff:ff:ff:ff:ff:ff
     
-    13: enp216s2f1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq
-    state UP mode DEFAULT qlen 1000
+    10: npacf0g0l0: <LOWER_UP> mtu 9600 qdisc noop state UNKNOWN mode DEFAULT group default qlen 1000
     
-    link/ether a6:67:49:bb:bd:5e brd ff:ff:ff:ff:ff:ff
+    link/generic
+    
+    11: npacf0g0l1: <LOWER_UP> mtu 9600 qdisc noop state UNKNOWN mode DEFAULT group default qlen 1000
+    
+    link/generic
+    
+    12: npacf0g0l2: <LOWER_UP> mtu 9600 qdisc noop state UNKNOWN mode DEFAULT group default qlen 1000
+    
+    link/generic
+    
+    13: npacf0g0l3: <LOWER_UP> mtu 9600 qdisc noop state UNKNOWN mode DEFAULT group default qlen 1000
+    
+    link/generic
 
 After this step FH NIC is configured.
 
-VF for C-plane is VF1 on PH enp216s0f0, it has ETH mac address
-00:11:22:33:44:66 and VLAN tag 1. PCIe Bus address is VF1 is d8:02.1
+O-DU
+ 
+VF for C-plane is VF1 on PFH enp33s0f0enp216s0f0, it has ETH mac address 00:11:22:33:44:66 and VLAN tag 1. PCIe Bus address is VF1 is 21d8:02.1
 
-VF for U-plane is VF0 on PH enp216s0f0, it has ETH mac address
-00:11:22:33:44:66 and VLAN tag 2. PCIe Bus address is VF1 is d8:02.0
+VF for U-plane is VF0 on PFH enp33s0f0enp216s0f0, it has ETH mac address 00:11:22:33:44:66 and VLAN tag 2. PCIe Bus address is VF1 is 21d8:02.0
+
+O-RU
+
+VF for C-plane is VF1 on PF enp33s0f1, it has ETH mac address 00:11:22:33:44:55 and VLAN tag 1. PCIe Bus address is VF1 is 21:0a.1
+
+VF for U-plane is VF0 on PF enp33s0f1, it has ETH mac address 00:11:22:33:44:55 and VLAN tag 2. PCIe Bus address is VF1 is 21:0a.0
+
 
 A.4 Install and Configure Sample Application
 --------------------------------------------
@@ -520,7 +455,7 @@ To install and configure the sample application:
 
    export GTEST_ROOT=`pwd`/gtest-1.7.0
    
-   export RTE_SDK=`pwd`/dpdk-18.08
+   export RTE_SDK=`pwd`/dpdk-19.11
    
    export RTE_TARGET=x86_64-native-linuxapp-icc
    
@@ -552,8 +487,7 @@ configuration for your scenario.
 Update run_o_du.sh (run_o_ru.sh) with PCIe bus address of VF0 and VF1
 used for U-plane and C-plane correspondingly::
 
-    ./build/sample-app ./usecase/mu0_10mhz/config_file_o_du.dat 0000:d8:02.0
-    0000:d8:02.1
+    ./build/sample-app -c ./usecase/mu0_10mhz/config_file_o_du.dat -p 2 0000:21d8:02.0 0000:21d8:02.1
 
 4. Run application using run_o_du.sh (run_o_ru.sh).
 

@@ -38,11 +38,11 @@ uint8_t nr5g_fapi_dpdk_init(
     printf("init dev name: %s\n", p_cfg->wls.device_name);
     char *const file_prefix = basename(p_cfg->wls.device_name);
     printf("init basename: %s\n", file_prefix);
-    char whitelist[32];
+    char whitelist[32], iova_mode[64];
     uint8_t i;
 
     char *argv[] = { p_cfg->prgname, "--proc-type=secondary",
-        "--file-prefix", file_prefix, whitelist
+        "--file-prefix", file_prefix, whitelist, iova_mode
     };
 #if 0
     char coremask[32];
@@ -56,6 +56,12 @@ uint8_t nr5g_fapi_dpdk_init(
 
     /* initialize EAL first */
     snprintf(whitelist, 32, "-w %s", "0000:00:06.0");
+
+    if (p_cfg->dpdk.iova_mode == 0)
+        snprintf(iova_mode, 64, "%s", "--iova-mode=pa");
+    else
+        snprintf(iova_mode, 64, "%s", "--iova-mode=va");
+
     printf("Calling rte_eal_init: ");
     for (i = 0; i < RTE_DIM(argv); i++) {
         printf("%s ", argv[i]);
@@ -118,9 +124,7 @@ nr5g_fapi_ul_slot_info_t *nr5g_fapi_get_ul_slot_info(
 uint8_t nr5g_fapi_framework_init(
     p_nr5g_fapi_cfg_t p_cfg)
 {
-    uint8_t retval = FAILURE;
     p_nr5g_fapi_phy_ctx_t p_phy_ctx = nr5g_fapi_get_nr5g_fapi_phy_ctx();
-    p_nr5g_fapi_wls_context_t pwls;
     pthread_attr_t *p_mac2phy_attr, *p_phy2mac_attr;
     struct sched_param param;
 
@@ -130,31 +134,10 @@ uint8_t nr5g_fapi_framework_init(
         NR5G_FAPI_LOG(ERROR_LOG, ("[FAPI_INT] WLS init Failed"));
         return FAILURE;
     }
-    // First let's wait for the L1 and L2 to be present
-    while (retval) {
-        retval = nr5g_fapi_fapi2phy_wls_ready();
-    }
-    // Now the L2 is up so let's make sure that the L1 was started first
-    retval = FAILURE;
-    while (retval) {
-        retval = nr5g_fapi_fapi2mac_wls_ready();
-    }
-
-    usleep(1000000);
-    // Now that the L2 is up and has completed the Common Memory initialization
-    // the FT needs to initialize the FAPI2PHY buffers
-    pwls = nr5g_fapi_wls_context();
-    if (pwls) {
-        if (FAILURE == nr5g_fapi2Phy_wls_init(pwls)) {
-            return FAILURE;
-        }
-    } else {
-        return FAILURE;
-    }
+    NR5G_FAPI_LOG(INFO_LOG, ("[FAPI_INT] WLS init Successful"));
 
     p_phy_ctx->phy2mac_worker_core_id = p_cfg->phy2mac_worker.core_id;
     p_phy_ctx->mac2phy_worker_core_id = p_cfg->mac2phy_worker.core_id;
-
     p_phy2mac_attr = &p_cfg->phy2mac_thread_info.thread_attr;
     pthread_attr_init(p_phy2mac_attr);
     if (!pthread_attr_getschedparam(p_phy2mac_attr, &param)) {

@@ -65,13 +65,18 @@ MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protoco
 Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
 
-ioCore=10
-systemCore=10
-pktProcCore=10
-pktAuxCore=10
-timingCore=11
-llsCUMac=00:11:22:33:44:66 # asigned MAC of O-DU VF
-ruMac=00:11:22:33:44:55    # O-RU VF for O-RU app
+ioCore=15
+# Eth 0
+duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
+ruMac0=00:11:22:33:44:55 # O-RU VF for O-RU app
+duMac1=00:11:22:33:44:66 # asigned MAC of O-DU VF
+ruMac1=00:11:22:33:44:55 # O-RU VF for O-RU app
+
+# Eth 1
+duMac2=00:11:22:33:44:77 # asigned MAC of O-DU VF
+ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
+duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
+ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
 numSlots=10 #number of slots per IQ files
 antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0

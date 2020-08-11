@@ -91,9 +91,8 @@ uint8_t nr5g_fapi_error_indication(
 
     // phyStats->iaL1ApiStats.errorInd++; //TODO
     NR5G_FAPI_LOG(INFO_LOG, ("[NR5G_FAPI][ERROR.indication][%d][%d,%d]",
-                p_phy_instance->phy_id,
-                p_iapi_resp->sSFN_Slot.nSFN,
-                p_iapi_resp->sSFN_Slot.nSlot));
+            p_phy_instance->phy_id,
+            p_iapi_resp->sSFN_Slot.nSFN, p_iapi_resp->sSFN_Slot.nSlot));
 
     return SUCCESS;
 }

@@ -28,6 +28,8 @@
 #include "nr5g_fapi_fapi2mac_wls.h"
 #include "nr5g_fapi_log.h"
 
+static p_fapi_api_queue_elem_t p_fapi2mac_buffers;
+
 //------------------------------------------------------------------------------
 /** @ingroup nr5g_fapi_source_framework_wls_fapi2mac_group
  *
@@ -94,24 +96,71 @@ void *nr5g_fapi_fapi2mac_wls_alloc_buffer(
     p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();
     WLS_HANDLE h_wls = nr5g_fapi_fapi2mac_wls_instance();
 
-    if (pthread_mutex_lock((pthread_mutex_t *) & p_wls_ctx->
-            fapi2mac_lock_alloc)) {
+    if (pthread_mutex_lock((pthread_mutex_t *) &
+            p_wls_ctx->fapi2mac_lock_alloc)) {
         NR5G_FAPI_LOG(ERROR_LOG, ("unable to lock alloc pthread mutex"));
         return NULL;
     }
-    pa_block = (uint64_t) WLS_DequeueBlock((void *)h_wls);
-    if (pthread_mutex_unlock((pthread_mutex_t *) & p_wls_ctx->
-            fapi2mac_lock_alloc)) {
+    if (p_fapi2mac_buffers) {
+        p_va_block = (void *)p_fapi2mac_buffers;
+        p_fapi2mac_buffers = p_fapi2mac_buffers->p_next;
+    } else {
+        pa_block = (uint64_t) WLS_DequeueBlock((void *)h_wls);
+        if (!pa_block) {
+            if (pthread_mutex_unlock((pthread_mutex_t *) &
+                    p_wls_ctx->fapi2mac_lock_alloc)) {
+                NR5G_FAPI_LOG(ERROR_LOG,
+                    ("unable to unlock alloc pthread mutex"));
+                return NULL;
+            }
+            //NR5G_FAPI_LOG(ERROR_LOG, ("nr5g_fapi_fapi2phy_wls_alloc_buffer alloc error\n"));
+            return NULL;
+        }
+        p_va_block = (void *)nr5g_fapi_wls_pa_to_va(h_wls, pa_block);
+    }
+    if (pthread_mutex_unlock((pthread_mutex_t *) &
+            p_wls_ctx->fapi2mac_lock_alloc)) {
         NR5G_FAPI_LOG(ERROR_LOG, ("unable to unlock alloc pthread mutex"));
         return NULL;
     }
-
-    if (!pa_block) {
-        //NR5G_FAPI_LOG(ERROR_LOG, ("nr5g_fapi_fapi2phy_wls_alloc_buffer alloc error\n"));
-        return NULL;
-    }
-    p_va_block = (void *)nr5g_fapi_wls_pa_to_va(h_wls, pa_block);
     return p_va_block;
+}
+
+//------------------------------------------------------------------------------
+/** @ingroup nr5g_fapi_source_framework_wls_fapi2phy_group
+ *
+ *  @param   void
+ *
+ *  @return  Pointer to the memory block
+ *
+ *  @description
+ *  This function allocates a block of memory from the pool
+ *
+**/
+//------------------------------------------------------------------------------
+void nr5g_fapi_fapi2mac_wls_free_buffer(
+    void *buffers)
+{
+    p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();
+
+    if (pthread_mutex_lock((pthread_mutex_t *) &
+            p_wls_ctx->fapi2mac_lock_alloc)) {
+        NR5G_FAPI_LOG(ERROR_LOG, ("unable to lock alloc pthread mutex"));
+        return;
+    }
+    if (p_fapi2mac_buffers) {
+        ((p_fapi_api_queue_elem_t) buffers)->p_next = p_fapi2mac_buffers;
+        p_fapi2mac_buffers = (p_fapi_api_queue_elem_t) buffers;
+    } else {
+        p_fapi2mac_buffers = (p_fapi_api_queue_elem_t) buffers;
+        p_fapi2mac_buffers->p_next = NULL;
+    }
+
+    if (pthread_mutex_unlock((pthread_mutex_t *) &
+            p_wls_ctx->fapi2mac_lock_alloc)) {
+        NR5G_FAPI_LOG(ERROR_LOG, ("unable to unlock alloc pthread mutex"));
+        return;
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -201,7 +250,7 @@ uint64_t *nr5g_fapi_fapi2mac_wls_get(
     h_wls = nr5g_fapi_fapi2mac_wls_instance();
     data = (uint64_t *) WLS_Get1(h_wls, &ms, &mt, &f);
     *msg_size = ms, *msg_type = mt, *flags = f;
-    NR5G_FAPI_LOG(TRACE_LOG, ("[NR5G_FAPI][FAPI2MAC WLS][GET] %p size: %d "
+    NR5G_FAPI_LOG(TRACE_LOG, ("[FAPI2MAC WLS][GET] %p size: %d "
             "type: %x flags: %x", data, *msg_size, *msg_type, *flags));
 
     return data;
@@ -230,7 +279,7 @@ inline uint8_t nr5g_fapi_fapi2mac_wls_put(
 
     WLS_HANDLE h_mac_wls = nr5g_fapi_fapi2mac_wls_instance();
     uint64_t pa = nr5g_fapi_wls_va_to_pa(h_mac_wls, (void *)p_msg);
-    NR5G_FAPI_LOG(TRACE_LOG, ("[NR5G_FAPI][FAPI2MAC WLS][PUT] %ld size: %d "
+    NR5G_FAPI_LOG(TRACE_LOG, ("[FAPI2MAC WLS][PUT] %ld size: %d "
             "type: %x flags: %x", pa, msg_size, msg_type, flags));
 
     ret = WLS_Put1(h_mac_wls, (uint64_t) pa, msg_size, msg_type, flags);
@@ -258,6 +307,7 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
     fapi_msg_t *p_msg_header = NULL;
     uint16_t flags = 0;
     p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();
+    uint64_t start_tick = __rdtsc();
 
     p_curr_msg = p_list_elem;
 
@@ -268,13 +318,13 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
 
     if (p_curr_msg && p_curr_msg->p_next) {
         flags = WLS_SG_FIRST;
-        if (p_curr_msg->msg_type == FAPI_MSG_HEADER_IND) {
+        if (p_curr_msg->msg_type == FAPI_VENDOR_MSG_HEADER_IND) {
             if (SUCCESS != nr5g_fapi_fapi2mac_wls_put(p_curr_msg,
                     p_curr_msg->msg_len + sizeof(fapi_api_queue_elem_t),
-                    FAPI_MSG_HEADER_IND, flags)) {
+                    FAPI_VENDOR_MSG_HEADER_IND, flags)) {
                 printf("Error\n");
-                if (pthread_mutex_unlock((pthread_mutex_t *) & p_wls_ctx->
-                        fapi2mac_lock_send)) {
+                if (pthread_mutex_unlock((pthread_mutex_t *) &
+                        p_wls_ctx->fapi2mac_lock_send)) {
                     NR5G_FAPI_LOG(ERROR_LOG,
                         ("unable to unlock send pthread mutex"));
                 }
@@ -292,8 +342,8 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
                         p_curr_msg->msg_len + sizeof(fapi_api_queue_elem_t),
                         p_msg_header->msg_id, flags)) {
                     printf("Error\n");
-                    if (pthread_mutex_unlock((pthread_mutex_t *) & p_wls_ctx->
-                            fapi2mac_lock_send)) {
+                    if (pthread_mutex_unlock((pthread_mutex_t *) &
+                            p_wls_ctx->fapi2mac_lock_send)) {
                         NR5G_FAPI_LOG(ERROR_LOG,
                             ("unable to unlock send pthread mutex"));
                     }
@@ -306,8 +356,8 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
                         p_curr_msg->msg_len + sizeof(fapi_api_queue_elem_t),
                         p_msg_header->msg_id, flags)) {
                     printf("Error\n");
-                    if (pthread_mutex_unlock((pthread_mutex_t *) & p_wls_ctx->
-                            fapi2mac_lock_send)) {
+                    if (pthread_mutex_unlock((pthread_mutex_t *) &
+                            p_wls_ctx->fapi2mac_lock_send)) {
                         NR5G_FAPI_LOG(ERROR_LOG,
                             ("unable to unlock send pthread mutex"));
                     }
@@ -319,11 +369,13 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
         }
     }
 
-    if (pthread_mutex_unlock((pthread_mutex_t *) & p_wls_ctx->
-            fapi2mac_lock_send)) {
+    if (pthread_mutex_unlock((pthread_mutex_t *) &
+            p_wls_ctx->fapi2mac_lock_send)) {
         NR5G_FAPI_LOG(ERROR_LOG, ("unable to unlock send pthread mutex"));
         return FAILURE;
     }
+    tick_total_wls_send_per_tti_ul += __rdtsc() - start_tick;
+
     return ret;
 }
 
@@ -352,11 +404,13 @@ p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_wls_recv(
     p_fapi_api_queue_elem_t p_qelm = NULL;
     p_fapi_api_queue_elem_t p_tail_qelm = NULL;
     WLS_HANDLE h_wls = nr5g_fapi_fapi2mac_wls_instance();
+    uint64_t start_tick = 0;
 
     num_elms = nr5g_fapi_fapi2mac_wls_wait();
     if (!num_elms)
         return p_qelm_list;
 
+    start_tick = __rdtsc();
     do {
         p_msg = nr5g_fapi_fapi2mac_wls_get(&msg_size, &msg_type, &flags);
         if (p_msg) {
@@ -379,6 +433,7 @@ p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_wls_recv(
         }
         num_elms--;
     } while (num_elms && is_msg_present(flags));
+    tick_total_wls_get_per_tti_dl += __rdtsc() - start_tick;
 
     return p_qelm_list;
 }

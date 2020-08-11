@@ -72,13 +72,14 @@ uint8_t nr5g_fapi_ul_iq_samples_request(
     p_file_info = (fapi_vendor_ext_iq_samples_info_t *) (p_list_elem + 1);
     p_file_info->carrNum = p_fapi_req->iq_samples_info.carrNum;
     p_file_info->numSubframes = p_fapi_req->iq_samples_info.numSubframes;
-    p_file_info->testUeMode = p_fapi_req->iq_samples_info.testUeMode;
+    p_file_info->nIsRadioMode = p_fapi_req->iq_samples_info.nIsRadioMode;
     p_file_info->timerModeFreqDomain =
         p_fapi_req->iq_samples_info.timerModeFreqDomain;
     p_file_info->phaseCompensationEnable =
         p_fapi_req->iq_samples_info.phaseCompensationEnable;
     p_file_info->startFrameNum = p_fapi_req->iq_samples_info.startFrameNum;
     p_file_info->startSlotNum = p_fapi_req->iq_samples_info.startSlotNum;
+    p_file_info->startSymNum = p_fapi_req->iq_samples_info.startSymNum;
     if (FAILURE == NR5G_FAPI_MEMCPY(p_file_info->buffer,
             sizeof(uint8_t) * FAPI_MAX_IQ_SAMPLE_BUFFER_SIZE,
             p_fapi_req->iq_samples_info.buffer, sizeof(CONFIGREQUESTStruct))) {
@@ -95,14 +96,6 @@ uint8_t nr5g_fapi_ul_iq_samples_request(
                     "failed!!!"));
         }
 
-        if (FAILURE ==
-            NR5G_FAPI_STRCPY(p_file_info->filename_in_ul_urllc[num_ant],
-                sizeof(uint8_t) * FAPI_MAX_IQ_SAMPLE_FILE_SIZE,
-                p_fapi_req->iq_samples_info.filename_in_ul_urllc[num_ant],
-                sizeof(uint8_t) * FAPI_MAX_IQ_SAMPLE_FILE_SIZE)) {
-            NR5G_FAPI_LOG(ERROR_LOG,
-                ("[UL_IQ_Samples.request] URLLC file name " "copy failed!!!"));
-        }
         if (FAILURE ==
             NR5G_FAPI_STRCPY(p_file_info->filename_in_prach_iq[num_ant],
                 sizeof(uint8_t) * FAPI_MAX_IQ_SAMPLE_FILE_SIZE,

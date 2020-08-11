@@ -226,15 +226,15 @@ void xran_init_mbuf_pool(void)
 }
 
 /* Init NIC port, then start the port */
-void xran_init_port(int p_id,  struct ether_addr *p_lls_cu_addr)
+void xran_init_port(int p_id)
 {
     static uint16_t nb_rxd = BURST_SIZE;
     static uint16_t nb_txd = BURST_SIZE;
-    struct ether_addr addr;
+    struct rte_ether_addr addr;
     struct rte_eth_rxmode rxmode =
             { .split_hdr_size = 0,
               .max_rx_pkt_len = MAX_RX_LEN,
-              .offloads=(DEV_RX_OFFLOAD_JUMBO_FRAME|DEV_RX_OFFLOAD_CRC_STRIP)
+              .offloads=(DEV_RX_OFFLOAD_JUMBO_FRAME /*|DEV_RX_OFFLOAD_CRC_STRIP*/)
             };
     struct rte_eth_txmode txmode = {
                 .mq_mode = ETH_MQ_TX_NONE
@@ -298,33 +298,14 @@ void xran_init_port(int p_id,  struct ether_addr *p_lls_cu_addr)
     if (ret < 0)
         rte_panic("Cannot start port %u (%d)\n", p_id, ret);
 
-//    rte_eth_promiscuous_enable(p_id);
 }
 
-#if 0
-void xran_memdump(void *addr, int len)
-{
-    int i;
-    char tmp_buf[len * 2 + len / 16 + 1];
-    char *p = tmp_buf;
-
-    return;
-#if 0
-    for (i = 0; i < len; ++i) {
-        sprintf(p, "%.2X ", ((uint8_t *)addr)[i]);
-        if (i % 16 == 15)
-            *p++ = '\n';
-    }
-    *p = 0;
-    nlog("%s", tmp_buf);
-#endif
-}
 
 /* Prepend ethernet header, possibly vlan tag. */
-void xran_add_eth_hdr(struct ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb)
+void xran_add_eth_hdr_vlan(struct rte_ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb)
 {
     /* add in the ethernet header */
-    struct ether_hdr *const h = (void *)rte_pktmbuf_prepend(mb, sizeof(*h));
+    struct rte_ether_hdr *h = (struct rte_ether_hdr *)rte_pktmbuf_mtod(mb, struct rte_ether_hdr*);
 
     PANIC_ON(h == NULL, "mbuf prepend of ether_hdr failed");
 
@@ -335,129 +316,14 @@ void xran_add_eth_hdr(struct ether_addr *dst, uint16_t ethertype, struct rte_mbu
 
 #if defined(DPDKIO_DEBUG) && DPDKIO_DEBUG > 1
     {
-        char dst[ETHER_ADDR_FMT_SIZE] = "(empty)";
-        char src[ETHER_ADDR_FMT_SIZE] = "(empty)";
+        char dst[RTE_ETHER_ADDR_FMT_SIZE] = "(empty)";
+        char src[RTE_ETHER_ADDR_FMT_SIZE] = "(empty)";
 
-        nlog("*** packet for TX below (len %d) ***", rte_pktmbuf_pkt_len(mb));
-        ether_format_addr(src, sizeof(src), &h->s_addr);
-        ether_format_addr(dst, sizeof(dst), &h->d_addr);
-        nlog("src: %s dst: %s ethertype: %.4X", src, dst, ethertype);
+        printf("*** packet for TX below (len %d) ***", rte_pktmbuf_pkt_len(mb));
+        rte_ether_format_addr(src, sizeof(src), &h->s_addr);
+        rte_ether_format_addr(dst, sizeof(dst), &h->d_addr);
+        printf("src: %s dst: %s ethertype: %.4X", src, dst, ethertype);
     }
-#endif
-#ifdef VLAN_SUPPORT
-    mb->vlan_tci = FLEXRAN_UP_VLAN_TAG;
-    dlog("Inserting vlan tag of %d", FLEXRAN_UP_VLAN_TAG);
-    rte_vlan_insert(&mb);
-#endif
-}
-
-int xran_send_mbuf(struct ether_addr *dst, struct rte_mbuf *mb)
-{
-    xran_add_eth_hdr(dst, ETHER_TYPE_ETHDI, mb);
-
-    if (rte_eth_tx_burst(mb->port, 0, &mb, 1) == 1)
-        return 1;
-
-    elog("packet sending failed on port %d", mb->port);
-    rte_pktmbuf_free(mb);
-
-    return 0;   /* fail */
-}
-
-int xran_send_message_burst(int dst_id, int pkt_type, void *body, int len)
-{
-    struct rte_mbuf *mbufs[BURST_SIZE];
-    int i;
-    uint8_t *src = body;
-    const struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
-
-    /* We're limited by maximum mbuf size on the receive size.
-     * We can change this but this would be a bigger rework. */
-    RTE_ASSERT(len < MBUF_POOL_ELM_BIG);
-
-    /* Allocate the required number of mbufs. */
-    const uint8_t count = ceilf((float)len / MAX_DATA_SIZE);
-    if (rte_pktmbuf_alloc_bulk(_eth_mbuf_pool, mbufs, count) != 0)
-        rte_panic("Failed to allocate %d mbufs\n", count);
-
-    nlog("burst transfer with data size %lu", MAX_DATA_SIZE);
-    for (i = 0; len > 0; ++i) {
-        char *p;
-        struct burst_hdr *bhdr;
-        struct ethdi_hdr *edi_hdr;
-
-        /* Setup the ethdi_hdr. */
-        edi_hdr = (void *)rte_pktmbuf_append(mbufs[i], sizeof(*edi_hdr));
-        if (edi_hdr == NULL)
-            rte_panic("append of ethdi_hdr failed\n");
-        edi_hdr->pkt_type = PKT_BURST;
-        /* edi_hdr->source_id setup in tx_from_ring */
-        edi_hdr->dest_id = dst_id;
-
-        /* Setup the burst header */
-        bhdr = (void *)rte_pktmbuf_append(mbufs[i], sizeof(*bhdr));
-        if (bhdr == NULL)        /* append failed. */
-            rte_panic("mbuf prepend of burst_hdr failed\n");
-        bhdr->original_type = pkt_type;
-        bhdr->pkt_idx = i;       /* save the index of the burst chunk. */
-        bhdr->total_pkts = count;
-
-        /* now copy in the actual data */
-        const int curr_data_len = RTE_MIN(len, MAX_TX_LEN -
-                rte_pktmbuf_pkt_len(mbufs[i]) - sizeof(struct ether_hdr));
-        p = (void *)rte_pktmbuf_append(mbufs[i], curr_data_len);
-        if (p == NULL)
-            rte_panic("mbuf append of %d data bytes failed\n", curr_data_len);
-        /* This copy is unavoidable, as we're splitting one big buffer
-         * into multiple mbufs. */
-        rte_memcpy(p, src, curr_data_len);
-
-        dlog("curr_data_len[%d] = %d", i, curr_data_len);
-        dlog("packet %d size %d", i, rte_pktmbuf_pkt_len(mbufs[i]));
-
-        /* Update our source data pointer and remaining length. */
-        len -= curr_data_len;
-        src += curr_data_len;
-    }
-
-    /* Now enqueue the full prepared burst. */
-    i = rte_ring_enqueue_bulk(ctx->tx_ring[0], (void **)mbufs, count, NULL);
-    PANIC_ON(i != count, "failed to enqueue all mbufs: %d/%d", i, count);
-    dlog("%d packets enqueued on port %d.", count, ctx->io_cfg.port);
-
-    return 1;
-}
-
-#endif
-
-/* Prepend ethernet header, possibly vlan tag. */
-void xran_add_eth_hdr_vlan(struct ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb, uint16_t vlan_tci)
-{
-    /* add in the ethernet header */
-    struct ether_hdr *h = (struct ether_hdr *)rte_pktmbuf_mtod(mb, struct ether_hdr*);
-
-    PANIC_ON(h == NULL, "mbuf prepend of ether_hdr failed");
-
-    /* Fill in the ethernet header. */
-    rte_eth_macaddr_get(mb->port, &h->s_addr);          /* set source addr */
-    h->d_addr = *dst;                                   /* set dst addr */
-    h->ether_type = rte_cpu_to_be_16(ethertype);        /* ethertype too */
-
-#if defined(DPDKIO_DEBUG) && DPDKIO_DEBUG > 1
-    {
-        char dst[ETHER_ADDR_FMT_SIZE] = "(empty)";
-        char src[ETHER_ADDR_FMT_SIZE] = "(empty)";
-
-        nlog("*** packet for TX below (len %d) ***", rte_pktmbuf_pkt_len(mb));
-        ether_format_addr(src, sizeof(src), &h->s_addr);
-        ether_format_addr(dst, sizeof(dst), &h->d_addr);
-        nlog("src: %s dst: %s ethertype: %.4X", src, dst, ethertype);
-    }
-#endif
-#ifdef VLAN_SUPPORT
-    mb->vlan_tci = vlan_tci;
-    dlog("Inserting vlan tag of %d", vlan_tci);
-    rte_vlan_insert(&mb);
 #endif
 }
 

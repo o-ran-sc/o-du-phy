@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -34,7 +34,8 @@
 typedef struct _RuntimeConfig
 {
     uint8_t appMode;      /**< Application mode: lls-CU or RU  */
-    uint8_t xranCat;     /**< xran mode: Categoty A | Category B */
+    uint8_t xranTech;     /**< Radio Access Technology (NR or LTE) */
+    uint8_t xranCat;      /**< xran mode: NR Categoty A, NR Category B, LTE Cat A, LTE Cat B */
     uint8_t numCC;        /**< Number of CC per ports supported by RU */
     uint8_t numAxc;       /**< Number of Antenna Carriers per CC */
     uint8_t numUlAxc;     /**< Number of Antenna Carriers per CC for UL (Cat B) */
@@ -46,17 +47,17 @@ typedef struct _RuntimeConfig
 
     uint32_t ttiPeriod;   /**< TTI period */
     uint32_t testVect;    /**< Test Signal to send */
-    struct ether_addr o_du_addr; /**<  lls-CU Ethernet Mac Address */
-    struct ether_addr o_ru_addr; /**<  RU Ethernet Mac Address */
-    struct ether_addr tmp_addr; /**<  Temp Ethernet Mac Address */
+    struct rte_ether_addr o_du_addr[XRAN_VF_MAX]; /**<  O-DU Ethernet Mac Address */
+    struct rte_ether_addr o_ru_addr[XRAN_VF_MAX]; /**<  O-RU Ethernet Mac Address */
+    struct rte_ether_addr tmp_addr; /**<  Temp Ethernet Mac Address */
 
-    uint32_t instance_id; /**<  Instance ID of application */
-    uint32_t io_core; /**<  Core used for IO */
-    uint64_t system_core; /* <system core ID> */
-    uint64_t pkt_proc_core;
-    uint64_t pkt_aux_core;
-    uint64_t timing_core;
-    
+    uint32_t instance_id;  /**<  Instance ID of application */
+    uint32_t io_core;      /**<  Core used for IO */
+    uint64_t io_worker;    /**<  Mask for worker cores */
+    int32_t  io_sleep;     /**< enable sleep on PMD cores */
+    uint32_t system_core;  /* house keeping core */
+    int      iova_mode;    /**< DPDK IOVA Mode */
+
     uint32_t mtu; /**< maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single
                        xRAN network layer transaction. supported 1500 bytes and 9600 bytes (Jumbo Frame) */
     int numSlots;  /**< number of slots in IQ vector */
@@ -73,10 +74,11 @@ typedef struct _RuntimeConfig
     uint8_t prachOffset; /**< Sets the PRACH position in frequency / subcarrier position, n_PRBoffset^RA and is expressed as a physical resource block number.
                               Set by SIB2, prach-FreqOffset in E-UTRA. */
 
-    uint8_t prachConfigIndex; /**< TS36.211 - Table 5.7.1-2 : PRACH Configuration Index */
-    uint8_t iqswap; /**< do swap of IQ before send to ETH */
+    uint8_t prachConfigIndex;/**< TS36.211 - Table 5.7.1-2 : PRACH Configuration Index */
+    uint8_t iqswap;          /**< do swap of IQ before send to ETH */
     uint8_t nebyteorderswap; /**< do swap of byte order from host byte order to network byte order. ETH */
     uint8_t compression;     /**< enable use case with compression */
+    uint8_t CompHdrType;     /**< dynamic or static compression header */
 
     uint16_t totalBfWeights; /**< The total number of beamforming weights on RU */
 
@@ -128,6 +130,12 @@ typedef struct _RuntimeConfig
     struct xran_slot_config sSlotConfig[XRAN_MAX_TDD_PERIODICITY];
     struct xran_prb_map PrbMapDl;
     struct xran_prb_map PrbMapUl;
+
+    int32_t DU_Port_ID_bitwidth;
+    int32_t BandSector_ID_bitwidth;
+    int32_t CC_ID_bitwidth;
+    int32_t RU_Port_ID_bitwidth;
+
 } RuntimeConfig;
 
 /**

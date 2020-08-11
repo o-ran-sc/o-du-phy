@@ -37,6 +37,7 @@ extern "C" {
 struct xranlib_compress_request {
     int16_t *data_in;   /*!< Pointer to data to compress. */
     int16_t numRBs;     /*!< numRBs  */
+    int16_t numDataElements; /*!< number of elements in block process [UP: 24 i.e 12RE*2; CP: 16,32,64,128. i.e AntElm*2] */
     int16_t compMethod; /*!< Compression method */
     int16_t iqWidth;    /*!< Bit size */
     int32_t len;        /*!< Length of input buffer in bytes */
@@ -59,6 +60,7 @@ struct xranlib_compress_response {
 struct xranlib_decompress_request {
     int8_t *data_in; /*!< Pointer to data to decompress. */
     int16_t numRBs;     /*!< numRBs  */
+    int16_t numDataElements; /*!< number of elements in block process [UP: 24 i.e 12RE*2; CP: 16,32,64,128. i.e AntElm*2] */
     int16_t compMethod; /*!< Compression method */
     int16_t iqWidth;    /*!< Bit size */
 
@@ -92,17 +94,20 @@ xranlib_companding_version(char *version, int buffer_size);
     \param [out] response Structure containing the output data and data length.
     \return 0 for success, -1 for error
 */
-int
+int32_t
 xranlib_compress(const struct xranlib_compress_request *request,
     struct xranlib_compress_response *response);
-
-int  xranlib_compress_sse(const struct xranlib_compress_request *request,
+int32_t
+xranlib_compress_sse(const struct xranlib_compress_request *request,
     struct xranlib_compress_response *response);
-int  xranlib_compress_avx2(const struct xranlib_compress_request *request,
+int32_t
+xranlib_compress_avx2(const struct xranlib_compress_request *request,
     struct xranlib_compress_response *response);
-int xranlib_compress_avx512(const struct xranlib_compress_request *request,
+int32_t
+xranlib_compress_avx512(const struct xranlib_compress_request *request,
     struct xranlib_compress_response *response);
-int xranlib_compress_avx512_bfw(const struct xranlib_compress_request *request,
+int32_t
+xranlib_compress_avx512_bfw(const struct xranlib_compress_request *request,
     struct xranlib_compress_response *response);
 //! @}
 
@@ -113,16 +118,23 @@ int xranlib_compress_avx512_bfw(const struct xranlib_compress_request *request,
     \param [out] response Structure containing the output data and data length.
     \return 0 for success, -1 for error.
 **/
-int
+int32_t
 xranlib_decompress(const struct xranlib_decompress_request *request,
     struct xranlib_decompress_response *response);
 
-int xranlib_decompress_sse(const struct xranlib_decompress_request *request,
+int32_t
+xranlib_decompress_sse(const struct xranlib_decompress_request *request,
     struct xranlib_decompress_response *response);
-int xranlib_decompress_avx2(const struct xranlib_decompress_request *request,
+int32_t
+xranlib_decompress_avx2(const struct xranlib_decompress_request *request,
     struct xranlib_decompress_response *response);
-int xranlib_decompress_avx512(const struct xranlib_decompress_request *request,
+int32_t
+xranlib_decompress_avx512(const struct xranlib_decompress_request *request,
     struct xranlib_decompress_response *response);
+int32_t
+xranlib_decompress_avx512_bfw(const struct xranlib_decompress_request *request,
+     struct xranlib_decompress_response *response);
+
 //! @}
 
 #ifdef __cplusplus

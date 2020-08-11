@@ -1,21 +1,8 @@
-/******************************************************************************
-*
-*   Copyright (c) 2019 Intel.
-*
-*   Licensed under the Apache License, Version 2.0 (the "License");
-*   you may not use this file except in compliance with the License.
-*   You may obtain a copy of the License at
-*
-*       http://www.apache.org/licenses/LICENSE-2.0
-*
-*   Unless required by applicable law or agreed to in writing, software
-*   distributed under the License is distributed on an "AS IS" BASIS,
-*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*   See the License for the specific language governing permissions and
-*   limitations under the License.
-*
-*******************************************************************************/
-
+/*******************************************************************************
+ *
+ * <COPYRIGHT_TAG>
+ *
+ *******************************************************************************/
 
 /* This is the new utility file for all tests, all new common functionality has to go here.
    When contributing to the common.hpp please focus on readability and maintainability rather than
@@ -309,6 +296,92 @@ protected:
     }
 
     template <typename T>
+    T get_input_parameter(const std::string &subsection_name, const std::string &parameter_name)
+    {
+        try
+        {
+            return get_parameter<T>("parameters", subsection_name, parameter_name);
+        }
+        catch (std::domain_error &e)
+        {
+            std::cout << "[----------] get_input_parameter (" << subsection_name << "." << parameter_name
+                      << ") failed: " << e.what()
+                      << ". Did you mispell the parameter name?" << std::endl;
+            throw;
+        }
+        catch(reading_input_file_exception &e)
+        {
+            std::cout << "[----------] get_input_parameter (" << subsection_name << "." << parameter_name
+                      << ") failed: " << e.what() << std::endl;
+            throw;
+        }
+    }
+    
+    template <typename T>
+    T get_input_parameter(const std::string &subsection_name, const int index, const std::string &parameter_name)
+    {
+        try
+        {
+            return get_parameter<T>("parameters", subsection_name, index, parameter_name);
+        }
+        catch (std::domain_error &e)
+        {
+            std::cout << "[----------] get_input_parameter (" << subsection_name << "[" << index << "]." << parameter_name
+                      << ") failed: " << e.what()
+                      << ". Did you mispell the parameter name?" << std::endl;
+            throw;
+        }
+        catch(reading_input_file_exception &e)
+        {
+            std::cout << "[----------] get_input_parameter (" << subsection_name << "[" << index << "]." << parameter_name
+                      << ") failed: " << e.what() << std::endl;
+            throw;
+        }
+    }
+    int get_input_parameter_size(const std::string &subsection_name, const std::string &parameter_name)
+    {
+        try
+        {
+            auto array_size = conf[test_type][GetParam()]["parameters"][subsection_name][parameter_name].size();
+            return (array_size);
+        }
+        catch (std::domain_error &e)
+        {
+            std::cout << "[----------] get_input_parameter_size (" << subsection_name << "." << parameter_name
+                      << ") failed: " << e.what()
+                      << ". Did you mispell the parameter name?" << std::endl;
+            return (-1);
+        }
+        catch(reading_input_file_exception &e)
+        {
+            std::cout << "[----------] get_input_parameter_size (" << subsection_name << "." << parameter_name
+                      << ") failed: " << e.what() << std::endl;
+            throw;
+        }
+    }
+    int get_input_subsection_size(const std::string &subsection_name)
+    {
+        try
+        {
+            auto array_size = conf[test_type][GetParam()]["parameters"][subsection_name].size();
+            return (array_size);
+        }
+        catch (std::domain_error &e)
+        {
+            std::cout << "[----------] get_input_subsection_size (" << subsection_name 
+                      << ") failed: " << e.what()
+                      << ". Did you mispell the subsection name?" << std::endl;
+            return (-1);
+        }
+        catch(reading_input_file_exception &e)
+        {
+            std::cout << "[----------] get_input_subsection_size (" << subsection_name
+                      << ") failed: " << e.what() << std::endl;
+            throw;
+        }
+    }
+
+    template <typename T>
     T get_reference_parameter(const std::string &parameter_name)
     {
         try
@@ -403,6 +476,93 @@ private:
     T get_parameter(const std::string &type, const std::string &parameter_name)
     {
         return data_reader<T>::read_parameter(GetParam(), type, parameter_name);
+    }
+
+    template<typename T>
+    struct data_reader2 {
+        static T read_parameter(const int index, const std::string &type,
+                                const std::string &subsection_name,
+                                const std::string &parameter_name)
+        {
+            return conf[test_type][index][type][subsection_name][parameter_name];
+        }
+    };
+
+    template<typename T>
+    struct data_reader2<std::vector<T>> {
+        static std::vector<T> read_parameter(const int index, const std::string &type,
+                                             const std::string &subsection_name,
+                                             const std::string &parameter_name)
+        {
+            auto array_size = conf[test_type][index][type][subsection_name][parameter_name].size();
+
+            std::vector<T> result(array_size);
+
+            for(unsigned number = 0; number < array_size; number++)
+                result.at(number) = conf[test_type][index][type][subsection_name][parameter_name][number];
+
+            return result;
+        }
+    };
+
+    template<typename T>
+    struct data_reader2<T*> {
+        static T* read_parameter(const int index, const std::string &type,
+                                 const std::string &subsection_name,
+                                 const std::string &parameter_name)
+        {
+            return (T*) read_data_to_aligned_array(conf[test_type][index][type][subsection_name][parameter_name]);
+        }
+    };
+    template <typename T>
+    T get_parameter(const std::string &type, const std::string &subsection_name, const std::string &parameter_name)
+    {
+        return data_reader2<T>::read_parameter(GetParam(), type, subsection_name, parameter_name);
+    }
+
+    template<typename T>
+    struct data_reader3 {
+        static T read_parameter(const int index, const std::string &type,
+                                const std::string &subsection_name,
+                                const int subindex,
+                                const std::string &parameter_name)
+        {
+            return conf[test_type][index][type][subsection_name][subindex][parameter_name];
+        }
+    };
+
+    template<typename T>
+    struct data_reader3<std::vector<T>> {
+        static std::vector<T> read_parameter(const int index, const std::string &type,
+                                             const std::string &subsection_name,
+                                             const int subindex,
+                                             const std::string &parameter_name)
+        {
+            auto array_size = conf[test_type][index][type][subsection_name][subindex][parameter_name].size();
+
+            std::vector<T> result(array_size);
+
+            for(unsigned number = 0; number < array_size; number++)
+                result.at(number) = conf[test_type][index][type][subsection_name][subindex][parameter_name][number];
+
+            return result;
+        }
+    };
+
+    template<typename T>
+    struct data_reader3<T*> {
+        static T* read_parameter(const int index, const std::string &type,
+                                 const std::string &subsection_name,
+                                 const int subindex,
+                                 const std::string &parameter_name)
+        {
+            return (T*) read_data_to_aligned_array(conf[test_type][index][type][subsection_name][subindex][parameter_name]);
+        }
+    };
+    template <typename T>
+    T get_parameter(const std::string &type, const std::string &subsection_name, const int subindex, const std::string &parameter_name)
+    {
+        return data_reader3<T>::read_parameter(GetParam(), type, subsection_name, subindex, parameter_name);
     }
 
     void print_and_store_results(const std::string &isa,

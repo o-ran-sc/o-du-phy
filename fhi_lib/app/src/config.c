@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -29,13 +29,13 @@
 #include "debug.h"
 
 #include <rte_ethdev.h>
-#include <inttypes.h>
 
 #define MAX_LINE_SIZE 512
 /* Configuration file maximum supported line length */
 
 #define KEY_APP_MODE        "appMode"
 #define KEY_XRAN_MODE       "xranMode"
+#define KEY_XRAN_TECH       "xranRanTech"
 #define KEY_MU_NUMBER       "mu"
 #define KEY_NDLABSFREPOINTA "nDLAbsFrePointA"
 #define KEY_NULABSFREPOINTA "nULAbsFrePointA"
@@ -43,6 +43,11 @@
 #define KEY_NULBANDWIDTH    "nULBandwidth"
 #define KEY_NDLFFTSIZE      "nDLFftSize"
 #define KEY_NULFFTSIZE      "nULFftSize"
+
+#define KEY_DU_PORT_ID_BITWIDTH    "DU_Port_ID_bitwidth"
+#define KEY_BANDSECTOR_ID_BITWIDTH "BandSector_ID_bitwidth"
+#define KEY_CC_ID_BITWIDTH         "CC_ID_bitwidth"
+#define KEY_RU_PORT_ID_BITWIDTH    "RU_Port_ID_bitwidth"
 
 #define KEY_NFRAMEDUPLEXTYPE "nFrameDuplexType"
 #define KEY_NTDDPERIOD       "nTddPeriod"
@@ -68,14 +73,14 @@
 
 #define KEY_MTU_SIZE        "MTUSize"
 #define KEY_IO_CORE         "ioCore"
-#define KEY_SYSTEM_CORE         "systemCore"
-#define KEY_PKT_PROC_CORE         "pktProcCore"
-#define KEY_PKT_AUX_CORE         "pktAuxCore"
-#define KEY_TIMING_CORE         "timingCore"
+#define KEY_IO_WORKER       "ioWorker"
+#define KEY_IO_SLEEP        "ioSleep"
+#define KEY_SYSTEM_CORE     "systemCore"
+#define KEY_IOVA_MODE       "iovaMode"
 
 #define KEY_INSTANCE_ID     "instanceId"
 
-#define KEY_LLS_CU_MAC      "llsCUMac"
+#define KEY_DU_MAC          "duMac"
 #define KEY_RU_MAC          "ruMac"
 
 #define KEY_FILE_NUMSLOTS   "numSlots"
@@ -94,6 +99,8 @@
 #define KEY_IQ_SWAP        "iqswap"
 #define KEY_HTONS_SWAP     "nebyteorderswap"
 #define KEY_COMPRESSION    "compression"
+#define KEY_COMP_TYPE      "compType"
+
 
 #define KEY_BFW_NUM        "totalBFWeights"
 
@@ -132,6 +139,7 @@
 #define KEY_NPRBELEM_UL       "nPrbElemUl"
 #define KEY_PRBELEM_UL        "PrbElemUl"
 
+
 /**
  * Set runtime configuration parameters to their defaults.
  *
@@ -155,9 +163,12 @@ static void trim(char* input)
 static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *value)
 {
     int32_t parse_res = 0;
+    static unsigned int section_idx_dl = 0, section_idx_ul;
 
     if (strcmp(key, KEY_APP_MODE) == 0){
         config->appMode = atoi(value);
+    } else if (strcmp(key, KEY_XRAN_TECH) == 0) {
+        config->xranTech = atoi(value);
     } else if (strcmp(key, KEY_XRAN_MODE) == 0) {
         config->xranCat = atoi(value);
     } else if (strcmp(key, KEY_CC_PER_PORT_NUM) == 0) {
@@ -186,6 +197,18 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
     } else if (strcmp(key, KEY_NFRAMEDUPLEXTYPE) == 0) {
         config->nFrameDuplexType = atoi(value);
         printf("nFrameDuplexType: %d\n",config->nFrameDuplexType);
+    } else if (strcmp(key, KEY_DU_PORT_ID_BITWIDTH) == 0) {
+        config->DU_Port_ID_bitwidth = atoi(value);
+        printf("DU_Port_ID_bitwidth: %d\n",config->DU_Port_ID_bitwidth);
+    } else if (strcmp(key, KEY_BANDSECTOR_ID_BITWIDTH) == 0) {
+        config->BandSector_ID_bitwidth = atoi(value);
+        printf("BandSector_ID_bitwidth: %d\n",config->BandSector_ID_bitwidth);
+    } else if (strcmp(key, KEY_CC_ID_BITWIDTH) == 0) {
+        config->CC_ID_bitwidth = atoi(value);
+        printf("CC_ID_bitwidth: %d\n",config->CC_ID_bitwidth);
+    } else if (strcmp(key, KEY_RU_PORT_ID_BITWIDTH) == 0) {
+        config->RU_Port_ID_bitwidth = atoi(value);
+        printf("RU_Port_ID_bitwidth: %d\n",config->RU_Port_ID_bitwidth);
     } else if (strcmp(key, KEY_NTDDPERIOD) == 0) {
         config->nTddPeriod = atoi(value);
         printf("nTddPeriod: %d\n",config->nTddPeriod);
@@ -202,21 +225,21 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
             printf("slot_num %d exceeds TddPeriod\n",slot_num);
         }
         else{
-            sscanf(value, "%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x",
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[0],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[1],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[2],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[3],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[4],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[5],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[6],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[7],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[8],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[9],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[10],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[11],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[12],
-                                           (uint32_t*)&config->sSlotConfig[slot_num].nSymbolType[13]);
+            sscanf(value, "%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx",
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[0],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[1],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[2],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[3],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[4],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[5],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[6],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[7],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[8],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[9],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[10],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[11],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[12],
+                                           (uint8_t *)&config->sSlotConfig[slot_num].nSymbolType[13]);
             printf("sSlotConfig%d: ",slot_num);
             for (i = 0; i< 14; i++){
                 printf("%d ",config->sSlotConfig[slot_num].nSymbolType[i]);
@@ -244,58 +267,76 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
         config->nebyteorderswap = atoi(value);
     } else if (strcmp(key, KEY_COMPRESSION) == 0) {
         config->compression = atoi(value);
+    } else if (strcmp(key, KEY_COMP_TYPE) == 0) {
+        config->CompHdrType = atoi(value);
     } else if (strcmp(key, KEY_MTU_SIZE) == 0) {
         config->mtu = atoi(value);
         printf("mtu %d\n", config->mtu);
+    } else if (strcmp(key, KEY_IO_SLEEP) == 0) {
+        config->io_sleep = atoi(value);
+        printf("io_sleep %d \n", config->io_sleep);
     } else if (strcmp(key, KEY_IO_CORE) == 0) {
         config->io_core = atoi(value);
-        printf("io_core %d\n", config->io_core);
+        printf("io_core %d [core id]\n", config->io_core);
+    } else if (strcmp(key, KEY_IO_WORKER) == 0) {
+        config->io_worker = strtoll(value, NULL, 0);
+        printf("io_worker 0x%lx [mask]\n", config->io_worker);
     } else if (strcmp(key, KEY_SYSTEM_CORE) == 0) {
         config->system_core = atoi(value);
-        printf("system_core -c %" PRIx64 "\n", config->system_core);
-    } else if (strcmp(key, KEY_PKT_PROC_CORE) == 0) {
-        config->pkt_proc_core = atoi(value);
-        printf("pkt_proc_core -c %" PRIx64 "\n", config->pkt_proc_core);
-    } else if (strcmp(key, KEY_PKT_AUX_CORE) == 0) {
-        config->pkt_aux_core = atoi(value);
-        printf("pkt_aux_core -c %" PRIx64 "\n", config->pkt_aux_core);
-    } else if (strcmp(key, KEY_TIMING_CORE) == 0) {
-        config->timing_core = atoi(value);
-        printf("timing_core -c %" PRIx64 "\n", config->timing_core);
-    }else if (strcmp(key, KEY_INSTANCE_ID) == 0) {
+        printf("system core %d [core id]\n", config->system_core);
+    } else if (strcmp(key, KEY_IOVA_MODE) == 0) {
+        config->iova_mode = atoi(value);
+        printf("iova_mode %d\n", config->iova_mode);
+    } else if (strcmp(key, KEY_INSTANCE_ID) == 0) {
         config->instance_id = atoi(value);
         printf("instance_id %d\n", config->instance_id);
-    }else if (strcmp(key, KEY_LLS_CU_MAC) == 0) {
-        sscanf(value, "%02x:%02x:%02x:%02x:%02x:%02x", (uint32_t*)&config->o_du_addr.addr_bytes[0],
-                                           (uint32_t*)&config->o_du_addr.addr_bytes[1],
-                                           (uint32_t*)&config->o_du_addr.addr_bytes[2],
-                                           (uint32_t*)&config->o_du_addr.addr_bytes[3],
-                                           (uint32_t*)&config->o_du_addr.addr_bytes[4],
-                                           (uint32_t*)&config->o_du_addr.addr_bytes[5]);
+    } else if (strncmp(key, KEY_DU_MAC, strlen(KEY_DU_MAC)) == 0) {
+        unsigned int vf_num = 0;
+        sscanf(key,"duMac%02u",&vf_num);
+        if (vf_num >= XRAN_VF_MAX) {
+            printf("duMac%d exceeds max antenna supported\n",vf_num);
+        } else {
+            printf("duMac%d: %s\n",vf_num, value);
+            sscanf(value, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", (uint8_t*)&config->o_du_addr[vf_num].addr_bytes[0],
+                                               (uint8_t*)&config->o_du_addr[vf_num].addr_bytes[1],
+                                               (uint8_t*)&config->o_du_addr[vf_num].addr_bytes[2],
+                                               (uint8_t*)&config->o_du_addr[vf_num].addr_bytes[3],
+                                               (uint8_t*)&config->o_du_addr[vf_num].addr_bytes[4],
+                                               (uint8_t*)&config->o_du_addr[vf_num].addr_bytes[5]);
 
-        printf("lls-CU MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-            config->o_du_addr.addr_bytes[0],
-            config->o_du_addr.addr_bytes[1],
-            config->o_du_addr.addr_bytes[2],
-            config->o_du_addr.addr_bytes[3],
-            config->o_du_addr.addr_bytes[4],
-            config->o_du_addr.addr_bytes[5]);
+            printf("[vf %d]O-DU MAC address: %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+                vf_num,
+                config->o_du_addr[vf_num].addr_bytes[0],
+                config->o_du_addr[vf_num].addr_bytes[1],
+                config->o_du_addr[vf_num].addr_bytes[2],
+                config->o_du_addr[vf_num].addr_bytes[3],
+                config->o_du_addr[vf_num].addr_bytes[4],
+                config->o_du_addr[vf_num].addr_bytes[5]);
+        }
+    } else if (strncmp(key, KEY_RU_MAC, strlen(KEY_RU_MAC)) == 0) {
+        unsigned int vf_num = 0;
+        sscanf(key,"ruMac%02u",&vf_num);
+        if (vf_num >= XRAN_VF_MAX) {
+            printf("ruMac%d exceeds max antenna supported\n",vf_num);
+        } else {
+            printf("ruMac%d: %s\n",vf_num, value);
 
-    } else if (strcmp(key, KEY_RU_MAC) == 0) {
-        sscanf(value, "%02x:%02x:%02x:%02x:%02x:%02x", (uint32_t*)&config->o_ru_addr.addr_bytes[0],
-                                           (uint32_t*)&config->o_ru_addr.addr_bytes[1],
-                                           (uint32_t*)&config->o_ru_addr.addr_bytes[2],
-                                           (uint32_t*)&config->o_ru_addr.addr_bytes[3],
-                                           (uint32_t*)&config->o_ru_addr.addr_bytes[4],
-                                           (uint32_t*)&config->o_ru_addr.addr_bytes[5]);
+            sscanf(value, "%02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx", (uint8_t*)&config->o_ru_addr[vf_num].addr_bytes[0],
+                                               (uint8_t*)&config->o_ru_addr[vf_num].addr_bytes[1],
+                                               (uint8_t*)&config->o_ru_addr[vf_num].addr_bytes[2],
+                                               (uint8_t*)&config->o_ru_addr[vf_num].addr_bytes[3],
+                                               (uint8_t*)&config->o_ru_addr[vf_num].addr_bytes[4],
+                                               (uint8_t*)&config->o_ru_addr[vf_num].addr_bytes[5]);
 
-        printf("RU MAC address: %02X:%02X:%02X:%02X:%02X:%02X\n",
-            config->o_ru_addr.addr_bytes[0],
-            config->o_ru_addr.addr_bytes[1],
-            config->o_ru_addr.addr_bytes[2],
-            config->o_ru_addr.addr_bytes[3],
-            config->o_ru_addr.addr_bytes[4],
-            config->o_ru_addr.addr_bytes[5]);
+            printf("[vf %d]RU MAC address: %02hhx:%02hhx:%02hhx:%02hhx:%02hhx:%02hhx\n",
+                vf_num,
+                config->o_ru_addr[vf_num].addr_bytes[0],
+                config->o_ru_addr[vf_num].addr_bytes[1],
+                config->o_ru_addr[vf_num].addr_bytes[2],
+                config->o_ru_addr[vf_num].addr_bytes[3],
+                config->o_ru_addr[vf_num].addr_bytes[4],
+                config->o_ru_addr[vf_num].addr_bytes[5]);
+        }
     } else if (strcmp(key, KEY_FILE_NUMSLOTS) == 0) {
         config->numSlots = atoi(value);
         printf("numSlots: %d\n",config->numSlots);
@@ -453,13 +494,12 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
         }
         printf("nPrbElemUl: %d\n",config->PrbMapUl.nPrbElm);
     } else if (strncmp(key, KEY_PRBELEM_UL, strlen(KEY_PRBELEM_UL)) == 0) {
-        unsigned int section_idx = 0;
-        sscanf(key,"PrbElemUl%u",&section_idx);
-        if (section_idx >= config->PrbMapUl.nPrbElm){
-            printf("section_idx %d exceeds nPrbElem\n",section_idx);
+        sscanf(key,"PrbElemUl%u",&section_idx_ul);
+        if (section_idx_ul >= config->PrbMapUl.nPrbElm){
+            printf("section_idx %d exceeds nPrbElemUl\n",section_idx_ul);
         }
         else{
-            struct xran_prb_elm *pPrbElem = &config->PrbMapUl.prbMap[section_idx];
+            struct xran_prb_elm *pPrbElem = &config->PrbMapUl.prbMap[section_idx_ul];
             sscanf(value, "%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd",
                 (int16_t*)&pPrbElem->nRBStart,
                 (int16_t*)&pPrbElem->nRBSize,
@@ -470,7 +510,7 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
                 (int16_t*)&pPrbElem->compMethod,
                 (int16_t*)&pPrbElem->iqWidth,
                 (int16_t*)&pPrbElem->BeamFormingType);
-            printf("nPrbElemUl%d: ",section_idx);
+            printf("nPrbElemUl%d: ",section_idx_ul);
             printf("nRBStart %d,nRBSize %d,nStartSymb %d,numSymb %d,nBeamIndex %d, bf_weight_update %d compMethod %d, iqWidth %d BeamFormingType %d\n",
                 pPrbElem->nRBStart,pPrbElem->nRBSize,pPrbElem->nStartSymb,pPrbElem->numSymb,pPrbElem->nBeamIndex, pPrbElem->bf_weight_update, pPrbElem->compMethod, pPrbElem->iqWidth, pPrbElem->BeamFormingType);
         }
@@ -483,13 +523,12 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
         }
         printf("nPrbElemDl: %d\n",config->PrbMapDl.nPrbElm);
     } else if (strncmp(key, KEY_PRBELEM_DL, strlen(KEY_PRBELEM_DL)) == 0) {
-        unsigned int section_idx = 0;
-        sscanf(key,"PrbElemDl%u",&section_idx);
-        if (section_idx >= config->PrbMapDl.nPrbElm){
-            printf("section_idx %d exceeds nPrbElem\n",section_idx);
+        sscanf(key,"PrbElemDl%u",&section_idx_dl);
+        if (section_idx_dl >= config->PrbMapDl.nPrbElm){
+            printf("section_idx %d exceeds nPrbElemDl\n",section_idx_dl);
         }
         else{
-            struct xran_prb_elm *pPrbElem = &config->PrbMapDl.prbMap[section_idx];
+            struct xran_prb_elm *pPrbElem = &config->PrbMapDl.prbMap[section_idx_dl];
             sscanf(value, "%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd,%hd",
                 (int16_t*)&pPrbElem->nRBStart,
                 (int16_t*)&pPrbElem->nRBSize,
@@ -500,7 +539,7 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
                 (int16_t*)&pPrbElem->compMethod,
                 (int16_t*)&pPrbElem->iqWidth,
                 (int16_t*)&pPrbElem->BeamFormingType);
-            printf("nPrbElemDl%d: ",section_idx);
+            printf("nPrbElemDl%d: ",section_idx_dl);
             printf("nRBStart %d,nRBSize %d,nStartSymb %d,numSymb %d,nBeamIndex %d, bf_weight_update %d compMethod %d, iqWidth %d BeamFormingType %d\n",
                 pPrbElem->nRBStart,pPrbElem->nRBSize,pPrbElem->nStartSymb,pPrbElem->numSymb,pPrbElem->nBeamIndex, pPrbElem->bf_weight_update, pPrbElem->compMethod, pPrbElem->iqWidth, pPrbElem->BeamFormingType);
         }

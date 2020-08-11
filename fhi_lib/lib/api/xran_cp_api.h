@@ -138,10 +138,9 @@ enum xran_cp_symbolnuminc {
 #define XRAN_LBTMODE_PARTIAL34              2
 #define XRAN_LBTMODE_FULLSTOP               3
 
+
 #define XRAN_EF_F_LAST                      0
 #define XRAN_EF_F_ANOTHER_ONE               1
-
-
 
 /** Control Plane section extension commands, defined in 5.4.6 Table 5.13 */
 enum xran_cp_sectionextcmd {
@@ -178,6 +177,19 @@ enum xran_cp_bfa_bitwidth {
     XRAN_BFABITWIDTH_7BIT           = 6,    /**< the filed is 7-bit bitwidth */
     XRAN_BFABITWIDTH_8BIT           = 7,    /**< the filed is 8-bit bitwidth */
     };
+
+/** Layer ID for DL transmission in TM1-TM4 5.4.7.3.2 */
+#define XRAN_LAYERID_0              0       /**< Layer 0 */
+#define XRAN_LAYERID_1              1       /**< Layer 1 */
+#define XRAN_LAYERID_2              2       /**< Layer 2 */
+#define XRAN_LAYERID_3              3       /**< Layer 3 */
+#define XRAN_LAYERID_TXD            0xf     /**< TxD */
+
+/** LTE Transmission Scheme for section extension type 3 5.4.7.3.3 */
+#define XRAN_TXS_SMUXCDD            0       /**< Spatial Multiplexing (CDD) */
+#define XRAN_TXS_SMUXNOCDD          1       /**< Spatial Multiplexing (no CDD) */
+#define XRAN_TXS_TXDIV              2       /**< Transmit diversity */
+
 
 /**
  * This structure contains the information to generate the section body of C-Plane message */
@@ -235,7 +247,7 @@ struct xran_sectionext2_info {
     uint8_t     bfZeSI;
     };
 
-struct xran_sectionext3_info {  /* NOT SUPPORTED */
+struct xran_sectionext3_info {
     uint8_t     codebookIdx;
     uint8_t     layerId;
     uint8_t     numLayers;
@@ -243,6 +255,7 @@ struct xran_sectionext3_info {  /* NOT SUPPORTED */
     uint16_t    crsReMask;
     uint8_t     crsShift;
     uint8_t     crsSymNum;
+    uint16_t    numAntPort;     /* number of antenna port - 2 or 4 */
     uint16_t    beamIdAP1;
     uint16_t    beamIdAP2;
     uint16_t    beamIdAP3;
@@ -290,6 +303,13 @@ struct xran_cp_header_params {
     uint16_t    cpLength;   /*  X   X         16bits */
     };
 
+/** The structure for the generation of section extension */
+struct xran_section_ext_gen_info {
+    uint16_t    type;           /**< the type of section extension */
+    uint16_t    len;            /**< length of extension data */
+    void        *data;          /**< pointer to extension data */
+    };
+
 /**
  * This structure to hold the information to generate the sections of C-Plane message */
 struct xran_section_gen_info {
@@ -297,11 +317,8 @@ struct xran_section_gen_info {
 
     uint32_t    exDataSize;         /**< The number of Extensions or type 6/7 data */
     /** the array to store section extension */
-    struct {
-        uint16_t    type;           /**< the type of section extension */
-        uint16_t    len;            /**< length of extension data */
-        void        *data;          /**< pointer to extension data */
-        } exData[XRAN_MAX_NUM_EXTENSIONS];
+    struct xran_section_ext_gen_info exData[XRAN_MAX_NUM_EXTENSIONS];
+
     struct xran_sectionext1_info m_ext1[XRAN_MAX_NUM_EXTENSIONS];
     struct xran_sectionext2_info m_ext2[XRAN_MAX_NUM_EXTENSIONS];
     struct xran_sectionext3_info m_ext3[XRAN_MAX_NUM_EXTENSIONS];
@@ -348,21 +365,21 @@ struct xran_cp_rbmap_list {
 uint16_t xran_get_cplength(int cpLength);
 int32_t xran_get_freqoffset(int freqOffset, int scs);
 
-int xran_prepare_ctrl_pkt(struct rte_mbuf *mbuf,
+int32_t xran_prepare_ctrl_pkt(struct rte_mbuf *mbuf,
                         struct xran_cp_gen_params *params,
                         uint8_t CC_ID, uint8_t Ant_ID,
                         uint8_t seq_id);
 
-int xran_parse_cp_pkt(struct rte_mbuf *mbuf,
+int32_t xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                     struct xran_cp_gen_params *result,
                     struct xran_recv_packet_info *pkt_info);
 
-int xran_cp_init_sectiondb(void *pHandle);
-int xran_cp_free_sectiondb(void *pHandle);
-int xran_cp_add_section_info(void *pHandle,
+int32_t xran_cp_init_sectiondb(void *pHandle);
+int32_t xran_cp_free_sectiondb(void *pHandle);
+int32_t xran_cp_add_section_info(void *pHandle,
         uint8_t dir, uint8_t cc_id, uint8_t ruport_id,
         uint8_t ctx_id, struct xran_section_info *info);
-int xran_cp_add_multisection_info(void *pHandle,
+int32_t xran_cp_add_multisection_info(void *pHandle,
         uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id,
         struct xran_cp_gen_params *gen_info);
 struct xran_section_info *xran_cp_find_section_info(void *pHandle,
@@ -371,6 +388,7 @@ struct xran_section_info *xran_cp_find_section_info(void *pHandle,
 struct xran_section_info *xran_cp_iterate_section_info(void *pHandle,
         uint8_t dir, uint8_t cc_id, uint8_t ruport_id,
         uint8_t ctx_id, uint32_t *next);
+
 int xran_cp_getsize_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id);
 int xran_cp_reset_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id);
 int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination buffer */
@@ -380,6 +398,9 @@ int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination 
                                        uint16_t  bfwNumber,    /**< number of bf weights in this set of sections */
                                        uint8_t   bfwiqWidth,   /**< bit size of IQs */
                                        uint8_t   bfwCompMeth); /**< compression method */
+struct rte_mbuf *xran_attach_cp_ext_buf(int8_t* p_ext_buff_start, int8_t* p_ext_buff, uint16_t ext_buff_len,
+                struct rte_mbuf_ext_shared_info * p_share_data);
+
 #ifdef __cplusplus
 }
 #endif

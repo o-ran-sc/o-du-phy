@@ -16,49 +16,30 @@
 
    <br /> 
    
-Front Haul Interface Library Release Notes
+O-DU Low Project Release Notes
 ==========================================
 
-Version ORAN-seedcode_v1.3, May 2020
---------------------------------------
+O-DU Low Bronze Release V 1.1, Aug 2020
+-----------------------------------------
+* Enhanced feature set for O-RAN FrontHaul compliant Radio<-> L1 interface, FAPI compliant L1<->L2 interfaces, and a shared memory and buffer management library for efficient L1<->L2 communication
+* Enhanced the code coverage test through more test cases.
+* Bug fixes according to unit test and integration test with third party.
+* Please refer to version FH oran_release_bronze_v1.1, FAPI TM oran_release_bronze_v1.1 and WLS oran_release_bronze_v1.1 release notes for additional details.
 
-* Third version released to ORAN in support of Release B
-* Add scripts to run refPHY in Docker* containers, Kubernetes* clusters, Multus*, and Data Plane
-  Development Kit-Single-Root Input/Output Visualization (DPDK-SRIOV) plugin.
-* Integration and optimization of block floating point compression and decompression.
-* Category B support
-* Add support for alpha and beta value when calculating SFN based on GPS time.
-* Support End to End integration with commercial UE with xRAN/ORAN RRU for both mmWave and
-  sub-6 scenarios
+O-DU Low Bronze Release V 1.0, May 2020
+-----------------------------------------
+O-DU Low Bronze release include:
+* ORAN WG8/WG4 Software Specification compliant DU Low implementation including O-RAN FrontHaul compliant Radio<-> L1 interface, FAPI compliant L1<->L2 interfaces, and a shared memory and buffer management library for efficient L1<->L2 communication
+* Ability to link in a high-performance L1 stack application with advanced 5GNR features including 3GPP TS 38.211, 212, 213, 214 and 215, running on Intel Xeon processor based O-DU hardware, and packaged with a comprehensive functional and performance evaluation framework
+* Please refer version FH oran_release_bronze_v1.0, FAPI TM oran_release_bronze_v1.0 and WLS oran_release_bronze_v1.0 release notes for Detail features
 
-Version ORAN-seedcode_v1.2, 1 Nov 2019
---------------------------------------
-* Second version released to ORAN in support of Release A
-* Incorporates support for 5G NR sub 6 and mmWave
-* Support for Application fragementation under Transport features was added
-* This release has been designed and implemented to support the following numerologies defined in the 3GPP |br|
-  specification 
-*	Numerology 0 with bandwidth 5/10/20 MHz with up to 12 cells
-*	Numerology 1 with bandwidth 100MHz with up to 1 cell
-*	Numerology 3 with bandwidth 100MHz with up to 1 cell
-* The feature set of xRAN protocol should be aligned with Radio Unit (O-RU) implementation
-* Inter-operability testing (IOT) is required to confirm correctness of functionality on both sides
-* The following mandatory features of the ORAN FH interface are not yet supported in this release
-* RU Category  Support of CAT-B RU (i.e. precoding in RU)
-* Beamforming Beam Index Based and Real Time BF weights
-* Transport Features QoS over FrontHaul
+O-DU Low Amber Release V 1.0, 1 Nov 2019
+------------------------------------------
+O-DU Low Amber release include:
+* ORAN WG4 Software Specification compliant O-FH lib implementation
+* Please refer version FH oran_release_amber_v1.0 release notes for Detail features
 
 
-Version ORAN-seedcode_v1.1, 25 Jul 2019
----------------------------------------
-* This first version supports only mmWave per 5G NR and it is not yet
-* optimized
-* It is a first draft prior to the November 2019 Release A
-* The following mandatory features of the ORAN FH interface are not yet
-* supported in this initial release
-* RU Category  Support of CAT-B RU (i.e. precoding in RU)
-* Beamforming Beam Index Based and Real Time BF weights
-* Transport Features QoS over FrontHaul and Application Fragmentation
 
 
 

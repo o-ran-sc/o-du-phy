@@ -21,6 +21,7 @@
 #include "nr5g_fapi_fapi2phy_api.h"
 #include "nr5g_fapi_fapi2phy_p5_proc.h"
 #include "nr5g_fapi_fapi2phy_p7_proc.h"
+#include "nr5g_fapi_log.h"
 
 //------------------------------------------------------------------------------
 /** @ingroup nr5g_fapi_source_framework_workers_mac2phy_group
@@ -85,6 +86,7 @@ void nr5g_fapi_mac2phy_api_recv_handler(
     p_nr5g_fapi_phy_instance_t p_phy_instance = NULL;
     uint8_t num_apis = 0;
     uint8_t phy_id = 0;
+    uint64_t start_tick = __rdtsc();
 
     NR5G_FAPI_LOG(TRACE_LOG, ("[MAC2PHY] %s:", __func__));
     p_phy_ctx = (p_nr5g_fapi_phy_ctx_t) config;
@@ -118,7 +120,7 @@ void nr5g_fapi_mac2phy_api_recv_handler(
         if (p_msg_list->p_next) {
             p_prev_elm = p_msg_list;
             while (p_msg_list) {
-                if (FAPI_MSG_HEADER_IND == p_msg_list->msg_type) {
+                if (FAPI_VENDOR_MSG_HEADER_IND == p_msg_list->msg_type) {
                     p_prev_elm->p_next = NULL;
                     break;
                 }
@@ -137,7 +139,9 @@ void nr5g_fapi_mac2phy_api_recv_handler(
 
         if (p_per_carr_api_list) {
             p_fapi_msg = (fapi_msg_t *) (p_per_carr_api_list + 1);
+#ifdef DEBUG_MODE
             if ((p_fapi_msg->msg_id != FAPI_VENDOR_EXT_UL_IQ_SAMPLES)) {
+#endif
                 p_phy_instance = &p_phy_ctx->phy_instance[phy_id];
                 if (FAPI_STATE_IDLE == p_phy_instance->state) {
                     if (p_fapi_msg->msg_id != FAPI_CONFIG_REQUEST) {
@@ -148,15 +152,21 @@ void nr5g_fapi_mac2phy_api_recv_handler(
                     }
                     p_phy_instance->phy_id = phy_id;
                 }
+#ifdef DEBUG_MODE
             }
+#endif
             nr5g_fapi_mac2phy_api_processing_handler(p_phy_instance,
                 p_per_carr_api_list);
             p_per_carr_api_list = NULL;
         }
     }
+    tick_total_parse_per_tti_dl += __rdtsc() - start_tick;
+    start_tick = __rdtsc();
+
     // Send to PHY
     NR5G_FAPI_LOG(TRACE_LOG, ("[MAC2PHY] Send to PHY.."));
     nr5g_fapi_fapi2phy_send_api_list();
+    tick_total_wls_send_per_tti_dl += __rdtsc() - start_tick;
 }
 
 //------------------------------------------------------------------------------
@@ -212,7 +222,7 @@ void nr5g_fapi_mac2phy_api_processing_handler(
         msg_type = p_curr_elm->msg_type;
         if (msg_type == FAPI_TX_DATA_REQUEST) {
             p_tx_data_elm = p_curr_elm;
-        } else if (msg_type == FAPI_MSG_PHY_ZBC_BLOCK_REQ) {
+        } else if (msg_type == FAPI_VENDOR_MSG_PHY_ZBC_BLOCK_REQ) {
             if (p_tx_data_pdu_list) {
                 p_tx_data_pdu_list_tail->p_next = p_curr_elm;
                 p_tx_data_pdu_list_tail = p_tx_data_pdu_list_tail->p_next;
@@ -227,6 +237,11 @@ void nr5g_fapi_mac2phy_api_processing_handler(
     if (p_tx_data_pdu_list && p_tx_data_elm) {
         p_tx_data_elm->p_tx_data_elm_list = p_tx_data_pdu_list;
         p_tx_data_elm->p_next = NULL;
+    }
+
+    if (FAILURE == nr5g_fapi_check_api_ordering(p_phy_instance, p_msg_list)) {
+        NR5G_FAPI_LOG(ERROR_LOG, ("API Ordering is wrong."));
+        return;
     }
     // Walk through the API list
     while (p_msg_list) {
@@ -246,14 +261,24 @@ void nr5g_fapi_mac2phy_api_processing_handler(
 
 #endif
             case FAPI_VENDOR_EXT_SHUTDOWN_REQUEST:
-                nr5g_fapi_shutdown_request(p_phy_instance,
-                    (fapi_vendor_ext_shutdown_req_t *) p_fapi_msg);
+                {
+                    nr5g_fapi_shutdown_request(p_phy_instance,
+                        (fapi_vendor_ext_shutdown_req_t *) p_fapi_msg);
+                    nr5g_fapi_statistic_info_print();
+                    if (g_statistic_start_flag == 1)
+                        g_statistic_start_flag = 0;
+                }
                 break;
 
                 /*  P5 Message Processing */
             case FAPI_CONFIG_REQUEST:
-                nr5g_fapi_config_request(p_phy_instance, (fapi_config_req_t *)
-                    p_fapi_msg, p_vendor_msg);
+                {
+                    nr5g_fapi_config_request(p_phy_instance,
+                        (fapi_config_req_t *)
+                        p_fapi_msg, p_vendor_msg);
+                    nr5g_fapi_statistic_info_init();
+                }
+
                 break;
 
             case FAPI_START_REQUEST:
@@ -262,14 +287,24 @@ void nr5g_fapi_mac2phy_api_processing_handler(
                 break;
 
             case FAPI_STOP_REQUEST:
-                nr5g_fapi_stop_request(p_phy_instance, (fapi_stop_req_t *)
-                    p_fapi_msg, p_vendor_msg);
-                break;
+                {
+                    nr5g_fapi_stop_request(p_phy_instance, (fapi_stop_req_t *)
+                        p_fapi_msg, p_vendor_msg);
+                    nr5g_fapi_statistic_info_print();
+                    if (g_statistic_start_flag == 1)
+                        g_statistic_start_flag = 0;
+                }
 
+                break;
                 /*  P7 Message Processing */
             case FAPI_DL_TTI_REQUEST:
-                nr5g_fapi_dl_tti_request(p_phy_instance, (fapi_dl_tti_req_t *)
-                    p_fapi_msg, p_vendor_msg);
+                {
+                    nr5g_fapi_dl_tti_request(p_phy_instance,
+                        (fapi_dl_tti_req_t *)
+                        p_fapi_msg, p_vendor_msg);
+                    if (g_statistic_start_flag == 0)
+                        g_statistic_start_flag = 1;
+                }
                 break;
 
             case FAPI_UL_TTI_REQUEST:
@@ -293,4 +328,42 @@ void nr5g_fapi_mac2phy_api_processing_handler(
         }
         p_msg_list = p_msg_list->p_next;
     }
+}
+
+uint8_t nr5g_fapi_check_api_ordering(
+    p_nr5g_fapi_phy_instance_t p_phy_instance,
+    p_fapi_api_queue_elem_t p_msg_list)
+{
+    uint16_t msg_id, api_order_check = FAPI_CONFIG_REQUEST;
+    p_fapi_api_queue_elem_t p_msg = p_msg_list;
+    fapi_msg_t *p_fapi_msg = NULL;
+
+    if (p_phy_instance && p_phy_instance->state == FAPI_STATE_RUNNING) {
+        p_fapi_msg = (fapi_msg_t *) (p_msg + 1);
+        msg_id = p_fapi_msg->msg_id;
+        // check if first msg is CONFIG.req
+        if (msg_id == FAPI_CONFIG_REQUEST) {
+            p_msg = p_msg->p_next;
+        }
+        api_order_check = FAPI_DL_TTI_REQUEST;
+        // Continue checking remaining APIs
+        while (p_msg) {
+            p_fapi_msg = (fapi_msg_t *) (p_msg + 1);
+            msg_id = p_fapi_msg->msg_id;
+            if ((msg_id == FAPI_DL_TTI_REQUEST) && (msg_id == api_order_check)) {
+                api_order_check = FAPI_UL_TTI_REQUEST;
+            } else if ((msg_id == FAPI_UL_TTI_REQUEST) &&
+                (msg_id == api_order_check)) {
+                api_order_check = FAPI_UL_DCI_REQUEST;
+            } else {
+                break;
+            }
+            p_msg = p_msg->p_next;
+        }
+        if (api_order_check != FAPI_UL_DCI_REQUEST) {
+            return FAILURE;
+        }
+    }
+
+    return SUCCESS;
 }

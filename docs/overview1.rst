@@ -23,10 +23,8 @@ O-DU Low Project Introduction
     :depth: 3
     :local:
 
-The O-DU low project focus on the baseband PHY Reference Design, which uses Xeon® series Processor with Intel |br|
-Architecture. This 5GNR Reference PHY consists of a L1 binary \
-and three kinds of interfaces which are validated on a |br|
-Intel® Xeon® SkyLake / CascadeLake platforms and demonstrates the capabilities of the software running different \
+The O-DU low project focus on the baseband PHY Reference Design, which uses Xeon® series Processor with Intel Architecture. This 5GNR Reference PHY consists of a L1 binary \
+and three kinds of interfaces which are validated on a Intel® Xeon® SkyLake / CascadeLake platforms and demonstrates the capabilities of the software running different \
 5GNR L1 features. It implements the relevant functions described in [3GPP TS 38.211, 212, 213, 214 and 215].
  
 The L1 has three \ 

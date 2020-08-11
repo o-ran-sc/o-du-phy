@@ -1,5 +1,4 @@
 /******************************************************************************
- << 3)*
 *   Copyright (c) 2019 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -276,6 +275,8 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
                 p_ia_config_req->nSSBPrbOffset =
                     GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length) / (pow(2,
                         p_ia_config_req->nSubcCommon));
+                p_phy_instance->phy_config.nSSBPrbOffset =
+                    p_ia_config_req->nSSBPrbOffset;
                 break;
 
             case FAPI_SSB_PERIOD_TAG:

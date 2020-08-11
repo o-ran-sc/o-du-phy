@@ -58,7 +58,7 @@ int checkDataApprox(int16_t *inVec1, int16_t *inVec2, int numVals)
   for (int n = 0; n < numVals; ++n)
   {
     if (std::abs(inVec1[n] & 0xFF00)   - std::abs(inVec2[n] & 0xFF00)){;
-        printf("%d %d\n", inVec1[n] & 0xFF00, inVec2[n] & 0xFF00);
+        printf("[%d]: %d %d\n",n, inVec1[n] & 0xFF00, inVec2[n] & 0xFF00);
         checkSum += 1;
     }
   }
@@ -87,20 +87,9 @@ protected:
     }
 };
 
-class BfpPerf : public KernelTests
-{
-protected:
-    void SetUp() override {
-        init_test("bfp_performace");
-    }
-
-    /* It's called after an execution of the each test case.*/
-    void TearDown() override {
-    }
-};
-CACHE_ALIGNED int16_t loc_dataExpandedIn[288*BlockFloatCompander::k_numREReal];
-CACHE_ALIGNED int16_t loc_dataExpandedRes[288*BlockFloatCompander::k_numREReal];
-CACHE_ALIGNED uint8_t loc_dataCompressedDataOut[2*288*BlockFloatCompander::k_numREReal];
+CACHE_ALIGNED int16_t loc_dataExpandedIn[288*128];
+CACHE_ALIGNED int16_t loc_dataExpandedRes[288*128];
+CACHE_ALIGNED uint8_t loc_dataCompressedDataOut[2*288*128];
 
 class BfpPerfEx : public KernelTests
 {
@@ -130,18 +119,18 @@ protected:
 
         //printf("iqWidth %d numRBs %d\n", iqWidth, numRBs);
 
-        for (int m = 0; m < 18*BlockFloatCompander::k_numRB; ++m) {
+        for (int m = 0; m < 18*BlockFloatCompander::k_maxNumBlocks; ++m) {
             auto shiftVal = randExpShift(gen);
-            for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n) {
-                expandedData.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
+            for (int n = 0; n < 24; ++n) {
+                expandedData.dataExpanded[m*24+n] = int16_t(randInt16(gen) >> shiftVal);
             }
         }
 
         BlockFloatCompander::CompressedData compressedData;
         compressedData.dataCompressed = &loc_dataCompressedDataOut[0];
 
-        std::memset(&loc_dataCompressedDataOut[0], 0, 288*BlockFloatCompander::k_numREReal);
-        std::memset(&loc_dataExpandedRes[0], 0, 288*BlockFloatCompander::k_numREReal);
+        std::memset(&loc_dataCompressedDataOut[0], 0, 288*24);
+        std::memset(&loc_dataExpandedRes[0], 0, 288*24);
 
         std::memset(&bfp_com_req, 0, sizeof(struct xranlib_compress_request));
         std::memset(&bfp_com_rsp, 0, sizeof(struct xranlib_compress_response));
@@ -173,616 +162,270 @@ protected:
     }
 };
 
-TEST_P(BfpCheck, AVX512_12bit)
+
+class BfpPerfCp : public KernelTests
 {
-  int resSum = 0;
+protected:
+    struct xranlib_decompress_request  bfp_decom_req;
+    struct xranlib_decompress_response bfp_decom_rsp;
+    struct xranlib_compress_request  bfp_com_req;
+    struct xranlib_compress_response bfp_com_rsp;
 
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
+    void SetUp() override {
+        init_test("bfp_performace_cp");
+        int32_t resSum  = 0;
+        int16_t len = 0;
+        int16_t compMethod = XRAN_COMPMETHOD_BLKFLOAT;
+        int16_t iqWidth    = get_input_parameter<int16_t>("iqWidth");
+        int16_t AntElm     = get_input_parameter<int16_t>("AntElm");
+        int16_t numDataElements = 0;
+        int16_t numRBs = 1;
+        // Create random number generator
+        std::random_device rd;
+        std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+        std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
+        std::uniform_int_distribution<int> randExpShift(0, 4);
 
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
+        BlockFloatCompander::ExpandedData expandedData;
+        expandedData.dataExpanded = &loc_dataExpandedIn[0];
+        BlockFloatCompander::ExpandedData expandedDataRes;
+        expandedDataRes.dataExpanded = &loc_dataExpandedRes[0];
+
+        //printf("iqWidth %d numRBs %d\n", iqWidth, numRBs);
+        numDataElements = 2*AntElm;
+
+        // Generate input data
+        for (int m = 0; m < numRBs; ++m)
         {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
+          auto shiftVal = randExpShift(gen);
+          for (int n = 0; n < numDataElements; ++n)
+          {
+            expandedData.dataExpanded[m * numDataElements + n] = int16_t(randInt16(gen) >> shiftVal);
+          }
         }
+
+        BlockFloatCompander::CompressedData compressedData;
+        compressedData.dataCompressed = &loc_dataCompressedDataOut[0];
+
+        std::memset(&loc_dataCompressedDataOut[0], 0, 288*128);
+        std::memset(&loc_dataExpandedRes[0], 0, 288*128);
+
+        std::memset(&bfp_com_req, 0, sizeof(struct xranlib_compress_request));
+        std::memset(&bfp_com_rsp, 0, sizeof(struct xranlib_compress_response));
+        std::memset(&bfp_decom_req, 0, sizeof(struct xranlib_decompress_request));
+        std::memset(&bfp_decom_rsp, 0, sizeof(struct xranlib_decompress_response));
+
+        bfp_com_req.data_in    = (int16_t *)expandedData.dataExpanded;
+        bfp_com_req.numRBs     = numRBs;
+        bfp_com_req.numDataElements = numDataElements;
+        bfp_com_req.len        = AntElm*4;
+        bfp_com_req.compMethod = compMethod;
+        bfp_com_req.iqWidth    = iqWidth;
+
+        bfp_com_rsp.data_out   = (int8_t *)(compressedData.dataCompressed);
+        bfp_com_rsp.len        = 0;
+
+        bfp_decom_req.data_in    = (int8_t *)(compressedData.dataCompressed);
+        bfp_decom_req.numRBs     = numRBs;
+        bfp_decom_req.numDataElements = numDataElements;
+        bfp_decom_req.len        = (((numDataElements  * iqWidth) >> 3) + 1) * numRBs;
+        bfp_decom_req.compMethod = compMethod;
+        bfp_decom_req.iqWidth    = iqWidth;
+
+        bfp_decom_rsp.data_out   = (int16_t *)expandedDataRes.dataExpanded;
+        bfp_decom_rsp.len        = 0;
     }
 
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
+    /* It's called after an execution of the each test case.*/
+    void TearDown() override {
 
-    //std::cout << "Verifying AVX512 12b iqWidth Kernel\n";
-    expandedDataInput.iqWidth = 12;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_12b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_12b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
+    }
+};
 
-    ASSERT_EQ(0, resSum);
+struct ErrorData
+{
+  int checkSum;
+  float errorAccum;
+  int errorCount;
+};
+
+template <typename T>
+void compareData(T* inVecRef, T* inVecTest, ErrorData& err, int numVals)
+{
+  for (int n = 0; n < numVals; ++n)
+  {
+    auto valDiff = std::abs(inVecRef[n] - inVecTest[n]);
+    err.checkSum += valDiff;
+    if (inVecRef[n] != 0)
+    {
+      err.errorAccum += (float)valDiff / std::abs((float)inVecRef[n]);
+      err.errorCount++;
+    }
+  }
+}
+template void compareData(int8_t*, int8_t*, ErrorData&, int);
+template void compareData(int16_t*, int16_t*, ErrorData&, int);
+
+int checkPass(ErrorData& err, int testType)
+{
+  if (testType == 0)
+  {
+    if (err.checkSum == 0)
+    {
+      /*std::cout << "PASS "; */
+      return 0;
+    }
+    else
+    {
+      std::cout << "FAIL ";
+      return 1;
+    }
+  }
+  else
+  {
+    //std::cout << err.errorAccum / err.errorCount;
+    if (err.errorAccum / err.errorCount < 0.1)
+    {
+      /*std::cout << " PASS ";*/
+      return 0;
+    }
+    else
+    {
+      std::cout << " FAIL ";
+      return 1;
+    }
+  }
 }
 
-TEST_P(BfpCheck, AVX512_10bit)
+int runTest(const int iqWidth, const int numRB, const int numDataElements, const int totNumBlocks)
 {
-  int resSum = 0;
+  BlockFloatCompander::ExpandedData expandedDataInput;
+  BlockFloatCompander::CompressedData compressedDataRef;
+  BlockFloatCompander::CompressedData compressedDataKern;
+  BlockFloatCompander::ExpandedData expandedDataRef;
+  BlockFloatCompander::ExpandedData expandedDataKern;
+
+  ErrorData errRef = ErrorData();
+  ErrorData errComp = ErrorData();
+  ErrorData errExp = ErrorData();
 
   // Create random number generator
   std::random_device rd;
   std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
+  std::uniform_int_distribution<int16_t> randInt16(-32767, 32767);
   std::uniform_int_distribution<int> randExpShift(0, 4);
 
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
+  expandedDataInput.dataExpanded    = &expandedDataInput.dataExpandedIn[0];
+  compressedDataRef.dataCompressed  = &compressedDataRef.dataCompressedDataOut[0];
+  compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
+  expandedDataRef.dataExpanded      = &expandedDataRef.dataExpandedIn[0];
+  expandedDataKern.dataExpanded     = &expandedDataKern.dataExpandedIn[0];
+
+  expandedDataInput.iqWidth = iqWidth;
+  expandedDataInput.numBlocks = numRB;
+  expandedDataInput.numDataElements = numDataElements;
+  int totExpValsPerCall = numRB * numDataElements;
+  int totCompValsPerCall = (((numDataElements * iqWidth) >> 3) + 1) * numRB;
+
+  // Run kernel verif loop
+  for (int blk = 0; blk < totNumBlocks; ++blk)
+  {
+    // Generate input data
+    for (int m = 0; m < numRB; ++m)
     {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
+      auto shiftVal = randExpShift(gen);
+      for (int n = 0; n < numDataElements; ++n)
+      {
+        expandedDataInput.dataExpanded[m * numDataElements + n] = int16_t(randInt16(gen) >> shiftVal);
+      }
     }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 10b iqWidth Kernel\n";
-    expandedDataInput.iqWidth = 10;
     // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
+    BlockFloatCompander::BFPCompressRef(expandedDataInput, &compressedDataRef);
+    BlockFloatCompander::BFPExpandRef(compressedDataRef, &expandedDataRef);
     // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_10b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_10b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
+    switch (numDataElements)
+    {
+    case 16:
+      BlockFloatCompander::BFPCompressCtrlPlane8Avx512(expandedDataInput, &compressedDataKern);
+      BlockFloatCompander::BFPExpandCtrlPlane8Avx512(compressedDataRef, &expandedDataKern);
+      break;
+    case 24:
+      BlockFloatCompander::BFPCompressUserPlaneAvx512(expandedDataInput, &compressedDataKern);
+      BlockFloatCompander::BFPExpandUserPlaneAvx512(compressedDataRef, &expandedDataKern);
+      break;
+    case 32:
+      BlockFloatCompander::BFPCompressCtrlPlane16Avx512(expandedDataInput, &compressedDataKern);
+      BlockFloatCompander::BFPExpandCtrlPlane16Avx512(compressedDataRef, &expandedDataKern);
+      break;
+    case 64:
+      BlockFloatCompander::BFPCompressCtrlPlane32Avx512(expandedDataInput, &compressedDataKern);
+      BlockFloatCompander::BFPExpandCtrlPlane32Avx512(compressedDataRef, &expandedDataKern);
+      break;
+    case 128:
+      BlockFloatCompander::BFPCompressCtrlPlane64Avx512(expandedDataInput, &compressedDataKern);
+      BlockFloatCompander::BFPExpandCtrlPlane64Avx512(compressedDataRef, &expandedDataKern);
+      break;
+    }
+    // Check data
+    compareData(expandedDataInput.dataExpanded, expandedDataRef.dataExpanded, errRef, totExpValsPerCall);
+    compareData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, errComp, totCompValsPerCall);
+    compareData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, errRef, totExpValsPerCall);
+  }
+  // Verify Reference
+  int resSum = 0;
+  /*std::cout << "Valid Reference: ";*/
+  resSum += checkPass(errRef, 1);
+  // Verify Kernel
+  /*std::cout << "Compression: ";*/
+  resSum += checkPass(errComp, 0);
+  /*std::cout << "Expansion: ";*/
+  resSum += checkPass(errExp, 0);
+  /*std::cout << "\n";*/
 
-    ASSERT_EQ(0, resSum);
-
-//    performance("AVX512", module_name, BlockFloatCompander::BlockFloatCompress_10b_AVX512, expandedDataInput, &compressedDataKern);
+  return resSum;
 }
 
-TEST_P(BfpCheck, AVX512_9bit)
+TEST_P(BfpCheck, AVX512_bfp_main)
 {
   int resSum = 0;
+  int iqWidth[4] = { 8, 9, 10, 12 };
+  int numRB[3] = { 1, 4, 16 };
+  int numDataElementsUPlane = 24;
+  int numDataElementsCPlane8 = 16;
+  int numDataElementsCPlane16 = 32;
+  int numDataElementsCPlane32 = 64;
+  int numDataElementsCPlane64 = 128;
+  int totNumBlocks = 100;
 
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
+  for (int iqw = 0; iqw < 4; ++iqw)
+  {
+    for (int nrb = 0; nrb < 3; ++nrb)
     {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
+      //std::cout << "\n";
+
+      // USER PLANE TESTS
+      //std::cout << "U-Plane: Testing iqWidth = " << iqWidth[iqw] << ", numRB = " << numRB[nrb] << ", numElements = " << numDataElementsUPlane << ": ";
+      resSum += runTest(iqWidth[iqw], numRB[nrb], numDataElementsUPlane, totNumBlocks);
+
+      // CONTROL PLANE TESTS : 8 Antennas
+      //std::cout << "C-Plane: Testing iqWidth = " << iqWidth[iqw] << ", numRB = " << numRB[nrb] << ", numElements = " << numDataElementsCPlane8 << ": ";
+      resSum += runTest(iqWidth[iqw], numRB[nrb], numDataElementsCPlane8, totNumBlocks);
+
+      // CONTROL PLANE TESTS : 16 Antennas
+      //std::cout << "C-Plane: Testing iqWidth = " << iqWidth[iqw] << ", numRB = " << numRB[nrb] << ", numElements = " << numDataElementsCPlane16 << ": ";
+      resSum += runTest(iqWidth[iqw], numRB[nrb], numDataElementsCPlane16, totNumBlocks);
+
+      // CONTROL PLANE TESTS : 32 Antennas
+      //std::cout << "C-Plane: Testing iqWidth = " << iqWidth[iqw] << ", numRB = " << numRB[nrb] << ", numElements = " << numDataElementsCPlane32 << ": ";
+      resSum += runTest(iqWidth[iqw], numRB[nrb], numDataElementsCPlane32, totNumBlocks);
+
+      // CONTROL PLANE TESTS : 64 Antennas
+      //std::cout << "C-Plane: Testing iqWidth = " << iqWidth[iqw] << ", numRB = " << numRB[nrb] << ", numElements = " << numDataElementsCPlane64 << ": ";
+      resSum += runTest(iqWidth[iqw], numRB[nrb], numDataElementsCPlane64, totNumBlocks);
     }
+  }
 
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 9b iqWidth Kernel\n";
-    expandedDataInput.iqWidth = 9;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_9b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_9b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-}
-
-
-TEST_P(BfpCheck, AVX512_8bit)
-{
-  int resSum = 0;
-
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
-    }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 8bit Kernel\n";
-    expandedDataInput.iqWidth = 8;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_8b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_8b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-}
-
-TEST_P(BfpPerf, AVX512_8bit_compression)
-{
-  int resSum = 0;
-
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
-    }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 8bit Kernel\n";
-    expandedDataInput.iqWidth = 8;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_8b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_8b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-
-    performance("AVX512", module_name, BlockFloatCompander::BlockFloatCompress_8b_AVX512, expandedDataInput, &compressedDataKern);
-}
-
-TEST_P(BfpPerf, AVX512_8bit_decompression)
-{
-  int resSum = 0;
-
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
-    }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 8bit Kernel\n";
-    expandedDataInput.iqWidth = 8;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_8b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_8b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-
-    performance("AVX512", module_name, BlockFloatCompander::BlockFloatExpand_8b_AVX512, compressedDataRef, &expandedDataKern);
-}
-
-
-
-TEST_P(BfpPerf, AVX512_9bit_compression)
-{
-  int resSum = 0;
-
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
-    }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 8bit Kernel\n";
-    expandedDataInput.iqWidth = 9;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_9b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_9b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-
-    performance("AVX512", module_name, BlockFloatCompander::BlockFloatCompress_9b_AVX512, expandedDataInput, &compressedDataKern);
-}
-
-
-TEST_P(BfpPerf, AVX512_9bit_decompression)
-{
-  int resSum = 0;
-
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
-    }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 8bit Kernel\n";
-    expandedDataInput.iqWidth = 9;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_9b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_9b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-
-    performance("AVX512", module_name, BlockFloatCompander::BlockFloatExpand_9b_AVX512, compressedDataRef, &expandedDataKern);
-}
-
-
-TEST_P(BfpPerf, AVX512_10bit_compression)
-{
-  int resSum = 0;
-
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
-    }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 8bit Kernel\n";
-    expandedDataInput.iqWidth = 10;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_10b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_10b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-
-    performance("AVX512", module_name, BlockFloatCompander::BlockFloatCompress_10b_AVX512, expandedDataInput, &compressedDataKern);
-}
-
-TEST_P(BfpPerf, AVX512_10bit_decompression)
-{
-  int resSum = 0;
-
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
-    }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 8bit Kernel\n";
-    expandedDataInput.iqWidth = 10;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_10b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_10b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-
-    performance("AVX512", module_name, BlockFloatCompander::BlockFloatExpand_10b_AVX512, compressedDataRef, &expandedDataKern);
-}
-
-TEST_P(BfpPerf, AVX512_12bit_compression)
-{
-  int resSum = 0;
-
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
-    }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 8bit Kernel\n";
-    expandedDataInput.iqWidth = 12;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_12b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_12b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-
-    performance("AVX512", module_name, BlockFloatCompander::BlockFloatCompress_12b_AVX512, expandedDataInput, &compressedDataKern);
-}
-
-
-TEST_P(BfpPerf, AVX512_12bit_decompression)
-{
-  int resSum = 0;
-
-  // Create random number generator
-  std::random_device rd;
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
-  std::uniform_int_distribution<int> randExpShift(0, 4);
-
-  // Generate random test data for compression kernel
-  BlockFloatCompander::ExpandedData expandedDataInput;
-  expandedDataInput.dataExpanded = &expandedDataInput.dataExpandedIn[0];
-  for (int m = 0; m < BlockFloatCompander::k_numRB; ++m)
-    {
-        auto shiftVal = randExpShift(gen);
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n)
-        {
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
-        }
-    }
-
-    BlockFloatCompander::CompressedData compressedDataRef;
-    compressedDataRef.dataCompressed = &compressedDataRef.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataRef;
-    expandedDataRef.dataExpanded = &expandedDataRef.dataExpandedIn[0];
-    BlockFloatCompander::CompressedData compressedDataKern;
-    compressedDataKern.dataCompressed = &compressedDataKern.dataCompressedDataOut[0];
-    BlockFloatCompander::ExpandedData expandedDataKern;
-    expandedDataKern.dataExpanded = &expandedDataKern.dataExpandedIn[0];
-
-    //std::cout << "Verifying AVX512 8bit Kernel\n";
-    expandedDataInput.iqWidth = 12;
-    // Generate reference
-    BlockFloatCompander::BlockFloatCompress_Basic(expandedDataInput, &compressedDataRef);
-    BlockFloatCompander::BlockFloatExpand_Basic(compressedDataRef, &expandedDataRef);
-    // Generate kernel output
-    BlockFloatCompander::BlockFloatCompress_12b_AVX512(expandedDataInput, &compressedDataKern);
-    BlockFloatCompander::BlockFloatExpand_12b_AVX512(compressedDataRef, &expandedDataKern);
-    // Verify
-    auto totNumBytes = ((3 * compressedDataRef.iqWidth) + 1) * BlockFloatCompander::k_numRB;
-    //std::cout << "Compression: ";
-    resSum += checkData(compressedDataRef.dataCompressed, compressedDataKern.dataCompressed, totNumBytes);
-    //std::cout << "Expansion: ";
-    resSum += checkData(expandedDataRef.dataExpanded, expandedDataKern.dataExpanded, BlockFloatCompander::k_numSampsExpanded);
-
-    ASSERT_EQ(0, resSum);
-
-    performance("AVX512", module_name, BlockFloatCompander::BlockFloatExpand_12b_AVX512, compressedDataRef, &expandedDataKern);
+  ASSERT_EQ(0, resSum);
 }
 
 TEST_P(BfpCheck, AVX512_sweep_xranlib)
@@ -800,6 +443,8 @@ TEST_P(BfpCheck, AVX512_sweep_xranlib)
     struct xranlib_compress_request  bfp_com_req;
     struct xranlib_compress_response bfp_com_rsp;
 
+    int numDataElements = 24;
+
     // Create random number generator
     std::random_device rd;
     std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
@@ -816,18 +461,18 @@ TEST_P(BfpCheck, AVX512_sweep_xranlib)
             //printf("[%d]numRBs %d [%d] iqWidth %d\n",tc, numRBs[tc], iq_w_id, iqWidth[iq_w_id]);
             // Generate random test data for compression kernel
 
-            for (int m = 0; m < 18*BlockFloatCompander::k_numRB; ++m) {
+            for (int m = 0; m < 18*BlockFloatCompander::k_maxNumBlocks; ++m) {
                 auto shiftVal = randExpShift(gen);
-                for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n) {
-                    expandedData.dataExpanded[m*BlockFloatCompander::k_numREReal+n] = int16_t(randInt16(gen) >> shiftVal);
+                for (int n = 0; n < numDataElements; ++n) {
+                    expandedData.dataExpanded[m*numDataElements+n] = int16_t(randInt16(gen) >> shiftVal);
                 }
             }
 
             BlockFloatCompander::CompressedData compressedData;
             compressedData.dataCompressed = &loc_dataCompressedDataOut[0];
 
-            std::memset(&loc_dataCompressedDataOut[0], 0, 288*BlockFloatCompander::k_numREReal);
-            std::memset(&loc_dataExpandedRes[0], 0, 288*BlockFloatCompander::k_numREReal);
+            std::memset(&loc_dataCompressedDataOut[0], 0, 288*numDataElements);
+            std::memset(&loc_dataExpandedRes[0], 0, 288*numDataElements);
 
             std::memset(&bfp_com_req, 0, sizeof(struct xranlib_compress_request));
             std::memset(&bfp_com_rsp, 0, sizeof(struct xranlib_compress_response));
@@ -836,6 +481,7 @@ TEST_P(BfpCheck, AVX512_sweep_xranlib)
 
             bfp_com_req.data_in    = (int16_t *)expandedData.dataExpanded;
             bfp_com_req.numRBs     = numRBs[tc];
+            bfp_com_req.numDataElements = 24;
             bfp_com_req.len        = numRBs[tc]*12*2*2;
             bfp_com_req.compMethod = compMethod;
             bfp_com_req.iqWidth    = iqWidth[iq_w_id];
@@ -848,6 +494,7 @@ TEST_P(BfpCheck, AVX512_sweep_xranlib)
             bfp_decom_req.data_in    = (int8_t *)(compressedData.dataCompressed);
             bfp_decom_req.numRBs     = numRBs[tc];
             bfp_decom_req.len        = bfp_com_rsp.len;
+            bfp_decom_req.numDataElements = 24;
             bfp_decom_req.compMethod = compMethod;
             bfp_decom_req.iqWidth    = iqWidth[iq_w_id];
 
@@ -856,9 +503,95 @@ TEST_P(BfpCheck, AVX512_sweep_xranlib)
 
             xranlib_decompress_avx512(&bfp_decom_req, &bfp_decom_rsp);
 
-            resSum += checkDataApprox(expandedData.dataExpanded, expandedDataRes.dataExpanded, numRBs[tc]*BlockFloatCompander::k_numREReal);
+            resSum += checkDataApprox(expandedData.dataExpanded, expandedDataRes.dataExpanded, numRBs[tc]*numDataElements);
 
             ASSERT_EQ(numRBs[tc]*12*2*2, bfp_decom_rsp.len);
+            ASSERT_EQ(0, resSum);
+         }
+    }
+}
+
+TEST_P(BfpCheck, AVX512_cp_sweep_xranlib)
+{
+    int32_t resSum  = 0;
+    int16_t len = 0;
+
+    int16_t compMethod = XRAN_COMPMETHOD_BLKFLOAT;
+    int16_t iqWidth[]    = {8, 9, 10, 12};
+    int16_t numRB = 1;
+    int16_t antElm[] = {8, 16, 32, 64};
+
+    struct xranlib_decompress_request  bfp_decom_req;
+    struct xranlib_decompress_response bfp_decom_rsp;
+
+    struct xranlib_compress_request  bfp_com_req;
+    struct xranlib_compress_response bfp_com_rsp;
+    int32_t numDataElements;
+
+    // Create random number generator
+    std::random_device rd;
+    std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+    std::uniform_int_distribution<int16_t> randInt16(-32768, 32767);
+    std::uniform_int_distribution<int> randExpShift(0, 4);
+
+    BlockFloatCompander::ExpandedData expandedData;
+    expandedData.dataExpanded = &loc_dataExpandedIn[0];
+    BlockFloatCompander::ExpandedData expandedDataRes;
+    expandedDataRes.dataExpanded = &loc_dataExpandedRes[0];
+
+    for (int iq_w_id = 0; iq_w_id < sizeof(iqWidth)/sizeof(iqWidth[0]); iq_w_id ++){
+        for (int tc = 0; tc < sizeof(antElm)/sizeof(antElm[0]); tc ++){
+
+            numDataElements = 2*antElm[tc];
+
+            // Generate input data
+            for (int m = 0; m < numRB; ++m)
+            {
+              auto shiftVal = randExpShift(gen);
+              for (int n = 0; n < numDataElements; ++n)
+              {
+                expandedData.dataExpanded[m * numDataElements + n] = int16_t(randInt16(gen) >> shiftVal);
+              }
+            }
+
+            BlockFloatCompander::CompressedData compressedData;
+            compressedData.dataCompressed = &loc_dataCompressedDataOut[0];
+
+            std::memset(&loc_dataCompressedDataOut[0], 0, 288*numDataElements);
+            std::memset(&loc_dataExpandedRes[0], 0, 288*numDataElements);
+
+            std::memset(&bfp_com_req, 0, sizeof(struct xranlib_compress_request));
+            std::memset(&bfp_com_rsp, 0, sizeof(struct xranlib_compress_response));
+            std::memset(&bfp_decom_req, 0, sizeof(struct xranlib_decompress_request));
+            std::memset(&bfp_decom_rsp, 0, sizeof(struct xranlib_decompress_response));
+
+            bfp_com_req.data_in    = (int16_t *)expandedData.dataExpanded;
+            bfp_com_req.numRBs     = numRB;
+            bfp_com_req.numDataElements = numDataElements;
+            bfp_com_req.len        = antElm[tc]*4;
+            bfp_com_req.compMethod = compMethod;
+            bfp_com_req.iqWidth    = iqWidth[iq_w_id];
+
+            bfp_com_rsp.data_out   = (int8_t *)(compressedData.dataCompressed);
+            bfp_com_rsp.len        = 0;
+
+            xranlib_compress_avx512_bfw(&bfp_com_req, &bfp_com_rsp);
+
+            bfp_decom_req.data_in         = (int8_t *)(compressedData.dataCompressed);
+            bfp_decom_req.numRBs          = numRB;
+            bfp_decom_req.numDataElements = numDataElements;
+            bfp_decom_req.len             = bfp_com_rsp.len;
+            bfp_decom_req.compMethod      = compMethod;
+            bfp_decom_req.iqWidth         = iqWidth[iq_w_id];
+
+            bfp_decom_rsp.data_out   = (int16_t *)expandedDataRes.dataExpanded;
+            bfp_decom_rsp.len        = 0;
+
+            xranlib_decompress_avx512_bfw(&bfp_decom_req, &bfp_decom_rsp);
+
+            resSum += checkDataApprox(expandedData.dataExpanded, expandedDataRes.dataExpanded, numRB*numDataElements);
+
+            ASSERT_EQ(antElm[tc]*4, bfp_decom_rsp.len);
             ASSERT_EQ(0, resSum);
          }
     }
@@ -874,14 +607,22 @@ TEST_P(BfpPerfEx, AVX512_DeComp)
      performance("AVX512", module_name, xranlib_decompress_avx512, &bfp_decom_req, &bfp_decom_rsp);
 }
 
+TEST_P(BfpPerfCp, AVX512_CpComp)
+{
+     performance("AVX512", module_name, xranlib_compress_avx512_bfw, &bfp_com_req, &bfp_com_rsp);
+}
+
+TEST_P(BfpPerfCp, AVX512_CpDeComp)
+{
+     performance("AVX512", module_name, xranlib_decompress_avx512_bfw, &bfp_decom_req, &bfp_decom_rsp);
+}
+
 INSTANTIATE_TEST_CASE_P(UnitTest, BfpCheck,
                         testing::ValuesIn(get_sequence(BfpCheck::get_number_of_cases("bfp_functional"))));
 
-INSTANTIATE_TEST_CASE_P(UnitTest, BfpPerf,
-                        testing::ValuesIn(get_sequence(BfpPerf::get_number_of_cases("bfp_performace"))));
-
-
 INSTANTIATE_TEST_CASE_P(UnitTest, BfpPerfEx,
-                        testing::ValuesIn(get_sequence(BfpPerf::get_number_of_cases("bfp_performace_ex"))));
+                        testing::ValuesIn(get_sequence(BfpPerfEx::get_number_of_cases("bfp_performace_ex"))));
 
+INSTANTIATE_TEST_CASE_P(UnitTest, BfpPerfCp,
+                        testing::ValuesIn(get_sequence(BfpPerfCp::get_number_of_cases("bfp_performace_cp"))));
 

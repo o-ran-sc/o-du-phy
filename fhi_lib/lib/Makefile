@@ -44,13 +44,18 @@ PROJECT_NAME := libxran
 PROJECT_TYPE := lib
 PROJECT_DIR  := $(XRAN_DIR)/lib
 BUILDDIR := ./build
+
+ifeq ($(XRAN_LIB_SO),)
 PROJECT_BINARY := $(BUILDDIR)/$(PROJECT_NAME).a
+else
+PROJECT_BINARY := $(BUILDDIR)/$(PROJECT_NAME).so
+endif
 
 ifeq ($(RTE_SDK),)
     $(error "Please define RTE_SDK environment variable")
 endif
 
-RTE_TARGET ?= x86_64-native-linuxapp-gcc
+RTE_TARGET ?= x86_64-native-linux-icc
 RTE_INC := $(RTE_SDK)/$(RTE_TARGET)/include
 
 API_DIR := $(PROJECT_DIR)/api
@@ -76,22 +81,24 @@ CC_SRC = $(ETH_DIR)/ethdi.c \
 	$(SRC_DIR)/xran_app_frag.c \
 	$(SRC_DIR)/xran_main.c
 
-CPP_SRC = $(SRC_DIR)/xran_compression.cpp
+CPP_SRC = $(SRC_DIR)/xran_compression.cpp \
+	$(SRC_DIR)/xran_bfp_ref.cpp \
+	$(SRC_DIR)/xran_bfp_cplane8.cpp \
+	$(SRC_DIR)/xran_bfp_cplane16.cpp \
+	$(SRC_DIR)/xran_bfp_cplane32.cpp \
+	$(SRC_DIR)/xran_bfp_cplane64.cpp
 
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
 	-ffunction-sections \
 	-g \
+        -fPIC \
 	-Wall \
 	-Wimplicit-function-declaration \
 	-g -O3 -wd1786
 
-CC_FLAGS += -fstack-protector-strong -z,now, -z,relro \
-           -z noexecstack -Wformat -Wformat-security -Werror=format-security \
-           -fno-strict-overflow -fwrapv
-
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
-                -no-prec-div -fp-model fast=2\
+                -no-prec-div -fp-model fast=2 -fPIC \
                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
         -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
 
@@ -204,7 +211,10 @@ welcome_line :
 
 debug :  all
 release :  all
-
 $(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
 	@echo [AR]    $(subst $(BUILDDIR)/,,$@)
+ifeq ($(XRAN_LIB_SO),)
 	@$(AR) $(AR_FLAGS) $@ $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+else
+	@$(CC) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS) -shared -fPIC -o $@
+endif

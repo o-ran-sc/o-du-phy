@@ -12,14 +12,14 @@
 ..  See the License for the specific language governing permissions and
 ..  limitations under the License.
 
-.. ODULOW documentation master
+.. ODULOW documentation main
 
-.. _odulow documentation master:
+.. _odulow documentation main:
 
 O-RAN O-DU Low
 ==============
 
-**User Guide, May 2020**
+**User Guide, August 2020**
   
 .. toctree::
    :maxdepth: 2
@@ -27,10 +27,11 @@ O-RAN O-DU Low
    overview1.rst
    Assumptions_Dependencies.rst
    build_prerequisite.rst   
+   release-notes.rst
 
 .. _odulow_phy_fhi_library:
 
-.. fhi library documentation master
+.. fhi library documentation main
 
 FHI Library
 ===========
@@ -41,7 +42,7 @@ FHI Library
 
    overview.rst
    Introduction_fh.rst
-   release-notes.rst
+   release-notes-fh.rst
 
 * :ref:`search`
 

@@ -26,8 +26,7 @@ O-RAN FAPI 5G TM Introduction
 
 The ORAN FAPI 5G Translator Module (TM) is a standalone application that communicates with the ODU-High using the 5G FAPI protocol defined
 by the Small Cell Forum and communicates with the ODU Low using the Intel L2-L1 API using the Wireless Subsystem Interface
-Library (WLS) to handle the shared memory and buffer management required by the |br|
-Interfaces. In addition the ORAN 5G FAPI TM requires the
+Library (WLS) to handle the shared memory and buffer management required by the Interfaces. In addition the ORAN 5G FAPI TM requires the
 Data Plane Design Kit (DPDK) which is integrated with the WLS Library.
 
 Table 1. Terminology

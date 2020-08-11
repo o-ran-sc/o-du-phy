@@ -66,6 +66,13 @@ void xran_fh_rx_callback(void *pCallbackTag, xran_status_t status)
     return;
 }
 
+void xran_fh_srs_callback(void *pCallbackTag, xran_status_t status)
+{
+    rte_pause();
+    return;
+}
+
+
 void xran_fh_rx_prach_callback(void *pCallbackTag, xran_status_t status)
 {
 
@@ -79,7 +86,7 @@ protected:
     void SetUp() override
     {
         xranlib->Init();
-        xranlib->Open(nullptr, nullptr, (void *)xran_fh_rx_callback, (void *)xran_fh_rx_prach_callback);
+        xranlib->Open(nullptr, nullptr, (void *)xran_fh_rx_callback, (void *)xran_fh_rx_prach_callback, (void *)xran_fh_srs_callback);
     }
 
     /* It's called after an execution of the each test case.*/

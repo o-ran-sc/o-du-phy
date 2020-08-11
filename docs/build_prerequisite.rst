@@ -28,7 +28,7 @@ This section describes how to install and build the required components needed t
 Install ICC
 ------------
 Intel® C++ Compiler v19.0.3 is used for the test application and system integration with L1, 
-The Intel® C++ Compiler can be obtained using the follwoing link https://software.intel.com/en-us/system-studio/choose-download with community |br|
+The Intel® C++ Compiler can be obtained using the following link https://software.intel.com/en-us/system-studio/choose-download with community |br|
 license::
 
          COPY $icc_license_file $BUILD_DIR/license.lic
@@ -37,11 +37,12 @@ license::
 performed yet, so please provide feedback through O-DU Low project WIKI page if you face any issues.*
 
 
-Download Intel System Studio from Intel website and install ICC ::
+You can follow the installation guide from above website to download Intel System Studio and install. Intel® Math Kernel Library, Intel® Integrated Performance Primitives and Intel® C++ Compiler are mandatory components.
+Here we are using the Linux* Host,Linux* Target and standalone installer as one example, below link might need update based on the website ::
 
-         #wget https://registrationcenter-download.intel.com/akdlm/irc_nas/16242/system_studio_2020_ultimate_edition_offline.tar.gz 
+         #wget https://registrationcenter-download.intel.com/akdlm/irc_nas/16789/system_studio_2020_u2_ultimate_edition_offline.tar.gz
          #cd /opt && mkdir intel && cp $BUILD_DIR/license.lic intel/license.lic
-         #tar -zxvf $BUILD_DIR/system_studio_2020_ultimate_edition_offline.tar.gz
+         #tar -zxvf $BUILD_DIR/system_studio_2020_u2_ultimate_edition_offline.tar.gz
 
 Edit system_studio_2020_ultimate_edition_offline/silent.cfg to accept the EULA file as below example::
   
@@ -60,36 +61,32 @@ Set env for ICC::
          #export PATH=/opt/intel/system_studio_2020/bin/:$PATH
 
 
-Build DPDK
------------
+Download and Build DPDK
+-----------------------
    - download DPDK::
      
-         #wget http://fast.dpdk.org/rel/dpdk-18.08.tar.xz
-         #tar -xf dpdk-18.08.tar.xz
+         #wget http://static.dpdk.org/rel/dpdk-19.11.tar.x
+         #tar -xf dpdk-19.11.tar.xz
          #export RTE_TARGET=x86_64-native-linuxapp-icc
-         #export RTE_SDK=Intallation_DIR/dpdk-18.08
+         #export RTE_SDK=Intallation_DIR/dpdk-19.11
 
-   - patch DPDK for O-RAN FHI lib, this patch is specific for O-RAN FHI to reduce the data transmission latency of Intel NIC. This may not be needed for some NICs, please refer to O-RAN FHI Lib Introduction -> setup configuration -> A.2 prerequisites
+   - patch DPDK for O-RAN FHI lib, this patch is specific for O-RAN FHI to reduce the data transmission latency of Intel NIC. This may not be needed for some NICs, please refer to |br| O-RAN FHI Lib Introduction -> setup configuration -> A.2 prerequisites
 
-   - SW FEC was enabled by default, to enable HW FEC with specific accelerator card, you need get the associated driver and build steps from the accelerator card vendors.
+   - SW FEC was enabled by default, to enable HW FEC with specific accelerator card, you need to get the associated driver and build steps from the accelerator card vendors.
 
-   - enable IGB UIO for NIC card::
-   
-         CONFIG_RTE_EAL_IGB_UIO=y
-         CONFIG_RTE_KNI_KMOD=y
 
    - build DPDK
       build DPDK::
 
         #./usertools/dpdk-setup.sh
-        select [16] x86_64-native-linuxapp-icc
-        select [19] Insert VFIO module
-        exit   [35] Exit Script
+        select [39] x86_64-native-linuxapp-icc
+        exit   [62] Exit Script
 
    - set DPDK path
        DPDK path is needed during build and run lib/app::
 
-        #export RTE_SDK="your DPDK path"
+        #export RTE_SDK=Intallation_DIR/dpdk-19.11
+        #export DESTDIR=Installation_DIR/dpdk-19.11
 
 
 Install google test
@@ -100,6 +97,7 @@ Download google test from https://github.com/google/googletest/releases
         #tar -xvf googletest-release-1.7.0.tar.gz
         #mv googletest-release-1.7.0 gtest-1.7.0
         #export GTEST_DIR=YOUR_DIR/gtest-1.7.0
+        #export GTEST_ROOT= $GTEST_DIR
         #cd ${GTEST_DIR}
         #g++ -isystem ${GTEST_DIR}/include -I${GTEST_DIR} -pthread -c ${GTEST_DIR}/src/gtest-all.cc
         #ar -rv libgtest.a gtest-all.o
@@ -117,7 +115,52 @@ Download google test from https://github.com/google/googletest/releases
 
 Configure FEC card
 --------------------
-For the Bronze Release only as SW FEC is available so this step is not needed, for later releases the required information will be added to the document.
+For the Bronze Release only a SW FEC is available so this step is not needed, for later releases the required information will be added to the document.
+
+Customize a setup environment shell script
+------------------------------------------
+Using as an example the provided in the folder phy\\setupenv.sh as the starting point
+customize this script to provide the paths to the tools and libraries that
+are used building and running the code.
+You can add for example the following entries based on your particular installation and the
+following illustration is just an example::
+                                                                           
+- export DIR_ROOT=/home/                                                           
+- #set the L1 binary root DIR                                                      
+- export DIR_ROOT_L1_BIN=$DIR_ROOT/FlexRAN                                         
+- #set the phy root DIR                                                            
+- export DIR_ROOT_PHY=$DIR_ROOT/phy                                                
+- #set the DPDK root DIR                                                           
+- #export DIR_ROOT_DPDK=/home/dpdk-19.11                                           
+- #set the GTEST root DIR                                                          
+- #export DIR_ROOT_GTEST=/home/gtest/gtest-1.7.0                                                                                                                   
+- export DIR_WIRELESS_TEST_5G=$DIR_ROOT_L1_BIN/testcase                            
+- export DIR_WIRELESS_SDK=$DIR_ROOT_L1_BIN/sdk/build-avx512-icc                    
+- export DIR_WIRELESS_TABLE_5G=$DIR_ROOT_L1_BIN/l1/bin/nr5g/gnb/l1/table           
+- #source /opt/intel/system_studio_2019/bin/iccvars.sh intel64 -platform linux     
+- export XRAN_DIR=$DIR_ROOT_PHY/fhi_lib                                            
+- export XRAN_LIB_SO=true                                                          
+- export RTE_TARGET=x86_64-native-linuxapp-icc                                     
+- #export RTE_SDK=$DIR_ROOT_DPDK                                                   
+- #export DESTDIR=""                                                                                                                                              
+- #export GTEST_ROOT=$DIR_ROOT_GTEST                                                                                                                             
+- export ORAN_5G_FAPI=true                                                         
+- export DIR_WIRELESS_WLS=$DIR_ROOT_PHY/wls_lib                                    
+- export DEBUG_MODE=true                                                           
+- export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DIR_WIRELESS_WLS:$XRAN_DIR/lib/build    
+- export DIR_WIRELESS=$DIR_ROOT_L1_BIN/l1                                          
+- export DIR_WIRELESS_ORAN_5G_FAPI=$DIR_ROOT_PHY/fapi_5g                           
+- export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DIR_ROOT_L1_BIN/libs/cpa/bin        
+
+Then issue::
+
+- source ./setupenv.sh
+
+This sets up the correct environment to build the code
+
+Then build the wls_lib, FHI_Lib, 5G FAPI TM prior to running the code with the steps described in the Run L1 section
+                                                                                 
+
 
 
 

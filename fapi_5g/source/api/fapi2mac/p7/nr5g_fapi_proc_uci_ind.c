@@ -95,8 +95,7 @@ uint8_t nr5g_fapi_uci_indication(
     p_stats->fapi_stats.fapi_uci_ind++;
     NR5G_FAPI_LOG(DEBUG_LOG, ("[UCI.indication][%d][%d,%d]",
             p_phy_instance->phy_id,
-            p_phy_uci_ind->sSFN_Slot.nSFN,
-            p_phy_uci_ind->sSFN_Slot.nSlot));
+            p_phy_uci_ind->sSFN_Slot.nSFN, p_phy_uci_ind->sSFN_Slot.nSlot));
 
     return SUCCESS;
 }
@@ -254,7 +253,8 @@ void nr5g_fapi_fill_uci_format_2_3_4(
     if (num_uci_bits > 0) {
         NR5G_FAPI_MEMCPY(p_uci_pucch_f2_f3_f4->uciBits,
             sizeof(uint8_t) * FAPI_MAX_UCI_BIT_BYTE_LEN,
-            p_uci_pdu_data_struct->nUciBits, num_uci_bits);
+            p_uci_pdu_data_struct->nUciBits,
+            sizeof(uint8_t) * FAPI_MAX_UCI_BIT_BYTE_LEN);
     }
 }
 

@@ -18,9 +18,18 @@
 #*
 #*******************************************************************************/
 
+if [ -z "$RTE_SDK" ]
+then
+    echo "## ERROR: Please make sure environment variable RTE_SDK is set to valid DPDK path."
+    echo "       To fix, please do: export RTE_SDK=path_to_dpdk_folder    before running this script"
+    exit 1
+fi
 
-export RTE_SDK=/home/turner/dpdk
-export RTE_TARGET=x86_64-native-linuxapp-icc
+if [ -z "$RTE_TARGET" ]
+then
+    echo "## ERROR: Please make sure environment variable RTE_TARGET is set to valid DPDK path."
+    exit 1
+fi
 
 #
 # Unloads igb_uio.ko.
@@ -71,13 +80,13 @@ load_igb_uio_module()
 #
 remove_vfio_module()
 {
-	echo "Unloading any existing VFIO module"
-	/sbin/lsmod | grep -s vfio > /dev/null
-	if [ $? -eq 0 ] ; then
-		sudo /sbin/rmmod vfio-pci
-		sudo /sbin/rmmod vfio_iommu_type1
-		sudo /sbin/rmmod vfio
-	fi
+    echo "Unloading any existing VFIO module"
+    /sbin/lsmod | grep -s vfio > /dev/null
+    if [ $? -eq 0 ] ; then
+        sudo /sbin/rmmod vfio-pci
+        sudo /sbin/rmmod vfio_iommu_type1
+        sudo /sbin/rmmod vfio
+    fi
 }
 
 #
@@ -85,33 +94,30 @@ remove_vfio_module()
 #
 load_vfio_module()
 {
-	remove_vfio_module
+    remove_vfio_module
 
-	VFIO_PATH="kernel/drivers/vfio/pci/vfio-pci.ko"
 
-	echo "Loading VFIO module"
-	/sbin/lsmod | grep -s vfio_pci > /dev/null
-	if [ $? -ne 0 ] ; then
-		if [ -f /lib/modules/$(uname -r)/$VFIO_PATH ] ; then
-			sudo /sbin/modprobe vfio-pci
-		fi
-	fi
+    echo "Loading VFIO module"
+    /sbin/lsmod | grep -s vfio_pci > /dev/null
+    if [ $? -ne 0 ] ; then
+        sudo /sbin/modprobe -v vfio-pci
+    fi
 
-	# make sure regular users can read /dev/vfio
-	echo "chmod /dev/vfio"
-	sudo chmod a+x /dev/vfio
-	if [ $? -ne 0 ] ; then
-		echo "FAIL"
-		quit
-	fi
-	echo "OK"
+    # make sure regular users can read /dev/vfio
+    echo "chmod /dev/vfio"
+    sudo chmod a+x /dev/vfio
+    if [ $? -ne 0 ] ; then
+        echo "FAIL"
+        quit
+    fi
+    echo "OK"
 
-	# check if /dev/vfio/vfio exists - that way we
-	# know we either loaded the module, or it was
-	# compiled into the kernel
-	if [ ! -e /dev/vfio/vfio ] ; then
-		echo "## ERROR: VFIO not found!"
-	fi
+    # check if /dev/vfio/vfio exists - that way we
+    # know we either loaded the module, or it was
+    # compiled into the kernel
+    if [ ! -e /dev/vfio/vfio ] ; then
+        echo "## ERROR: VFIO not found!"
+    fi
 }
 
 
@@ -132,10 +138,10 @@ fi
 $RTE_SDK/usertools/dpdk-devbind.py --status
 if [ ${VM_DETECT} == 'HOST' ]; then
     #HOST
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:22:02.0
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:22:02.1
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:22:0a.0
-    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:22:0a.1
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:02.0
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:02.1
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:0a.0
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:0a.1
 else
     #VM
     $RTE_SDK/usertools/dpdk-devbind.py --bind=igb_uio 0000:00:04.0

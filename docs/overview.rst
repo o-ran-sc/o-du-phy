@@ -20,10 +20,9 @@ Front Haul Interface Library Overview
 =====================================
 
 The O-RAN FHI Lib is built on top of DPDK to perform U-plane and C-plane functions according to the 
-ORAN Fronthaul |br|
-Interface specification between O-DU and O-RU.
-S-Plane support requires PTP for Linux version 2.0 or later |br|
-The management plane is outside of the scope of this library implementation.
+ORAN Fronthaul Interface specification between O-DU and O-RU.
+The S-Plane support requires PTP for Linux version 2.0 or later.
+The Management plane is outside of the scope of this library implementation.
 
 
 Project Resources

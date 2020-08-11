@@ -20,8 +20,21 @@
 ORAN 5G FAPI TM Release Notes
 =============================
 
-Version oran_release_bronze_v1.0, May 2020
-------------------------------------------
+Version FAPI TM oran_release_bronze_v1.1, Aug 2020
+------------------------------------------------------
+
+* Increased test coverage. All supported DL, UL and FD standard MIMO cases are validated
+* Support for carrier aggregation
+* Support for API ordering
+* Support for handling Intel proprietary PHY shutdown message in radio mode
+* FAPI TM latency measurement
+* Bug fixes
+* Feedback provided to SCF on parameter gaps identified in SCF 5G FAPI specification dated March 2020
+* This version of the 5G FAPI TM incorporates the changes that were provided to the SCF.
+
+
+Version FAPI TM oran_release_bronze_v1.0, May 2020
+------------------------------------------------------
 * First release of the 5G FAPI TM to ORAN in support of the Bronze Release
 * This version supports 5G only
 * PARAM.config and PARAM.resp are not supported

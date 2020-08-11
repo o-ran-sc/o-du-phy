@@ -27,127 +27,186 @@ The xRAN Library consists of multiple modules where different
 functionality is encapsulated. The complete list of all \*.c and \*.h
 files as well as Makefile for xRAN (aka FHI Lib Bronze Release) release is:
 
-├──fhi_lib
+├── app
 
-│   ├── lib
+│   ├── dpdk.sh
 
-│   │   ├── api
+│   ├── gen_test.m
 
-│   │   │   ├── xran_compression.h
+│   ├── Makefile
 
-│   │   │   ├── xran_compression.hpp
+│   ├── src
 
-│   │   │   ├── xran_cp_api.h
+│   │   ├── common.c
 
-│   │   │   ├── xran_fh_o_du.h
+│   │   ├── common.h
 
-│   │   │   ├── xran_mlog_lnx.h
+│   │   ├── config.c
 
-│   │   │   ├── xran_pkt_cp.h
+│   │   ├── config.h
 
-│   │   │   ├── xran_pkt.h
+│   │   ├── debug.h
 
-│   │   │   ├── xran_pkt_up.h
+│   │   ├── sample-app.c
 
-│   │   │   ├── xran_sync_api.h
+│   │   └── xran_mlog_task_id.h
 
-│   │   │   ├── xran_timer.h
+│   └── usecase
 
-│   │   │   ├── xran_transport.h
+│       ├── cat_b
 
-│   │   │   └── xran_up_api.h
+│       ├── lte_a
 
-│   │   ├── ethernet
+│       ├── lte_b
 
-│   │   │   ├── ethdi.c
+│       ├── mu0_10mhz
 
-│   │   │   ├── ethdi.h
+│       ├── mu0_20mhz
 
-│   │   │   ├── ethernet.c
+│       ├── mu0_5mhz
 
-│   │   │   └── ethernet.h
+│       ├── mu1_100mhz
 
-│   │   ├── Makefile
+│       └── mu3_100mhz
 
-│   │   └── src
+├── banner.txt
 
-│   │   │   ├── xran_app_frag.c
+├── build.sh
 
-│   │   │   ├── xran_app_frag.h
+├── lib
 
-│   │   │   ├── xran_common.c
+│   ├── api
 
-│   │   │   ├── xran_common.h
+│   │   ├── xran_compression.h
 
-│   │   │   ├── xran_compression.cpp
+│   │   ├── xran_compression.hpp
 
-│   │   │   ├── xran_cp_api.c
+│   │   ├── xran_cp_api.h
 
-│   │   │   ├── xran_frame_struct.c
+│   │   ├── xran_fh_o_du.h
 
-│   │   │   ├── xran_frame_struct.h
+│   │   ├── xran_mlog_lnx.h
 
-│   │   │   ├── xran_lib_mlog_tasks_id.h
+│   │   ├── xran_pkt_cp.h
 
-│   │   │   ├── xran_main.c
+│   │   ├── xran_pkt.h
 
-│   │   │   ├── xran_printf.h
+│   │   ├── xran_pkt_up.h
 
-│   │   │   ├── xran_sync_api.c
+│   │   ├── xran_sync_api.h
 
-│   │   │   ├── xran_timer.c
+│   │   ├── xran_timer.h
 
-│   │   │   ├── xran_transport.c
+│   │   ├── xran_transport.h
 
-│   │   │   ├── xran_ul_tables.c
+│   │   └── xran_up_api.h
 
-│   │   │   └── xran_up_api.c
+│   ├── ethernet
 
-│   ├── readme.txt
+│   │   ├── ethdi.c
 
-│   ├── Licenses.txt
+│   │   ├── ethdi.h
 
-│   ├── build.sh
+│   │   ├── ethernet.c
 
-│   └── test
+│   │   └── ethernet.h
 
-│   │   ├── common
+│   ├── Makefile
 
-│   │   │   ├── common.cpp
+│   └── src
 
-│   │   │   ├── common.hpp
+│       ├── xran_app_frag.c
 
-│   │   │   ├── common_typedef_xran.h
+│       ├── xran_app_frag.h
 
-│   │   ├── xranlib_unit_test_main.cc
+│       ├── xran_bfp_cplane16.cpp
 
-│   │   └── xran_lib_wrap.hpp
+│       ├── xran_bfp_cplane32.cpp
 
-│   │   ├── master.py
+│       ├── xran_bfp_cplane64.cpp
 
-│   │   ├── readme.txt
+│       ├── xran_bfp_cplane8.cpp
 
-│   │   └── test_xran
+│       ├── xran_bfp_ref.cpp
 
-│   │   │   ├── chain_tests.cc
+│       ├── xran_bfp_utils.hpp
 
-│   │   │   ├── compander_functional.cc
+│       ├── xran_common.c
 
-│   │   │   ├── conf.json
+│       ├── xran_common.h
 
-│   │   │   ├── c_plane_tests.cc
+│       ├── xran_compression.cpp
 
-│   │   │   ├── init_sys_functional.cc
+│       ├── xran_cp_api.c
 
-│   │   │   ├── Makefile
+│       ├── xran_frame_struct.c
 
-│   │   │   ├── prach_functional.cc
+│       ├── xran_frame_struct.h
 
-│   │   │   ├── prach_performance.cc
+│       ├── xran_lib_mlog_tasks_id.h
 
-│   │   │   ├── unittests.cc
+│       ├── xran_main.c
 
-│   │   │   ├── u_plane_functional.cc
+│       ├── xran_printf.h
+
+│       ├── xran_sync_api.c
+
+│       ├── xran_timer.c
+
+│       ├── xran_transport.c
+
+│       ├── xran_ul_tables.c
+
+│       └── xran_up_api.c
+
+├── Licenses.txt
+
+├── readme.md
+
+└── test
+
+    ├── common
+    
+    │   ├── common.cpp
+    
+    │   ├── common.hpp
+    
+    │   ├── common_typedef_xran.h
+    
+    │   ├── json.hpp
+    
+    │   ├── MIT_License.txt
+    
+    │   ├── xranlib_unit_test_main.cc
+    
+    │   └── xran_lib_wrap.hpp
+    
+    ├── master.py
+    
+    ├── readme.txt
+    
+    └── test_xran
+    
+        ├── chain_tests.cc
+        
+        ├── compander_functional.cc
+        
+        ├── conf.json
+        
+        ├── c_plane_tests.cc
+        
+        ├── init_sys_functional.cc
+        
+        ├── Makefile
+        
+        ├── prach_functional.cc
+        
+        ├── prach_performance.cc
+        
+        ├── unittests.cc
+        
+        └── u_plane_functional.cc
+
 
 General Introduction
 --------------------
@@ -164,15 +223,13 @@ in the API folder.
 This library depends on DPDK primitives to perform Ethernet networking
 in userspace, including initialization and control of Ethernet ports.
 Ethernet ports are expected to be SRIOV virtual functions (VF) but also
-can be physical functions (PF) as well
+can be physical functions (PF) as well.
 
 This library is expected to be included in the project via
 xran_fh_o_du.h, statically compiled and linked with the L1 application
 as well as DPDK libraries. The xRAN packet processing-specific
 functionality is encapsulated into this library and not exposed to the
-rest of the 5G NR pipeline. An abstract interface similar to the mmWave
-front haul interface is defined in xran_fh_o_du.h to be available for
-usage.
+rest of the 5G NR pipeline. 
 
 This way, xRAN specific changes are decoupled from the 5G NR L1
 pipeline. As a result, the design and implementation of the 5G L1
@@ -263,12 +320,13 @@ After this session is complete, a restart of the full L1 application is
 required. The current version of the library does not support multiple
 sessions without a restart of the full L1 application.
 
-
+Configuration
 ~~~~~~~~~~~~~
 
-The xRAN library configuration is provided in the set of structures,
-such as struct xran_fh_init and struct xran_fh_config. The sample
-application gives an example of a test configuration used for mmWave.
+The xRAN library configuration is provided in the set of structures, such as struct xran_fh_init and struct xran_fh_config. 
+The sample application gives an example of a test configuration used for LTE and 5GNR mmWave and Sub 6. Sample application
+folder /app/usecase/ contains set of examples for different Radio Access technology  (LTE|5G NR), different category  (A|B)
+and list of numerologies (0,1,3) and list of bandwidths (5,10,20,100Mhz).
 
 Some configuration options are not used in the Bronze Release and are reserved
 for future use.
@@ -315,13 +373,13 @@ configuration.:
 
 -  Init DPDK timers and DPDK rings for internal packet processing
 
--  Instantiate ORAH FH thread doing
+-  Instantiate ORAN FH thread doing
 
--  Timing processing (xran_timing_source_thread())
+   -  Timing processing (xran_timing_source_thread())
 
--  ETH PMD (process_dpdk_io())
+   -  ETH PMD (process_dpdk_io())
 
--  IO XRAN-PHY exchange (ring_processing_func())
+   -  IO XRAN-PHY exchange (ring_processing_func())
 
 **xran_open()** performs additional configuration as per run scenario:
 
@@ -343,8 +401,7 @@ Data Exchange
 ~~~~~~~~~~~~~
 
 Exchange of IQ samples, as well as C-plane specific information, is
-performed using a set of buffers allocated by xRAN |br|
-library from DPDK
+performed using a set of buffers allocated by xRAN library from DPDK
 memory and shared with the l1 application. Buffers are allocated as a
 standard mbuf structure and DPDK pools are used to manage the allocation
 and free resources. Shared buffers are allocated at the init stage and
@@ -362,118 +419,65 @@ The interface between the xRAN library and PHY is defined via struct
 xran_prb_map and similar to the data plane. The same mbuf memory is used
 to allocate memory map of PRBs for each TTI.
 
-/\* Beamforming weights for single stream for each PRBs given number of
-Antenna elements \*/
-
+/\* Beamforming waights for single stream for each PRBs  given number of Antenna elements \*/
 struct xran_cp_bf_weight{
 
-int16_t nAntElmTRx; /* num TRX for this allocation \*/
+    int16_t nAntElmTRx;        /\*< num TRX for this allocation \*/
+    int8_t*  p_ext_start;      /\*< pointer to start of buffer for full C-plane packet \*/
+    int8_t*  p_ext_section;    /\*< pointer to form extType \*/
+    int16_t  ext_section_sz;   /\*< extType section size \*/
 
-int8_t\* p_ext_section; /* pointer to form extType \*/
-
-int16_t ext_section_sz; /* extType section size \*/
-
-};
-
-struct xran_cp_bf_attribute{
-
-int16_t weight[4];
-
-};
-
-struct xran_cp_bf_precoding{
-
-int16_t weight[4];
-
-};
-
-/\* section descriptor for given number of PRBs used on U-plane packet
-creation \*/
-
+/\* section descriptor for given number of PRBs used on U-plane packet creation \*/
 struct xran_section_desc {
 
-uint16_t section_id; /* section id used for this element \*/
+    uint16_t section_id; /\*< section id used for this element \*/
 
-int16_t iq_buffer_offset; /* Offset in bytes for the content of IQs
-with in main symb buffer \*/
+    int16_t iq_buffer_offset;    /\*< Offset in bytes for the content of IQs with in main symb buffer \*/
+    int16_t iq_buffer_len;       /\*< Length in bytes for the content of IQs with in main symb buffer \*/
 
-int16_t iq_buffer_len; /* Length in bytes for the content of IQs with
-in main symb buffer \*/
-
-uint8_t \*pData; /* optional pointer to data buffer \*/
-
-void \*pCtrl; /* optional poitner to mbuf \*/
-
+    uint8_t \*pData;      /\*< optional pointer to data buffer \*/
+    void    \*pCtrl;      /\*< optional poitner to mbuf \*/
+    
 };
-
-/* PRB element structure \*/
 
 struct xran_prb_elm {
+    int16_t nRBStart;    /\*< start RB of RB allocation \*/
+    int16_t nRBSize;     /\*< number of RBs used \*/
+    int16_t nStartSymb;  /\*< start symbol ID \*/
+    int16_t numSymb;     /\\*< number of symbols \*/
+    int16_t nBeamIndex;  /\*< beam index for given PRB \*/
+    int16_t bf_weight_update; /\* need to update beam weights or not \*/
+    int16_t compMethod;  /\*< compression index for given PRB \*/
+    int16_t iqWidth;     /\*< compression bit width for given PRB \*/
+    int16_t BeamFormingType; /\*< index based, weights based or attribute based beam forming\*/
 
-int16_t nRBStart; /* start RB of RB allocation \*/
+    struct xran_section_desc * p_sec_desc[XRAN_NUM_OF_SYMBOL_PER_SLOT]; /\*< section desctiptors to U-plane data given RBs \*/
+    struct xran_cp_bf_weight   bf_weight; /\*< beam forming information relevant for given RBs \*/
 
-int16_t nRBSize; /* number of RBs used \*/
-
-int16_t nStartSymb; /* start symbol ID \*/
-
-int16_t numSymb; /* number of symbols \*/
-
-int16_t nBeamIndex; /* beam index for given PRB \*/
-
-int16_t bf_weight_update; /* need to update beam weights or not \*/
-
-int16_t compMethod; /* compression index for given PRB \*/
-
-int16_t iqWidth; /* compression bit width for given PRB \*/
-
-int16_t BeamFormingType; /* index based, weights based or
-attribute-based beam forming*/
-
-struct xran_section_desc \* p_sec_desc[XRAN_NUM_OF_SYMBOL_PER_SLOT];
-/* section desctiptors to U-plane data given RBs \*/
-
-struct xran_cp_bf_weight bf_weight; /* beam forming information
-relevant for given RBs \*/
-
-union {
-
-struct xran_cp_bf_attribute bf_attribute;
-
-struct xran_cp_bf_precoding bf_precoding;
-
-};
-
-};
-
-/* PRB map structure \*/
+    union {
+        struct xran_cp_bf_attribute bf_attribute;
+        struct xran_cp_bf_precoding bf_precoding;
+        
+    };
+    
+/\* PRB map structure \*/
 
 struct xran_prb_map {
-
-uint8_t dir; /* DL or UL direction \*/
-
-uint8_t xran_port; /* xran id of given RU [0-(XRAN_PORTS_NUM-1)] \*/
-
-uint16_t band_id; /* xran band id \*/
-
-uint16_t cc_id; /* componnent carrier id [0 - (XRAN_MAX_SECTOR_NR-1)]
-\*/
-
-uint16_t ru_port_id; /* RU device antenna portid [0 -
-(XRAN_MAX_ANTENNA_NR-1)*/
-
-uint16_t tti_id; /* xRAN slot id [0 - (max tti-1)] \*/
-
-uint8_t start_sym_id; /* start symbol Id [0-13] \*/
-
-uint32_t nPrbElm; /* total number of PRB elements for given map [0-
-(XRAN_MAX_PRBS-1)] \*/
-
-struct xran_prb_elm prbMap[XRAN_MAX_PRBS];
-
+    uint8_t   dir;        /\*< DL or UL direction \*/
+    uint8_t   xran_port;  /\*< xran id of given RU [0-(XRAN_PORTS_NUM-1)] \*/
+    uint16_t  band_id;    /\*< xran band id \*/
+    uint16_t  cc_id;      /\*< componnent carrier id [0 - (XRAN_MAX_SECTOR_NR-1)] \*/
+    uint16_t  ru_port_id; /\*< RU device antenna port id [0 - (XRAN_MAX_ANTENNA_NR-1) \*/
+    uint16_t  tti_id;     /\*< xRAN slot id [0 - (max tti-1)] \*/
+    uint8_t   start_sym_id;     /\*< start symbol Id [0-13] \*/
+    uint32_t  nPrbElm;    /\*< total number of PRB elements for given map [0- (XRAN_MAX_PRBS-1)] \*/
+    struct xran_prb_elm prbMap[XRAN_MAX_PRBS];
+    
 };
 
+
 For the Bronze release C-plane sections are expected to be provided by L1
-pipeline. If 100% of RBs allocated at all times single element of RB map
+pipeline. If 100% of RBs always allocated single element of RB map
 is expected to be allocated across all symbols. Dynamic RB allocation is
 performed base on C-plane configuration.
 
@@ -1351,6 +1355,34 @@ application for mmWave – numerology 3, 100 MHz bandwidth, TDD (DDDS)
 
 -  Compression and beamforming are not used
 
+Common Header Fields::
+
+- dataDirection = XRAN_DIR_DL
+- payloadVersion = XRAN_PAYLOAD_VER
+- filterIndex = XRAN_FILTERINDEX_STANDARD
+- frameId = [0..99]
+- subframeId = [0..9]
+- slotID = [0..9]
+- startSymbolid = 0
+- numberOfsections = 1
+- sectionType = XRAN_CP_SECTIONTYPE_1
+- udCompHdr.idIqWidth = 0
+- udCompHdr.udCompMeth = XRAN_COMPMETHOD_NONE
+- reserved = 0
+
+Section Fields::
+
+- sectionId = [0..4095]
+- rb = XRAN_RBIND_EVERY
+- symInc = XRAN_SYMBOLNUMBER_NOTINC 
+- startPrbc = 0
+- numPrbc = 66
+- reMask = 0xfff
+- numSymbol = 14
+- ef = 0
+- beamId = 0
+
+
 **C-Plane Message – uplink symbol data for uplink slot**
 
 -  Single CP message with the single section of section type 1
@@ -1361,6 +1393,34 @@ application for mmWave – numerology 3, 100 MHz bandwidth, TDD (DDDS)
 -  Configures whole RBs (66) for a symbol
 
 -  Compression and beamforming are not used
+
+Common Header Fields::
+
+- dataDirection = XRAN_DIR_UL
+- payloadVersion = XRAN_PAYLOAD_VER
+- filterIndex = XRAN_FILTERINDEX_STANDARD
+- frameId = [0..99]
+- subframeId = [0..9]
+- slotID = [0..9]
+- startSymbolid = 3
+- numberOfsections = 1
+- sectionType = XRAN_CP_SECTIONTYPE_1
+- udCompHdr.idIqWidth = 0
+- udCompHdr.udCompMeth = XRAN_COMPMETHOD_NONE
+- reserved = 0
+
+Section Fields::
+
+- sectionId = [0..4095]
+- rb = XRAN_RBIND_EVERY
+- symInc = XRAN_SYMBOLNUMBER_NOTINC 
+- startPrbc = 0
+- numPrbc = 66
+- reMask = 0xfff
+- numSymbol = 11
+- ef = 0
+- beamId = 0
+
 
 **C-Plane Message – PRACH**
 
@@ -1390,14 +1450,46 @@ application for mmWave – numerology 3, 100 MHz bandwidth, TDD (DDDS)
 
 -  Compression and beamforming are not used
 
+Common Header Fields::
+
+-  dataDirection = XRAN_DIR_UL
+-  payloadVersion = XRAN_PAYLOAD_VER
+-  filterIndex = XRAN_FILTERINDEPRACH_ABC
+-  frameId = [0,99]
+-  subframeId = [0,3]
+-  slotID = 3 or 7
+-  startSymbolid = 7
+-  numberOfSections = 1
+-  sectionType = XRAN_CP_SECTIONTYPE_3
+-  timeOffset = 2026
+-  frameStructure.FFTSize = XRAN_FFTSIZE_1024
+-  frameStructure.u = XRAN_SCS_120KHZ
+-  cpLength = 0
+-  udCompHdr.idIqWidth = 0
+-  udCompHdr.udCompMeth = XRAN_COMPMETHOD_NONE
+
+Section Fields::
+
+- sectionId = [0..4095]
+- rb = XRAN_RBIND_EVERY
+- symInc = XRAN_SYMBOLNUMBER_NOTINC 
+- startPrbc = 0
+- numPrbc = 12
+- reMask = 0xfff
+- numSymbol = 6
+- ef = 0
+- beamId = 0
+- frequencyOffset = -792
+- reserved
+
+
 Functions to Store/Retrieve Section Information
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 There are several functions to store/retrieve section information of
 C-Plane messages. Since U-plane messages must be generated by the
 information in the sections of a C-Plane message, it is required to
-store and retrieve section |br|
-information.
+store and retrieve section information.
 
 **APIs and Data Structure**
 '''''''''''''''''''''''''''
@@ -1470,7 +1562,7 @@ context index to identify and protect the information. Currently the
 maximum number of context is defined by two and it can be adjusted if
 needed.
 
-8. Since the context index is not managed by the library and APIs are
+Note. Since the context index is not managed by the library and APIs are
 expecting it from the caller as a parameter, the caller shall
 consider a proper method to manage it to avoid corruption. The
 current reference implementation uses a slot and subframe index to
@@ -1543,7 +1635,7 @@ A message is built in mbuf space given as a parameter. The library
 builds eCPRI header filling structure fields by taking the IQ sample
 size and populating a particular packet length and sequence number.
 
-Currently, the supported IQ bit width is 16.
+With compression, supported IQ bit widths are 8,9,10,12,14.
 
 Implementation of a U-plane set of functions is defined in xran_up_api.c
 and is used to prepare U-plane packet content according to the given
@@ -1641,7 +1733,7 @@ periodic timer because the TSC clock can drift substantially relative to
 the system timer which in turn is synchronized to PTP (GPS)
 
 Only single-shot timers are used to schedule processing based on
-particular events such as symbol time. The packet |br|
+events such as symbol time. The packet |br|
 processing function
 calls rte_timer_manage() in the loop, and the resulting execution of
 timer function happens right |br|

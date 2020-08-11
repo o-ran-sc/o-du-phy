@@ -54,18 +54,13 @@ uint8_t nr5g_fapi_ul_iq_samples_response(
     }
 
     if (NULL == p_iapi_resp) {
-        NR5G_FAPI_LOG(ERROR_LOG, ("[UL_IQ_SAMPLES.response] Invalid iapi "
+        NR5G_FAPI_LOG(ERROR_LOG, ("[UL_IQ_SAMPLES.response] Invalid IAPI "
                 "ULIQ_Samples response message"));
         return FAILURE;
     }
 
     phy_id = p_iapi_resp->sSFN_Slot.nCarrierIdx;
     p_phy_instance = &p_phy_ctx->phy_instance[phy_id];
-    if (p_phy_instance->phy_id != phy_id) {
-        NR5G_FAPI_LOG(ERROR_LOG, (" [UL_IQ_SAMPLES.response] Invalid "
-                "phy instance"));
-        return FAILURE;
-    }
     // Create FAPI message header
     if (p_phy_instance->state == FAPI_STATE_IDLE) {
         nr5g_fapi_message_header_per_phy(phy_id);
