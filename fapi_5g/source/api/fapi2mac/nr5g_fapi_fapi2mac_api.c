@@ -43,7 +43,7 @@ static nr5g_fapi_fapi2mac_queue_t fapi2mac_q[FAPI_MAX_PHY_INSTANCES];
  *
 **/
 //------------------------------------------------------------------------------
-inline p_nr5g_fapi_fapi2mac_queue_t nr5g_fapi_fapi2mac_queue(
+static inline p_nr5g_fapi_fapi2mac_queue_t nr5g_fapi_fapi2mac_queue(
     uint8_t phy_id)
 {
     return &fapi2mac_q[phy_id];
