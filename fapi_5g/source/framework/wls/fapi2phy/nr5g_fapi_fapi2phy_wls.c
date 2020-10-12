@@ -91,7 +91,7 @@ static inline WLS_HANDLE nr5g_fapi_fapi2phy_wls_instance(
  *
 **/
 //----------------------------------------------------------------------------------
-inline uint64_t *nr5g_fapi_fapi2phy_wls_get(
+static inline uint64_t *nr5g_fapi_fapi2phy_wls_get(
     uint32_t * msg_size,
     uint16_t * msg_type,
     uint16_t * flags)
@@ -125,7 +125,7 @@ inline uint64_t *nr5g_fapi_fapi2phy_wls_get(
  *
 **/
 //----------------------------------------------------------------------------------
-inline uint8_t nr5g_fapi_fapi2phy_wls_put(
+static inline uint8_t nr5g_fapi_fapi2phy_wls_put(
     uint64_t p_msg,
     uint32_t msg_size,
     uint16_t msg_type,
@@ -154,7 +154,7 @@ inline uint8_t nr5g_fapi_fapi2phy_wls_put(
  *
 **/
 //----------------------------------------------------------------------------------
-inline uint8_t nr5g_fapi_fapi2phy_wls_wait(
+static inline uint8_t nr5g_fapi_fapi2phy_wls_wait(
     )
 {
     int ret = SUCCESS;

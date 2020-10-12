@@ -196,7 +196,7 @@ typedef struct _nr5g_fapi_phy_context {
 *p_nr5g_fapi_phy_ctx_t;
 
 // Function Declarations
-inline p_nr5g_fapi_phy_ctx_t nr5g_fapi_get_nr5g_fapi_phy_ctx(
+p_nr5g_fapi_phy_ctx_t nr5g_fapi_get_nr5g_fapi_phy_ctx(
     );
 uint8_t nr5g_fapi_framework_init(
     );

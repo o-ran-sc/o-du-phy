@@ -197,7 +197,7 @@ uint8_t nr5g_fapi_fapi2mac_wls_ready(
  *
 **/
 //------------------------------------------------------------------------------
-uint8_t nr5g_fapi_fapi2mac_wls_wait(
+static inline uint8_t nr5g_fapi_fapi2mac_wls_wait(
     )
 {
     int ret = SUCCESS;
@@ -269,7 +269,7 @@ uint64_t *nr5g_fapi_fapi2mac_wls_get(
  *
 **/
 //------------------------------------------------------------------------------
-inline uint8_t nr5g_fapi_fapi2mac_wls_put(
+uint8_t nr5g_fapi_fapi2mac_wls_put(
     p_fapi_api_queue_elem_t p_msg,
     uint32_t msg_size,
     uint16_t msg_type,

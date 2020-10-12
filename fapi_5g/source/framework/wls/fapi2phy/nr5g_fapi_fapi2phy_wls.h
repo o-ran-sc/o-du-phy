@@ -33,8 +33,6 @@ uint8_t nr5g_fapi_fapi2phy_wls_send(
     void *data);
 PMAC2PHY_QUEUE_EL nr5g_fapi_fapi2phy_wls_recv(
     );
-inline uint8_t nr5g_fapi_fapi2phy_wls_wait(
-    );
 void wls_fapi_add_send_apis_to_free(
     PMAC2PHY_QUEUE_EL pListElem,
     uint32_t idx);

@@ -39,8 +39,6 @@ p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_wls_recv(
 
 uint8_t nr5g_fapi_fapi2mac_wls_ready(
     );
-uint8_t nr5g_fapi_fapi2mac_wls_wait(
-    );
 
 void *nr5g_fapi_fapi2mac_wls_alloc_buffer(
     );
