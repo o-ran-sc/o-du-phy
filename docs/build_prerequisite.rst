@@ -1,4 +1,4 @@
-..    Copyright (c) 2019 Intel
+﻿..    Copyright (c) 2019 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -77,7 +77,7 @@ Download and Build DPDK
 
    - build DPDK
       build DPDK::
-
+        Set your ICC installation path to /usertools/dpdk-setup.sh, DEFAULT_PATH="your ICC installation path"/bin/iccvars.sh, then run it to build DPDK with below option.
         #./usertools/dpdk-setup.sh
         select [39] x86_64-native-linuxapp-icc
         exit   [62] Exit Script
@@ -85,7 +85,7 @@ Download and Build DPDK
    - set DPDK path
        DPDK path is needed during build and run lib/app::
 
-        #export RTE_SDK=Intallation_DIR/dpdk-19.11
+        #export RTE_SDK=Installation_DIR/dpdk-19.11
         #export DESTDIR=Installation_DIR/dpdk-19.11
 
 

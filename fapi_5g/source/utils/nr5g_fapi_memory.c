@@ -26,7 +26,7 @@
 #include <string.h>
 #include "nr5g_fapi_wls.h"
 
-inline uint8_t nr5g_fapi_memcpy_bound_check(
+uint8_t nr5g_fapi_memcpy_bound_check(
     void *d,
     size_t x,
     const void *s,
@@ -61,7 +61,7 @@ inline uint8_t nr5g_fapi_memcpy_bound_check(
     return SUCCESS;
 }
 
-inline uint8_t nr5g_fapi_memset_bound_check(
+uint8_t nr5g_fapi_memset_bound_check(
     void *s,
     size_t x,
     int32_t c,
@@ -78,7 +78,7 @@ inline uint8_t nr5g_fapi_memset_bound_check(
     return SUCCESS;
 }
 
-inline uint8_t nr5g_fapi_strcpy_bound_check(
+uint8_t nr5g_fapi_strcpy_bound_check(
     char *d,
     size_t x,
     const char *s,
