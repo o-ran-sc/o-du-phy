@@ -92,11 +92,11 @@ typedef struct _nr5g_fapi_wls_context {
 
 extern nr5g_fapi_wls_context_t g_wls_ctx;
 
-inline p_nr5g_fapi_wls_context_t nr5g_fapi_wls_context(
+p_nr5g_fapi_wls_context_t nr5g_fapi_wls_context(
     );
-inline uint8_t nr5g_fapi_fapi2phy_wls_ready(
+uint8_t nr5g_fapi_fapi2phy_wls_ready(
     );
-inline uint8_t nr5g_fapi_fapi2mac_wls_ready(
+uint8_t nr5g_fapi_fapi2mac_wls_ready(
     );
 uint8_t nr5g_fapi_wls_init(
     );

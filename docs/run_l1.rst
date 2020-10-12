@@ -1,4 +1,4 @@
-..    Copyright (c) 2019 Intel
+﻿..    Copyright (c) 2019 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -16,12 +16,30 @@
 
    <br />
 
-Run L1
-======
+Run L1 and Testmac
+===================
 
 .. contents::
     :depth: 3
     :local:
+
+Before you run L1, please make sure all the FH, WLS, and FAPI TM lib was built according to above relative chapters for each lib, or you can refer below quick build command to create these libs.
+
+Build FH
+------------
+     under folder phy/fhi_lib::
+
+     #./build.sh
+
+Build WLS
+-------------
+     under folder phy/wls_lib::
+     #./build.sh
+
+Build FAPI TM
+--------------
+     under folder phy/fapi_5g/build::
+     #./build.sh
 
 For the Bronze release, the L1 only has a binary image as well as the testmac which is an L2 test application, details of the L1 and testmac application are in https://github.com/intel/FlexRAN
 
