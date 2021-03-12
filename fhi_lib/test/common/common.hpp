@@ -20,8 +20,9 @@
 #include <string>
 #include <utility>
 #include <vector>
-
+#if !defined(RTE_ARCH_ARM64)
 #include <immintrin.h>
+#endif
 #include <malloc.h>
 
 #define _BBLIB_DPDK_
@@ -29,6 +30,7 @@
 #ifdef _BBLIB_DPDK_
 #include <rte_config.h>
 #include <rte_malloc.h>
+#include <rte_cycles.h>
 #endif
 
 #include "gtest/gtest.h"
@@ -68,6 +70,9 @@ struct reading_input_file_exception : public std::exception
         return "Input file cannot be read!";
     }
 };
+
+template <typename F, typename ... Args>
+std::pair<double, double> run_benchmark(F function, Args ... args);
 
 /*!
     \brief Attach current process to the selected core.
@@ -587,11 +592,19 @@ std::pair<double, double> run_benchmark(F function, Args ... args)
     std::vector<long> results((unsigned long) BenchmarkParameters::repetition);
 
     for(unsigned int outer_loop = 0; outer_loop < BenchmarkParameters::repetition; outer_loop++) {
+#if !defined(RTE_ARCH_ARM64)
         const auto start_time =  __rdtsc();
+#else
+        const auto start_time =  rte_rdtsc();
+#endif
         for (unsigned int inner_loop = 0; inner_loop < BenchmarkParameters::loop; inner_loop++) {
                 function(args ...);
         }
+#if !defined(RTE_ARCH_ARM64)
         const auto end_time = __rdtsc();
+#else
+        const auto end_time = rte_rdtsc();
+#endif
         results.push_back(end_time - start_time);
     }
 

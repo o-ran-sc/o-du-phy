@@ -108,7 +108,9 @@ unsigned long tsc_recovery()
 #ifndef _WIN64
     constexpr auto ns_per_sec = 1E9;
 
-    struct timespec sleeptime = {.tv_nsec = __syscall_slong_t(5E8) };
+    struct timespec sleeptime = {
+        .tv_sec = 0,
+        .tv_nsec = __syscall_slong_t(5E8) };
 
     struct timespec t_start, t_end;
 
@@ -148,6 +150,9 @@ unsigned long tsc_recovery()
 
 unsigned long tsc_tick()
 {
+#if defined(RTE_ARCH_ARM64)
+	return rte_rdtsc();
+#endif
 #ifndef _WIN64
     unsigned long hi, lo;
 

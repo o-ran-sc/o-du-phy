@@ -18,7 +18,9 @@
 
 #pragma once
 #include <stdint.h>
+#ifndef RTE_ARCH_ARM64
 #include <immintrin.h>
+#endif
 
 // This configuration file sets global constants and macros which are
 // of general use throughout the project.
