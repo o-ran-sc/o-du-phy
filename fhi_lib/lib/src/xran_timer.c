@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <rte_cycles.h>
 
 #include "xran_timer.h"
 #include "xran_printf.h"
@@ -134,9 +135,13 @@ void timing_adjust_gps_second(struct timespec* p_time)
 }
 uint64_t xran_tick(void)
 {
+#if defined(RTE_ARCH_ARM64) && !defined(CONFIG_RTE_ARM_EAL_RDTSC_USE_PMU)
+	return (rte_rdtsc() *80);
+#else
     uint32_t hi, lo;
     __asm volatile ("rdtsc" : "=a"(lo), "=d"(hi));
     return ( (uint64_t)lo)|( ((uint64_t)hi)<<32 );
+#endif
 }
 
 unsigned long get_ticks_diff(unsigned long curr_tick, unsigned long last_tick)

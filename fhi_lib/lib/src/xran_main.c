@@ -2647,8 +2647,11 @@ int32_t xran_sector_get_instances (void * pDevHandle, uint16_t nNumInstances,
     for (i = 0; i < nNumInstances; i++) {
 
         /* Allocate Memory for CC handles */
+#if !defined(RTE_ARCH_ARM64)
         pCcHandle = (XranSectorHandleInfo *) _mm_malloc( /*"xran_cc_handles",*/ sizeof (XranSectorHandleInfo), 64);
-
+#else
+        pCcHandle = (XranSectorHandleInfo *) rte_malloc( "xran_cc_handles", sizeof (XranSectorHandleInfo), 64);
+#endif
         if(pCcHandle == NULL)
             return XRAN_STATUS_RESOURCE;
 

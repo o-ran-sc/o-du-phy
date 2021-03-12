@@ -32,6 +32,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <getopt.h>  // for getopt
+#include <rte_cycles.h>
 
 
 #include "common.h"
@@ -288,6 +289,9 @@ void xran_fh_rx_srs_callback(void *pCallbackTag, xran_status_t status)
 //-------------------------------------------------------------------------------------------
 unsigned long timer_get_ticks(void)
 {
+#if defined(RTE_ARCH_ARM64) && !defined(CONFIG_RTE_ARM_EAL_RDTSC_USE_PMU)
+	return rte_rdtsc();
+#else
     unsigned long ret;
     union
     {
@@ -305,6 +309,7 @@ unsigned long timer_get_ticks(void)
 
      ret = ((unsigned long)tsc.tsc_64);
      return ret;
+#endif
 }
 
 //-------------------------------------------------------------------------------------------
@@ -964,8 +969,9 @@ int init_xran_iq_content(void)
 
                                     bfp_com_rsp.data_out   = (int8_t*)dst;
                                     bfp_com_rsp.len        = 0;
-
+#if !defined(RTE_ARCH_ARM64)
                                     xranlib_compress_avx512(&bfp_com_req, &bfp_com_rsp);
+#endif
                                     payload_len = bfp_com_rsp.len;
 
                                 }else {
@@ -1254,8 +1260,9 @@ int get_xran_iq_content(void)
 
                                             bfp_decom_rsp.data_out   = (int16_t *)(pos + pRbElm->nRBStart*N_SC_PER_PRB*4);
                                             bfp_decom_rsp.len        = 0;
-
+#if !defined(RTE_ARCH_ARM64)
                                             xranlib_decompress_avx512(&bfp_decom_req, &bfp_decom_rsp);
+#endif
                                             payload_len = bfp_decom_rsp.len;
 
                                        } else {

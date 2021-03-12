@@ -91,13 +91,16 @@ CC_SRC = $(ETH_DIR)/ethdi.c \
 	$(SRC_DIR)/xran_app_frag.c \
 	$(SRC_DIR)/xran_main.c
 
-CPP_SRC = $(SRC_DIR)/xran_compression.cpp \
+
+ifeq ($(CONFIG_RTE_ARCH_ARM64),n)
+CPP_SRC += $(SRC_DIR)/xran_compression.cpp \
 	$(SRC_DIR)/xran_bfp_ref.cpp \
 	$(SRC_DIR)/xran_bfp_cplane8.cpp \
 	$(SRC_DIR)/xran_bfp_cplane16.cpp \
 	$(SRC_DIR)/xran_bfp_cplane32.cpp \
 	$(SRC_DIR)/xran_bfp_cplane64.cpp
 
+endif
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
 	-ffunction-sections \
@@ -108,7 +111,11 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 
 ifeq ($(BUILD_GCC),)
 CC_FLAGS += -wd1786
+else
+ARM_FLAGS = -march=armv8-a+crc -mtune=cortex-a72  -DRTE_ARCH_64 -DRTE_ARCH_ARM64 -DRTE_MACHINE_CPUFLAG_NEON  -DRTE_MACHINE_CPUFLAG_CRC32
+CC_FLAGS += $(ARM_FLAGS) -mtls-dialect=trad
 endif
+
 CC_FLAGS += -fstack-protector-strong -z,now, -z,relro \
            -z noexecstack -Wformat -Wformat-security -Werror=format-security \
            -fno-strict-overflow -fwrapv
@@ -121,6 +128,10 @@ CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REE
 else
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe \
            -falign-functions=16 -Werror -Wno-unused-variable -std=c++11
+
+ifeq ($(CONFIG_RTE_ARCH_ARM64),n)
+CPP_FLAGS += $(ARM_FLAGS)
+endif
 endif
 INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
 DEF :=

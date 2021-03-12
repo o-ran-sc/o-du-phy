@@ -75,6 +75,12 @@ CPPFLAGS += -isystem $(GTEST_ROOT)/include
 
 # Flags passed to the C++ compiler.
 CXXFLAGS += -g -std=gnu++11 -Wall -Wextra -pthread -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I $(COMMON_TEST_DIR) -I$(RTE_INC)
+ifeq ($(BUILD_GCC),)
+CXXFLAGS +=
+else
+ARM_FLAGS = -march=armv8-a+crc -mtune=cortex-a72  -DRTE_ARCH_64 -DRTE_ARCH_ARM64 -DRTE_MACHINE_CPUFLAG_NEON  -DRTE_MACHINE_CPUFLAG_CRC32
+CXXFLAGS += $(ARM_FLAGS) -mtls-dialect=trad
+endif
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
@@ -98,7 +104,10 @@ CFLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations \
 
 ifeq ($(BUILD_GCC),)
 CC_FLAGS += -wd1786
+else
+CC_FLAGS += $(ARM_FLAGS) -mtls-dialect=trad
 endif
+
 
 C_SRC = \
 	$(USER_ETH)/ethdi.c    \
@@ -129,22 +138,34 @@ CC_SRC = \
 
 #	u_plane_performance.cc \
 
-CPP_SRC = $(COMMON_TEST_DIR)/common.cpp \
-	$(USER_DIR)/xran_compression.cpp \
+CPP_SRC = $(COMMON_TEST_DIR)/common.cpp
+
+ifeq ($(CONFIG_RTE_ARCH_ARM64),n)
+
+CC_SRC += chain_tests.cc \
+	init_sys_functional.cc \
+	u_plane_performance.cc
+
+CPP_SRC += $(USER_DIR)/xran_compression.cpp \
 	$(USER_DIR)/xran_bfp_ref.cpp \
 	$(USER_DIR)/xran_bfp_cplane8.cpp \
 	$(USER_DIR)/xran_bfp_cplane16.cpp \
 	$(USER_DIR)/xran_bfp_cplane32.cpp \
 	$(USER_DIR)/xran_bfp_cplane64.cpp
 
+endif
+
 C_OBJS := $(patsubst %.c,%.o,$(C_SRC))
 CC_OBJS := $(patsubst %.cc,%.o,$(CC_SRC))
 CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
 
+CPPFLAGS += -I$(USER_DIR) -I$(USER_API) -I$(USER_ETH) -I$(MLOG_DIR)/source -I$(RTE_INC)
 
 CPP_COMP = -O3 -g
 ifeq ($(BUILD_GCC),)
 CPP_COMP += -xcore-avx512 -restrict -fasm-blocks
+else
+CPP_COMP += $(ARM_FLAGS) -mtls-dialect=trad
 endif
 
 # House-keeping build targets.

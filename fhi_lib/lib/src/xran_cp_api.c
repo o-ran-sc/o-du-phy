@@ -498,6 +498,7 @@ int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination 
             rte_memcpy(p_bfw_content, p_bfw_iq_src, parm_size);
         } else {
             bfp_com_rsp.data_out = (int8_t*)p_bfw_content;
+#if !defined(RTE_ARCH_ARM64)
             if(xranlib_compress_avx512_bfw(&bfp_com_req, &bfp_com_rsp) == 0){
                 comp_len = bfp_com_rsp.len;
                 print_dbg("comp_len %d parm_size %d\n", comp_len, parm_size);
@@ -505,6 +506,7 @@ int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination 
                 print_err("compression failed\n");
                 return (XRAN_STATUS_FAIL);
             }
+#endif
         }
 
         p_bfw_content = (uint8_t *)(p_bfw_content + parm_size);
