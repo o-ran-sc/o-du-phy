@@ -22,6 +22,7 @@
 ##############################################################
 #  Tools configuration
 ##############################################################
+ifeq ($(BUILD_GCC),)
 CC  := icc
 CXX := icpc
 CPP := icpc
@@ -29,6 +30,15 @@ AS := as
 AR := ar
 LD := icc
 OBJDUMP := objdump
+else
+CC := $(CROSS)gcc
+CXX := $(CROSS)g++
+CPP := $(CROSS)g++
+AS := $(CROSS)as
+AR := $(CROSS)ar
+LD := $(CROSS)gcc
+OBJDUMP := $(CROSS)objdump
+endif
 
 ifeq ($(SHELL),cmd.exe)
 MD := mkdir.exe -p
@@ -84,8 +94,11 @@ CFLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations \
 	-g \
 	-Wall \
 	-Wimplicit-function-declaration  \
-	-wd1786 \
 	-I$(USER_DIR) -I$(USER_API) -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I$(RTE_INC)
+
+ifeq ($(BUILD_GCC),)
+CC_FLAGS += -wd1786
+endif
 
 C_SRC = \
 	$(USER_ETH)/ethdi.c    \
@@ -128,9 +141,11 @@ C_OBJS := $(patsubst %.c,%.o,$(C_SRC))
 CC_OBJS := $(patsubst %.cc,%.o,$(CC_SRC))
 CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
 
-CPPFLAGS += -I$(USER_DIR) -I$(USER_API) 
 
-CPP_COMP = -O3 -xcore-avx512 -restrict -g -fasm-blocks
+CPP_COMP = -O3 -g
+ifeq ($(BUILD_GCC),)
+CPP_COMP += -xcore-avx512 -restrict -fasm-blocks
+endif
 
 # House-keeping build targets.
 all : echo_start_build $(TESTS)

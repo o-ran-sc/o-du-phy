@@ -23,12 +23,22 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 ##############################################################
 #  Tools configuration
 ##############################################################
+ifeq ($(BUILD_GCC),)
 CC  := icc
 CPP := icpc
 AS := as
 AR := ar
 LD := icc
 OBJDUMP := objdump
+else
+CC := $(CROSS)gcc
+CXX := $(CROSS)g++
+CPP := $(CROSS)g++
+AS := $(CROSS)as
+AR := $(CROSS)ar
+LD := $(CROSS)gcc
+OBJDUMP := $(CROSS)objdump
+endif
 
 ifeq ($(SHELL),cmd.exe)
 MD := mkdir.exe -p
@@ -91,17 +101,27 @@ CPP_SRC = $(SRC_DIR)/xran_compression.cpp \
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
 	-ffunction-sections \
-	-g \
+	-g -O3 \
         -fPIC \
 	-Wall \
-	-Wimplicit-function-declaration \
-	-g -O3 -wd1786
+	-Wimplicit-function-declaration
 
+ifeq ($(BUILD_GCC),)
+CC_FLAGS += -wd1786
+endif
+CC_FLAGS += -fstack-protector-strong -z,now, -z,relro \
+           -z noexecstack -Wformat -Wformat-security -Werror=format-security \
+           -fno-strict-overflow -fwrapv
+
+ifeq ($(BUILD_GCC),)
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
                 -no-prec-div -fp-model fast=2 -fPIC \
                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
-        -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
-
+                -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
+else
+CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe \
+           -falign-functions=16 -Werror -Wno-unused-variable -std=c++11
+endif
 INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
 DEF :=
 ifeq ($(MLOG),1)
@@ -128,7 +148,11 @@ CC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CC_OBJS))
 CPP_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS))
 
 AS_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(AS_OBJS))
+ifeq ($(BUILD_GCC),)
 CPP_COMP       := -O3 -xcore-avx512 -restrict -g -fasm-blocks
+else
+CPP_COMP       := -O3 -Wrestrict -g
+endif
 CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
 CPP_FLAGS_FULL := $(CPP_FLAGS) $(CPP_COMP) $(INC) $(DEF)
 

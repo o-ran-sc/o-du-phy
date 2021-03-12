@@ -23,12 +23,21 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 ##############################################################
 #  Tools configuration
 ##############################################################
+ifeq ($(BUILD_GCC),)
 CC  := icc
 CPP := icpc
 AS := as
 AR := ar
 LD := icc
 OBJDUMP := objdump
+else
+CC := $(CROSS)gcc
+LD := $(CROSS)gcc
+CPP := $(CROSS)g++
+AS := $(CROSS)as
+AR := $(CROSS)ar
+OBJDUMP := $(CROSS)objdump
+endif
 
 ifeq ($(SHELL),cmd.exe)
 MD := mkdir.exe -p
@@ -69,15 +78,20 @@ CC_SRC = $(SRC_DIR)/common.c \
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
 	-ffunction-sections \
-	-g \
+	-g -O3 \
 	-Wall \
-	-Wimplicit-function-declaration \
-	-g -O3 -wd1786
+	-Wimplicit-function-declaration
+
+ifeq ($(BUILD_GCC),)
+CC_FLAGS += -wd1786
+endif
+
+CC_FLAGS += -fstack-protector-strong -z,now, -z,relro -z noexecstack -Wformat -Wformat-security -Werror=format-security -fno-strict-overflow -fwrapv
 
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
                 -no-prec-div -fp-model fast=2\
                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
-        -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
+                -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
 
 INC :=  -I$(API_DIR) -I$(RTE_INC)
 DEF :=
