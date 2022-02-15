@@ -26,6 +26,7 @@ O-RAN FH Lib Introduction
    Sample-Application_fh.rst
    Setup-Configuration_fh.rst
    PTP-configuration_fh.rst
+   ecpri_ddp_profile.rst
    
 
 
