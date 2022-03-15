@@ -1,4 +1,4 @@
-..    Copyright (c) 2019-2020 Intel
+..    Copyright (c) 2019-2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -14,6 +14,11 @@
 
 WLS Library Release Notes
 =========================
+
+Version WLS oran_e_maintenance_release_v1.0, Mar 2022
+-----------------------------------------------------
+
+* Minor changes to deal with initial shared memory management
 
 Version WLS oran_release_bronze_v1.1, Aug 2020
 --------------------------------------------------

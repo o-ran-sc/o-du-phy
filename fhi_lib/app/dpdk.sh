@@ -2,7 +2,7 @@
 
 #/******************************************************************************
 #*
-#*   Copyright (c) 2019 Intel.
+#*   Copyright (c) 2020 Intel.
 #*
 #*   Licensed under the Apache License, Version 2.0 (the "License");
 #*   you may not use this file except in compliance with the License.
@@ -140,8 +140,18 @@ if [ ${VM_DETECT} == 'HOST' ]; then
     #HOST
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:02.0
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:02.1
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:02.2
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:0a.0
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:0a.1
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:0a.2
+
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:02.0
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:02.1
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:02.2
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:0a.0
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:0a.1
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:0a.2
+
 else
     #VM
     $RTE_SDK/usertools/dpdk-devbind.py --bind=igb_uio 0000:00:04.0

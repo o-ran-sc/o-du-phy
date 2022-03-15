@@ -31,6 +31,7 @@
 #include "nr5g_fapi_log.h"
 
 nr5g_fapi_fapi2phy_queue_t fapi2phy_q;
+nr5g_fapi_fapi2phy_queue_t fapi2phy_q_urllc;
 
 //------------------------------------------------------------------------------
 /** @ingroup     group_source_api_fapi2phy
@@ -48,6 +49,12 @@ p_nr5g_fapi_fapi2phy_queue_t nr5g_fapi_fapi2phy_queue(
     )
 {
     return &fapi2phy_q;
+}
+
+p_nr5g_fapi_fapi2phy_queue_t nr5g_fapi_fapi2phy_queue_urllc(
+    )
+{
+    return &fapi2phy_q_urllc;
 }
 
 uint8_t nr5g_fapi_get_stats_location(
@@ -152,6 +159,7 @@ PMAC2PHY_QUEUE_EL nr5g_fapi_fapi2phy_create_api_list_elem(
 **/
 //------------------------------------------------------------------------------
 void nr5g_fapi_fapi2phy_add_to_api_list(
+    bool is_urllc,
     PMAC2PHY_QUEUE_EL p_list_elem)
 {
     p_nr5g_fapi_fapi2phy_queue_t queue = NULL;
@@ -160,7 +168,9 @@ void nr5g_fapi_fapi2phy_add_to_api_list(
         return;
     }
 
-    queue = nr5g_fapi_fapi2phy_queue();
+    queue = is_urllc ? nr5g_fapi_fapi2phy_queue_urllc()
+                     : nr5g_fapi_fapi2phy_queue();
+
     if (queue->p_send_list_head && queue->p_send_list_tail) {
         queue->p_send_list_tail->pNext = p_list_elem;
         queue->p_send_list_tail = p_list_elem;
@@ -181,17 +191,18 @@ void nr5g_fapi_fapi2phy_add_to_api_list(
 **/
 //------------------------------------------------------------------------------
 void nr5g_fapi_fapi2phy_send_api_list(
-    )
+    bool is_urllc)
 {
     uint8_t ret = FAILURE;
     p_nr5g_fapi_fapi2phy_queue_t queue = NULL;
 
-    queue = nr5g_fapi_fapi2phy_queue();
+    queue = is_urllc ? nr5g_fapi_fapi2phy_queue_urllc()
+                     : nr5g_fapi_fapi2phy_queue();
     if (queue->p_send_list_head) {
 
         NR5G_FAPI_LOG(TRACE_LOG,
             ("[NR5G_FAPI][FAPI2PHY] Sending API's to PHY"));
-        ret = nr5g_fapi_fapi2phy_wls_send(queue->p_send_list_head);
+        ret = nr5g_fapi_fapi2phy_wls_send(queue->p_send_list_head, is_urllc);
         if (FAILURE == ret) {
             NR5G_FAPI_LOG(ERROR_LOG,
                 ("[NR5G_FAPI][FAPI2PHY] Error sending API's to PHY"));

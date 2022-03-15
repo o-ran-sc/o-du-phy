@@ -41,15 +41,14 @@ endif
 ##############################################################
 # TARGET
 ##############################################################
-ifeq ($(RTE_TARGET),)
-    RTE_TARGET :=x86_64-native-linuxapp-icc
-endif
-##############################################################
-# DPDK
-##############################################################
 ifeq ($(RTE_SDK),)
-$(info Please make sure RTE_SDK points to DPDK folder (current version of DPDK is 18.08))
-    RTE_SDK := /opt/dpdk-18.08
+    $(error "Please define RTE_SDK environment variable")
+endif
+
+ifeq ($(MESON_BUILD),0)
+RTE_INC := $(RTE_SDK)/$(RTE_TARGET)/include
+else
+RTE_INC := $(shell PKG_CONFIG_PATH=$(RTE_SDK)/build/meson-uninstalled pkg-config --cflags-only-I libdpdk)
 endif
 
 ##############################################################
@@ -65,26 +64,24 @@ oran_5g_fapi_dep_file = $(BUILDDIR)/oran_5g_fapi_dep
 APP := ../bin/oran_5g_fapi
 
 INC := \
- $(WLSDIR) \
- $(SRCDIR)/../include \
- $(SRCDIR)/common \
- $(SRCDIR)/include \
- $(SRCDIR)/framework/workers \
- $(SRCDIR)/framework/wls/fapi2mac \
- $(SRCDIR)/framework/wls/fapi2phy \
- $(SRCDIR)/framework/wls/lib \
- $(SRCDIR)/api/fapi2mac \
- $(SRCDIR)/api/fapi2phy \
- $(FLEXRANDIR)/source/nr5g/api \
- $(FLEXRANDIR)/source/common \
- $(RTE_SDK)/$(RTE_TARGET)/include \
- $(SRCDIR)/api/fapi2phy/p5 \
- $(SRCDIR)/api/fapi2phy/p7 \
- $(SRCDIR)/api/fapi2mac/p5 \
- $(SRCDIR)/api/fapi2mac/p7 \
- $(SRCDIR)/utils \
-
-INC := $(addprefix -I,$(INC))
+ -I$(WLSDIR) \
+ -I$(SRCDIR)/../include \
+ -I$(SRCDIR)/common \
+ -I$(SRCDIR)/include \
+ -I$(SRCDIR)/framework/workers \
+ -I$(SRCDIR)/framework/wls/fapi2mac \
+ -I$(SRCDIR)/framework/wls/fapi2phy \
+ -I$(SRCDIR)/framework/wls/lib \
+ -I$(SRCDIR)/api/fapi2mac \
+ -I$(SRCDIR)/api/fapi2phy \
+ -I$(FLEXRANDIR)/source/nr5g/api \
+ -I$(FLEXRANDIR)/source/common \
+ -I$(SRCDIR)/api/fapi2phy/p5 \
+ -I$(SRCDIR)/api/fapi2phy/p7 \
+ -I$(SRCDIR)/api/fapi2mac/p5 \
+ -I$(SRCDIR)/api/fapi2mac/p7 \
+ -I$(SRCDIR)/utils \
+ $(RTE_INC) \
  
 DEFS := USE_WO_LOCK _GNU_SOURCE
 
@@ -109,7 +106,11 @@ CFLAGS := $(CFLAGS) -Werror
 endif
 
 #RTE_LIBS := -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,--whole-archive -Wl,-lrte_distributor -Wl,-lrte_kni -Wl,-lrte_pipeline -Wl,-lrte_table -Wl,-lrte_port -Wl,-lrte_timer -Wl,-lrte_hash -Wl,-lrte_lpm -Wl,-lrte_power -Wl,-lrte_acl -Wl,-lrte_meter -Wl,-lrte_sched -Wl,-lm -Wl,-lrt -Wl,--start-group -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_ip_frag -Wl,-lrte_ethdev -Wl,-lrte_mempool -Wl,-lrte_mempool_ring -Wl,-lrte_ring -Wl,-lrte_bus_pci -Wl,-lrte_bus_vdev -Wl,-lrte_pci -Wl,-lrte_net -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_cfgfile -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_vmxnet3_uio -Wl,-lrte_pmd_i40e -Wl,-lrte_pmd_ixgbe -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_ring -Wl,-lrt -Wl,-lm -Wl,-ldl -Wl,--end-group -Wl,--no-whole-archive
+ifeq ($(MESON_BUILD),0)
 RTE_LIBS := -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,--whole-archive -Wl,-lrte_distributor -Wl,-lrte_kni -Wl,-lrte_pipeline -Wl,-lrte_table -Wl,-lrte_timer -Wl,-lrte_hash -Wl,-lrte_lpm -Wl,-lrte_power -Wl,-lrte_acl -Wl,-lrte_meter -Wl,-lrte_sched -Wl,-lm -Wl,-lrt -Wl,--start-group -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_ip_frag -Wl,-lrte_ethdev -Wl,-lrte_mempool -Wl,-lrte_mempool_ring -Wl,-lrte_ring -Wl,-lrte_bus_pci -Wl,-lrte_bus_vdev -Wl,-lrte_pci -Wl,-lrte_net -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_cfgfile -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_vmxnet3_uio -Wl,-lrte_pmd_i40e -Wl,-lrte_pmd_ixgbe -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_ring -Wl, -lrte_cryptodev -Wl,-lrt -Wl,-lm -Wl,-ldl -Wl,--end-group -Wl,--no-whole-archive
+else
+RTE_LIBS := -Wl,--whole-archive -Wl,/usr/lib64/libnuma.so -Wl,--as-needed -pthread -L$(RTE_SDK)/build/drivers -L$(RTE_SDK)/build/lib -l:librte_common_cpt.a -l:librte_common_dpaax.a -l:librte_common_iavf.a -l:librte_common_octeontx.a -l:librte_common_octeontx2.a -l:librte_common_sfc_efx.a -l:librte_bus_dpaa.a -l:librte_bus_fslmc.a -l:librte_bus_ifpga.a -l:librte_bus_pci.a -l:librte_bus_vdev.a -l:librte_bus_vmbus.a -l:librte_mempool_bucket.a -l:librte_mempool_dpaa.a -l:librte_mempool_dpaa2.a -l:librte_mempool_octeontx.a -l:librte_mempool_octeontx2.a -l:librte_mempool_ring.a -l:librte_mempool_stack.a -l:librte_net_af_packet.a -l:librte_net_ark.a -l:librte_net_atlantic.a -l:librte_net_avp.a -l:librte_net_axgbe.a -l:librte_net_bond.a -l:librte_net_bnx2x.a -l:librte_net_bnxt.a -l:librte_net_cxgbe.a -l:librte_net_dpaa.a -l:librte_net_dpaa2.a -l:librte_net_e1000.a -l:librte_net_ena.a -l:librte_net_enetc.a -l:librte_net_enic.a -l:librte_net_failsafe.a -l:librte_net_fm10k.a -l:librte_net_i40e.a -l:librte_net_hinic.a -l:librte_net_hns3.a -l:librte_net_iavf.a -l:librte_net_ice.a -l:librte_net_igc.a -l:librte_net_ixgbe.a -l:librte_net_kni.a -l:librte_net_liquidio.a -l:librte_net_memif.a -l:librte_net_netvsc.a -l:librte_net_nfp.a -l:librte_net_null.a -l:librte_net_octeontx.a -l:librte_net_octeontx2.a -l:librte_net_pfe.a -l:librte_net_qede.a -l:librte_net_ring.a -l:librte_net_sfc.a -l:librte_net_tap.a -l:librte_net_thunderx.a -l:librte_net_txgbe.a -l:librte_net_vdev_netvsc.a -l:librte_net_vhost.a -l:librte_net_virtio.a -l:librte_net_vmxnet3.a -l:librte_raw_dpaa2_cmdif.a -l:librte_raw_dpaa2_qdma.a -l:librte_raw_ioat.a -l:librte_raw_ntb.a -l:librte_raw_octeontx2_dma.a -l:librte_raw_octeontx2_ep.a -l:librte_raw_skeleton.a -l:librte_crypto_bcmfs.a -l:librte_crypto_caam_jr.a -l:librte_crypto_dpaa_sec.a -l:librte_crypto_dpaa2_sec.a -l:librte_crypto_nitrox.a -l:librte_crypto_null.a -l:librte_crypto_octeontx.a -l:librte_crypto_octeontx2.a -l:librte_crypto_scheduler.a -l:librte_crypto_virtio.a -l:librte_compress_octeontx.a -l:librte_compress_zlib.a -l:librte_regex_octeontx2.a -l:librte_vdpa_ifc.a -l:librte_event_dlb.a -l:librte_event_dlb2.a -l:librte_event_dpaa.a -l:librte_event_dpaa2.a -l:librte_event_octeontx2.a -l:librte_event_opdl.a -l:librte_event_skeleton.a -l:librte_event_sw.a -l:librte_event_dsw.a -l:librte_event_octeontx.a -l:librte_node.a -l:librte_graph.a -l:librte_bpf.a -l:librte_flow_classify.a -l:librte_pipeline.a -l:librte_table.a -l:librte_fib.a -l:librte_ipsec.a -l:librte_vhost.a -l:librte_stack.a -l:librte_security.a -l:librte_sched.a -l:librte_reorder.a -l:librte_rib.a -l:librte_regexdev.a -l:librte_rawdev.a -l:librte_pdump.a -l:librte_power.a -l:librte_member.a -l:librte_lpm.a -l:librte_latencystats.a -l:librte_kni.a -l:librte_jobstats.a -l:librte_ip_frag.a -l:librte_gso.a -l:librte_gro.a -l:librte_eventdev.a -l:librte_efd.a -l:librte_distributor.a -l:librte_cryptodev.a -l:librte_compressdev.a -l:librte_cfgfile.a -l:librte_bitratestats.a -l:librte_bbdev.a -l:librte_acl.a -l:librte_timer.a -l:librte_hash.a -l:librte_metrics.a -l:librte_cmdline.a -l:librte_pci.a -l:librte_ethdev.a -l:librte_meter.a -l:librte_net.a -l:librte_mbuf.a -l:librte_mempool.a -l:librte_rcu.a -l:librte_ring.a -l:librte_eal.a -l:librte_telemetry.a -l:librte_kvargs.a -lelf -lrte_node -lrte_graph -lrte_bpf -lrte_flow_classify -lrte_pipeline -lrte_table -lrte_fib -lrte_ipsec -lrte_vhost -lrte_stack -lrte_security -lrte_sched -lrte_reorder -lrte_rib -lrte_regexdev -lrte_rawdev -lrte_pdump -lrte_power -lrte_member -lrte_lpm -lrte_latencystats -lrte_kni -lrte_jobstats -lrte_ip_frag -lrte_gso -lrte_gro -lrte_eventdev -lrte_efd -lrte_distributor -lrte_cryptodev -lrte_compressdev -lrte_cfgfile -lrte_bitratestats -lrte_bbdev -lrte_acl -lrte_timer -lrte_hash -lrte_metrics -lrte_cmdline -lrte_pci -lrte_ethdev -lrte_meter -lrte_net -lrte_mbuf -lrte_mempool -lrte_rcu -lrte_ring -lrte_eal -lrte_telemetry -lrte_kvargs -lm -ldl -lnuma -lz -Wl,--no-whole-archive
+endif
 LDFLAGS := -g -Wl,-lrt -Wl,-lpthread -Wl,-lhugetlbfs -Wl,-lm -Wl,-lnuma -L $(WLSDIR) -lwls
 
 LINUX_ORAN_5G_FAPI_SRC := \
@@ -120,8 +121,10 @@ LINUX_ORAN_5G_FAPI_SRC := \
 	$(SRCDIR)/utils/nr5g_fapi_stats.c \
 	$(SRCDIR)/utils/nr5g_fapi_memory.c \
 	$(SRCDIR)/utils/nr5g_fapi_cmd.c \
+	$(SRCDIR)/utils/nr5g_fapi_snr_conversion.c \
 	$(SRCDIR)/framework/workers/nr5g_fapi_mac2phy_thread.c \
 	$(SRCDIR)/framework/workers/nr5g_fapi_phy2mac_thread.c \
+	$(SRCDIR)/framework/workers/nr5g_fapi_urllc_thread.c \
 	$(SRCDIR)/framework/nr5g_fapi_framework.c \
 	$(SRCDIR)/framework/wls/fapi2mac/nr5g_fapi_fapi2mac_wls.c \
 	$(SRCDIR)/framework/wls/fapi2phy/nr5g_fapi_fapi2phy_wls.c \
@@ -139,9 +142,12 @@ LINUX_ORAN_5G_FAPI_SRC := \
 	$(SRCDIR)/api/fapi2mac/p7/nr5g_fapi_proc_crc_ind.c \
 	$(SRCDIR)/api/fapi2mac/p7/nr5g_fapi_proc_rach_ind.c \
     $(SRCDIR)/api/fapi2mac/p7/nr5g_fapi_proc_rx_data_ind.c \
+	$(SRCDIR)/api/fapi2mac/p7/nr5g_fapi_proc_rx_data_uci_ind.c \
 	$(SRCDIR)/api/fapi2mac/p7/nr5g_fapi_proc_srs_ind.c \
 	$(SRCDIR)/api/fapi2mac/p7/nr5g_fapi_proc_uci_ind.c \
+	$(SRCDIR)/api/fapi2mac/p7/nr5g_fapi_proc_vendor_p7_msgs.c \
 	$(SRCDIR)/api/fapi2phy/nr5g_fapi_fapi2phy_api.c \
+	$(SRCDIR)/api/fapi2phy/p5/nr5g_fapi_proc_add_remove_core_msg.c \
 	$(SRCDIR)/api/fapi2phy/p5/nr5g_fapi_proc_config_req.c \
 	$(SRCDIR)/api/fapi2phy/p5/nr5g_fapi_proc_start_req.c \
 	$(SRCDIR)/api/fapi2phy/p5/nr5g_fapi_proc_stop_req.c \
@@ -171,7 +177,7 @@ endif
 .PHONY: $(APP)
 $(APP): $(DIRLIST) echo_options $(GEN_DEP) $(OBJS)
 	@echo [LD] $(APP)
-	@$(CC) -o $(APP) $(OBJS) $(RTE_LIBS) $(LDFLAGS)
+	@$(CC) -o $(APP) $(OBJS) $(LDFLAGS) $(RTE_LIBS)
 #	$(OBJDUMP) -d $(APP) > $(APP).asm
 
 .PHONY : echo_options

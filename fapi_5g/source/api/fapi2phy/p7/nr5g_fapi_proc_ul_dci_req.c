@@ -42,6 +42,7 @@
  *
 **/
 uint8_t nr5g_fapi_ul_dci_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_ul_dci_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg)
@@ -49,7 +50,6 @@ uint8_t nr5g_fapi_ul_dci_request(
     PULDCIRequestStruct p_ia_ul_dci_req;
     PMAC2PHY_QUEUE_EL p_list_elem;
     nr5g_fapi_stats_t *p_stats;
-    UNUSED(p_fapi_vendor_msg);
 
     if (NULL == p_phy_instance) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[UL_DCI.request] Invalid " "phy instance"));
@@ -72,6 +72,8 @@ uint8_t nr5g_fapi_ul_dci_request(
     }
 
     p_ia_ul_dci_req = (PULDCIRequestStruct) (p_list_elem + 1);
+    NR5G_FAPI_MEMSET(p_ia_ul_dci_req, sizeof(PULDCIRequestStruct), 0,
+        sizeof(PULDCIRequestStruct));
     p_ia_ul_dci_req->sMsgHdr.nMessageType = MSG_TYPE_PHY_UL_DCI_REQ;
     p_ia_ul_dci_req->sMsgHdr.nMessageLen =
         (uint16_t) sizeof(ULDCIRequestStruct);
@@ -87,12 +89,21 @@ uint8_t nr5g_fapi_ul_dci_request(
                 p_ia_ul_dci_req->sSFN_Slot.nSlot));
         return FAILURE;
     }
-    nr5g_fapi_fapi2phy_add_to_api_list(p_list_elem);
+    nr5g_fapi_fapi2phy_add_to_api_list(is_urllc, p_list_elem);
 
     p_stats->iapi_stats.iapi_ul_dci_req++;
-    NR5G_FAPI_LOG(DEBUG_LOG, ("[UL_DCI.request][%d][%d,%d]",
+
+
+    if (NULL != p_fapi_vendor_msg) {
+        nr5g_fapi_ul_dci_req_to_phy_translation_vendor_ext(p_phy_instance,
+                                                        p_fapi_vendor_msg,
+                                                        p_ia_ul_dci_req);
+    }
+
+    NR5G_FAPI_LOG(DEBUG_LOG, ("[UL_DCI.request][%u][%u,%u,%u] is_urllc %u",
             p_phy_instance->phy_id,
-            p_ia_ul_dci_req->sSFN_Slot.nSFN, p_ia_ul_dci_req->sSFN_Slot.nSlot));
+            p_ia_ul_dci_req->sSFN_Slot.nSFN, p_ia_ul_dci_req->sSFN_Slot.nSlot,
+            p_ia_ul_dci_req->sSFN_Slot.nSym, is_urllc));
 
     return SUCCESS;
 }
@@ -115,6 +126,7 @@ uint8_t nr5g_fapi_ul_dci_req_to_phy_translation(
     PULDCIRequestStruct p_ia_ul_dci_req)
 {
     int idx;
+    int ruidx;
     fapi_dci_pdu_t *p_fapi_dci_pdu;
     DCIPDUStruct *p_ia_dci_pdu;
     nr5g_fapi_stats_t *p_stats;
@@ -169,10 +181,18 @@ uint8_t nr5g_fapi_ul_dci_req_to_phy_translation(
             p_fapi_dci_pdu->pdcchPduConfig.dlDci[0].scramblingRnti;
         p_ia_dci_pdu->nTotalBits =
             p_fapi_dci_pdu->pdcchPduConfig.dlDci[0].payloadSizeBits;
+
+
+        if (USE_VENDOR_EPREXSSB != p_phy_instance->phy_config.use_vendor_EpreXSSB)
+        {
         p_ia_dci_pdu->nEpreRatioOfPDCCHToSSB =
-            p_fapi_dci_pdu->pdcchPduConfig.dlDci[0].powerControlOffsetSS;
+                nr5g_fapi_calculate_nEpreRatioOfPDCCHToSSB(p_fapi_dci_pdu->
+                    pdcchPduConfig.dlDci[0].beta_pdcch_1_0);
         p_ia_dci_pdu->nEpreRatioOfDmrsToSSB =
-            p_fapi_dci_pdu->pdcchPduConfig.dlDci[0].beta_pdcch_1_0;
+                nr5g_fapi_calculate_nEpreRatioOfDmrsToSSB(p_fapi_dci_pdu->
+                    pdcchPduConfig.dlDci[0].powerControlOffsetSS);
+        }
+
         p_ia_dci_pdu->nTotalBits =
             p_fapi_dci_pdu->pdcchPduConfig.dlDci[0].payloadSizeBits;
         if (FAILURE == NR5G_FAPI_MEMCPY(p_ia_dci_pdu->nDciBits,
@@ -187,9 +207,54 @@ uint8_t nr5g_fapi_ul_dci_req_to_phy_translation(
         p_ia_dci_pdu->nID = p_ia_dci_pdu->nScid;
         p_ia_dci_pdu->nNrofTxRU = 0x0;
         p_ia_dci_pdu->nBeamId = 0x0;
+
+        for (ruidx = 0; ruidx < MAX_TXRU_NUM; ruidx++) {
+            p_ia_dci_pdu->nTxRUIdx[ruidx] = 0;
+        }
         p_ia_curr += RUP32B(sizeof(DCIPDUStruct));
     }
 
     p_stats->iapi_stats.iapi_ul_dci_pdus++;
     return SUCCESS;
+}
+
+ /** @ingroup group_source_api_p7_fapi2phy_proc
+ *
+ *  @param[in]   p_fapi_vendor_msg  Pointer to FAPI UL_DCI.request vendor message.
+ *  @param[out]  p_ia_ul_dci_req    Pointer to IAPI UL_DCI.request structure.
+ *  
+ *  @return     no return.
+ *
+ *  @description
+ *  This function fills fields for UL_DCI.request structure that come from
+ *  a vendor extension.
+ *
+**/
+void nr5g_fapi_ul_dci_req_to_phy_translation_vendor_ext(
+    p_nr5g_fapi_phy_instance_t p_phy_instance,
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
+    PULDCIRequestStruct p_ia_ul_dci_req)
+{
+    int idx = 0;
+
+    fapi_vendor_dci_pdu_t *p_vendor_dci_pdu;
+    DCIPDUStruct *p_ia_dci_pdu;
+    uint8_t *p_ia_curr = NULL;
+
+    p_ia_ul_dci_req->sSFN_Slot.nSym = p_fapi_vendor_msg->p7_req_vendor.ul_dci_req.sym;
+
+    p_ia_curr = (uint8_t *) p_ia_ul_dci_req->sULDCIPDU;
+
+    for (idx = 0; idx < p_ia_ul_dci_req->nDCI; idx++) {
+        p_ia_dci_pdu = (DCIPDUStruct *) p_ia_curr;
+        if (USE_VENDOR_EPREXSSB == p_phy_instance->phy_config.use_vendor_EpreXSSB)
+        {
+            p_vendor_dci_pdu = &p_fapi_vendor_msg->p7_req_vendor.ul_dci_req.pdus[idx];
+            p_ia_dci_pdu->nEpreRatioOfPDCCHToSSB = p_vendor_dci_pdu->
+                pdcch_pdu_config.dl_dci[0].epre_ratio_of_pdcch_to_ssb;
+            p_ia_dci_pdu->nEpreRatioOfDmrsToSSB = p_vendor_dci_pdu->
+                pdcch_pdu_config.dl_dci[0].epre_ratio_of_dmrs_to_ssb;
+        }
+        p_ia_curr += RUP32B(sizeof(DCIPDUStruct));
+    }
 }

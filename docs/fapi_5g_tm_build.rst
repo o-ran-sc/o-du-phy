@@ -1,4 +1,4 @@
-..    Copyright (c) 2019-2020 Intel
+..    Copyright (c) 2019-2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ The 5G FAPI TM uses the wls library which uses DPDK as the basis for the shared 
 and requires that DPDK 
 be installed in the system since in the makefile it uses the RTE_SDK environment variable when
 building the library. |br|
-The current release was tested using DPDK version 19.11 but it doesn't preclude the 
+The current release was tested using DPDK version 20.11 but it doesn't preclude the 
 use of newer releases. |br|
 Also the 5G FAPI TM currently uses the Intel Compiler that is defined as part of the ODULOW documentation.
 
@@ -68,8 +68,8 @@ Unit Test and validation
 ---------------------------------
 
 The unit test for the ORAN 5G FAPI TM requires the testmac and L1 binaries that are described
-in a later section and that for the Bronze Release consists of 15 basic tests in timer mode
-where the DL, UL and FD paths are exercised for different channel types and numerology 0 and 1.
+in a later section and that for the O-RAN current Release consists of a suite of tests in timer mode
+where the DL, UL and FD paths are exercised for different channel types and numerologies 0, 1 and 2.
 
 1.Open SSH session and cd l1\bin\nr5g\gnb\l1 |br|
 2.Issue l1.sh |br|

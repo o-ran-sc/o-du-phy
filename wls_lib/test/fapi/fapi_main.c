@@ -49,7 +49,6 @@
 #define WLS_TEST_DEV_NAME "wls"
 #define WLS_TEST_MSG_ID   1
 #define WLS_TEST_MSG_SIZE 100
-#define WLS_TEST_MEM_SIZE 2126512128 
 #define ALLOC_TRACK_SIZE 16384
 #define MIN_UL_BUF_LOCATIONS 50
 #define MIN_DL_BUF_LOCATIONS 50
@@ -115,7 +114,7 @@ WLS_HANDLE   g_phy_wls = &gphy_wls;
 WLS_HANDLE   g_fapi_wls = &gfapi_wls;
 
 uint8_t    fapi_dpdk_init(void);
-uint8_t    fapi_wls_init(const char *dev_name, unsigned long long mem_size);
+uint8_t    fapi_wls_init(const char *dev_name);
 uint64_t   fapi_mac_recv();
 uint8_t    fapi_phy_send();
 uint64_t   fapi_phy_recv();
@@ -391,7 +390,7 @@ int main()
     printf("\n[FAPI] DPDK Init - Done\n");
 
     // WLS init
-    ret = fapi_wls_init(WLS_TEST_DEV_NAME, WLS_TEST_MEM_SIZE);
+    ret = fapi_wls_init(WLS_TEST_DEV_NAME);
     if(ret)
     {
         printf("\n[FAPI] WLS Init - Failed\n");
@@ -474,7 +473,7 @@ uint8_t fapi_dpdk_init(void)
     int argc = RTE_DIM(argv);
 
     /* initialize EAL first */
-    sprintf(whitelist, "-w %s",  "0000:00:06.0");
+    sprintf(whitelist, "-a%s",  "0000:00:06.0");
     printf("[FAPI] Calling rte_eal_init: ");
 
     for (i = 0; i < RTE_DIM(argv); i++)
@@ -489,22 +488,24 @@ uint8_t fapi_dpdk_init(void)
     return SUCCESS;
 }
 
-uint8_t fapi_wls_init(const char *dev_name, unsigned long long mem_size)
+uint8_t fapi_wls_init(const char *dev_name)
 {
+    uint64_t nWlsMacMemorySize;
+    uint64_t nWlsPhyMemorySize;
     uint8_t *pMemZone;
     static const struct rte_memzone *mng_memzone;
     p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();    
     wls_drv_ctx_t *pDrv_ctx;
 
     p_wls_ctx->h_wls[NR5G_FAPI2MAC_WLS_INST] =
-     WLS_Open_Dual(dev_name, WLS_SLAVE_CLIENT, mem_size, &p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST]);
+     WLS_Open_Dual(dev_name, WLS_SLAVE_CLIENT, &nWlsMacMemorySize, &nWlsPhyMemorySize, &p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST]);
     if((NULL == p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST]) && 
             (NULL == p_wls_ctx->h_wls[NR5G_FAPI2MAC_WLS_INST]))
     {
         return FAILURE;
     }
-    g_shmem_size = mem_size;
-    p_wls_ctx->shmem_size = mem_size;
+    g_shmem_size = nWlsMacMemorySize + nWlsPhyMemorySize;
+    p_wls_ctx->shmem_size = g_shmem_size;
     // Issue WLS_Alloc() for FAPI2MAC
     p_wls_ctx->shmem = WLS_Alloc(
             p_wls_ctx->h_wls[NR5G_FAPI2MAC_WLS_INST],

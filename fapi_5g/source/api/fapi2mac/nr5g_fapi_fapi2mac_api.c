@@ -30,23 +30,26 @@
 #include "nr5g_fapi_log.h"
 
 static nr5g_fapi_fapi2mac_queue_t fapi2mac_q[FAPI_MAX_PHY_INSTANCES];
+static nr5g_fapi_fapi2mac_queue_t fapi2mac_urllc_q[FAPI_MAX_PHY_INSTANCES];
+
 
 //------------------------------------------------------------------------------
 /** @ingroup     group_source_api_fapi2phy
  *
- *  @param[in]   p_list_elem Pointer to the ListElement
+ *  @param[in]   phy_id Value of phy_id.
+ *  @param[in]   is_urllc True for urllc, false otherwise.
  *
- *  @return      void
+ *  @return      Pointer to fapi2mac api queue.
  *
- *  @description This function adds a ListElement API to a Linked list which will
- *               be sent to L1 once all APIs for a TTI are added
+ *  @description This function access proper instance of fapi2mac queue.
  *
 **/
 //------------------------------------------------------------------------------
-inline p_nr5g_fapi_fapi2mac_queue_t nr5g_fapi_fapi2mac_queue(
-    uint8_t phy_id)
+static inline p_nr5g_fapi_fapi2mac_queue_t nr5g_fapi_fapi2mac_queue(
+    uint8_t phy_id,
+    bool is_urllc)
 {
-    return &fapi2mac_q[phy_id];
+    return is_urllc ? &fapi2mac_urllc_q[phy_id] : &fapi2mac_q[phy_id];
 }
 
 //------------------------------------------------------------------------------
@@ -63,7 +66,8 @@ inline p_nr5g_fapi_fapi2mac_queue_t nr5g_fapi_fapi2mac_queue(
 //------------------------------------------------------------------------------
 void nr5g_fapi_fapi2mac_add_api_to_list(
     uint8_t phy_id,
-    p_fapi_api_queue_elem_t p_list_elem)
+    p_fapi_api_queue_elem_t p_list_elem,
+    bool is_urllc)
 {
     p_nr5g_fapi_fapi2mac_queue_t queue = NULL;
     p_fapi_msg_header_t p_fapi_msg_hdr = NULL;
@@ -72,7 +76,7 @@ void nr5g_fapi_fapi2mac_add_api_to_list(
         return;
     }
 
-    queue = nr5g_fapi_fapi2mac_queue(phy_id);
+    queue = nr5g_fapi_fapi2mac_queue(phy_id, is_urllc);
     if (pthread_mutex_lock((pthread_mutex_t *) & queue->lock)) {
         NR5G_FAPI_LOG(ERROR_LOG, ("unable to lock fapi2mac aggregate list"
                 "pthread mutex"));
@@ -105,7 +109,7 @@ void nr5g_fapi_fapi2mac_add_api_to_list(
 **/
 //------------------------------------------------------------------------------
 void nr5g_fapi_fapi2mac_send_api_list(
-    )
+    bool is_urllc)
 {
     uint8_t phy_id = 0;
     p_fapi_msg_header_t p_fapi_msg_hdr = NULL;
@@ -114,7 +118,7 @@ void nr5g_fapi_fapi2mac_send_api_list(
     p_nr5g_fapi_fapi2mac_queue_t queue = NULL;
 
     for (phy_id = 0; phy_id < FAPI_MAX_PHY_INSTANCES; phy_id++) {
-        queue = nr5g_fapi_fapi2mac_queue(phy_id);
+        queue = nr5g_fapi_fapi2mac_queue(phy_id, is_urllc);
         if (pthread_mutex_lock((pthread_mutex_t *) & queue->lock)) {
             NR5G_FAPI_LOG(ERROR_LOG, ("unable to lock fapi2mac aggregate list"
                     "pthread mutex"));
@@ -145,7 +149,7 @@ void nr5g_fapi_fapi2mac_send_api_list(
     }
 
     if (p_commit_list_head)
-        nr5g_fapi_fapi2mac_wls_send(p_commit_list_head);
+        nr5g_fapi_fapi2mac_wls_send(p_commit_list_head, is_urllc);
 }
 
 //------------------------------------------------------------------------------
@@ -203,7 +207,9 @@ void nr5g_fapi_fapi2mac_init_api_list(
     p_nr5g_fapi_fapi2mac_queue_t queue = NULL;
 
     for (phy_id = 0; phy_id < FAPI_MAX_PHY_INSTANCES; phy_id++) {
-        queue = nr5g_fapi_fapi2mac_queue(phy_id);
+        queue = nr5g_fapi_fapi2mac_queue(phy_id, false);
+        pthread_mutex_init((pthread_mutex_t *) & queue->lock, NULL);
+        queue = nr5g_fapi_fapi2mac_queue(phy_id, true);
         pthread_mutex_init((pthread_mutex_t *) & queue->lock, NULL);
     }
 }

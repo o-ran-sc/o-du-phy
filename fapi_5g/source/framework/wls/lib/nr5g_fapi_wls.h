@@ -43,8 +43,9 @@ typedef void *WLS_HANDLE;
 #define MIN_UL_BUF_LOCATIONS        (MAX_DL_BUF_LOCATIONS)  /* Used for stats collection 0-10 */
 #define MAX_UL_BUF_LOCATIONS        (MIN_UL_BUF_LOCATIONS + MAX_NUM_LOCATIONS)
 
-#define TO_FREE_SIZE                        ( 10 )
-#define TOTAL_FREE_BLOCKS                   ( 50 * FAPI_MAX_PHY_INSTANCES)  /* To hold both send and recv blocks on PHY side wls */
+#define TO_FREE_SIZE                        ( 5 )
+#define TO_FREE_SIZE_URLLC                  ( MAX_NUM_OF_SYMBOL_PER_SLOT * TO_FREE_SIZE ) // TR 38.912 8.1 mini-slot may be 1 symbol long
+#define TOTAL_FREE_BLOCKS                   ( 100 * FAPI_MAX_PHY_INSTANCES)  /* To hold both send and recv blocks on PHY side wls */
 #define ALLOC_TRACK_SIZE                    ( 16384 )
 #define MSG_MAXSIZE                         (16*16384 )
 
@@ -127,7 +128,7 @@ uint64_t nr5g_fapi_wls_va_to_pa(
 void *nr5g_fapi_wls_pa_to_va(
     WLS_HANDLE h_wls,
     uint64_t ptr);
-uint8_t wls_fapi_add_blocks_to_ul(
+uint32_t wls_fapi_add_blocks_to_ul(
     void);
 void nr5g_fapi_wls_show_data(
     void *ptr,

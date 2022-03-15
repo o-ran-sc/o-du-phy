@@ -1,4 +1,4 @@
-..    Copyright (c) 2019 Intel
+..    Copyright (c) 2019-2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -24,10 +24,10 @@ Test Cases
     :depth: 3
     :local:
 
-This section describes the downlink, uplink and full duplex bit exact test cases that are present as part of the Bronze |br|
+This section describes the downlink, uplink and full duplex bit exact test cases that are present as part of the E Maintenance Release |br|
 release. All the test config files, IQ samples and reference Inputs are placed under the FlexRAN/testcase folder. These test config files are used for testmac.
 
-There are 3 kinds of tests: dl, ul, and fd. The following test cases are part of the Bronze Release and reside in the github repo mentioned earlier in this document.
+There are 3 kinds of tests: dl, ul, and fd. The following test cases are part of the E Maintenance Release and reside in the github repo mentioned earlier in this document.
 
 Downlink Tx Sub6 Test Cases [mu = 0 (15khz) and 5Mhz]
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

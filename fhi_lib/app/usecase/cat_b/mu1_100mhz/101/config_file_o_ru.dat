@@ -78,7 +78,7 @@ ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
 duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
 ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
-numSlots=10 #number of slots per IQ files
+numSlots=20 #number of slots per IQ files
 antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0
 antC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   #CC0
 antC2=./usecase/cat_b/mu1_100mhz/ant_2.bin   #CC0
@@ -160,10 +160,10 @@ antSrsC31=./usecase/cat_b/mu1_100mhz/ant_7.bin
 DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used 
 
 nPrbElemDl=2
-#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType, Scalefactor, REMask
 # weight base beams 
-PrbElemDl0=0,64,0,14,0,1,1,9,1
-PrbElemDl1=64,26,0,14,1,1,1,9,1
+PrbElemDl0=0,64,0,14,0,1,4,3,1,5064,4095
+PrbElemDl1=64,26,0,14,1,1,4,3,1,5064,4095
 
 nPrbElemUl=2
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
@@ -176,7 +176,7 @@ PrbElemUl1=64,26,0,14,1,1,1,9,1
 ## control of IQ byte order
 iqswap=0 #do swap of IQ before send buffer to eth
 nebyteorderswap=1 #do swap of byte order for each I and Q from CPU byte order to network byte order
-compression=0 # (1) compression enabled (0) compression disabled
+compression=1 # (1) compression enabled (0) compression disabled
 
 ##Debug
 debugStop=1 #stop app on 1pps boundary (gps_second % 30)

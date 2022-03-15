@@ -1,0 +1,305 @@
+#******************************************************************************
+#
+#   Copyright (c) 2019 Intel.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+#******************************************************************************/
+
+#Peak: 100 %
+#301	TDD	DDDFU: S it's 10:2:2	1	64T64R	100	16	8	100%	273	3276	100%	273	3276	Peak: 100 %
+
+
+
+# This is simple configuration file. Use '#' sign for comments
+instanceId=0 # 0,1,2,... in case more than 1 application started on the same system
+appMode=0 # O-DU(0) | O-RU(1)
+xranMode=1 # Category A  (0) (precoder in O-DU) | Category B (1) (precoder in O-RU)
+ccNum=1 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 4)
+antNum=16 # Number of Antennas per CC (default: 4) or number of Digital streams for Category B
+antNumUL=16 # Cat B: UL Number of Antennas per CC (default: 8) or number of UL Digital streams for Category B
+antElmTRx=64 #number of Antenna Elements for Cat B default 32T32R
+
+#UEs
+muMimoUEs=8 #number of UEs serviced by MU-MIMO system. Number of independent beams within the same Freq/Time resources
+DlLayersPerUe=1 #number of RX anntennas on DL UE side
+UlLayersPerUe=1 #number of TX anntennas on UL UE side
+
+
+##Numerology
+mu=1 #30Khz Sub Carrier Spacing
+
+ttiPeriod=500 # in us TTI period (30Khz default 500us)
+
+nDLAbsFrePointA=3568160 #nAbsFrePointA - Abs Freq Point A of the Carrier Center Frequency for in KHz Value: 450000->52600000
+nULAbsFrePointA=3568160 #nAbsFrePointA - Abs Freq Point A of the Carrier Center Frequency for in KHz Value: 450000->52600000
+nDLBandwidth=100 #Carrier bandwidth for in MHz. Value: 5->400
+nULBandwidth=100 #Carrier bandwidth for in MHz. Value: 5->400
+nDLFftSize=4096
+nULFftSize=4096
+
+nFrameDuplexType=1 # 0 - FDD 1 - TDD
+nTddPeriod=5 #[0-9] DDDFU, for S it's 10:2:2
+sSlotConfig0=0,0,0,0,0,0,0,0,0,0,0,0,0,0 # (0) - DL (1) - UL (2) - GUARD
+sSlotConfig1=0,0,0,0,0,0,0,0,0,0,0,0,0,0 # (0) - DL (1) - UL (2) - GUARD
+sSlotConfig2=0,0,0,0,0,0,0,0,0,0,0,0,0,0 # (0) - DL (1) - UL (2) - GUARD
+sSlotConfig3=0,0,0,0,0,0,0,0,0,0,2,2,1,1 # (0) - DL (1) - UL (2) - GUARD
+sSlotConfig4=1,1,1,1,1,1,1,1,1,1,1,1,1,1 # (0) - DL (1) - UL (2) - GUARD
+
+MTUSize=1500 #maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single
+ #xRAN network layer transaction. supported 1500 bytes and 9600 bytes (Jumbo Frame)
+Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
+Gps_Beta=0
+
+numSlots=20 #number of slots per IQ files
+antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0
+antC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   #CC0
+antC2=./usecase/cat_b/mu1_100mhz/ant_2.bin   #CC0
+antC3=./usecase/cat_b/mu1_100mhz/ant_3.bin   #CC0
+antC4=./usecase/cat_b/mu1_100mhz/ant_4.bin   #CC1
+antC5=./usecase/cat_b/mu1_100mhz/ant_5.bin   #CC1
+antC6=./usecase/cat_b/mu1_100mhz/ant_6.bin   #CC1
+antC7=./usecase/cat_b/mu1_100mhz/ant_7.bin   #CC1
+antC8=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC2
+antC9=./usecase/cat_b/mu1_100mhz/ant_1.bin   #CC2
+antC10=./usecase/cat_b/mu1_100mhz/ant_2.bin #CC2
+antC11=./usecase/cat_b/mu1_100mhz/ant_3.bin #CC2
+antC12=./usecase/cat_b/mu1_100mhz/ant_4.bin #CC3
+antC13=./usecase/cat_b/mu1_100mhz/ant_5.bin #CC3
+antC14=./usecase/cat_b/mu1_100mhz/ant_6.bin #CC3
+antC15=./usecase/cat_b/mu1_100mhz/ant_7.bin #CC3
+
+#SlotNumTx0=./peak_txconfig_1.cfg
+#SlotNumTx1=./peak_txconfig_1.cfg
+#SlotNumTx2=./peak_txconfig_1.cfg
+#SlotNumTx3=./peak_txconfig_2.cfg
+#SlotNumTx4=./peak_txconfig_0.cfg
+
+#SlotNumTx5=./peak_txconfig_1.cfg
+#SlotNumTx6=./peak_txconfig_1.cfg
+#SlotNumTx7=./peak_txconfig_1.cfg
+#SlotNumTx8=./peak_txconfig_2.cfg
+#SlotNumTx9=./peak_txconfig_0.cfg
+
+#SlotNumRx0=./peak_rxconfig_0.cfg
+#SlotNumRx1=./peak_rxconfig_0.cfg
+#SlotNumRx2=./peak_rxconfig_0.cfg
+#SlotNumRx3=./peak_rxconfig_2.cfg
+#SlotNumRx4=./peak_rxconfig_1.cfg
+
+#SlotNumRx5=./peak_rxconfig_0.cfg
+#SlotNumRx6=./peak_rxconfig_0.cfg
+#SlotNumRx7=./peak_rxconfig_0.cfg
+#SlotNumRx8=./peak_rxconfig_3.cfg
+#SlotNumRx9=./peak_rxconfig_1.cfg
+
+#DL beamforming weights used based on channel to UE [e.g Wzf = H^H(H*H^H)-1 wher H is MxK matrix, M - number of TX elements and K- number of UEs (the same as Layers)]
+DlBfwUe0=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_0.bin   #UE0 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe1=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_1.bin   #UE1 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe2=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_2.bin   #UE2 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe3=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_3.bin   #UE3 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe4=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_4.bin   #UE4 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe5=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_5.bin   #UE5 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe6=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_6.bin   #UE6 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe7=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_7.bin   #UE7 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe8=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_0.bin   #UE0 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe9=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_1.bin   #UE1 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe10=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_2.bin   #UE2 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe11=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_3.bin   #UE3 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe12=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_4.bin   #UE4 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe13=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_5.bin   #UE5 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe14=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_6.bin   #UE6 weights for TRX antennas [antElmTRx x numRBs x slot points]
+DlBfwUe15=./usecase/cat_b/mu1_100mhz/dl_bfw_ue_7.bin   #UE7 weights for TRX antennas [antElmTRx x numRBs x slot points]
+
+#UL beamforming weights used based on channel to UE [e.g Wzf = H^H(H*H^H)-1 wher H is MxK matrix, M - number of RX elements and K- number of UEs (the same as Layers)]
+UlBfwUe0=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_0.bin   #UE0 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe1=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_1.bin   #UE1 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe2=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_2.bin   #UE2 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe3=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_3.bin   #UE3 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe4=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_4.bin   #UE4 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe5=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_5.bin   #UE5 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe6=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_6.bin   #UE6 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe7=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_7.bin   #UE7 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe8=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_0.bin   #UE0 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe9=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_1.bin   #UE1 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe10=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_2.bin   #UE2 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe11=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_3.bin   #UE3 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe12=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_4.bin   #UE4 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe13=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_5.bin   #UE5 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe14=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_6.bin   #UE6 weights for TRX antennas [antElmTRx x numRBs x slot points]
+UlBfwUe15=./usecase/cat_b/mu1_100mhz/ul_bfw_ue_7.bin   #UE7 weights for TRX antennas [antElmTRx x numRBs x slot points]
+
+
+rachEanble=0 # Enable (1)| disable (0) PRACH configuration
+prachConfigIndex=189
+
+srsEanble=1 # Enable (1)| disable (0) SRS
+srsSym=1 # (1<<13) symbol used for SRS (def: sym 13)
+
+###########################################################
+##Section Settings
+DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used
+max_sections_per_slot=16
+max_sections_per_symbol=16
+
+nPrbElemDl=16
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+# weight base beams
+PrbElemDl0=0,18,0,14,0,1,1,9,1
+PrbElemDl1=18,18,0,14,1,1,1,9,1
+PrbElemDl2=36,18,0,14,2,1,1,9,1
+PrbElemDl3=54,18,0,14,3,1,1,9,1
+PrbElemDl4=72,18,0,14,4,1,1,9,1
+PrbElemDl5=90,18,0,14,5,1,1,9,1
+PrbElemDl6=108,18,0,14,6,1,1,9,1
+PrbElemDl7=126,18,0,14,7,1,1,9,1
+PrbElemDl8=144,18,0,14,8,1,1,9,1
+PrbElemDl9=162,18,0,14,9,1,1,9,1
+PrbElemDl10=180,18,0,14,10,1,1,9,1
+PrbElemDl11=198,18,0,14,11,1,1,9,1
+PrbElemDl12=216,18,0,14,12,1,1,9,1
+PrbElemDl13=234,18,0,14,13,1,1,9,1
+PrbElemDl14=252,18,0,14,14,1,1,9,1
+PrbElemDl15=270,3,0,14,15,1,1,9,1
+
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwDl0=2,9,0,0,9,1
+ExtBfwDl1=2,9,0,0,9,1
+ExtBfwDl2=2,9,0,0,9,1
+ExtBfwDl3=2,9,0,0,9,1
+ExtBfwDl4=2,9,0,0,9,1
+ExtBfwDl5=2,9,0,0,9,1
+ExtBfwDl6=2,9,0,0,9,1
+ExtBfwDl7=2,9,0,0,9,1
+ExtBfwDl8=2,9,0,0,9,1
+ExtBfwDl9=2,9,0,0,9,1
+ExtBfwDl10=2,9,0,0,9,1
+ExtBfwDl11=2,9,0,0,9,1
+ExtBfwDl12=2,9,0,0,9,1
+ExtBfwDl13=2,9,0,0,9,1
+ExtBfwDl14=2,9,0,0,9,1
+ExtBfwDl15=2,2,0,0,9,1
+
+
+nPrbElemUl=16
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+# weight base beams
+PrbElemUl0=0,18,0,14,0,1,1,9,1
+PrbElemUl1=18,18,0,14,1,1,1,9,1
+PrbElemUl2=36,18,0,14,2,1,1,9,1
+PrbElemUl3=54,18,0,14,3,1,1,9,1
+PrbElemUl4=72,18,0,14,4,1,1,9,1
+PrbElemUl5=90,18,0,14,5,1,1,9,1
+PrbElemUl6=108,18,0,14,6,1,1,9,1
+PrbElemUl7=126,18,0,14,7,1,1,9,1
+PrbElemUl8=144,18,0,14,8,1,1,9,1
+PrbElemUl9=162,18,0,14,9,1,1,9,1
+PrbElemUl10=180,18,0,14,10,1,1,9,1
+PrbElemUl11=198,18,0,14,11,1,1,9,1
+PrbElemUl12=216,18,0,14,12,1,1,9,1
+PrbElemUl13=234,18,0,14,13,1,1,9,1
+PrbElemUl14=252,18,0,14,14,1,1,9,1
+PrbElemUl15=270,3,0,14,15,1,1,9,1
+
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwUl0=2,9,0,0,9,1
+ExtBfwUl1=2,9,0,0,9,1
+ExtBfwUl2=2,9,0,0,9,1
+ExtBfwUl3=2,9,0,0,9,1
+ExtBfwUl4=2,9,0,0,9,1
+ExtBfwUl5=2,9,0,0,9,1
+ExtBfwUl6=2,9,0,0,9,1
+ExtBfwUl7=2,9,0,0,9,1
+ExtBfwUl8=2,9,0,0,9,1
+ExtBfwUl9=2,9,0,0,9,1
+ExtBfwUl10=2,9,0,0,9,1
+ExtBfwUl11=2,9,0,0,9,1
+ExtBfwUl12=2,9,0,0,9,1
+ExtBfwUl13=2,9,0,0,9,1
+ExtBfwUl14=2,9,0,0,9,1
+ExtBfwUl15=2,2,0,0,9,1
+
+
+nPrbElemSrs=11
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+PrbElemSrs0=0,30,0,1,0,0,1,9,0
+PrbElemSrs1=30,30,0,1,0,0,1,9,0
+PrbElemSrs2=60,30,0,1,0,0,1,9,0
+PrbElemSrs3=90,30,0,1,0,0,1,9,0
+PrbElemSrs4=120,30,0,1,0,0,1,9,0
+PrbElemSrs5=150,30,0,1,0,0,1,9,0
+PrbElemSrs6=180,30,0,1,0,0,1,9,0
+PrbElemSrs7=210,30,0,1,0,0,1,9,0
+PrbElemSrs8=240,30,0,1,0,0,1,9,0
+PrbElemSrs9=270,30,0,1,0,0,1,9,0
+PrbElemSrs10=270,3,0,1,0,0,1,9,0
+
+
+###########################################################
+
+## control of IQ byte order
+iqswap=0 #do swap of IQ before send buffer to eth
+nebyteorderswap=1 #do swap of byte order for each I and Q from CPU byte order to network byte order
+compression=1 # (1) compression enabled (0) compression disabled
+
+##Debug
+debugStop=1 #stop app on 1pps boundary (gps_second % 30)
+debugStopCount=0 #if this value is >0 then stop app after x transmission packets, otherwise app will stop at 1pps boundary
+bbdevMode=-1 #bbdev mode, -1 = not use bbdev, 0: use software mode, 1: use hardware mode
+
+CPenable=1 #(1) C-Plane is enabled| (0) C-Plane is disabled
+
+##O-RU Settings
+totalBFWeights=64 # Total number of Beamforming Weights on RU
+
+Tadv_cp_dl=25 # in us
+              # C-Plane messages must arrive at the RU some amount of time in advance (Tcp_adv_dl) of the corresponding U-Plane messages
+#Reception Window C-plane DL
+T2a_min_cp_dl=285 # 285.42us
+T2a_max_cp_dl=429 # 428.12us
+
+#Reception Window C-plane UL
+T2a_min_cp_ul=285 # 285.42us
+T2a_max_cp_ul=429 # 428.12us
+
+#Reception Window U-plane
+T2a_min_up=71  # 71.35in us
+T2a_max_up=428 # 428.12us
+
+#Transmission Window
+Ta3_min=20 # in us
+Ta3_max=32 # in us
+
+###########################################################
+##O-DU Settings
+#C-plane
+#Transmission Window Fast C-plane DL
+T1a_min_cp_dl=285
+T1a_max_cp_dl=429
+
+##Transmission Window Fast C-plane UL
+T1a_min_cp_ul=285
+T1a_max_cp_ul=300
+
+#U-plane
+##Transmission Window
+T1a_min_up=96  #71 + 25 us
+T1a_max_up=196 #71 + 25 us
+
+#Reception Window
+Ta4_min=0  # in us
+Ta4_max=75 # in us
+###########################################################
+

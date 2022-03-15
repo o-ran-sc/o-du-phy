@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -44,14 +44,18 @@ extern "C" {
 #include "xran_fh_o_du.h"
 #include "xran_cp_api.h"
 
-int32_t xran_app_fragment_packet(struct rte_mbuf *pkt_in, /* eth hdr is prepended */
+int32_t
+xran_app_fragment_packet(struct rte_mbuf *pkt_in, /* eth hdr is prepended */
                                     struct rte_mbuf **pkts_out,
                                     uint16_t nb_pkts_out,
                                     uint16_t mtu_size,
                                     struct rte_mempool *pool_direct,
                                     struct rte_mempool *pool_indirect,
-                                    struct xran_section_info *sectinfo,
-                                    uint8_t *seqid);
+                         int16_t nRBStart,  /**< start RB of RB allocation */
+                         int16_t nRBSize,  /**< number of RBs used */
+                         uint8_t *seqid,
+                         uint8_t iqWidth,
+                         uint8_t isUdCompHdr);
 
 #ifdef __cplusplus
 }

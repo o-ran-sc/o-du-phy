@@ -1,4 +1,4 @@
-..    Copyright (c) 2019 Intel
+..    Copyright (c) 2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ O-RAN FH Lib Introduction
    Sample-Application_fh.rst
    Setup-Configuration_fh.rst
    PTP-configuration_fh.rst
+   ecpri_ddp_profile.rst
    
 
 

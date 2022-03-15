@@ -26,6 +26,7 @@
 #include "nr5g_fapi_fapi2mac_api.h"
 #include "nr5g_fapi_fapi2mac_p7_proc.h"
 #include "nr5g_fapi_fapi2mac_p7_pvt_proc.h"
+#include "nr5g_fapi_snr_conversion.h"
 
  /** @ingroup group_source_api_p7_fapi2mac_proc
  *
@@ -39,7 +40,9 @@
  *
 **/
 uint8_t nr5g_fapi_crc_indication(
+    bool is_urllc,
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,
+    p_fapi_api_stored_vendor_queue_elems vendor_extension_elems,
     PCRCIndicationStruct p_phy_crc_ind)
 {
     uint8_t phy_id;
@@ -72,6 +75,7 @@ uint8_t nr5g_fapi_crc_indication(
     p_list_elem =
         nr5g_fapi_fapi2mac_create_api_list_elem(FAPI_CRC_INDICATION, 1,
         sizeof(fapi_crc_ind_t));
+
     if (!p_list_elem) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[CRC.indication] Unable to create "
                 "list element. Out of memory!!!"));
@@ -82,20 +86,31 @@ uint8_t nr5g_fapi_crc_indication(
     p_fapi_crc_ind->header.msg_id = FAPI_CRC_INDICATION;
     p_fapi_crc_ind->header.length = (uint16_t) sizeof(fapi_crc_ind_t);
 
-    if (nr5g_fapi_crc_indication_to_fapi_translation(p_phy_instance,
-            p_phy_crc_ind, p_fapi_crc_ind)) {
+    fapi_vendor_p7_ind_msg_t* p_fapi_vend_p7 =
+        nr5g_fapi_proc_vendor_p7_msg_get(vendor_extension_elems, phy_id);
+    fapi_vendor_ext_snr_t* p_fapi_snr  = p_fapi_vend_p7 ? &p_fapi_vend_p7->crc_snr : NULL;
+    fapi_vendor_ext_crc_ind_t* p_fapi_vend_crc_ind = p_fapi_vend_p7 ? &p_fapi_vend_p7->crc_ind : NULL;
+    
+    if (p_fapi_vend_crc_ind) {
+        p_fapi_vend_crc_ind->carrier_idx = phy_id;
+        p_fapi_vend_crc_ind->sym = p_phy_crc_ind->sSFN_Slot.nSym;
+    }
+
+    if (nr5g_fapi_crc_indication_to_fapi_translation(is_urllc, p_phy_instance,
+            p_phy_crc_ind, p_fapi_crc_ind, p_fapi_snr)) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[CRC.indication] L1 to FAPI "
                 "translation failed"));
         return FAILURE;
     }
 
-    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, is_urllc);
 
     p_stats->fapi_stats.fapi_crc_ind++;
 
-    NR5G_FAPI_LOG(DEBUG_LOG, ("[CRC.indication][%d][%d,%d]",
+    NR5G_FAPI_LOG(DEBUG_LOG, ("[CRC.indication][%u][%u,%u,%u] is_urllc %u",
             p_phy_instance->phy_id,
-            p_phy_crc_ind->sSFN_Slot.nSFN, p_phy_crc_ind->sSFN_Slot.nSlot));
+            p_phy_crc_ind->sSFN_Slot.nSFN, p_phy_crc_ind->sSFN_Slot.nSlot,
+            p_phy_crc_ind->sSFN_Slot.nSym, is_urllc));
 
     return SUCCESS;
 }
@@ -114,13 +129,15 @@ uint8_t nr5g_fapi_crc_indication(
  *
 **/
 uint8_t nr5g_fapi_crc_indication_to_fapi_translation(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     PCRCIndicationStruct p_phy_crc_ind,
-    fapi_crc_ind_t * p_fapi_crc_ind)
+    fapi_crc_ind_t * p_fapi_crc_ind,
+    fapi_vendor_ext_snr_t * p_fapi_snr)
 {
     uint8_t num_crc, i;
-    uint8_t slot_no;
-    uint16_t frame_no;
+    uint8_t symbol_no;
+    uint16_t slot_no, frame_no;
 
     nr5g_fapi_pusch_info_t *p_pusch_info;
     fapi_crc_ind_info_t *p_fapi_crc_ind_info;
@@ -132,13 +149,14 @@ uint8_t nr5g_fapi_crc_indication_to_fapi_translation(
 
     frame_no = p_fapi_crc_ind->sfn = p_phy_crc_ind->sSFN_Slot.nSFN;
     slot_no = p_fapi_crc_ind->slot = p_phy_crc_ind->sSFN_Slot.nSlot;
+    symbol_no = p_phy_crc_ind->sSFN_Slot.nSym;
 
     p_ul_slot_info =
-        nr5g_fapi_get_ul_slot_info(frame_no, slot_no, p_phy_instance);
+        nr5g_fapi_get_ul_slot_info(is_urllc, frame_no, slot_no, symbol_no, p_phy_instance);
 
     if (p_ul_slot_info == NULL) {
         NR5G_FAPI_LOG(ERROR_LOG, (" [CRC.indication] No Valid data available "
-                "for frame :%d and slot: %d", frame_no, slot_no));
+                "for frame :%d, slot: %d, symbol: %d, urllc %u", frame_no, slot_no, symbol_no, is_urllc));
         return FAILURE;
     }
 
@@ -154,8 +172,8 @@ uint8_t nr5g_fapi_crc_indication_to_fapi_translation(
         if (p_pusch_info == NULL) {
             NR5G_FAPI_LOG(ERROR_LOG,
                 (" [CRC.indication] No Valid data available "
-                    "nUEId:%d, frame_no:%d, slot_no:%d", p_ul_crc_struct->nUEId,
-                    frame_no, slot_no));
+                    "nUEId:%d, frame_no:%d, slot_no:%d, urllc %u", p_ul_crc_struct->nUEId,
+                    frame_no, slot_no, is_urllc));
             return FAILURE;
         }
 
@@ -163,7 +181,11 @@ uint8_t nr5g_fapi_crc_indication_to_fapi_translation(
         p_fapi_crc_ind_info->rnti = p_ul_crc_struct->nRNTI;
         p_fapi_crc_ind_info->harqId = p_pusch_info->harq_process_id;
         p_fapi_crc_ind_info->tbCrcStatus = !(p_ul_crc_struct->nCrcFlag);
-        p_fapi_crc_ind_info->ul_cqi = (p_ul_crc_struct->nSNR + 64) * 2;
+        p_fapi_crc_ind_info->ul_cqi = nr5g_fapi_convert_snr_iapi_to_fapi(p_ul_crc_struct->nSNR);
+        if(p_fapi_snr)
+        {
+            p_fapi_snr->nSNR[i] = p_ul_crc_struct->nSNR;
+        }
         p_pusch_info->ul_cqi = p_fapi_crc_ind_info->ul_cqi;
 
         p_fapi_crc_ind_info->numCb = 0;

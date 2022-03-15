@@ -1,7 +1,7 @@
 #!/bin/bash
 ###############################################################################
 #
-#   Copyright (c) 2019 Intel.
+#   Copyright (c) 2021 Intel.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -19,10 +19,10 @@
 
 COREMASK=2
 SECONDARY=1
-FPREFIX="wls"
-DPDK_WLS=0
+FPREFIX="wls_test"
+WLS_TEST_HELP=0
 
-while getopts ":mpa:w:" opt; do
+while getopts ":mhpa:w:" opt; do
   case ${opt} in
     m )
       SECONDARY=0
@@ -42,41 +42,29 @@ while getopts ":mpa:w:" opt; do
       echo "Invalid option: $OPTARG requires dev wls path"
       exit 1
       ;;
-    p )
-      DPDK_WLS=1
+    h )
+      echo "invoking help"
+      WLS_TEST_HELP=1
       ;;
   esac
 done
 
 wlsTestBinary="wls_test"
-if [ $DPDK_WLS -eq 1 ]; then
+if [ $WLS_TEST_HELP -eq 0 ]; then
     if [ $SECONDARY -eq 0 ]; then
-        wlsTestBinary="build/wls_test -c $COREMASK -n 4 "
+      wlsTestBinary="wls_test -c $COREMASK -n 4 "
         wlsTestBinary+="--file-prefix=$FPREFIX --socket-mem=3072 --"
     else
-        wlsTestBinary="build/wls_test -c $COREMASK -n 4 "
+      wlsTestBinary="wls_test -c $COREMASK -n 4 "
         wlsTestBinary+="--proc-type=secondary --file-prefix=$FPREFIX --"
     fi
+else
+  wlsTestBinary+=" --"
 fi
 
 ulimit -c unlimited
 
-export RTE_WLS=$PWD/..
-
-MACHINE_TYPE=`uname -m`
-
-if [ ${MACHINE_TYPE} == 'x86_64' ]; then
-    export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$RTE_WLS
-
-    grep Huge /proc/meminfo
-
-    ulimit -c unlimited
-    echo 1 > /proc/sys/kernel/core_uses_pid
-    sysctl -w kernel.sched_rt_runtime_us=-1
-    for c in $(ls -d /sys/devices/system/cpu/cpu[0-9]*); do echo performance >$c/cpufreq/scaling_governor; done
-    sysctl -w kernel.shmmax=2147483648
-    sysctl -w kernel.shmall=2147483648
-fi
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$PWD/..
 
 wlsCmd="./${wlsTestBinary} $*"
 echo "Running... ${wlsCmd}"

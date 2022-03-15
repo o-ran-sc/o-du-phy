@@ -32,7 +32,7 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
     struct rte_cfgfile *cfg_file;
     p_nr5g_fapi_cfg_t cfg;
     const char *entry;
-    size_t dev_name_len;
+    size_t dev_name_len, mem_zone_name_len;
     unsigned int num_cpus = 0;
     char check_core_count[255], *max_core;
     FILE *fp = NULL;
@@ -86,8 +86,8 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
         cfg->mac2phy_worker.thread_sched_policy = (uint8_t) atoi(entry);
         if (cfg->mac2phy_worker.thread_sched_policy != SCHED_FIFO &&
             cfg->mac2phy_worker.thread_sched_policy != SCHED_RR) {
-            printf("Thread Poicy valid range is Schedule Policy [0: SCHED_FIFO"
-                " 1: SCHED_RR]: configured: %d\n",
+            printf("Thread Policy valid range is Schedule Policy [1: SCHED_FIFO"
+                " 2: SCHED_RR]: configured: %d\n",
                 cfg->mac2phy_worker.thread_sched_policy);
             exit(-1);
         }
@@ -126,8 +126,8 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
         cfg->phy2mac_worker.thread_sched_policy = (uint8_t) atoi(entry);
         if (cfg->phy2mac_worker.thread_sched_policy != SCHED_FIFO &&
             cfg->phy2mac_worker.thread_sched_policy != SCHED_RR) {
-            printf("Thread Poicy valid range is Schedule Policy [0: SCHED_FIFO"
-                " 1: SCHED_RR] configured: %d\n",
+            printf("Thread Policy valid range is Schedule Policy [1: SCHED_FIFO"
+                " 2: SCHED_RR] configured: %d\n",
                 cfg->phy2mac_worker.thread_sched_policy);
             exit(-1);
         }
@@ -141,6 +141,41 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
             cfg->phy2mac_worker.thread_priority > max_prio) {
             printf("Thread priority valid range is %d to %d configured: %d\n",
                 min_prio, max_prio, cfg->phy2mac_worker.thread_priority);
+            exit(-1);
+        }
+    }
+
+    entry = rte_cfgfile_get_entry(cfg_file, "URLLC_WORKER", "core_id");
+    if (entry) {
+        cfg->urllc_worker.core_id = (uint8_t) atoi(entry);
+        if (cfg->urllc_worker.core_id >= (uint8_t) num_cpus) {
+            printf("Core Id is not in the range 0 to %d configured: %d\n",
+                num_cpus, cfg->urllc_worker.core_id);
+            exit(-1);
+        }
+    }
+
+    entry =
+        rte_cfgfile_get_entry(cfg_file, "URLLC_WORKER", "thread_sched_policy");
+    if (entry) {
+        cfg->urllc_worker.thread_sched_policy = (uint8_t) atoi(entry);
+        if (cfg->urllc_worker.thread_sched_policy != SCHED_FIFO &&
+            cfg->urllc_worker.thread_sched_policy != SCHED_RR) {
+            printf("Thread Policy valid range is Schedule Policy [1: SCHED_FIFO"
+                " 2: SCHED_RR] configured: %d\n",
+                cfg->urllc_worker.thread_sched_policy);
+            exit(-1);
+        }
+    }
+
+    entry =
+        rte_cfgfile_get_entry(cfg_file, "URLLC_WORKER", "thread_priority");
+    if (entry) {
+        cfg->urllc_worker.thread_priority = (uint8_t) atoi(entry);
+        if (cfg->urllc_worker.thread_priority < min_prio &&
+            cfg->urllc_worker.thread_priority > max_prio) {
+            printf("Thread priority valid range is %d to %d configured: %d\n",
+                min_prio, max_prio, cfg->urllc_worker.thread_priority);
             exit(-1);
         }
     }
@@ -182,6 +217,13 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
             printf("The mode is out of range: %d", cfg->dpdk.iova_mode);
             exit(-1);
         }
+    }
+
+    entry = rte_cfgfile_get_entry(cfg_file, "DPDK", "dpdk_memory_zone");
+    if (entry) {
+        mem_zone_name_len = (strlen(entry) > (NR5G_FAPI_MEMORY_ZONE_NAME_LEN)) ?
+            (NR5G_FAPI_MEMORY_ZONE_NAME_LEN) : strlen(entry);
+        rte_strlcpy(cfg->dpdk.memory_zone, entry, mem_zone_name_len + 1);
     }
 
     return cfg;

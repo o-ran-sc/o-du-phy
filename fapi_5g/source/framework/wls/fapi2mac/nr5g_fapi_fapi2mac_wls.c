@@ -27,6 +27,7 @@
 #include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_wls.h"
 #include "nr5g_fapi_log.h"
+#include "nr5g_fapi_urllc_thread.h"
 
 static p_fapi_api_queue_elem_t p_fapi2mac_buffers;
 
@@ -197,7 +198,7 @@ uint8_t nr5g_fapi_fapi2mac_wls_ready(
  *
 **/
 //------------------------------------------------------------------------------
-uint8_t nr5g_fapi_fapi2mac_wls_wait(
+uint32_t nr5g_fapi_fapi2mac_wls_wait(
     )
 {
     int ret = SUCCESS;
@@ -300,12 +301,14 @@ inline uint8_t nr5g_fapi_fapi2mac_wls_put(
 **/
 //------------------------------------------------------------------------------
 uint8_t nr5g_fapi_fapi2mac_wls_send(
-    p_fapi_api_queue_elem_t p_list_elem)
+    p_fapi_api_queue_elem_t p_list_elem,
+    bool is_urllc)
 {
     uint8_t ret = SUCCESS;
     p_fapi_api_queue_elem_t p_curr_msg = NULL;
     fapi_msg_t *p_msg_header = NULL;
     uint16_t flags = 0;
+    uint16_t flags_urllc = (is_urllc ? WLS_TF_URLLC : 0);
     p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();
     uint64_t start_tick = __rdtsc();
 
@@ -317,7 +320,7 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
     }
 
     if (p_curr_msg && p_curr_msg->p_next) {
-        flags = WLS_SG_FIRST;
+        flags = WLS_SG_FIRST | flags_urllc;
         if (p_curr_msg->msg_type == FAPI_VENDOR_MSG_HEADER_IND) {
             if (SUCCESS != nr5g_fapi_fapi2mac_wls_put(p_curr_msg,
                     p_curr_msg->msg_len + sizeof(fapi_api_queue_elem_t),
@@ -331,7 +334,7 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
                 return FAILURE;
             }
             p_curr_msg = p_curr_msg->p_next;
-            flags = WLS_SG_NEXT;
+            flags = WLS_SG_NEXT | flags_urllc;
         }
 
         while (p_curr_msg) {
@@ -351,7 +354,7 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
                 }
                 p_curr_msg = p_curr_msg->p_next;
             } else {            // LAST
-                flags = WLS_SG_LAST;
+                flags = WLS_SG_LAST | flags_urllc;
                 if (SUCCESS != nr5g_fapi_fapi2mac_wls_put(p_curr_msg,
                         p_curr_msg->msg_len + sizeof(fapi_api_queue_elem_t),
                         p_msg_header->msg_id, flags)) {
@@ -365,7 +368,7 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
                 }
                 p_curr_msg = NULL;
             }
-            flags = WLS_SG_NEXT;
+            flags = WLS_SG_NEXT | flags_urllc;
         }
     }
 
@@ -400,9 +403,9 @@ p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_wls_recv(
     uint32_t msg_size = 0;
     uint32_t num_elms = 0;
     uint64_t *p_msg = NULL;
-    p_fapi_api_queue_elem_t p_qelm_list = NULL;
+    p_fapi_api_queue_elem_t p_qelm_list = NULL, p_urllc_qelm_list = NULL;
     p_fapi_api_queue_elem_t p_qelm = NULL;
-    p_fapi_api_queue_elem_t p_tail_qelm = NULL;
+    p_fapi_api_queue_elem_t p_tail_qelm = NULL, p_urllc_tail_qelm = NULL;
     WLS_HANDLE h_wls = nr5g_fapi_fapi2mac_wls_instance();
     uint64_t start_tick = 0;
 
@@ -421,6 +424,19 @@ p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_wls_recv(
                 continue;
             }
             p_qelm->p_next = NULL;
+            
+            if (flags & WLS_TF_URLLC)
+            {
+                if (p_urllc_qelm_list) {
+                    p_urllc_tail_qelm = p_urllc_qelm_list;
+                    while (NULL != p_urllc_tail_qelm->p_next) {
+                        p_urllc_tail_qelm = p_urllc_tail_qelm->p_next;
+                    }
+                    p_urllc_tail_qelm->p_next = p_qelm;
+                } else {
+                    p_urllc_qelm_list = p_qelm;
+                }
+            } else {
             if (p_qelm_list) {
                 p_tail_qelm = p_qelm_list;
                 while (NULL != p_tail_qelm->p_next) {
@@ -431,8 +447,14 @@ p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_wls_recv(
                 p_qelm_list = p_qelm;
             }
         }
+        }
         num_elms--;
     } while (num_elms && is_msg_present(flags));
+
+    if (p_urllc_qelm_list) {
+        nr5g_fapi_urllc_thread_callback(NR5G_FAPI_URLLC_MSG_DIR_MAC2PHY, (void *) p_urllc_qelm_list);
+    }
+
     tick_total_wls_get_per_tti_dl += __rdtsc() - start_tick;
 
     return p_qelm_list;

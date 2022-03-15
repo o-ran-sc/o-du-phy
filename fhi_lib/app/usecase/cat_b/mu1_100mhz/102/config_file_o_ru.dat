@@ -77,7 +77,7 @@ ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
 duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
 ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
-numSlots=10 #number of slots per IQ files
+numSlots=20 #number of slots per IQ files
 antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0
 antC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   #CC0
 antC2=./usecase/cat_b/mu1_100mhz/ant_2.bin   #CC0
@@ -156,10 +156,10 @@ antSrsC31=./usecase/cat_b/mu1_100mhz/ant_7.bin
 DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used 
 
 nPrbElemDl=2
-#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType, Scalefactor, REMask
 # weight base beams 
-PrbElemDl0=0,64,0,14,0,1,1,9,1
-PrbElemDl1=64,26,0,14,1,1,1,9,1
+PrbElemDl0=0,64,0,14,0,1,4,2,1,10360,4095
+PrbElemDl1=64,26,0,14,1,1,4,2,1,10360,4095
 
 nPrbElemUl=2
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType

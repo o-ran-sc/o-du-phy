@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -39,32 +40,32 @@ extern "C" {
 
 #ifndef WIN32
 #ifdef PRINTF_LOG_OK
-#define print_log(fmt, args...) printf("%s:" fmt "\n", __FUNCTION__, ## args)
+#define print_log(fmt, args...) printf("%s:%d" fmt "\n", __FUNCTION__, __LINE__, ## args)
 #else  /* PRINTF_LOG_OK */
 #define print_log(fmt, args...)
 #endif  /* PRINTF_LOG_OK */
 #else
-#define print_log(fmt, ...) printf("%s:" fmt "\n", __FUNCTION__, __VA_ARGS__)
+#define print_log(fmt, ...) printf("%s:%d" fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
 #endif
 
 #ifndef WIN32
 #ifdef PRINTF_DBG_OK
-#define print_dbg(fmt, args...) printf("%s:[dbg] " fmt "\n", __FUNCTION__, ## args)
+#define print_dbg(fmt, args...) printf("%s:%d[dbg] " fmt "\n", __FUNCTION__, __LINE__, ## args)
 #else  /* PRINTF_LOG_OK */
 #define print_dbg(fmt, args...)
 #endif  /* PRINTF_LOG_OK */
 #else
-#define print_dbg(fmt, ...) printf("%s:[dbg] " fmt "\n", __FUNCTION__, __VA_ARGS__)
+#define print_dbg(fmt, ...) printf("%s:%d[dbg] " fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
 #endif
 
 #ifndef WIN32
 #ifdef PRINTF_ERR_OK
-#define print_err(fmt, args...) printf("%s:[err] " fmt "\n", __FUNCTION__, ## args)
+#define print_err(fmt, args...) printf("%s:%d[err] " fmt "\n", __FUNCTION__, __LINE__, ## args)
 #else  /* PRINTF_LOG_OK */
 #define print_err(fmt, args...)
 #endif  /* PRINTF_LOG_OK */
 #else
-#define print_err(fmt, ...) printf("%s:[err] " fmt "\n", __FUNCTION__, __VA_ARGS__)
+#define print_err(fmt, ...) printf("%s:%d[err] " fmt "\n", __FUNCTION__, __LINE__, __VA_ARGS__)
 #endif
 
 #ifndef WIN32

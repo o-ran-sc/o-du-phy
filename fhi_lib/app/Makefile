@@ -1,6 +1,6 @@
 #/******************************************************************************
 #*
-#*   Copyright (c) 2019 Intel.
+#*   Copyright (c) 2020 Intel.
 #*
 #*   Licensed under the Apache License, Version 2.0 (the "License");
 #*   you may not use this file except in compliance with the License.
@@ -51,9 +51,11 @@ ifeq ($(RTE_SDK),)
 endif
 
 RTE_TARGET ?= x86_64-native-linuxapp-gcc
-RTE_INC := $(RTE_SDK)/$(RTE_TARGET)/include
+
+RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
 
 API_DIR := $(XRAN_DIR)/lib/api
+OWD_DIR := $(XRAN_DIR)/lib/src
 SRC_DIR := $(PROJECT_DIR)/src
 
 ifeq ($(MLOG),1)
@@ -63,8 +65,10 @@ endif
 endif
 
 CC_SRC = $(SRC_DIR)/common.c \
-	$(SRC_DIR)/sample-app.c \
-	$(SRC_DIR)/config.c
+	$(SRC_DIR)/config.c \
+	$(SRC_DIR)/app_io_fh_xran.c \
+	$(SRC_DIR)/app_profile_xran.c \
+	$(SRC_DIR)/sample-app.c
 
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
@@ -72,14 +76,14 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-g \
 	-Wall \
 	-Wimplicit-function-declaration \
-	-g -O3 -wd1786
+	-g -O3 -wd1786 -mcmodel=large
 
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
                 -no-prec-div -fp-model fast=2\
                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
         -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
 
-INC :=  -I$(API_DIR) -I$(RTE_INC)
+INC :=  -I$(API_DIR) -I$(RTE_INC) -I$(OWD_DIR)
 DEF :=
 
 ifeq ($(MLOG),1)
@@ -89,10 +93,12 @@ else
 	DEF += -UMLOG_ENABLED
 endif
 
+
 XRAN_LIB_DIR=$(XRAN_DIR)/lib/build
 LD_FLAGS += -L$(XRAN_LIB_DIR) -lxran
 
-RTE_LIBS = -L$(RTE_SDK)/$(RTE_TARGET)/lib -Wl,-lrte_flow_classify -Wl,--whole-archive -Wl,-lrte_pipeline -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_table -Wl,--no-whole-archive -Wl,--whole-archive -Wl,-lrte_port -Wl,--no-whole-archive -Wl,-lrte_pdump -Wl,-lrte_distributor -Wl,-lrte_ip_frag -Wl,-lrte_meter -Wl,-lrte_lpm -Wl,--whole-archive -Wl,-lrte_acl -Wl,--no-whole-archive -Wl,-lrte_jobstats -Wl,-lrte_metrics -Wl,-lrte_bitratestats -Wl,-lrte_latencystats -Wl,-lrte_power -Wl,-lrte_efd -Wl,-lrte_bpf -Wl,--whole-archive -Wl,-lrte_cfgfile -Wl,-lrte_gro -Wl,-lrte_gso -Wl,-lrte_hash -Wl,-lrte_member -Wl,-lrte_vhost -Wl,-lrte_kvargs -Wl,-lrte_mbuf -Wl,-lrte_net -Wl,-lrte_ethdev -Wl,-lrte_bbdev -Wl,-lrte_cryptodev -Wl,-lrte_security -Wl,-lrte_compressdev -Wl,-lrte_eventdev -Wl,-lrte_rawdev -Wl,-lrte_timer -Wl,-lrte_mempool -Wl,-lrte_mempool_ring -Wl,-lrte_ring -Wl,-lrte_pci -Wl,-lrte_eal -Wl,-lrte_cmdline -Wl,-lrte_reorder -Wl,-lrte_sched -Wl,-lrte_kni -Wl,-lrte_common_octeontx -Wl,-lrte_bus_pci -Wl,-lrte_bus_vdev -Wl,-lrte_bus_dpaa -Wl,-lrte_common_dpaax -Wl,-lrte_stack -Wl,-lrte_bus_fslmc -Wl,-lrte_mempool_bucket -Wl,-lrte_mempool_stack -Wl,-lrte_mempool_dpaa -Wl,-lrte_mempool_dpaa2 -Wl,-lrte_pmd_af_packet -Wl,-lrte_pmd_ark -Wl,-lrte_pmd_iavf -Wl,-lrte_pmd_avp -Wl,-lrte_pmd_axgbe -Wl,-lrte_pmd_bnxt -Wl,-lrte_pmd_bond -Wl,-lrte_pmd_cxgbe -Wl,-lrte_pmd_dpaa -Wl,-lrte_pmd_dpaa2 -Wl,-lrte_pmd_e1000 -Wl,-lrte_pmd_ena -Wl,-lrte_pmd_enic -Wl,-lrte_pmd_fm10k -Wl,-lrte_pmd_failsafe -Wl,-lrte_pmd_i40e -Wl,-lrte_pmd_ixgbe -Wl,-lrte_pmd_kni -Wl,-lrte_pmd_lio -Wl,-lrte_pmd_nfp -Wl,-lrte_pmd_null -Wl,-lrte_pmd_qede -Wl,-lrte_pmd_ring -Wl,-lrte_pmd_softnic -Wl,-lrte_pmd_tap -Wl,-lrte_pmd_thunderx_nicvf -Wl,-lrte_pmd_vdev_netvsc -Wl,-lrte_pmd_virtio -Wl,-lrte_pmd_vhost -Wl,-lrte_pmd_ifc -Wl,-lrte_pmd_vmxnet3_uio -Wl,-lrte_bus_vmbus -Wl,-lrte_pmd_netvsc -Wl,-lrte_pmd_bbdev_null -Wl,-lrte_pmd_null_crypto -Wl,-lrte_pmd_crypto_scheduler -Wl,-lrte_pmd_dpaa2_sec -Wl,-lrte_pmd_dpaa_sec -Wl,-lrte_pmd_virtio_crypto -Wl,-lrte_pmd_octeontx_zip -Wl,-lrte_pmd_qat -Wl,-lrte_pmd_skeleton_event -Wl,-lrte_pmd_sw_event -Wl,-lrte_pmd_octeontx_ssovf -Wl,-lrte_pmd_dpaa_event -Wl,-lrte_pmd_dpaa2_event -Wl,-lrte_mempool_octeontx -Wl,-lrte_pmd_octeontx -Wl,-lrte_pmd_opdl_event -Wl,-lrte_rawdev_skeleton -Wl,-lrte_rawdev_dpaa2_cmdif -Wl,-lrte_rawdev_dpaa2_qdma -Wl,-lrte_bus_ifpga -Wl,--no-whole-archive -Wl,-lrt -Wl,-lm -Wl,-lnuma -Wl,-ldl -Wl,
+RTE_LIBS = $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --static --libs libdpdk)
+
 LD_FLAGS += $(RTE_LIBS)
 
 ifeq ($(MLOG),1)

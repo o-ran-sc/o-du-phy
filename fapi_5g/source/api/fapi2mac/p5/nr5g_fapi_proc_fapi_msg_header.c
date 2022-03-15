@@ -39,14 +39,15 @@
  *
 **/
 uint8_t nr5g_fapi_message_header(
-    p_nr5g_fapi_phy_ctx_t p_phy_ctx)
+    p_nr5g_fapi_phy_ctx_t p_phy_ctx,
+    bool is_urllc)
 {
     uint8_t phy_id = 0;
 
     for (phy_id = 0; phy_id < FAPI_MAX_PHY_INSTANCES; phy_id++) {
         if ((FAPI_STATE_CONFIGURED == p_phy_ctx->phy_instance[phy_id].state) ||
             (FAPI_STATE_RUNNING == p_phy_ctx->phy_instance[phy_id].state)) {
-            nr5g_fapi_message_header_per_phy(phy_id);
+            nr5g_fapi_message_header_per_phy(phy_id, is_urllc);
         }
     }
 
@@ -64,7 +65,8 @@ uint8_t nr5g_fapi_message_header(
  *
 **/
 uint8_t nr5g_fapi_message_header_per_phy(
-    uint8_t phy_id)
+    uint8_t phy_id,
+    bool is_urllc)
 {
     p_fapi_api_queue_elem_t p_list_elem = NULL;
     p_fapi_msg_header_t p_fapi_msg_hdr = NULL;
@@ -83,7 +85,7 @@ uint8_t nr5g_fapi_message_header_per_phy(
     p_fapi_msg_hdr->handle = phy_id;
 
     // Add element to send list
-    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, is_urllc);
     NR5G_FAPI_LOG(DEBUG_LOG,
         ("[FAPI MSG HDR] FAPI Message Header Added for PHY: %d", phy_id));
 

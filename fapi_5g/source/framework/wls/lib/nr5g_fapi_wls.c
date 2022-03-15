@@ -28,6 +28,8 @@
 #include "nr5g_fapi_log.h"
 #include "nr5g_fapi_memory.h"
 
+#define WLS_HUGE_DEF_PAGE_SIZEA 0x40000000LL
+
 nr5g_fapi_wls_context_t g_wls_ctx;
 
 static uint8_t alloc_track[ALLOC_TRACK_SIZE];
@@ -226,10 +228,10 @@ void *nr5g_fapi_wls_pa_to_va(
  *
 **/
 //------------------------------------------------------------------------------
-uint8_t wls_fapi_add_blocks_to_ul(
+uint32_t wls_fapi_add_blocks_to_ul(
     void)
 {
-    int num_blocks = 0;
+    uint32_t num_blocks = 0;
     p_nr5g_fapi_wls_context_t pWls = nr5g_fapi_wls_context();
     WLS_HANDLE h_wls = pWls->h_wls[NR5G_FAPI2PHY_WLS_INST];
 
@@ -268,8 +270,10 @@ uint8_t wls_fapi_add_blocks_to_ul(
 uint8_t nr5g_fapi_wls_init(
     p_nr5g_fapi_cfg_t cfg)
 {
+    uint64_t mac_shmem_size = 0;
+    uint64_t phy_shmem_size = 0;
+
     p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();
-    const char *dev_name = "wls0";
 
     if (p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST] &&
         p_wls_ctx->h_wls[NR5G_FAPI2MAC_WLS_INST]) {
@@ -277,10 +281,12 @@ uint8_t nr5g_fapi_wls_init(
         return FAILURE;
     }
 
-    p_wls_ctx->shmem_size = cfg->wls.shmem_size;
     p_wls_ctx->h_wls[NR5G_FAPI2MAC_WLS_INST] =
-        WLS_Open_Dual(dev_name, WLS_SLAVE_CLIENT,
-        cfg->wls.shmem_size, &p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST]);
+        WLS_Open_Dual(basename(cfg->wls.device_name), WLS_SLAVE_CLIENT,
+        &mac_shmem_size, &phy_shmem_size, &p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST]);
+    
+    cfg->wls.shmem_size = mac_shmem_size + phy_shmem_size;
+    p_wls_ctx->shmem_size = cfg->wls.shmem_size;
     if ((NULL == p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST]) &&
         (NULL == p_wls_ctx->h_wls[NR5G_FAPI2MAC_WLS_INST])) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[NR5G_FAPI_ WLS] WLS Open Dual Failed."));
@@ -298,7 +304,7 @@ uint8_t nr5g_fapi_wls_init(
     p_wls_ctx->shmem = WLS_Alloc(p_wls_ctx->h_wls[NR5G_FAPI2PHY_WLS_INST],
         p_wls_ctx->shmem_size);
     p_wls_ctx->pWlsMemBase = p_wls_ctx->shmem;
-    p_wls_ctx->nTotalMemorySize = p_wls_ctx->shmem_size;
+    p_wls_ctx->nTotalMemorySize = mac_shmem_size;
     if (NULL == p_wls_ctx->shmem) {
         printf("Unable to alloc WLS Memory\n");
         return FAILURE;
@@ -420,16 +426,34 @@ uint32_t wls_fapi_create_mem_array(
 uint8_t wls_fapi_create_partition(
     p_nr5g_fapi_wls_context_t pWls)
 {
-#define WLS_HUGE_DEF_PAGE_SIZEA    0x40000000LL
-    static long hugePageSize = WLS_HUGE_DEF_PAGE_SIZEA;
-    //   NR5G_FAPI_MEMSET(pWls->pWlsMemBase , 0xCC, pWls->nTotalMemorySize);  // This is done by the Master Only
-    pWls->pPartitionMemBase =
-        (void *)(((uint8_t *) pWls->pWlsMemBase) + hugePageSize);
-    pWls->nPartitionMemSize = (pWls->nTotalMemorySize - hugePageSize);
+    uint64_t nWlsMemBaseUsable;
+    uint64_t nTotalMemorySizeUsable;
+    uint64_t nBalance, nBlockSize, nBlockSizeMask, nHugepageSizeMask;
 
-    pWls->nTotalBlocks = pWls->nPartitionMemSize / MSG_MAXSIZE;
+    nBlockSize = MSG_MAXSIZE;
+    nWlsMemBaseUsable = (uint64_t)pWls->pWlsMemBase;
+    nTotalMemorySizeUsable = pWls->nTotalMemorySize - WLS_HUGE_DEF_PAGE_SIZEA;
+    nBlockSizeMask = nBlockSize-1;
+
+    // Align Starting Location
+    nWlsMemBaseUsable = (nWlsMemBaseUsable + nBlockSizeMask) & (~nBlockSizeMask);
+    nBalance = nWlsMemBaseUsable - (uint64_t)pWls->pWlsMemBase;
+    nTotalMemorySizeUsable -= nBalance;
+
+    // Align Ending Location
+    nBalance = nTotalMemorySizeUsable % nBlockSize;
+    nTotalMemorySizeUsable -= nBalance;
+
+    // Move start location to the next hugepage boundary
+    nHugepageSizeMask = WLS_HUGE_DEF_PAGE_SIZEA-1;
+    nWlsMemBaseUsable = (nWlsMemBaseUsable + WLS_HUGE_DEF_PAGE_SIZEA) & (~nHugepageSizeMask);
+
+
+    pWls->pPartitionMemBase = (void *)nWlsMemBaseUsable;
+    pWls->nPartitionMemSize = nTotalMemorySizeUsable;
+    pWls->nTotalBlocks = pWls->nPartitionMemSize / nBlockSize;
     return wls_fapi_create_mem_array(&pWls->sWlsStruct, pWls->pPartitionMemBase,
-        pWls->nPartitionMemSize, MSG_MAXSIZE);
+        pWls->nPartitionMemSize, nBlockSize);
 }
 
 //------------------------------------------------------------------------------
@@ -702,7 +726,7 @@ void wls_fapi_free_buffer(
 uint8_t nr5g_fapi_wls_memory_init(
     )
 {
-    int nBlocks = 0;
+    uint32_t nBlocks = 0;
     p_nr5g_fapi_wls_context_t p_wls = nr5g_fapi_wls_context();
 
     if (FAILURE == wls_fapi_create_partition(p_wls))

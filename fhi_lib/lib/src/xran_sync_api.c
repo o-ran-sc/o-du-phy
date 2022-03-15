@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -71,7 +71,7 @@ static int is_process_running(char *pname)
         long pid = atol(entry->d_name);
         if (0 == pid)
             continue;
-        sprintf(full_path, "%s/%ld/%s", PROC_DIR, pid, COMM_FILE);
+        snprintf(full_path, sizeof(full_path), "%s/%ld/%s", PROC_DIR, pid, COMM_FILE);
         FILE *proc_name_file = fopen(full_path, "r");
         if (NULL == proc_name_file)
             continue;

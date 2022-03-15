@@ -45,6 +45,8 @@ extern "C" {
 #define MAX_DL_BUF_LOCATIONS        (MIN_DL_BUF_LOCATIONS + MAX_NUM_LOCATIONS)          /* Used for stats collection 0-49 */
 #define MAX_UL_BUF_LOCATIONS        (MIN_UL_BUF_LOCATIONS + MAX_NUM_LOCATIONS)          /* Used for stats collection 50-99 */
 
+#define WLS_MSG_BLOCK_SIZE          ( 16384 * 16 )
+
 typedef struct tagZBC_LIST_ITEM
 {
     uint64_t pMsg;
@@ -52,7 +54,7 @@ typedef struct tagZBC_LIST_ITEM
 } ZBC_LIST_ITEM, *PZBC_LIST_ITEM;
 
 
-uint32_t wls_mac_init(char * wls_device_name, uint64_t nWlsMemorySize);
+uint32_t wls_mac_init(char * wls_device_name, uint64_t nBlockSize);
 void wls_mac_print_thread_info(void);
 uint32_t wls_mac_destroy(void);
 void *wls_mac_alloc_buffer(uint32_t size, uint32_t loc);

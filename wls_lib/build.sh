@@ -1,7 +1,7 @@
 #!/bin/sh
 ###############################################################################
 #
-#   Copyright (c) 2019 Intel.
+#   Copyright (c) 2021 Intel.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -22,6 +22,6 @@
 #
 
     echo "Building dpdk based wls library" 
-make ${*:2}
+make $*
     cd testapp
-make ${*:2}
+make $*

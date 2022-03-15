@@ -35,8 +35,8 @@ inline p_nr5g_fapi_phy_ctx_t nr5g_fapi_get_nr5g_fapi_phy_ctx(
 uint8_t nr5g_fapi_dpdk_init(
     p_nr5g_fapi_cfg_t p_cfg)
 {
-    printf("init dev name: %s\n", p_cfg->wls.device_name);
-    char *const file_prefix = basename(p_cfg->wls.device_name);
+    printf("init dev name: %s\n", p_cfg->dpdk.memory_zone);
+    char *const file_prefix = basename(p_cfg->dpdk.memory_zone);
     printf("init basename: %s\n", file_prefix);
     char whitelist[32], iova_mode[64];
     uint8_t i;
@@ -55,7 +55,7 @@ uint8_t nr5g_fapi_dpdk_init(
     int argc = RTE_DIM(argv);
 
     /* initialize EAL first */
-    snprintf(whitelist, 32, "-w %s", "0000:00:06.0");
+    snprintf(whitelist, 32, "-a%s", "0000:00:06.0");
 
     if (p_cfg->dpdk.iova_mode == 0)
         snprintf(iova_mode, 64, "%s", "--iova-mode=pa");
@@ -88,35 +88,43 @@ uint8_t nr5g_fapi_dpdk_wait(
 #else
     pthread_join(p_cfg->mac2phy_thread_info.thread_id, NULL);
     pthread_join(p_cfg->phy2mac_thread_info.thread_id, NULL);
+    pthread_join(p_cfg->urllc_thread_info.thread_id, NULL);
 #endif
     return SUCCESS;
 }
 
 void nr5g_fapi_set_ul_slot_info(
     uint16_t frame_no,
-    uint8_t slot_no,
+    uint16_t slot_no,
+    uint8_t symbol_no,
     nr5g_fapi_ul_slot_info_t * p_ul_slot_info)
 {
-    NR5G_FAPI_MEMSET(p_ul_slot_info, sizeof(nr5g_fapi_ul_slot_info_t), 0,
-        sizeof(nr5g_fapi_ul_slot_info_t));
+    NR5G_FAPI_MEMSET(p_ul_slot_info, sizeof(nr5g_fapi_ul_slot_info_t), 0, sizeof(nr5g_fapi_ul_slot_info_t));
+
     p_ul_slot_info->cookie = frame_no;
     p_ul_slot_info->slot_no = slot_no;
+    p_ul_slot_info->symbol_no = symbol_no;
 }
 
 nr5g_fapi_ul_slot_info_t *nr5g_fapi_get_ul_slot_info(
+    bool is_urllc,
     uint16_t frame_no,
-    uint8_t slot_no,
+    uint16_t slot_no,
+    uint8_t symbol_no,
     p_nr5g_fapi_phy_instance_t p_phy_instance)
 {
-    uint8_t i;
+    uint8_t i, j;
     nr5g_fapi_ul_slot_info_t *p_ul_slot_info;
 
     for (i = 0; i < MAX_UL_SLOT_INFO_COUNT; i++) {
-        p_ul_slot_info = &p_phy_instance->ul_slot_info[i];
+        for(j = 0; j < MAX_UL_SYMBOL_INFO_COUNT; j++) {
+            p_ul_slot_info = &p_phy_instance->ul_slot_info[is_urllc][i][j];
         if ((slot_no == p_ul_slot_info->slot_no) &&
-            (frame_no == p_ul_slot_info->cookie)) {
+                (frame_no == p_ul_slot_info->cookie) &&
+                (symbol_no == p_ul_slot_info->symbol_no)) {
             return p_ul_slot_info;
         }
+    }
     }
     return NULL;
 }
@@ -125,7 +133,7 @@ uint8_t nr5g_fapi_framework_init(
     p_nr5g_fapi_cfg_t p_cfg)
 {
     p_nr5g_fapi_phy_ctx_t p_phy_ctx = nr5g_fapi_get_nr5g_fapi_phy_ctx();
-    pthread_attr_t *p_mac2phy_attr, *p_phy2mac_attr;
+    pthread_attr_t *p_mac2phy_attr, *p_phy2mac_attr, *p_urllc_attr;
     struct sched_param param;
 
     nr5g_fapi_set_log_level(p_cfg->logger.level);
@@ -138,6 +146,19 @@ uint8_t nr5g_fapi_framework_init(
 
     p_phy_ctx->phy2mac_worker_core_id = p_cfg->phy2mac_worker.core_id;
     p_phy_ctx->mac2phy_worker_core_id = p_cfg->mac2phy_worker.core_id;
+    p_phy_ctx->urllc_worker_core_id = p_cfg->urllc_worker.core_id;
+
+    memset(&p_phy_ctx->urllc_sem_process, 0, sizeof(sem_t));
+    memset(&p_phy_ctx->urllc_sem_done, 0, sizeof(sem_t));
+    if (0 != sem_init(&p_phy_ctx->urllc_sem_process, 0, 0)) {
+        printf("Error: Unable to init urllc semaphore\n");
+        return FAILURE;
+    }
+    if (0 != sem_init(&p_phy_ctx->urllc_sem_done, 0, 1)) {
+        printf("Error: Unable to init urllc_sem_done semaphore\n");
+        return FAILURE;
+    }
+
     p_phy2mac_attr = &p_cfg->phy2mac_thread_info.thread_attr;
     pthread_attr_init(p_phy2mac_attr);
     if (!pthread_attr_getschedparam(p_phy2mac_attr, &param)) {
@@ -175,6 +196,27 @@ uint8_t nr5g_fapi_framework_init(
     }
     pthread_setname_np(p_cfg->mac2phy_thread_info.thread_id,
         "nr5g_fapi_mac2phy_thread");
+
+    p_urllc_attr = &p_cfg->urllc_thread_info.thread_attr;
+    pthread_attr_init(p_urllc_attr);
+    if (!pthread_attr_getschedparam(p_urllc_attr, &param)) {
+        param.sched_priority = p_cfg->urllc_worker.thread_sched_policy;
+        pthread_attr_setschedparam(p_urllc_attr, &param);
+        pthread_attr_setschedpolicy(p_urllc_attr, SCHED_FIFO);
+    }
+
+    if (0 != pthread_create(&p_cfg->urllc_thread_info.thread_id,
+            p_urllc_attr, nr5g_fapi_urllc_thread_func, (void *)
+            p_phy_ctx)) {
+        printf("Error: Unable to create threads\n");
+        if (p_urllc_attr)
+            pthread_attr_destroy(p_urllc_attr);
+        sem_destroy(&p_phy_ctx->urllc_sem_process);
+        sem_destroy(&p_phy_ctx->urllc_sem_done);
+        return FAILURE;
+    }
+    pthread_setname_np(p_cfg->urllc_thread_info.thread_id,
+        "nr5g_fapi_urllc_thread");
 
     return SUCCESS;
 }

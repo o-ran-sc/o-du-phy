@@ -92,7 +92,7 @@ uint8_t nr5g_fapi_start_resp(
             (uint16_t) sizeof(fapi_vendor_ext_start_response_t);
 
         /* Add element to send list */
-        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
         p_stats->fapi_stats.fapi_vext_start_res++;
         NR5G_FAPI_LOG(INFO_LOG, ("[START.response][%d]", phy_id));
 #endif
@@ -116,7 +116,7 @@ uint8_t nr5g_fapi_start_resp(
         p_fapi_error_ind->error_code = p_iapi_resp->nStatus;
 
         /* Add element to send list */
-        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
         p_stats->fapi_stats.fapi_error_ind++;
         NR5G_FAPI_LOG(INFO_LOG, ("[ERROR.Indication][%d]", phy_id));
     } else {

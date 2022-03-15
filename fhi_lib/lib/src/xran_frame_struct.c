@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -73,7 +73,7 @@ static uint16_t nTtiInterval[4] =
     1000,    // mu = 0
     500,     // mu = 1
     250,     // mu = 2
-    125,     // mu = 3
+    125     // mu = 3
 };
 
 // F1 Tables 38.101-1 Table F.5.3. Window length for normal CP
@@ -93,15 +93,15 @@ static int16_t nCpSizeF2[2][4][2] =
         {{68, 36}, {136, 72}, {272, 144}, {544, 288}}, // Numerology 3 (120KHz)
 };
 
-static uint32_t xran_fs_max_slot_num = 8000;
-static uint32_t xran_fs_max_slot_num_SFN = 20480; /* max slot number counted as SFN is 0-1023 */
-static uint16_t xran_fs_num_slot_tdd_loop[XRAN_MAX_SECTOR_NR] = { XRAN_NUM_OF_SLOT_IN_TDD_LOOP };
-static uint16_t xran_fs_num_dl_sym_sp[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {0};
-static uint16_t xran_fs_num_ul_sym_sp[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {0};
-static uint8_t xran_fs_slot_type[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {{XRAN_SLOT_TYPE_INVALID}};
-static uint8_t xran_fs_slot_symb_type[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP][XRAN_NUM_OF_SYMBOL_PER_SLOT] = {{{XRAN_SLOT_TYPE_INVALID}}};
-static float xran_fs_ul_rate[XRAN_MAX_SECTOR_NR] = {0.0};
-static float xran_fs_dl_rate[XRAN_MAX_SECTOR_NR] = {0.0};
+static uint32_t xran_fs_max_slot_num[XRAN_PORTS_NUM] = {8000, 8000, 8000, 8000};
+static uint32_t xran_fs_max_slot_num_SFN[XRAN_PORTS_NUM] = {20480,20480,20480,20480}; /* max slot number counted as SFN is 0-1023 */
+static uint16_t xran_fs_num_slot_tdd_loop[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR] = { XRAN_NUM_OF_SLOT_IN_TDD_LOOP };
+static uint16_t xran_fs_num_dl_sym_sp[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {0};
+static uint16_t xran_fs_num_ul_sym_sp[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {0};
+static uint8_t xran_fs_slot_type[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {{XRAN_SLOT_TYPE_INVALID}};
+static uint8_t xran_fs_slot_symb_type[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP][XRAN_NUM_OF_SYMBOL_PER_SLOT] = {{{XRAN_SLOT_TYPE_INVALID}}};
+static float xran_fs_ul_rate[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR] = {0.0};
+static float xran_fs_dl_rate[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR] = {0.0};
 
 extern uint16_t xran_max_frame;
 
@@ -306,44 +306,44 @@ uint32_t xran_fs_cal_nrarfcn(uint32_t nCenterFreq)
     return (nNRARFCN);
 }
 
-uint32_t  xran_fs_slot_limit_init(int32_t tti_interval_us)
+uint32_t  xran_fs_slot_limit_init(uint32_t PortId, int32_t tti_interval_us)
 {
-    xran_fs_max_slot_num = (1000/tti_interval_us)*1000;
-    xran_fs_max_slot_num_SFN = (1000/tti_interval_us)*(xran_max_frame+1)*10;
-    return xran_fs_max_slot_num;
+    xran_fs_max_slot_num[PortId] = (1000/tti_interval_us)*1000;
+    xran_fs_max_slot_num_SFN[PortId] = (1000/tti_interval_us)*(xran_max_frame+1)*10;
+    return xran_fs_max_slot_num[PortId];
 }
 
-uint32_t xran_fs_get_max_slot(void)
+uint32_t xran_fs_get_max_slot(uint32_t PortId)
 {
-    return xran_fs_max_slot_num;
+    return xran_fs_max_slot_num[PortId];
 }
 
-uint32_t xran_fs_get_max_slot_SFN(void)
+uint32_t xran_fs_get_max_slot_SFN(uint32_t PortId)
 {
-    return xran_fs_max_slot_num_SFN;
+    return xran_fs_max_slot_num_SFN[PortId];
 }
 
-int32_t xran_fs_slot_limit(int32_t nSfIdx)
+int32_t xran_fs_slot_limit(uint32_t PortId, int32_t nSfIdx)
 {
     while (nSfIdx < 0) {
-        nSfIdx += xran_fs_max_slot_num;
+        nSfIdx += xran_fs_max_slot_num[PortId];
     }
 
-    while (nSfIdx >= xran_fs_max_slot_num) {
-        nSfIdx -= xran_fs_max_slot_num;
+    while (nSfIdx >= xran_fs_max_slot_num[PortId]) {
+        nSfIdx -= xran_fs_max_slot_num[PortId];
     }
 
     return nSfIdx;
 }
 
-void xran_fs_clear_slot_type(uint32_t nPhyInstanceId)
+void xran_fs_clear_slot_type(uint32_t PortId, uint32_t nPhyInstanceId)
 {
-    xran_fs_ul_rate[nPhyInstanceId] = 0.0;
-    xran_fs_dl_rate[nPhyInstanceId] = 0.0;
-    xran_fs_num_slot_tdd_loop[nPhyInstanceId] = 1;
+    xran_fs_ul_rate[PortId][nPhyInstanceId] = 0.0;
+    xran_fs_dl_rate[PortId][nPhyInstanceId] = 0.0;
+    xran_fs_num_slot_tdd_loop[PortId][nPhyInstanceId] = 1;
 }
 
-int32_t xran_fs_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexType, uint32_t nTddPeriod, struct xran_slot_config* psSlotConfig)
+int32_t xran_fs_set_slot_type(uint32_t PortId, uint32_t nPhyInstanceId, uint32_t nFrameDuplexType, uint32_t nTddPeriod, struct xran_slot_config* psSlotConfig)
 {
     uint32_t nSlotNum, nSymNum, nVal, i, j;
     uint32_t numDlSym, numUlSym, numGuardSym;
@@ -355,28 +355,28 @@ int32_t xran_fs_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexType
     // nTddPeriod        Tdd Periodicity
     // psSlotConfig[80]  Slot Config Structure for nTddPeriod Slots
 
-    xran_fs_ul_rate[nPhyInstanceId] = 0.0;
-    xran_fs_dl_rate[nPhyInstanceId] = 0.0;
-    xran_fs_num_slot_tdd_loop[nPhyInstanceId] = nTddPeriod;
+    xran_fs_ul_rate[PortId][nPhyInstanceId] = 0.0;
+    xran_fs_dl_rate[PortId][nPhyInstanceId] = 0.0;
+    xran_fs_num_slot_tdd_loop[PortId][nPhyInstanceId] = nTddPeriod;
 
     for (i = 0; i < XRAN_NUM_OF_SLOT_IN_TDD_LOOP; i++)
     {
-        xran_fs_slot_type[nPhyInstanceId][i] = XRAN_SLOT_TYPE_INVALID;
-        xran_fs_num_dl_sym_sp[nPhyInstanceId][i] = 0;
-        xran_fs_num_ul_sym_sp[nPhyInstanceId][i] = 0;
+        xran_fs_slot_type[PortId][nPhyInstanceId][i] = XRAN_SLOT_TYPE_INVALID;
+        xran_fs_num_dl_sym_sp[PortId][nPhyInstanceId][i] = 0;
+        xran_fs_num_ul_sym_sp[PortId][nPhyInstanceId][i] = 0;
     }
 
     if (nFrameDuplexType == XRAN_FDD)
     {
         for (i = 0; i < XRAN_NUM_OF_SLOT_IN_TDD_LOOP; i++)
         {
-            xran_fs_slot_type[nPhyInstanceId][i] = XRAN_SLOT_TYPE_FDD;
+            xran_fs_slot_type[PortId][nPhyInstanceId][i] = XRAN_SLOT_TYPE_FDD;
             for(j = 0; j < XRAN_NUM_OF_SYMBOL_PER_SLOT; j++)
-              xran_fs_slot_symb_type[nPhyInstanceId][i][j] = XRAN_SYMBOL_TYPE_FDD;
+              xran_fs_slot_symb_type[PortId][nPhyInstanceId][i][j] = XRAN_SYMBOL_TYPE_FDD;
         }
-        xran_fs_num_slot_tdd_loop[nPhyInstanceId] = 1;
-        xran_fs_dl_rate[nPhyInstanceId] = 1.0;
-        xran_fs_ul_rate[nPhyInstanceId] = 1.0;
+        xran_fs_num_slot_tdd_loop[PortId][nPhyInstanceId] = 1;
+        xran_fs_dl_rate[PortId][nPhyInstanceId] = 1.0;
+        xran_fs_ul_rate[PortId][nPhyInstanceId] = 1.0;
     }
     else
     {
@@ -391,14 +391,14 @@ int32_t xran_fs_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexType
                 {
                     case XRAN_SYMBOL_TYPE_DL:
                         numDlSym++;
-                        xran_fs_slot_symb_type[nPhyInstanceId][nSlotNum][nSymNum] = XRAN_SYMBOL_TYPE_DL;
+                        xran_fs_slot_symb_type[PortId][nPhyInstanceId][nSlotNum][nSymNum] = XRAN_SYMBOL_TYPE_DL;
                     break;
                     case XRAN_SYMBOL_TYPE_GUARD:
-                        xran_fs_slot_symb_type[nPhyInstanceId][nSlotNum][nSymNum] = XRAN_SYMBOL_TYPE_GUARD;
+                        xran_fs_slot_symb_type[PortId][nPhyInstanceId][nSlotNum][nSymNum] = XRAN_SYMBOL_TYPE_GUARD;
                         numGuardSym++;
                     break;
                     default:
-                        xran_fs_slot_symb_type[nPhyInstanceId][nSlotNum][nSymNum] = XRAN_SYMBOL_TYPE_UL;
+                        xran_fs_slot_symb_type[PortId][nPhyInstanceId][nSlotNum][nSymNum] = XRAN_SYMBOL_TYPE_UL;
                         numUlSym++;
                     break;
                 }
@@ -408,46 +408,46 @@ int32_t xran_fs_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexType
 
             if ((numUlSym == 0) && (numGuardSym == 0))
             {
-                xran_fs_slot_type[nPhyInstanceId][nSlotNum] = XRAN_SLOT_TYPE_DL;
+                xran_fs_slot_type[PortId][nPhyInstanceId][nSlotNum] = XRAN_SLOT_TYPE_DL;
                 numDlSlots++;
                 print_dbg("XRAN_SLOT_TYPE_DL\n");
             }
             else if ((numDlSym == 0) && (numGuardSym == 0))
             {
-                xran_fs_slot_type[nPhyInstanceId][nSlotNum] = XRAN_SLOT_TYPE_UL;
+                xran_fs_slot_type[PortId][nPhyInstanceId][nSlotNum] = XRAN_SLOT_TYPE_UL;
                 numUlSlots++;
                 print_dbg("XRAN_SLOT_TYPE_UL\n");
             }
             else
             {
-                xran_fs_slot_type[nPhyInstanceId][nSlotNum] = XRAN_SLOT_TYPE_SP;
+                xran_fs_slot_type[PortId][nPhyInstanceId][nSlotNum] = XRAN_SLOT_TYPE_SP;
                 numSpSlots++;
                 print_dbg("XRAN_SLOT_TYPE_SP\n");
 
                 if (numDlSym)
                 {
                     numSpDlSlots++;
-                    xran_fs_num_dl_sym_sp[nPhyInstanceId][nSlotNum] = numDlSym;
+                    xran_fs_num_dl_sym_sp[PortId][nPhyInstanceId][nSlotNum] = numDlSym;
                 }
                 if (numUlSym)
                 {
                     numSpUlSlots++;
-                    xran_fs_num_ul_sym_sp[nPhyInstanceId][nSlotNum] = numUlSym;
+                    xran_fs_num_ul_sym_sp[PortId][nPhyInstanceId][nSlotNum] = numUlSym;
                 }
             }
             print_dbg("            numDlSlots[%d] numUlSlots[%d] numSpSlots[%d] numSpDlSlots[%d] numSpUlSlots[%d]\n", numDlSlots, numUlSlots, numSpSlots, numSpDlSlots, numSpUlSlots);
         }
 
-        xran_fs_dl_rate[nPhyInstanceId] = (float)(numDlSlots + numSpDlSlots) / (float)nTddPeriod;
-        xran_fs_ul_rate[nPhyInstanceId] = (float)(numUlSlots + numSpUlSlots) / (float)nTddPeriod;
+        xran_fs_dl_rate[PortId][nPhyInstanceId] = (float)(numDlSlots + numSpDlSlots) / (float)nTddPeriod;
+        xran_fs_ul_rate[PortId][nPhyInstanceId] = (float)(numUlSlots + numSpUlSlots) / (float)nTddPeriod;
     }
 
     print_dbg("%s: nPhyInstanceId[%d] nFrameDuplexType[%d], nTddPeriod[%d]\n",
         __FUNCTION__, nPhyInstanceId, nFrameDuplexType, nTddPeriod);
 
-    print_dbg("DLRate[%f] ULRate[%f]\n", xran_fs_dl_rate[nPhyInstanceId], xran_fs_ul_rate[nPhyInstanceId]);
+    print_dbg("DLRate[%f] ULRate[%f]\n", xran_fs_dl_rate[PortId][nPhyInstanceId], xran_fs_ul_rate[PortId][nPhyInstanceId]);
 
-    nVal = (xran_fs_num_slot_tdd_loop[nPhyInstanceId] < 10) ? xran_fs_num_slot_tdd_loop[nPhyInstanceId] : 10;
+    nVal = (xran_fs_num_slot_tdd_loop[PortId][nPhyInstanceId] < 10) ? xran_fs_num_slot_tdd_loop[PortId][nPhyInstanceId] : 10;
 
     print_dbg("SlotPattern:\n");
     print_dbg("Slot:   ");
@@ -458,11 +458,11 @@ int32_t xran_fs_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexType
     print_dbg("\n");
 
     print_dbg("  %3d   ", 0);
-    for (nSlotNum = 0, i = 0; nSlotNum < xran_fs_num_slot_tdd_loop[nPhyInstanceId]; nSlotNum++)
+    for (nSlotNum = 0, i = 0; nSlotNum < xran_fs_num_slot_tdd_loop[PortId][nPhyInstanceId]; nSlotNum++)
     {
-        print_dbg("%s   ", sSlotPattern[xran_fs_slot_type[nPhyInstanceId][nSlotNum]]);
+        print_dbg("%s   ", sSlotPattern[xran_fs_slot_type[PortId][nPhyInstanceId][nSlotNum]]);
         i++;
-        if ((i == 10) && ((nSlotNum+1) < xran_fs_num_slot_tdd_loop[nPhyInstanceId]))
+        if ((i == 10) && ((nSlotNum+1) < xran_fs_num_slot_tdd_loop[PortId][nPhyInstanceId]))
         {
             print_dbg("\n");
             print_dbg("  %3d   ", nSlotNum);
@@ -474,12 +474,12 @@ int32_t xran_fs_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexType
     return 0;
 }
 
-int32_t xran_fs_get_slot_type(int32_t nCellIdx, int32_t nSlotdx, int32_t nType)
+int32_t xran_fs_get_slot_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx, int32_t nType)
 {
     int32_t nSfIdxMod, nSfType, ret = 0;
 
-    nSfIdxMod = xran_fs_slot_limit(nSlotdx) % ((xran_fs_num_slot_tdd_loop[nCellIdx] > 0) ? xran_fs_num_slot_tdd_loop[nCellIdx]: 1);
-    nSfType = xran_fs_slot_type[nCellIdx][nSfIdxMod];
+    nSfIdxMod = xran_fs_slot_limit(PortId, nSlotdx) % ((xran_fs_num_slot_tdd_loop[PortId][nCellIdx] > 0) ? xran_fs_num_slot_tdd_loop[PortId][nCellIdx]: 1);
+    nSfType = xran_fs_slot_type[PortId][nCellIdx][nSfIdxMod];
 
     if (nSfType == nType)
     {
@@ -487,12 +487,12 @@ int32_t xran_fs_get_slot_type(int32_t nCellIdx, int32_t nSlotdx, int32_t nType)
     }
     else if (nSfType == XRAN_SLOT_TYPE_SP)
     {
-        if ((nType == XRAN_SLOT_TYPE_DL) && xran_fs_num_dl_sym_sp[nCellIdx][nSfIdxMod])
+        if ((nType == XRAN_SLOT_TYPE_DL) && xran_fs_num_dl_sym_sp[PortId][nCellIdx][nSfIdxMod])
         {
             ret = 1;
         }
 
-        if ((nType == XRAN_SLOT_TYPE_UL) && xran_fs_num_ul_sym_sp[nCellIdx][nSfIdxMod])
+        if ((nType == XRAN_SLOT_TYPE_UL) && xran_fs_num_ul_sym_sp[PortId][nCellIdx][nSfIdxMod])
         {
             ret = 1;
         }
@@ -505,13 +505,13 @@ int32_t xran_fs_get_slot_type(int32_t nCellIdx, int32_t nSlotdx, int32_t nType)
     return ret;
 }
 
-int32_t xran_fs_get_symbol_type(int32_t nCellIdx, int32_t nSlotdx,  int32_t nSymbIdx)
+int32_t xran_fs_get_symbol_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx,  int32_t nSymbIdx)
 {
     int32_t nSfIdxMod, nSfType, ret = 0;
 
-    nSfIdxMod = xran_fs_slot_limit(nSlotdx) % ((xran_fs_num_slot_tdd_loop[nCellIdx] > 0) ? xran_fs_num_slot_tdd_loop[nCellIdx]: 1);
+    nSfIdxMod = xran_fs_slot_limit(PortId, nSlotdx) % ((xran_fs_num_slot_tdd_loop[PortId][nCellIdx] > 0) ? xran_fs_num_slot_tdd_loop[PortId][nCellIdx]: 1);
 
-    return xran_fs_slot_symb_type[nCellIdx][nSfIdxMod][nSymbIdx];
+    return xran_fs_slot_symb_type[PortId][nCellIdx][nSfIdxMod][nSymbIdx];
 }
 
 

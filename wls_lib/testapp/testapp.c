@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -38,6 +38,10 @@
 #include "ttypes.h"
 #include "wls_lib.h"
 #include "pool.h"
+#include <rte_config.h>
+#include <rte_common.h>
+#include <rte_eal.h>
+
 
 #define HANDLE	PVOID
 
@@ -55,6 +59,8 @@
 #define   APP_QUEUE_SIZE   255   /* number of elements each queue of the WLS  being registered will have */
 #define   MAX_MESSAGES  1000   /* per ms */
 
+U32 nCRC_Fail = 0;
+U32 nCRC_Pass = 0;
 
 #ifndef TRUE
 #define TRUE  1
@@ -269,9 +275,6 @@ static int App_MemoryInit(void* h, unsigned long size, U32 BlockSize)
 
 /********************************/
 
-#define FAST_CRC16    1
-
-#if (FAST_CRC16)
 const U8 mb_table_level1[] = {
     0x00, 0xC1, 0x81, 0x40, 0x01, 0xC0, 0x80, 0x41,
     0x01, 0xC0, 0x80, 0x41, 0x00, 0xC1, 0x81, 0x40,
@@ -342,102 +345,6 @@ const U8 mb_table_level2[] = {
     0x82, 0x42, 0x43, 0x83, 0x41, 0x81, 0x80, 0x40
 };
 
-#if 0
-// big endian CPU
-
-U16
-crc16(U16 crc, U8 data)
-{
-    U8 index;
-    U8 crc_Low = crc & 0xFF;
-    U8 crc_High = crc >> 8;
-
-    index = (crc_High ^ data) & 0xFF;
-    crc_High = crc_Low ^ mb_table_level1[ index ];
-    crc_Low = mb_table_level2[ index ];
-
-    return (crc_High << 8) | crc_Low;
-}
-#else
-// little endian CPU
-#if 0
-static U16 CRC16_Update(U16 crc, U8 data)
-{
-    U8 index;
-    U8 crc_High = crc >> 8;
-    U8 crc_Low = crc & 0xFF;
-
-    index = crc_Low ^ data;
-    crc_Low = crc_High ^ mb_table_level1[ index ];
-    crc_High = mb_table_level2[ index ];
-
-    return (crc_High << 8) | crc_Low;
-}
-#endif
-#endif
-
-#if 0
-/***********************************************
- * CRC16  polynomial : X16 + X15 + X2 + 1       *
- * FAST CRC16 routine                           *
- * ---> pData - msg to be protected             *
- * ---> size - msg size in bytes                *
- * ---> aCRC - initializer (0xFFFF for 1st page)*
- * <--- crc16                                   *
- ***********************************************/
-static U16 CRC16_NoInit(U16 aCRC, U8 *pData, U16 size)
-{
-
-    if (!size)
-        return aCRC;
-    else {
-        U8 index;
-        U8 crc_High = aCRC >> 8;
-        U8 crc_Low = aCRC & 0xFF;
-
-        do {
-            index = crc_Low ^ *pData++;
-            crc_Low = crc_High ^ mb_table_level1[ index ];
-            crc_High = mb_table_level2[ index ];
-        } while (--size);
-
-        return (crc_High << 8) | crc_Low;
-    }
-}
-#endif
-
-#else // SLOW (canonic CRC16 calculation)
-
-/***********************************************
- * CRC16  polynomial : X16 + X15 + X2 + 1       *
- * ---> pData - msg to be protected             *
- * ---> size - msg size in bytes                *
- * ---> aCRC - initializer (0xFFFF for 1st page)*
- * <--- crc16                                   *
- ***********************************************/
-U16 CRC16_NoInit(U16 aCRC, U8 *pData, U16 size)
-{
-    U8 i, tmp;
-
-    if (!size)
-        return aCRC;
-
-    do {
-        aCRC ^= *pData++;
-        for (i = 0; i < 8; i++) {
-            tmp = aCRC & 0x01;
-            aCRC >>= 1;
-            if (tmp) {
-                aCRC ^= CRC16_DIVISOR;
-            }
-        }
-    } while (--size);
-    return aCRC;
-}
-
-#endif // FAST_CRC16
-
-
 #define CRC32_INIT_VAL  0xFFFFFFFF
 #define CRC32_DIVISOR   0xA0000001
 
@@ -461,14 +368,6 @@ static U32 ICC_CRC32(U8 *pData, U32 size)
     return retval;
 }
 
-#if 0
-
-static U16 ICC_CRC16(U8 *pData, U16 size)
-{
-#define CRC16_ERROR (0xffff)
-    return CRC16_NoInit(CRC16_ERROR, pData, size); // use 0xFFFF as first initializer
-}
-#endif
 
 static int app_PutMessageCRC(void* h, unsigned long long pMsg, unsigned int MsgSize, unsigned short MsgTypeID, unsigned short Flags)
 {
@@ -480,19 +379,14 @@ static int app_PutMessageCRC(void* h, unsigned long long pMsg, unsigned int MsgS
         return 0;
     }
     p = (U8 *) pMsgVa;
-#if 1
+
     U32 crc = ICC_CRC32((U8 *) pMsgVa, MsgSize - sizeof (crc));
+
     // CRC32
     p[MsgSize - 4] = (crc >> 0) & 0xff;
     p[MsgSize - 3] = (crc >> 8) & 0xff;
     p[MsgSize - 2] = (crc >> 16) & 0xff;
     p[MsgSize - 1] = (crc >> 24) & 0xff;
-#else
-    U16 crc = ICC_CRC16((U8 *) pMsg, MsgSize - sizeof (crc));
-    // CRC16
-    p[MsgSize - 2] = (crc >> 0) & 0xff;
-    p[MsgSize - 1] = (crc >> 8) & 0xff;
-#endif
 
     return WLS_Put(h, (unsigned long long) pMsg, MsgSize, MsgTypeID, Flags);
 }
@@ -500,19 +394,26 @@ static int app_PutMessageCRC(void* h, unsigned long long pMsg, unsigned int MsgS
 static unsigned long long app_GetMessageCRC(void* h, unsigned int *MsgSize, unsigned short *MsgTypeID, unsigned short *Flags)
 {
     U64 pMsgPa = WLS_Get(h, MsgSize, MsgTypeID, Flags);
+
+    if (pMsgPa) {
     U64 pMsg = (U64) WlsPaToVa((void*) pMsgPa);
 
     if (pMsg) {
         U32 size = *MsgSize;
-#if 1
         U32 crc = ICC_CRC32((U8*) pMsg, size);
-#else
-        U16 crc = ICC_CRC16((U8*) pMsg, size);
-#endif
 
         if (crc != 0) {
+                nCRC_Fail++;
             printf("CRC error detected for message %p, size_%lu\n", (void*) pMsg, (long) size);
             ShowData((U8*) pMsg, size);
+        }
+            else {
+                if (nCRC_Pass == 0) {
+                    printf("Example of Msg Size and Content being sent: %d\n", size);
+                    ShowData((U8*) pMsg, size);
+                }
+                nCRC_Pass++;
+            }
         }
     }
     return pMsgPa;
@@ -521,19 +422,26 @@ static unsigned long long app_GetMessageCRC(void* h, unsigned int *MsgSize, unsi
 static unsigned long long app_WGetMessageCRC(void* h, unsigned int *MsgSize, unsigned short *MsgTypeID, unsigned short *Flags)
 {
     U64 pMsgPa = WLS_WGet(h, MsgSize, MsgTypeID, Flags);
+
+    if (pMsgPa) {
     U64 pMsg = (U64) WlsPaToVa((void*) pMsgPa);
 
     if (pMsg) {
         U32 size = *MsgSize;
-#if 1
         U32 crc = ICC_CRC32((U8*) pMsg, size);
-#else
-        U16 crc = ICC_CRC16((U8*) pMsg, size);
-#endif
 
         if (crc != 0) {
+                nCRC_Fail++;
             printf("CRC error detected for message %p, size_%lu\n", (void*) pMsg, (long) size);
             ShowData((U8*) pMsg, size);
+        }
+            else {
+                if (nCRC_Pass == 0) {
+                    printf("Example of Msg Size and Content being sent: %d\n", size);
+                    ShowData((U8*) pMsg, size);
+                }
+                nCRC_Pass++;
+            }
         }
     }
     return pMsgPa;
@@ -686,144 +594,6 @@ static void app_SanityTestTransmitter(HANDLE hWls)
     }
 }
 
-#if 0
-/**
- *******************************************************************************
- *
- * @fn    app_ScatterGatherTransmitter
- * @brief transmitter of default test case (15/16).
- *
- * @param[h]  hWls - app thread WLS  handle
- * @return    void
- *
- * @description
- *    The routine is used in test case 0 (non-blocking sanity unit test)
- * The transmitter does allocate multiple blocks of the same size from the ICC
- * service. Then it fills each block with incremental counter and transfers
- * to other application specified by parameter TxID.
- *
- * @references
- * MS-111070-SP
- *
- * @ingroup icc_service_unit_test
- *
- ******************************************************************************/
-static void app_ScatterGatherTransmitter(HANDLE hWls)
-{
-	U8 *pMsg;
-	unsigned n = app_AllocMultiple(hWls, AppContext.TxMessages, AppContext.TxMessageSizes, AppContext.MsgPerMs + 2);
-	unsigned i, cnt = 0, flags = 0;
-	U8 *p, *pOriginMsg = (U8 *)App_Alloc(hWls, AppContext.MaxMsgSize);
-	unsigned TotalSize = 0;
-
-    unsigned fn  = n;
-    unsigned k = 0;
-    unsigned alloc = n;
-
-	if (!pOriginMsg) {
-		printf("No memory for App_Alloc()\n");
-		return;
-	}
-
-	flags = rand() & 0xff;
-
-	for(i = 0; i < AppContext.MaxMsgSize; i++)
-		pOriginMsg[i] = (flags + i) & 0xff;
-
-	// scatter original message among several blocks
-	for(i = 0; i < n; i++)
-	{
-		U32 size = (rand() % (AppContext.MaxMsgSize / n));
-
-		if (size < AppContext.MinMsgSize)
-			size = AppContext.MinMsgSize;
-
-		TotalSize += size;
-		AppContext.TxMessageSizes[i] = size;
-		//printf("size%d=%lu\n", i, size);
-	}
-
-	// adjust size of the last block
-	if (TotalSize < AppContext.MaxMsgSize)
-	{
-		AppContext.TxMessageSizes[n - 1] += AppContext.MaxMsgSize - TotalSize;
-	}
-	else if (TotalSize > AppContext.MaxMsgSize)
-	{
-		printf("error: size of the scatted blocks exceeding size of the original message\n");
-	}
-
-	p = pOriginMsg;
-	for(i = 0; i < n; i++)
-	{
-		// copy data into the scattered blocks
-		pMsg = AppContext.TxMessages[i];
-		memcpy(pMsg, p, AppContext.TxMessageSizes[i]);
-		p += AppContext.TxMessageSizes[i];
-	}
-
-	// transmit original message first
-	if (AppContext.wls_put(hWls, (U64)WlsVaToPa(pOriginMsg), AppContext.MaxMsgSize, AppContext.TxID, 0) != 0)
-	{
-		printf("could not send the message_%p\n", pOriginMsg);
-		if (App_Free(hWls, pOriginMsg) != 0)
-			printf("could not release the message_%p\n", pOriginMsg);
-	}
-	else
-	{
-		AppContext.nTxOctets += AppContext.MaxMsgSize;
-		AppContext.nTxMsgs += 1;
-	}
-
-    if(pOriginMsg){
-        if (App_Free(hWls, pOriginMsg) != 0)
-            printf("could not release the message_%p\n", pMsg);
-    }
-    else
-        printf("pOriginMsg is NULL \n");
-
-	// transmit scattered messages following their creation order
-	while (n--)
-	{
-		pMsg = AppContext.TxMessages[cnt];
-		if (!cnt)
-			flags = WLS_SG_FIRST;
-		else if (n == 0)
-			flags = WLS_SG_LAST;
-		else
-			flags = WLS_SG_NEXT;
-
-		if (AppContext.wls_put(hWls, (U64)WlsVaToPa(pMsg), AppContext.TxMessageSizes[cnt], AppContext.TxID, flags) != 0)
-		{
-			printf("could not send the message_%p\n", pMsg);
-			if (App_Free(hWls, pMsg) != 0)
-				printf("could not release the message_%p\n", pMsg);
-		}
-        else
-            k++;
-
-		AppContext.nTxOctets += AppContext.TxMessageSizes[cnt];
-		AppContext.nTxMsgs += 1;
-		cnt++;
-	}
-    if(alloc != k)
-        printf("inorrect sent %d alloc %d \n", k, alloc);
-
-    cnt = 0;
-    while (fn--)
-    {
-        pMsg = AppContext.TxMessages[cnt++];
-        if(pMsg){
-            if (App_Free(hWls, pMsg) != 0)
-                printf("could not release the message_%p\n", pMsg);
-        }
-        else
-            printf("pMsg is NULL [%d]\n", cnt);
-    }
-    if(cnt != k)
-        printf("inorrect free sent %d free %d \n", k, cnt);
-}
-#endif
 
 /**
  *******************************************************************************
@@ -903,105 +673,6 @@ static void app_SanityTestReceiver(HANDLE hWls)
     }
 }
 
-#if 0
-/**
- *******************************************************************************
- *
- * @fn    app_ScatterGatherReceiver
- * @brief scatter gather test receiver
- *
- * @param[h]  hWls - app thread WLS  handle
- * @return    void
- *
- * @description
- *    The routine takes received messages and checks the sanity incremental
- * counter to confirm the order. In case the counter does not correspond to
- * expected counter (misordered message or incorrect message) an error is
- * printed to STDOUT.
- *
- * @references
- * MS-111070-SP
- *
- * @ingroup icc_service_unit_test
- *
- ******************************************************************************/
-static void app_ScatterGatherReceiver(HANDLE hWls)
-{
-        (void)hWls;
-	U32 MsgSize;
-	U8  *pMsg;
-    U8  *pMsgPa;
-    U8  *pMsgVa;
-	U32 size;
-	U8 err = 0;
-    unsigned short MsgTypeID;
-    unsigned short Flags;
-
-	// handle RX receiver
-	while ((pMsgPa = (U8*) AppContext.wls_get(AppContext.hWls, &MsgSize, &MsgTypeID, &Flags)) != NULL)
-	{
-        pMsgVa = (U8  *)WlsPaToVa(pMsgPa);
-
-        pMsg = pMsgVa;
-
-		AppContext.nRxOcters += MsgSize;
-		AppContext.nRxMsgs += 1;
-
-		if (!AppContext.pLastRx)
-		{
-			AppContext.pLastRx = pMsg;
-			AppContext.LastRxSize = MsgSize;
-		}
-		else // compare with received and release both
-		{
-			U32 i;
-			if (AppContext.LastRxSize != MsgSize)
-				printf("received wrong size, unsync? try to re-run app both clusters\n");
-
-			size = MsgSize;
-			if (size > AppContext.LastRxSize)
-				size = AppContext.LastRxSize;
-
-			for(i = 0; i < size; i++)
-			{
-				if (pMsg[i] != AppContext.pLastRx[i])
-				{
-					// error content doesn't match
-					err = TRUE;
-					break;
-				}
-			}
-
-			if (err)
-			{
-				printf("content verification failed, scatter-gather test FAIL\n");
-				// terminate
-				AppContext.Receive = NULL;
-				AppContext.Transmit = NULL;
-				App_Free(AppContext.hWls, pMsg);
-				App_Free(AppContext.hWls, AppContext.pLastRx);
-				return;
-			}
-
-			App_Free(AppContext.hWls, pMsg);
-			App_Free(AppContext.hWls, AppContext.pLastRx);
-			AppContext.pLastRx = NULL;
-		}
-
-	}
-}
-
-
-
-static U32 app_GetTime(void)
-{
-	struct timeval tv;
-	U32 time_ms = 0;
-	if (gettimeofday(&tv, NULL) == 0)
-		time_ms = tv.tv_sec * 1000 + tv.tv_usec / 1000;
-	return time_ms;
-}
-#endif
 
 /******************************************************************************
  *                                                                             *
@@ -1415,11 +1086,17 @@ int main(int argc, char* argv[])
 {
     int retval = 0;
     APP_PARAMS params;
+    uint64_t nWlsMacMemorySize = DEFAULT_TEST_MEMORY_SIZE, nWlsPhyMemorySize = 0;
+    uint32_t nLoop = 30000;
+    uint32_t nNumBlks = 0;
 
     signal(SIGINT, App_SigExitCallback);
 
     memset(&AppContext, 0, sizeof (AppContext));
     memset(&params, 0, sizeof (params));
+
+    nCRC_Fail = 0;
+    nCRC_Pass = 0;
 
     int ret = rte_eal_init(argc, argv);
     if (ret < 0)
@@ -1433,7 +1110,7 @@ int main(int argc, char* argv[])
 
     AppContext.InitQueueSize = APP_QUEUE_SIZE;
 
-    AppContext.hWls = WLS_Open(params.wls_dev_name, AppContext.master, DEFAULT_TEST_MEMORY_SIZE);
+    AppContext.hWls = WLS_Open(params.wls_dev_name, !AppContext.master, &nWlsMacMemorySize, &nWlsPhyMemorySize);
 
     if (!AppContext.hWls) {
         printf("could not register WLS client\n");
@@ -1442,6 +1119,7 @@ int main(int argc, char* argv[])
         printf("WLS has been registered\n");
     }
 
+    WLS_SetMode(AppContext.hWls, AppContext.master);
     AppContext.shm_memory = WLS_Alloc(AppContext.hWls, DEFAULT_TEST_MEMORY_SIZE);
 
     if (AppContext.shm_memory == NULL) {
@@ -1462,8 +1140,20 @@ int main(int argc, char* argv[])
 
     }
 
+    ret = WLS_Ready(AppContext.hWls);
+    if (ret) {
+        printf("wls not ready\n");
+        return -1;
+    }
+
+    nNumBlks = WLS_Check(AppContext.hWls);
+    printf("There are %d blocks in queue from WLS_Check\n", nNumBlks);
+
+    nNumBlks = WLS_NumBlocks(AppContext.hWls);
+    printf("There are %d blocks in queue from WLS_NumBlocks\n", nNumBlks);
+
     // APPLICATION MAIN LOOP
-    while (!AppContext.ExitStatus && (AppContext.Receive || AppContext.Transmit)) {
+    while (!AppContext.ExitStatus && (AppContext.Receive || AppContext.Transmit) && nLoop) {
         if (AppContext.Receive)
             AppContext.Receive(AppContext.hWls);
 
@@ -1477,10 +1167,17 @@ int main(int argc, char* argv[])
             AppContext.Transmit(AppContext.hWls);
 
         app_UpdateStatistics();
+        nLoop--;
     }
 
     app_ReleaseAllocatedBuffers();
-    printf("deregistering WLS  (TxTotal_%llu, RxTotal_%llu)\n", (long long) AppContext.nTxMsgs, (long long) AppContext.nRxMsgs);
+    printf("deregistering WLS  (TxTotal_%lld, RxTotal_%lld)\n", (long long) AppContext.nTxMsgs, (long long) AppContext.nRxMsgs);
+    if (params.crc)
+    {
+        printf("Number of CRC Pass %d\n", nCRC_Pass);
+        printf("Number of CRC Fail %d\n", nCRC_Fail);
+        printf("Total Message sent: %d\n", (nCRC_Pass + nCRC_Fail));
+    }
     WLS_Free(AppContext.hWls, AppContext.shm_memory);
     WLS_Close(AppContext.hWls);
     return retval;

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -75,10 +75,6 @@ struct data_section_hdr {
             uint32_t     sect_id:12;    /**< 5.4.5.1 section identifier */
         };
     }fields;
-#ifdef FCN_ADAPT
-        uint8_t udCompHdr;
-        uint8_t reserved;
-#endif
 } __rte_packed;
 
 
@@ -157,6 +153,21 @@ struct xran_up_pkt_hdr
     struct data_section_hdr data_sec_hdr;
 } __rte_packed;
 
+/**
+ ******************************************************************************
+ * @ingroup xran_common_pkt
+ *
+ * @description
+ *       Structure holds complete xran u-plane packet header with compression
+ *       3.1.1	Ethernet Encapsulation
+ *****************************************************************************/
+struct xran_up_pkt_hdr_comp
+{
+    struct xran_ecpri_hdr ecpri_hdr; /**< eCPRI Transport Header */
+    struct radio_app_common_hdr app_hdr; /**< eCPRI Transport Header */
+    struct data_section_hdr data_sec_hdr; /**< data section Header */
+    struct data_section_compression_hdr data_comp_hdr; /** Compression Header */
+} __rte_packed;
 
 /**
  ******************************************************************************
@@ -171,6 +182,13 @@ struct eth_xran_up_pkt_hdr
     struct rte_ether_hdr eth_hdr;
     struct xran_up_pkt_hdr xran_hdr;
 }__rte_packed;
+
+struct eth_xran_up_pkt_hdr_comp
+{
+    struct rte_ether_hdr eth_hdr;
+    struct xran_up_pkt_hdr_comp xran_hdr;
+}__rte_packed;
+
 
 #ifdef __cplusplus
 }

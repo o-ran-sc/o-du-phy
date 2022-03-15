@@ -30,15 +30,21 @@
 uint8_t nr5g_fapi_fapi2phy_is_valid_wls_ptr(
     void *data);
 uint8_t nr5g_fapi_fapi2phy_wls_send(
-    void *data);
+    void *data,
+    bool is_urllc);
 PMAC2PHY_QUEUE_EL nr5g_fapi_fapi2phy_wls_recv(
     );
-inline uint8_t nr5g_fapi_fapi2phy_wls_wait(
+inline uint32_t nr5g_fapi_fapi2phy_wls_wait(
     );
 void wls_fapi_add_send_apis_to_free(
     PMAC2PHY_QUEUE_EL pListElem,
     uint32_t idx);
 void wls_fapi_free_send_free_list(
+    uint32_t idx);
+void wls_fapi_add_send_apis_to_free_urllc(
+    PMAC2PHY_QUEUE_EL pListElem,
+    uint32_t idx);
+void wls_fapi_free_send_free_list_urllc(
     uint32_t idx);
 void wls_fapi_add_recv_apis_to_free(
     PMAC2PHY_QUEUE_EL pListElem,

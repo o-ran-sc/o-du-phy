@@ -43,11 +43,12 @@ p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_create_api_list_elem(
     uint32_t align_offset);
 
 void nr5g_fapi_fapi2mac_send_api_list(
-    );
+    bool is_urllc);
 
 void nr5g_fapi_fapi2mac_add_api_to_list(
     uint8_t phy_id,
-    p_fapi_api_queue_elem_t p_list_elem);
+    p_fapi_api_queue_elem_t p_list_elem,
+    bool is_urllc);
 
 void nr5g_fapi_fapi2mac_init_api_list(
     );

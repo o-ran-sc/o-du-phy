@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-
+#include <immintrin.h>
 #include "xran_timer.h"
 #include "xran_printf.h"
 #include "xran_mlog_lnx.h"
@@ -60,12 +60,12 @@ static struct timespec* p_temp_time;
 
 static struct timespec sleeptime = {.tv_nsec = 1E3 }; /* 1 us */
 
-static unsigned long current_second = 0;
+volatile static unsigned long current_second = 0;
 static unsigned long started_second = 0;
 static uint8_t numerlogy = 0;
-extern uint32_t xran_lib_ota_sym;
-extern uint32_t xran_lib_ota_tti;
-extern uint32_t xran_lib_ota_sym_idx;
+extern uint32_t xran_lib_ota_sym[];
+extern uint32_t xran_lib_ota_tti[];
+extern uint32_t xran_lib_ota_sym_idx[];
 
 static int debugStop = 0;
 static int debugStopCount = 0;
@@ -92,9 +92,18 @@ uint64_t timing_get_current_second(void)
     return current_second;
 }
 
+uint32_t xran_max_ota_sym_idx(uint8_t numerlogy)
+{
+    return (XRAN_NUM_OF_SYMBOL_PER_SLOT * slots_per_subframe[numerlogy] * MSEC_PER_SEC);
+}
+
 int timing_set_numerology(uint8_t value)
 {
     numerlogy = value;
+    return numerlogy;
+}
+uint8_t timing_get_numerology(void)
+{
     return numerlogy;
 }
 
@@ -146,9 +155,12 @@ unsigned long get_ticks_diff(unsigned long curr_tick, unsigned long last_tick)
     else
         return (unsigned long)(0xFFFFFFFFFFFFFFFF - last_tick + curr_tick);
 }
+extern uint16_t xran_getSfnSecStart(void);
 
 long poll_next_tick(long interval_ns, unsigned long *used_tick)
 {
+    struct xran_ethdi_ctx *p_eth = xran_ethdi_get_ctx();
+    struct xran_io_cfg *p_io_cfg = &(p_eth->io_cfg);
     struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
     struct xran_common_counters* pCnt = &p_xran_dev_ctx->fh_counters;
 
@@ -157,6 +169,7 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
     static int counter = 0;
     static long sym_acc = 0;
     static long sym_cnt = 0;
+    int i;
 
     if(counter == 0) {
        clock_gettime(CLOCK_REALTIME, p_last_time);
@@ -187,16 +200,23 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
             if(current_second != p_cur_time->tv_sec){
                 current_second = p_cur_time->tv_sec;
                 xran_updateSfnSecStart();
-                xran_lib_ota_sym_idx = 0;
-                xran_lib_ota_tti = 0;
-                xran_lib_ota_sym = 0;
+                for (i=0; i < XRAN_PORTS_NUM; i++)
+                {
+                    xran_lib_ota_tti[i] = 0;
+                    xran_lib_ota_sym[i] = 0;
+                    xran_lib_ota_sym_idx[i] = 0;
+                }
                 sym_cnt = 0;
                 sym_acc = 0;
                 print_dbg("ToS:C Sync timestamp: [%ld.%09ld]\n", p_cur_time->tv_sec, p_cur_time->tv_nsec);
                 if(debugStop){
                     if(p_cur_time->tv_sec > started_second && ((p_cur_time->tv_sec % SEC_MOD_STOP) == 0)){
                         uint64_t t1;
-                        printf("STOP:[%ld.%09ld]\n", p_cur_time->tv_sec, p_cur_time->tv_nsec);
+                        uint32_t tti = xran_lib_ota_tti[0];
+                        uint32_t slot_id     = XranGetSlotNum(tti, SLOTNUM_PER_SUBFRAME(interval_us));
+                        uint32_t subframe_id = XranGetSubFrameNum(tti,SLOTNUM_PER_SUBFRAME(interval_us),  SUBFRAMES_PER_SYSTEMFRAME);
+                        uint32_t frame_id    = XranGetFrameNum(tti,xran_getSfnSecStart(),SUBFRAMES_PER_SYSTEMFRAME, SLOTNUM_PER_SUBFRAME(interval_us));
+                        printf("STOP:[%ld.%09ld] (%d : %d : %d)\n", p_cur_time->tv_sec, p_cur_time->tv_nsec,frame_id, subframe_id, slot_id);
                         t1 = MLogTick();
                         rte_pause();
                         MLogTask(PID_TIME_SYSTIME_STOP, t1, MLogTick());
@@ -205,7 +225,12 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
                 }
                 p_cur_time->tv_nsec = 0; // adjust to 1pps
             } else {
-                xran_lib_ota_sym_idx = XranIncrementSymIdx(xran_lib_ota_sym_idx, XRAN_NUM_OF_SYMBOL_PER_SLOT*slots_per_subframe[numerlogy]);
+                xran_lib_ota_sym_idx[0] = XranIncrementSymIdx(xran_lib_ota_sym_idx[0], XRAN_NUM_OF_SYMBOL_PER_SLOT*slots_per_subframe[numerlogy]);
+                for (i=1; i < p_xran_dev_ctx->fh_init.xran_ports; i++)
+                {
+                    struct xran_device_ctx * p_other_ctx = xran_dev_get_ctx_by_id(i);
+                    xran_lib_ota_sym_idx[i] = xran_lib_ota_sym_idx[0] >> (numerlogy - xran_get_conf_numerology(p_other_ctx));
+                }
                 /* adjust to sym boundary */
                 if(sym_cnt & 1)
                     sym_acc +=  fine_tuning[numerlogy][0];
@@ -233,17 +258,14 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
             p_cur_time  = p_temp_time;
             break;
         } else {
-            if( likely(xran_if_current_state == XRAN_RUNNING)){
+            if(likely((xran_if_current_state == XRAN_RUNNING)||(xran_if_current_state == XRAN_OWDM))){
                 uint64_t t1, t2;
                 t1 = xran_tick();
 
-                if(p_xran_dev_ctx->fh_init.io_cfg.pkt_proc_core == 0)
-                    ring_processing_func();
+                if(p_eth->time_wrk_cfg.f)
+                    p_eth->time_wrk_cfg.f(p_eth->time_wrk_cfg.arg);
 
-                process_dpdk_io();
-
-                /* work around for some kernel */
-                if(p_xran_dev_ctx->fh_init.io_cfg.io_sleep)
+                if(p_io_cfg->io_sleep)
                     nanosleep(&sleeptime,NULL);
 
                 t2 = xran_tick();

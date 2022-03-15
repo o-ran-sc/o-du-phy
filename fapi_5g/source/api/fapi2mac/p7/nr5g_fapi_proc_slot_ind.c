@@ -39,7 +39,9 @@
  *
 **/
 uint8_t nr5g_fapi_slot_indication(
+    bool is_urllc,
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,
+    p_fapi_api_stored_vendor_queue_elems vendor_extension_elems,
     PSlotIndicationStruct p_iapi_resp)
 {
     uint8_t phy_id;
@@ -76,6 +78,7 @@ uint8_t nr5g_fapi_slot_indication(
             p_list_elem =
                 nr5g_fapi_fapi2mac_create_api_list_elem(FAPI_SLOT_INDICATION, 1,
                 sizeof(fapi_slot_ind_t));
+
             if (!p_list_elem) {
                 NR5G_FAPI_LOG(ERROR_LOG, ("[SLOT.indication] Unable to create "
                         "list element. Out of memory!!!"));
@@ -88,13 +91,23 @@ uint8_t nr5g_fapi_slot_indication(
             p_fapi_slot_ind->sfn = p_iapi_resp->sSFN_Slot.nSFN;
             p_fapi_slot_ind->slot = p_iapi_resp->sSFN_Slot.nSlot;
 
+            fapi_vendor_p7_ind_msg_t* p_fapi_vend_p7 =
+                nr5g_fapi_proc_vendor_p7_msg_get(vendor_extension_elems, phy_id);
+            fapi_vendor_ext_slot_ind_t* p_fapi_vend_slot_ind = p_fapi_vend_p7 ? &p_fapi_vend_p7->slot_ind : NULL;
+            
+            if (p_fapi_vend_slot_ind) {
+                p_fapi_vend_slot_ind->carrier_idx = p_iapi_resp->sSFN_Slot.nCarrierIdx;
+                p_fapi_vend_slot_ind->sym = p_iapi_resp->sSFN_Slot.nSym;
+            }
+
             /* Add element to send list */
-            nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+            nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, is_urllc);
 
             p_stats->fapi_stats.fapi_slot_ind++;
-            NR5G_FAPI_LOG(DEBUG_LOG, ("[SLOT.indication][%d][%d,%d]",
+            NR5G_FAPI_LOG(DEBUG_LOG, ("[SLOT.indication][%u][%u,%u,%u] is_urllc %u",
                     p_phy_instance->phy_id,
-                    p_iapi_resp->sSFN_Slot.nSFN, p_iapi_resp->sSFN_Slot.nSlot));
+                p_iapi_resp->sSFN_Slot.nSFN, p_iapi_resp->sSFN_Slot.nSlot,
+                p_iapi_resp->sSFN_Slot.nSym, is_urllc));
         }
     }
     return SUCCESS;

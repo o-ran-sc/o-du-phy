@@ -34,9 +34,11 @@
 
 // FAPI CONFIG.request parameters
 typedef struct _nr5g_fapi_phy_config {
-    uint8_t n_nr_of_rx_ant;
     uint16_t phy_cell_id;
-    uint8_t nSSBPrbOffset;
+    uint8_t n_nr_of_rx_ant;
+    uint8_t use_vendor_EpreXSSB;
+    uint8_t sub_c_common;
+    uint8_t pad[3];
 } nr5g_fapi_phy_config_t,
 *pnr5g_fapi_phy_config_t;
 
@@ -64,6 +66,7 @@ typedef struct _nr5g_fapi_ul_slot_info {
     uint16_t cookie;            //set this to frame_no at UL_TTI.Request and compare the 
     //same during uplink indications. 
     uint8_t slot_no;
+    uint8_t symbol_no;
     uint8_t num_ulsch;
     uint8_t num_ulcch;
     uint8_t num_srs;
@@ -179,7 +182,7 @@ typedef struct _nr5g_fapi_phy_instance {
     nr5g_fapi_phy_config_t phy_config;  // place holder to store,
     // parameters from config request
     nr5g_fapi_stats_t stats;
-    nr5g_fapi_ul_slot_info_t ul_slot_info[MAX_UL_SLOT_INFO_COUNT];
+    nr5g_fapi_ul_slot_info_t ul_slot_info[FAPI_MAX_SLOT_INFO_URLLC][MAX_UL_SLOT_INFO_COUNT][MAX_UL_SYMBOL_INFO_COUNT];
 } nr5g_fapi_phy_instance_t,
 *p_nr5g_fapi_phy_instance_t;
 
@@ -188,8 +191,12 @@ typedef struct _nr5g_fapi_phy_context {
     uint8_t num_phy_instance;
     uint8_t mac2phy_worker_core_id;
     uint8_t phy2mac_worker_core_id;
+    uint8_t urllc_worker_core_id;
     pthread_t phy2mac_tid;
     pthread_t mac2phy_tid;
+    pthread_t urllc_tid;
+    sem_t urllc_sem_process;
+    sem_t urllc_sem_done;
     volatile uint64_t process_exit;
     nr5g_fapi_phy_instance_t phy_instance[FAPI_MAX_PHY_INSTANCES];
 } nr5g_fapi_phy_ctx_t,
@@ -212,12 +219,17 @@ void *nr5g_fapi_phy2mac_thread_func(
     void *config);
 void *nr5g_fapi_mac2phy_thread_func(
     void *config);
+void *nr5g_fapi_urllc_thread_func(
+    void *config);
 nr5g_fapi_ul_slot_info_t *nr5g_fapi_get_ul_slot_info(
+    bool is_urllc,
     uint16_t frame_no,
-    uint8_t slot_no,
+    uint16_t slot_no,
+    uint8_t symbol_no,
     p_nr5g_fapi_phy_instance_t p_phy_instance);
 void nr5g_fapi_set_ul_slot_info(
     uint16_t frame_no,
-    uint8_t slot_no,
+    uint16_t slot_no,
+    uint8_t symbol_no,
     nr5g_fapi_ul_slot_info_t * p_ul_slot_info);
 #endif                          // _NR5G_FAPI_FRAMEWORK_H_

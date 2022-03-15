@@ -43,7 +43,8 @@
 #define WLS_TEST_DEV_NAME "wls"
 #define WLS_TEST_MSG_ID   1
 #define WLS_TEST_MSG_SIZE 100
-#define WLS_TEST_MEM_SIZE 2126512128
+#define WLS_MAC_MEMORY_SIZE 0x3EA80000
+#define WLS_PHY_MEMORY_SIZE 0x18000000
 #define NUM_PHY_MSGS  16
 
 typedef void* WLS_HANDLE;
@@ -53,7 +54,7 @@ uint64_t g_shmem_size;
 WLS_HANDLE  g_fapi_wls, g_phy_wls;
 
 uint8_t    phy_dpdk_init(void);
-uint8_t    phy_wls_init(const char *dev_name, unsigned long long mem_size);
+uint8_t    phy_wls_init(const char *dev_name, uint64_t nWlsMacMemSize, uint64_t nWlsPhyMemSize);
 uint64_t   phy_fapi_recv();
 uint8_t    phy_fapi_send();
 
@@ -72,7 +73,7 @@ int main()
     printf("\n[PHY] DPDK Init - Done\n");
 
     // WLS init
-    ret = phy_wls_init(WLS_TEST_DEV_NAME, WLS_TEST_MEM_SIZE);
+    ret = phy_wls_init(WLS_TEST_DEV_NAME, WLS_MAC_MEMORY_SIZE, WLS_PHY_MEMORY_SIZE);
     if(ret)
     {
         printf("\n[PHY] WLS Init - Failed\n");
@@ -114,7 +115,7 @@ uint8_t phy_dpdk_init(void)
     int argc = RTE_DIM(argv);
 
     /* initialize EAL first */
-    sprintf(whitelist, "-w %s",  "0000:00:06.0");
+    sprintf(whitelist, "-a%s",  "0000:00:06.0");
     printf("[PHY] Calling rte_eal_init: ");
 
     for (i = 0; i < RTE_DIM(argv); i++)
@@ -129,14 +130,14 @@ uint8_t phy_dpdk_init(void)
     return SUCCESS;
 }
 
-uint8_t phy_wls_init(const char *dev_name, unsigned long long mem_size)
+uint8_t phy_wls_init(const char *dev_name, uint64_t nWlsMacMemSize, uint64_t nWlsPhyMemSize)
 {
-    g_phy_wls = WLS_Open(dev_name, WLS_SLAVE_CLIENT, mem_size);
+    g_phy_wls = WLS_Open(dev_name, WLS_SLAVE_CLIENT, &nWlsMacMemSize, &nWlsPhyMemSize);
     if(NULL == g_phy_wls)
     {
         return FAILURE;
     }
-    g_shmem_size = mem_size;
+    g_shmem_size = nWlsMacMemSize+nWlsPhyMemSize;
 
     g_shmem = WLS_Alloc(g_phy_wls, g_shmem_size);
     if (NULL == g_shmem)

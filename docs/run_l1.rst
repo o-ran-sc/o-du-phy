@@ -1,4 +1,4 @@
-..    Copyright (c) 2019 Intel
+﻿..    Copyright (c) 2019-2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -16,14 +16,32 @@
 
    <br />
 
-Run L1
-======
+Run L1 and Testmac
+===================
 
 .. contents::
     :depth: 3
     :local:
 
-For the Bronze release, the L1 only has a binary image as well as the testmac which is an L2 test application, details of the L1 and testmac application are in https://github.com/intel/FlexRAN
+Before you run L1, please make sure all the FH, WLS, and FAPI TM lib was built according to above relative chapters for each lib, or you can refer below quick build command to create these libs.
+
+Build FH
+------------
+     under folder phy/fhi_lib::
+
+     #./build.sh
+
+Build WLS
+-------------
+     under folder phy/wls_lib::
+     #./build.sh
+
+Build FAPI TM
+--------------
+     under folder phy/fapi_5g/build::
+     #./build.sh
+
+For the current O-RAN release, the L1 only has a binary image as well as the testmac which is an L2 test application, details of the L1 and testmac application are in https://github.com/intel/FlexRAN
 
 Download L1 and testmac
 ------------------------
@@ -49,7 +67,7 @@ In each console window, the environment needs to be set using a shell script und
 **Note** that the markups dpdkBasebandFecMode and dpdkBasebandDevice needs to be adjusted in the relevant phycfg.xml under folder
  FlexRAN/l1/bin/nr5g/gnb/l1 before starting L1. |br|
  dpdkBasebandFecMode = 0 for LDPC Encoder/Decoder in software. |br|
- dpdkBasebandFecMode = 1 for LDPC Encoder/Decoder in FPGA. (Not supported in the Bronze Release for the Open Source Community) |br|
+ dpdkBasebandFecMode = 1 for LDPC Encoder/Decoder in FPGA. |br|
 
 * Run FAPI TM under folder phy/fapi_5g/bin::
 
@@ -74,7 +92,7 @@ Once the application comes up, you will see a *<TESTMAC>* prompt. The same Unit 
 testnum is always a 4 digit number. First digit represents the number of carriers to run.
 For example, to run Test Case 5 for Uplink Rx mu=3, 100Mhz for 1 carrier, the command would be:
 run 1 3 100 1005
-All the pre-defined test cases for the Bronze Release are defined in the Test Cases section in https://github.com/intel/FlexRAN and also in the Test 
+All the pre-defined test cases for the current O-RAN Release are defined in the Test Cases section in https://github.com/intel/FlexRAN and also in the Test 
 Cases section of this document.
 If the user wants to run more slots (than specified in test config file) or change the mode or change the TTI interval of the test, then the command phystart can be used as follows:
 

@@ -41,6 +41,7 @@
  *
 **/
 uint8_t nr5g_fapi_shutdown_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_vendor_ext_shutdown_req_t * p_fapi_req)
 {
@@ -80,7 +81,7 @@ uint8_t nr5g_fapi_shutdown_request(
         p_fapi_req->test_type;
 
     /* Add element to send list */
-    nr5g_fapi_fapi2phy_add_to_api_list(p_list_elem);
+    nr5g_fapi_fapi2phy_add_to_api_list(is_urllc, p_list_elem);
 
     p_stats->iapi_stats.iapi_shutdown_req++;
     NR5G_FAPI_LOG(INFO_LOG, ("[SHUTDOWN.request][%d]", p_phy_instance->phy_id));

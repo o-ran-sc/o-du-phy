@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -36,10 +36,10 @@ const std::string module_name = "init_sys_functional";
 
 extern enum xran_if_state xran_if_current_state;
 
-void physide_sym_call_back(void * param)
+int32_t physide_sym_call_back(void * param, struct xran_sense_of_time *time)
 {
     rte_pause();
-    return;
+    return 0;
 }
 
 int physide_dl_tti_call_back(void * param)
@@ -85,8 +85,8 @@ protected:
 
     void SetUp() override
     {
-        xranlib->Init();
-        xranlib->Open(nullptr, nullptr, (void *)xran_fh_rx_callback, (void *)xran_fh_rx_prach_callback, (void *)xran_fh_srs_callback);
+        xranlib->Init(0);
+        xranlib->Open(0, nullptr, nullptr, (void *)xran_fh_rx_callback, (void *)xran_fh_rx_prach_callback, (void *)xran_fh_srs_callback);
     }
 
     /* It's called after an execution of the each test case.*/
@@ -148,6 +148,7 @@ TEST_P(Init_Sys_Check, Test_xran_bm_init_alloc_free)
     struct xran_buffer_list *pFthRxBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
     struct xran_buffer_list *pFthRxPrbMapBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
     struct xran_buffer_list *pFthRxRachBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
+    struct xran_buffer_list *pFthRxRachBufferDecomp[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];    
 
     Init_Sys_Check::nInstanceNum = xranlib->get_num_cc();
 
@@ -183,6 +184,7 @@ TEST_P(Init_Sys_Check, Test_xran_bm_init_alloc_free)
                 pFthRxBuffer[i][z][j]     = &(Init_Sys_Check::sFrontHaulRxBbuIoBufCtrl[j][i][z].sBufferList);
                 pFthRxPrbMapBuffer[i][z][j]     = &(Init_Sys_Check::sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList);
                 pFthRxRachBuffer[i][z][j] = &(Init_Sys_Check::sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList);
+                pFthRxRachBufferDecomp[i][z][j] = &(Init_Sys_Check::sFHPrachRxBbuIoBufCtrlDecomp[j][i][z].sBufferList);                	
             }
         }
     }
@@ -204,7 +206,7 @@ TEST_P(Init_Sys_Check, Test_xran_bm_init_alloc_free)
         // add prach callback here
         for (int i = 0; i < xranlib->get_num_cc(); i++)
         {
-            ret = xran_5g_prach_req(Init_Sys_Check::nInstanceHandle[0][i], pFthRxRachBuffer[i],
+            ret = xran_5g_prach_req(Init_Sys_Check::nInstanceHandle[0][i], pFthRxRachBuffer[i], pFthRxRachBufferDecomp[i],
                 xran_fh_rx_prach_callback,&pFthRxRachBuffer[i][0]);
             ASSERT_EQ(0, ret);
         }
@@ -240,7 +242,7 @@ TEST_P(Init_Sys_Check, Test_xran_get_slot_idx)
     uint32_t nSlotIdx;
     uint64_t nSecond;
 
-    uint32_t nXranTime  = xran_get_slot_idx(&nFrameIdx, &nSubframeIdx, &nSlotIdx, &nSecond);
+    uint32_t nXranTime  = xran_get_slot_idx(0, &nFrameIdx, &nSubframeIdx, &nSlotIdx, &nSecond);
     nSfIdx = nFrameIdx*NUM_OF_SUBFRAME_PER_FRAME*nNrOfSlotInSf
         + nSubframeIdx*nNrOfSlotInSf
         + nSlotIdx;
@@ -274,14 +276,14 @@ TEST_P(Init_Sys_Check, Test_xran_reg_physide_cb)
 
 TEST_P(Init_Sys_Check, Test_xran_reg_sym_cb){
     int16_t ret = 0;
-    ret = xran_reg_sym_cb(xranlib->get_xranhandle(),  physide_sym_call_back, NULL, 11, 0);
-    ASSERT_EQ(-1,ret);
+    ret = xran_reg_sym_cb(xranlib->get_xranhandle(),  physide_sym_call_back, NULL, NULL, 11, XRAN_CB_SYM_RX_WIN_END);
+    ASSERT_EQ(0,ret);
 }
 
 TEST_P(Init_Sys_Check, Test_xran_mm_destroy){
     int16_t ret = 0;
     ret = xran_mm_destroy(xranlib->get_xranhandle());
-    ASSERT_EQ(-1,ret);
+    ASSERT_EQ(0,ret);
 }
 
 TEST_P(Init_Sys_Check, Test_xran_start_stop){

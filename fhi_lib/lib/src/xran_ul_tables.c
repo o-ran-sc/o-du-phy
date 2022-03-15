@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "xran_common.h"
+#include "xran_prach_cfg.h"
 
 /* 3GPP 38.211-f20 Table - 6.3.3.2-2 */
 const xRANPrachConfigTableStruct gxranPrachDataTable_sub6_fdd[XRAN_PRACH_CONFIG_TABLE_SIZE] =

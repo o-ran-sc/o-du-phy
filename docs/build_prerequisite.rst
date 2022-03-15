@@ -1,4 +1,4 @@
-..    Copyright (c) 2019 Intel
+﻿..    Copyright (c) 2019-2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -65,10 +65,10 @@ Download and Build DPDK
 -----------------------
    - download DPDK::
      
-         #wget http://static.dpdk.org/rel/dpdk-19.11.tar.x
-         #tar -xf dpdk-19.11.tar.xz
+         #wget http://static.dpdk.org/rel/dpdk-20.11.tar.x
+         #tar -xf dpdk-20.11.tar.xz
          #export RTE_TARGET=x86_64-native-linuxapp-icc
-         #export RTE_SDK=Intallation_DIR/dpdk-19.11
+         #export RTE_SDK=Intallation_DIR/dpdk-20.11
 
    - patch DPDK for O-RAN FHI lib, this patch is specific for O-RAN FHI to reduce the data transmission latency of Intel NIC. This may not be needed for some NICs, please refer to |br| O-RAN FHI Lib Introduction -> setup configuration -> A.2 prerequisites
 
@@ -77,16 +77,17 @@ Download and Build DPDK
 
    - build DPDK
       build DPDK::
-
+        Set your ICC installation path to /usertools/dpdk-setup.sh, DEFAULT_PATH="your ICC installation path"/bin/iccvars.sh, then run it to build DPDK with below option. 
         #./usertools/dpdk-setup.sh
         select [39] x86_64-native-linuxapp-icc
         exit   [62] Exit Script
-
-   - set DPDK path
+        please pay attention, the number 39 might change in your setup, you need choose accordingly to option 'x86_64-native-linuxapp-icc'   
+  
+    - set DPDK path
        DPDK path is needed during build and run lib/app::
 
-        #export RTE_SDK=Intallation_DIR/dpdk-19.11
-        #export DESTDIR=Installation_DIR/dpdk-19.11
+        #export RTE_SDK=Installation_DIR/dpdk-20.11
+        #export DESTDIR=Installation_DIR/dpdk-20.11
 
 
 Install google test
@@ -115,7 +116,8 @@ Download google test from https://github.com/google/googletest/releases
 
 Configure FEC card
 --------------------
-For the Bronze Release only a SW FEC is available so this step is not needed, for later releases the required information will be added to the document.
+For the E Maintenance Release either a SW FEC, or an FPGA FEC (Vista Creek N3000) or an ASIC FEC (Mount Bryce ACC100) can be used.
+The procedure to configure the HW based FECs is explained below.
 
 Customize a setup environment shell script
 ------------------------------------------

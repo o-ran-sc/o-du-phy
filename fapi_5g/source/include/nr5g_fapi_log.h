@@ -24,6 +24,8 @@
 #ifndef NR5G_FAPI_LOG_H_
 #define NR5G_FAPI_LOG_H_
 
+#include <stdio.h>
+
 #define NR5G_FAPI_STATS_FNAME "FapiStats.txt"
 
 typedef enum _nr5g_fapi_log_types_t {

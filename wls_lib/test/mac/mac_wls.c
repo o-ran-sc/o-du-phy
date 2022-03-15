@@ -62,7 +62,7 @@
 #define TOTAL_FREE_BLOCKS                   ( 50 * 12)
 #define ALLOC_TRACK_SIZE                    ( 16384 )
 
-#define MEMORY_CORRUPTION_DETECT
+//#define MEMORY_CORRUPTION_DETECT
 #define MEMORY_CORRUPTION_DETECT_FLAG       (0xAB)
 
 typedef struct wls_mac_mem_array
@@ -78,9 +78,12 @@ typedef struct wls_mac_ctx
 {
     void *hWls;
     void *pWlsMemBase;
+    void *pWlsMemBaseUsable;
     WLS_MAC_MEM_SRUCT sWlsStruct;
 
-    uint32_t nTotalMemorySize;
+    uint64_t nTotalMemorySize;
+    uint64_t nTotalMemorySizeUsable;
+    uint32_t nBlockSize;
     uint32_t nTotalBlocks;
     uint32_t nAllocBlocks;
     uint32_t nTotalAllocCnt;
@@ -1191,8 +1194,10 @@ p_fapi_api_queue_elem_t wls_mac_create_elem(uint16_t num_msg, uint32_t align_off
  *
 **/
 //-------------------------------------------------------------------------------------------
-uint32_t wls_mac_init(char * wls_device_name, uint64_t nTotalMemorySize)
+uint32_t wls_mac_init(char * wls_device_name, uint64_t nBlockSize)
 {
+    uint64_t nWlsMacMemSize;
+    uint64_t nWlsPhyMemSize;
     uint32_t ret = FAILURE;
     PWLS_MAC_CTX pWls =  wls_mac_get_ctx();
     uint8_t *pMemZone;
@@ -1211,14 +1216,15 @@ uint32_t wls_mac_init(char * wls_device_name, uint64_t nTotalMemorySize)
     pWls->nTotalDlBufAllocCnt = 0;
     pWls->nTotalDlBufFreeCnt = 0;
 
-    pWls->hWls = WLS_Open(wls_device_name, WLS_MASTER_CLIENT, nTotalMemorySize);
+    pWls->hWls = WLS_Open(wls_device_name, WLS_MASTER_CLIENT, &nWlsMacMemSize, &nWlsPhyMemSize);
     if (pWls->hWls)
     {
         /* allocate chuck of memory */
-        pWls->pWlsMemBase = WLS_Alloc(pWls->hWls, nTotalMemorySize);
+        pWls->pWlsMemBase = WLS_Alloc(pWls->hWls, nWlsMacMemSize+nWlsPhyMemSize);
         if (pWls->pWlsMemBase)
         {
-            pWls->nTotalMemorySize = (uint32_t) nTotalMemorySize;
+            pWls->nTotalMemorySize = nWlsMacMemSize;
+            // pWls->nBlockSize       = wls_mac_check_block_size(nBlockSize);
 
             ret = wls_mac_create_partition(pWls);
 
@@ -1306,7 +1312,7 @@ uint8_t mac_dpdk_init()
     int argc = RTE_DIM(argv);
 
     /* initialize EAL first */
-    sprintf(whitelist, "-w %s",  "0000:00:06.0");
+    sprintf(whitelist, "-a%s",  "0000:00:06.0");
     printf("[MAC] Calling rte_eal_init: ");
 
     for (i = 0; i < RTE_DIM(argv); i++)

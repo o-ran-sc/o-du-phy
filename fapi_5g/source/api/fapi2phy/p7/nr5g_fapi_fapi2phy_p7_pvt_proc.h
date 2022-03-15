@@ -29,12 +29,13 @@
 uint8_t nr5g_fapi_dl_tti_req_to_phy_translation(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_dl_tti_req_t * p_fapi_req,
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
     PDLConfigRequestStruct p_ia_dl_config_req);
 
-void nr5g_fapi_fill_dci_pdu(
+void nr5g_fapi_dl_tti_req_to_phy_translation_vendor_ext(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
-    fapi_dl_pdcch_pdu_t * p_pdcch_pdu,
-    PDCIPDUStruct p_dci_pdu);
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
+    PDLConfigRequestStruct p_ia_dl_config_req);
 
 void nr5g_fapi_fill_dci_pdu(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
@@ -49,6 +50,12 @@ void nr5g_fapi_fill_pdsch_pdu(
 uint16_t nr5g_fapi_calculate_nEpreRatioOfPDCCHToSSB(
     uint8_t beta_pdcch_1_0);
 
+uint16_t nr5g_fapi_calculate_nEpreRatioOfDmrsToSSB(
+    uint8_t power_control_offset_ss);
+
+uint16_t nr5g_fapi_calculate_nEpreRatioOfPDSCHToSSB(
+    uint8_t power_control_offset);
+
 void nr5g_fapi_fill_ssb_pdu(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     PBCHPDUStruct p_bch_pdu,
@@ -56,8 +63,8 @@ void nr5g_fapi_fill_ssb_pdu(
 
 void nr5g_fapi_fill_csi_rs_pdu(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
-    PCSIRSPDUStruct pCSIRSPdu,
-    fapi_dl_csi_rs_pdu_t * p_csi_rs_pdu);
+    fapi_dl_csi_rs_pdu_t * p_csi_rs_pdu,
+    PCSIRSPDUStruct pCSIRSPdu);
 
 // UL_TTI.req
 uint8_t nr5g_fapi_calc_n_rbg_size(
@@ -66,15 +73,6 @@ uint8_t nr5g_fapi_calc_n_rbg_size(
 uint32_t nr5g_fapi_calc_n_rbg_index_entry(
     uint8_t n_rbg_size,
     fapi_ul_pusch_pdu_t * p_pusch_pdu);
-
-uint8_t nr5g_fapi_calc_alpha_scaling(
-    uint8_t fapi_alpha_scaling);
-
-void nr5g_fapi_pusch_to_phy_ulsch_translation(
-    p_nr5g_fapi_phy_instance_t p_phy_instance,
-    nr5g_fapi_pusch_info_t * pusch_info,
-    fapi_ul_pusch_pdu_t * p_pusch_pdu,
-    ULSCHPDUStruct * p_ul_data_chan);
 
 void nr5g_fapi_pusch_data_to_phy_ulsch_translation(
     nr5g_fapi_pusch_info_t * p_pusch_info,
@@ -107,8 +105,6 @@ void nr5g_fapi_pucch_to_phy_ulcch_uci_translation(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     nr5g_fapi_pucch_info_t * p_pucch_info,
     fapi_ul_pucch_pdu_t * p_pucch_pdu,
-    uint8_t * num_groups,
-    nr5g_fapi_pucch_resources_t * p_pucch_resources,
     ULCCHUCIPDUStruct * p_ul_ctrl_chan);
 
 void nr5g_fapi_srs_to_phy_srs_translation(
@@ -118,17 +114,40 @@ void nr5g_fapi_srs_to_phy_srs_translation(
     SRSPDUStruct * p_ul_srs_chan);
 
 uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_ul_tti_req_t * p_fapi_req,
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
     PULConfigRequestStruct p_ia_ul_config_req);
+
+void nr5g_fapi_ul_tti_req_to_phy_translation_vendor_ext(
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
+    PULConfigRequestStruct p_ia_ul_config_req);
+
+uint8_t nr5g_fapi_ul_tti_req_to_phy_translation_vendor_ext_symbol_no(
+    bool is_urllc,
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
+    PULConfigRequestStruct p_ia_ul_config_req,
+    uint8_t* symbol_no);
 
 uint8_t nr5g_fapi_ul_dci_req_to_phy_translation(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_ul_dci_req_t * p_fapi_req,
     PULDCIRequestStruct p_ia_ul_dci_req);
 
+void nr5g_fapi_ul_dci_req_to_phy_translation_vendor_ext(
+    p_nr5g_fapi_phy_instance_t p_phy_instance,
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
+    PULDCIRequestStruct p_ia_ul_dci_req);
+
 uint8_t nr5g_fapi_tx_data_req_to_phy_translation(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_tx_data_req_t * p_fapi_req,
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
     PTXRequestStruct p_ia_tx_req);
+
+void nr5g_fapi_tx_data_req_to_phy_translation_vendor_ext(
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
+    PTXRequestStruct p_phy_req);
+
 #endif                          //_NR5G_FAPI_FAP2PHY_P7_PVT_PROC_H_

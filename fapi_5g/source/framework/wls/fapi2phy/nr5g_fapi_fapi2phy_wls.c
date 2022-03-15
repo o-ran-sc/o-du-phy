@@ -27,11 +27,15 @@
 #include "nr5g_fapi_wls.h"
 #include "nr5g_fapi_fapi2phy_wls.h"
 #include "nr5g_fapi_log.h"
+#include "nr5g_fapi_urllc_thread.h"
 
 static uint32_t g_to_free_send_list_cnt[TO_FREE_SIZE] = { 0 };
 static uint64_t g_to_free_send_list[TO_FREE_SIZE][TOTAL_FREE_BLOCKS] = { {0L} };
 static uint32_t g_to_free_recv_list_cnt[TO_FREE_SIZE] = { 0 };
 static uint64_t g_to_free_recv_list[TO_FREE_SIZE][TOTAL_FREE_BLOCKS] = { {0L} };
+
+static uint32_t g_to_free_send_list_cnt_urllc[TO_FREE_SIZE_URLLC] = { 0 };
+static uint64_t g_to_free_send_list_urllc[TO_FREE_SIZE_URLLC][TOTAL_FREE_BLOCKS] = { {0L} };
 
 //------------------------------------------------------------------------------
 /** @ingroup nr5g_fapi_source_framework_wls_fapi2phy_group
@@ -154,7 +158,7 @@ inline uint8_t nr5g_fapi_fapi2phy_wls_put(
  *
 **/
 //----------------------------------------------------------------------------------
-inline uint8_t nr5g_fapi_fapi2phy_wls_wait(
+inline uint32_t nr5g_fapi_fapi2phy_wls_wait(
     )
 {
     int ret = SUCCESS;
@@ -203,9 +207,9 @@ PMAC2PHY_QUEUE_EL nr5g_fapi_fapi2phy_wls_recv(
     uint32_t num_elms = 0;
     uint64_t *p_msg = NULL;
     static uint32_t g_free_recv_idx = 0;
-    PMAC2PHY_QUEUE_EL p_qelm_list = NULL;
+    PMAC2PHY_QUEUE_EL p_qelm_list = NULL, p_urllc_qelm_list = NULL;
     PMAC2PHY_QUEUE_EL p_qelm = NULL;
-    PMAC2PHY_QUEUE_EL p_tail_qelm = NULL;
+    PMAC2PHY_QUEUE_EL p_tail_qelm = NULL, p_urllc_tail_qelm = NULL;
     uint64_t start_tick = 0;
 
     num_elms = nr5g_fapi_fapi2phy_wls_wait();
@@ -225,6 +229,17 @@ PMAC2PHY_QUEUE_EL nr5g_fapi_fapi2phy_wls_recv(
                 continue;
             }
             p_qelm->pNext = NULL;
+
+            if (flags & WLS_TF_URLLC)
+            {
+                if (p_urllc_qelm_list) {
+                    p_urllc_tail_qelm->pNext = p_qelm;
+                    p_urllc_tail_qelm = p_qelm;
+                } else {
+                    p_urllc_qelm_list = p_qelm;
+                    p_urllc_tail_qelm = p_qelm;
+                }
+            } else {
             if (p_qelm_list) {
                 p_tail_qelm->pNext = p_qelm;
                 p_tail_qelm = p_qelm;
@@ -233,8 +248,23 @@ PMAC2PHY_QUEUE_EL nr5g_fapi_fapi2phy_wls_recv(
                 p_tail_qelm = p_qelm;
             }
         }
+
+        }
         num_elms--;
     } while (num_elms && is_msg_present(flags));
+
+    if (p_urllc_qelm_list) {
+        wls_fapi_add_recv_apis_to_free(p_urllc_qelm_list, g_free_recv_idx);
+        g_free_recv_idx++;
+        if (g_free_recv_idx >= TO_FREE_SIZE) {
+            g_free_recv_idx = 0;
+        }
+        // Free 10 TTIs Later
+        wls_fapi_free_recv_free_list(g_free_recv_idx);
+
+        wls_fapi_add_blocks_to_ul();
+        nr5g_fapi_urllc_thread_callback(NR5G_FAPI_URLLC_MSG_DIR_PHY2MAC, (void *) p_urllc_qelm_list);
+    }
 
     if (p_qelm_list) {
         wls_fapi_add_recv_apis_to_free(p_qelm_list, g_free_recv_idx);
@@ -315,6 +345,7 @@ uint32_t nr5g_fapi_fapi2phy_send_zbc_blocks(
     PDLPDUDataStruct p_dl_pdu_data = (PDLPDUDataStruct) (p_dl_sdu_req + 1);
     uint32_t i, j, is_last, is_last1, msg_type;
     uint16_t list_flags = flags;
+    uint16_t flags_urllc = (flags & WLS_TF_URLLC) ? WLS_TF_URLLC : 0;
 
     for (i = 0; i < p_dl_sdu_req->nPDU; i++) {
         is_last = (i == (p_dl_sdu_req->nPDU - 1));
@@ -337,9 +368,9 @@ uint32_t nr5g_fapi_fapi2phy_send_zbc_blocks(
                 is_last1 = (((j == 0) && (p_dl_pdu_data->pPayload2 == 0)) ||
                     (j == (MAX_DL_PER_UE_CODEWORD_NUM - 1)));
                 if ((list_flags & WLS_TF_FIN) && is_last && is_last1) {
-                    flags = WLS_SG_LAST;
+                    flags = WLS_SG_LAST | flags_urllc;
                 } else {
-                    flags = WLS_SG_NEXT;
+                    flags = WLS_SG_NEXT | flags_urllc;
                 }
 
                 WLS_HANDLE h_phy_wls = nr5g_fapi_fapi2phy_wls_instance();
@@ -369,18 +400,22 @@ uint32_t nr5g_fapi_fapi2phy_send_zbc_blocks(
 **/
 //------------------------------------------------------------------------------
 uint8_t nr5g_fapi_fapi2phy_wls_send(
-    void *data)
+    void *data,
+    bool is_urllc)
 {
     p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();
     PMAC2PHY_QUEUE_EL p_curr_msg = NULL;
     PL1L2MessageHdr p_msg_header;
     uint16_t flags = 0;
+    uint16_t flags_urllc = (is_urllc ? WLS_TF_URLLC : 0);
     uint8_t ret = SUCCESS;
     int n_zbc_blocks = 0, is_zbc = 0, count = 0;
     static uint32_t g_free_send_idx = 0;
+    static uint32_t g_free_send_idx_urllc = 0;
 
     p_curr_msg = (PMAC2PHY_QUEUE_EL) data;
-    wls_fapi_add_send_apis_to_free(p_curr_msg, g_free_send_idx);
+    is_urllc ? wls_fapi_add_send_apis_to_free_urllc(p_curr_msg, g_free_send_idx_urllc)
+             : wls_fapi_add_send_apis_to_free(p_curr_msg, g_free_send_idx);
 
     if (pthread_mutex_lock((pthread_mutex_t *) & p_wls_ctx->fapi2phy_lock_send)) {
         NR5G_FAPI_LOG(ERROR_LOG, ("unable to lock send pthread mutex"));
@@ -388,7 +423,7 @@ uint8_t nr5g_fapi_fapi2phy_wls_send(
     }
 
     if (p_curr_msg->pNext) {
-        flags = WLS_SG_FIRST;
+        flags = WLS_SG_FIRST | flags_urllc;
         while (p_curr_msg) {
             // only batch mode
             count++;
@@ -419,11 +454,11 @@ uint8_t nr5g_fapi_fapi2phy_wls_send(
                 p_curr_msg = p_curr_msg->pNext;
             } else {            /* p_curr_msg->Next */
                 // LAST
-                flags = WLS_SG_LAST;
+                flags = WLS_SG_LAST | flags_urllc;
                 is_zbc = 0;
                 if (nr5g_fapi_fapi2phy_is_sdu_zbc_block(p_msg_header,
                         &n_zbc_blocks)) {
-                    flags = WLS_SG_NEXT;
+                    flags = WLS_SG_NEXT | flags_urllc;
                     is_zbc = 1;
                 }
                 if (nr5g_fapi_fapi2phy_wls_put((uint64_t) p_curr_msg,
@@ -440,7 +475,7 @@ uint8_t nr5g_fapi_fapi2phy_wls_send(
 
                 if (is_zbc) {   // ZBC blocks
                     if (nr5g_fapi_fapi2phy_send_zbc_blocks(p_msg_header,
-                            WLS_SG_LAST) != SUCCESS) {
+                            WLS_SG_LAST | flags_urllc) != SUCCESS) {
                         printf("Error\n");
                         if (pthread_mutex_unlock((pthread_mutex_t *) &
                                 p_wls_ctx->fapi2phy_lock_send)) {
@@ -452,7 +487,7 @@ uint8_t nr5g_fapi_fapi2phy_wls_send(
                 }
                 p_curr_msg = NULL;
             }                   /* p_curr_msg->Next */
-            flags = WLS_SG_NEXT;
+            flags = WLS_SG_NEXT | flags_urllc;
         }
     } else {                    // one block
         count++;
@@ -480,12 +515,19 @@ uint8_t nr5g_fapi_fapi2phy_wls_send(
     }
 
     if (count > 1) {
+        if(is_urllc) {
+            g_free_send_idx_urllc++;
+            if (g_free_send_idx_urllc >= TO_FREE_SIZE_URLLC)
+                g_free_send_idx_urllc = 0;
+        } else {
         g_free_send_idx++;
         if (g_free_send_idx >= TO_FREE_SIZE)
             g_free_send_idx = 0;
+        }
 
-        // Free 10 TTIs Later
-        wls_fapi_free_send_free_list(g_free_send_idx);
+        // Free some TTIs Later
+        is_urllc ? wls_fapi_free_send_free_list_urllc(g_free_send_idx_urllc)
+                 : wls_fapi_free_send_free_list(g_free_send_idx);
     }
 
     if (pthread_mutex_unlock((pthread_mutex_t *) &
@@ -571,8 +613,10 @@ void wls_fapi_add_recv_apis_to_free(
     PMAC2PHY_QUEUE_EL pNextMsg = NULL;
     L1L2MessageHdr *p_msg_header = NULL;
     PRXULSCHIndicationStruct p_phy_rx_ulsch_ind = NULL;
-    int count, i;
+    PULSCHPDUDataStruct p_ulsch_pdu = NULL;
     uint8_t *ptr = NULL;
+    uint32_t count;
+    uint8_t i;
 
     WLS_HANDLE h_wls;
     p_nr5g_fapi_wls_context_t p_wls_ctx = nr5g_fapi_wls_context();
@@ -592,12 +636,20 @@ void wls_fapi_add_recv_apis_to_free(
         p_msg_header = (PL1L2MessageHdr) (pNextMsg + 1);
         if (p_msg_header->nMessageType == MSG_TYPE_PHY_RX_ULSCH_IND) {
             p_phy_rx_ulsch_ind = (PRXULSCHIndicationStruct) p_msg_header;
-            for (i = 0; i < p_phy_rx_ulsch_ind->nUlsch; i++) {
-                ptr = p_phy_rx_ulsch_ind->sULSCHPDUDataStruct[i].pPayload;
-                ptr = (uint8_t *) nr5g_fapi_wls_pa_to_va(h_wls, (uint64_t) ptr);
+            for (i = 0u; i < p_phy_rx_ulsch_ind->nUlsch; i++) {
+                p_ulsch_pdu = &(p_phy_rx_ulsch_ind->sULSCHPDUDataStruct[i]);
+                if(p_ulsch_pdu->nPduLen > 0) {
+                    ptr = (uint8_t *) nr5g_fapi_wls_pa_to_va(h_wls,
+                        (uint64_t) p_ulsch_pdu->pPayload);
 
                 if (ptr) {
                     g_to_free_recv_list[idx][count++] = (uint64_t) ptr;
+                }
+                } else {
+                    NR5G_FAPI_LOG(DEBUG_LOG, ("%s: Payload for"
+                        "MSG_TYPE_PHY_RX_ULSCH_IND ulsch pdu (%u/%u) is NULL."
+                        "Skip adding to free list.",
+                         __func__, i, p_phy_rx_ulsch_ind->nUlsch));
                 }
             }
         }
@@ -666,10 +718,7 @@ void wls_fapi_add_send_apis_to_free(
     uint32_t idx)
 {
     PMAC2PHY_QUEUE_EL pNextMsg = NULL;
-    L1L2MessageHdr *p_msg_header = NULL;
-    PRXULSCHIndicationStruct p_phy_rx_ulsch_ind = NULL;
-    int count, i;
-    uint8_t *ptr = NULL;
+    uint32_t count;
 
     count = g_to_free_send_list_cnt[idx];
     pNextMsg = pListElem;
@@ -682,16 +731,6 @@ void wls_fapi_add_send_apis_to_free(
         }
 
         g_to_free_send_list[idx][count++] = (uint64_t) pNextMsg;
-        p_msg_header = (PL1L2MessageHdr) (pNextMsg + 1);
-        if (p_msg_header->nMessageType == MSG_TYPE_PHY_RX_ULSCH_IND) {
-            p_phy_rx_ulsch_ind = (PRXULSCHIndicationStruct) p_msg_header;
-            for (i = 0; i < p_phy_rx_ulsch_ind->nUlsch; i++) {
-                ptr = p_phy_rx_ulsch_ind->sULSCHPDUDataStruct[i].pPayload;
-                if (ptr) {
-                    g_to_free_send_list[idx][count++] = (uint64_t) ptr;
-                }
-            }
-        }
         pNextMsg = pNextMsg->pNext;
     }
 
@@ -738,6 +777,87 @@ void wls_fapi_free_send_free_list(
 
     NR5G_FAPI_LOG(DEBUG_LOG, ("Free %d\n", count));
     g_to_free_send_list_cnt[idx] = 0;
+
+    return;
+}
+
+//------------------------------------------------------------------------------
+/** @ingroup nr5g_fapi_source_framework_wls_lib_group
+ *
+ *  @param[in]      pListElem Pointer to List element header
+ *  @param[in]      idx Subframe Number
+ *
+ *  @return         Number of blocks freed
+ *
+ *  @description    This function Frees all the blocks in a List Element Linked
+ *                  List coming from L1 by storing them into an array to be
+ *                  freed at a later point in time. Used by urllc thread.
+**/
+//------------------------------------------------------------------------------
+void wls_fapi_add_send_apis_to_free_urllc(
+    PMAC2PHY_QUEUE_EL pListElem,
+    uint32_t idx)
+{
+    PMAC2PHY_QUEUE_EL pNextMsg = NULL;
+    uint32_t count;
+
+    count = g_to_free_send_list_cnt_urllc[idx];
+    pNextMsg = pListElem;
+    while (pNextMsg) {
+        if (count >= TOTAL_FREE_BLOCKS) {
+            NR5G_FAPI_LOG(ERROR_LOG, ("%s: Reached max capacity of free list.\n"
+                    "\t\t\t\tlist index: %d list count: %d max list count: %d",
+                    __func__, idx, count, TOTAL_FREE_BLOCKS));
+            return;
+        }
+
+        g_to_free_send_list_urllc[idx][count++] = (uint64_t) pNextMsg;
+        pNextMsg = pNextMsg->pNext;
+    }
+
+    g_to_free_send_list_urllc[idx][count] = 0L;
+    g_to_free_send_list_cnt_urllc[idx] = count;
+
+    NR5G_FAPI_LOG(DEBUG_LOG, ("To Free %d\n", count));
+}
+
+//------------------------------------------------------------------------------
+/** @ingroup nr5g_fapi_source_framework_wls_lib_group
+ *
+ *  @param[in]      idx subframe Number
+ *
+ *  @return         Number of blocks freed
+ *
+ *  @description    This function frees all blocks that have been added to the
+ *                  free array. Used by urllc thread.
+**/
+//------------------------------------------------------------------------------
+void wls_fapi_free_send_free_list_urllc(
+    uint32_t idx)
+{
+    PMAC2PHY_QUEUE_EL pNextMsg = NULL;
+    L1L2MessageHdr *p_msg_header = NULL;
+    int count = 0, loc = 0;
+
+    if (idx >= TO_FREE_SIZE_URLLC) {
+        NR5G_FAPI_LOG(ERROR_LOG, ("%s: list index: %d\n", __func__, idx));
+        return;
+    }
+
+    pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list_urllc[idx][count];
+    while (pNextMsg) {
+        p_msg_header = (PL1L2MessageHdr) (pNextMsg + 1);
+        loc = get_stats_location(p_msg_header->nMessageType);
+        wls_fapi_free_buffer(pNextMsg, loc);
+        g_to_free_send_list_urllc[idx][count++] = 0L;
+        if (g_to_free_send_list_urllc[idx][count])
+            pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list_urllc[idx][count];
+        else
+            pNextMsg = 0L;
+    }
+
+    NR5G_FAPI_LOG(DEBUG_LOG, ("Free %d\n", count));
+    g_to_free_send_list_cnt_urllc[idx] = 0;
 
     return;
 }

@@ -28,7 +28,7 @@
 #include <rte_common.h>
 #include <rte_mbuf.h>
 
-#define VERSIONX                "oran_bronze_release_v1.1"
+#define VERSIONX                "oran_e_maintenance_release_v1.0"
 
 #define APP_O_DU  0
 #define APP_O_RU  1
@@ -52,12 +52,15 @@ enum nRChBwOptions
 #define MAX_ANT_CARRIER_SUPPORTED_CAT_B (XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR)
 
 #define SUBFRAME_DURATION_US       1000
-//#define SLOTNUM_PER_SUBFRAME       8
 
 #define SUBFRAMES_PER_SYSTEMFRAME  10
 #define IQ_PLAYBACK_BUFFER_BYTES (XRAN_NUM_OF_SLOT_IN_TDD_LOOP*N_SYM_PER_SLOT*XRAN_MAX_PRBS*N_SC_PER_PRB*4L)
-/* PRACH data samples are 32 bits wide, 16bits for I and 16bits for Q. Each packet contains 839 samples for long sequence or 144*14 (max) for short sequence. The payload length is 3356 octets.*/
-#define PRACH_PLAYBACK_BUFFER_BYTES (144*14*4L)
+/* PRACH data samples are 32 bits wide, 16bits for I and 16bits for Q. Each packet contains 840 samples for long sequence or 144 for short sequence. The payload length is 840*16*2/8 octets.*/
+#ifdef FCN_1_2_6_EARLIER
+#define PRACH_PLAYBACK_BUFFER_BYTES (144*4L)
+#else
+#define PRACH_PLAYBACK_BUFFER_BYTES (840*4L)
+#endif
 
 #ifdef _DEBUG
 #define iAssert(p) if(!(p)){fprintf(stderr,\
@@ -67,80 +70,77 @@ enum nRChBwOptions
 #define iAssert(p)
 #endif /* _DEBUG */
 
-extern int iq_playback_buffer_size_dl;
-extern int iq_playback_buffer_size_ul;
+/**< all the buffers allocated for O-XU */
+struct o_xu_buffers {
+    int iq_playback_buffer_size_dl;
+    int iq_playback_buffer_size_ul;
 
-extern int iq_bfw_buffer_size_dl;
-extern int iq_bfw_buffer_size_ul;
+    int iq_bfw_buffer_size_dl;
+    int iq_bfw_buffer_size_ul;
 
-extern int iq_srs_buffer_size_ul;
+    int iq_srs_buffer_size_ul;
 
-extern uint8_t numCCPorts;
-/* Number of antennas supported by front-end */
+    int16_t *p_tx_play_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_play_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_play_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
-extern uint8_t num_eAxc;
-/* Number of antennas supported by front-end */
-extern int16_t *p_tx_play_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t tx_play_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t tx_play_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_tx_prach_play_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_prach_play_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_prach_play_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
-extern int16_t *p_tx_prach_play_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t tx_prach_play_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t tx_prach_play_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_tx_srs_play_buffer[MAX_ANT_CARRIER_SUPPORTED_CAT_B];
+    int32_t tx_srs_play_buffer_size[MAX_ANT_CARRIER_SUPPORTED_CAT_B];
+    int32_t tx_srs_play_buffer_position[MAX_ANT_CARRIER_SUPPORTED_CAT_B];
 
-extern int16_t *p_tx_srs_play_buffer[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-extern int32_t tx_srs_play_buffer_size[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-extern int32_t tx_srs_play_buffer_position[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
+    int16_t *p_rx_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t rx_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t rx_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
-/* Number of antennas supported by front-end */
-extern int16_t *p_rx_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t rx_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t rx_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_prach_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t prach_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t prach_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
-extern int16_t *p_prach_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t prach_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t prach_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_srs_log_buffer[MAX_ANT_CARRIER_SUPPORTED_CAT_B];
+    int32_t srs_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED_CAT_B];
+    int32_t srs_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED_CAT_B];
 
-extern int16_t *p_srs_log_buffer[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-extern int32_t srs_log_buffer_size[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-extern int32_t srs_log_buffer_position[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-
-extern int16_t *p_tx_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t tx_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-
-extern int16_t *p_rx_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t rx_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_tx_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_rx_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t rx_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
 
 /* beamforming weights for UL (O-DU) */
-extern int16_t *p_tx_dl_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t tx_dl_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t tx_dl_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_tx_dl_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_dl_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_dl_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
 /* beamforming weights for UL (O-DU) */
-extern int16_t *p_tx_ul_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t tx_ul_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t tx_ul_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_tx_ul_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_ul_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_ul_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
 /* beamforming weights for UL (O-RU) */
-extern int16_t *p_rx_dl_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t rx_dl_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t rx_dl_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_rx_dl_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t rx_dl_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t rx_dl_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
 /* beamforming weights for UL (O-RU) */
-extern int16_t *p_rx_ul_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t rx_ul_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-extern int32_t rx_ul_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+    int16_t *p_rx_ul_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t rx_ul_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t rx_ul_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+};
+
+extern struct o_xu_buffers* p_o_xu_buff[XRAN_PORTS_NUM];
 
 void sys_save_buf_to_file_txt(char *filename, char *bufname, unsigned char *pBuffer, unsigned int size, unsigned int buffers_num);
 void sys_save_buf_to_file(char *filename, char *bufname, unsigned char *pBuffer, unsigned int size, unsigned int buffers_num);
 int  sys_load_file_to_buff(char *filename, char *bufname, unsigned char *pBuffer, unsigned int size, unsigned int buffers_num);
+
 uint32_t app_xran_get_scs(uint8_t nMu);
 uint16_t app_xran_get_num_rbs(uint8_t ranTech, uint32_t nNumerology, uint32_t nBandwidth, uint32_t nAbsFrePointA);
 uint32_t app_xran_cal_nrarfcn(uint32_t nCenterFreq);
 int32_t app_xran_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexType,
                 uint32_t nTddPeriod, struct xran_slot_config *psSlotConfig);
 uint32_t app_xran_get_tti_interval(uint8_t nMu);
-
-
 
 #endif /*_XRAN_APP_COMMON_H_*/

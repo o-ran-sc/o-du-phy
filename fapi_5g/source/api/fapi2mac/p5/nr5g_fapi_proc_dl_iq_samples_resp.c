@@ -83,7 +83,7 @@ uint8_t nr5g_fapi_dl_iq_samples_response(
         (uint16_t) sizeof(fapi_vendor_ext_dl_iq_samples_res_t);
 
     /* Add element to send list */
-    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
 
     NR5G_FAPI_LOG(INFO_LOG, ("[DL_IQ_SAMPLES.response][%d]", phy_id));
 

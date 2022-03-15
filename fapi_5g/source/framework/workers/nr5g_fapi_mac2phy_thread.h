@@ -23,10 +23,12 @@
 #include "fapi_vendor_extension.h"
 
 void nr5g_fapi_mac2phy_api_recv_handler(
+    bool is_urllc,
     void *config,
     p_fapi_api_queue_elem_t p_msg_list);
 
 void nr5g_fapi_mac2phy_api_processing_handler(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     p_fapi_api_queue_elem_t p_msg_list);
 

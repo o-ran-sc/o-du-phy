@@ -100,7 +100,7 @@ uint8_t nr5g_fapi_shutdown_response(
         p_fapi_resp->nStatus = p_iapi_resp->nStatus;
 
         /* Add element to send list */
-        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
 
         p_stats->fapi_stats.fapi_vext_shutdown_res++;
         NR5G_FAPI_LOG(INFO_LOG, ("[SHUTDOWN.response][%d]", phy_id));
@@ -120,7 +120,7 @@ uint8_t nr5g_fapi_shutdown_response(
         p_stop_ind->header.length = sizeof(fapi_stop_ind_t);
 
         /* Add element to send list */
-        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
 
         p_stats->fapi_stats.fapi_stop_ind++;
         NR5G_FAPI_LOG(INFO_LOG, ("[STOP.Indication][%d]", phy_id));
@@ -137,8 +137,8 @@ uint8_t nr5g_fapi_shutdown_response(
             fapi_req.sfn = 0;
             fapi_req.slot = 0;
             fapi_req.test_type = p_phy_instance->shutdown_test_type;
-            nr5g_fapi_shutdown_request(p_phy_instance, &fapi_req);
-            nr5g_fapi_fapi2phy_send_api_list();
+            nr5g_fapi_shutdown_request(0, p_phy_instance, &fapi_req);
+            nr5g_fapi_fapi2phy_send_api_list(0);
         } else {
             NR5G_FAPI_LOG(ERROR_LOG, ("[SHUTDOWN.response] Invalid status "
                     "from PHY, hence triggering Error Indication"));
@@ -162,7 +162,7 @@ uint8_t nr5g_fapi_shutdown_response(
             p_fapi_error_ind->error_code = p_iapi_resp->nStatus;
 
             /* Add element to send list */
-            nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+            nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
             p_stats->fapi_stats.fapi_error_ind++;
             p_phy_instance->shutdown_retries = 0;
             NR5G_FAPI_LOG(INFO_LOG, ("[Error.Indication][%d]", phy_id));

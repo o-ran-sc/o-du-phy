@@ -18,7 +18,7 @@
 
 #MC
 #20%
-#TDD DDDFU 1 64T64R 100 8 4 65% 178 65% 178	
+#304	TDD	DDDFU: S it's 10:2:2	1	64T64R	100	8	4	37%	100	1200	37%	100	1200	MC: 20%
 
 # This is simple configuration file. Use '#' sign for comments
 instanceId=1 # 0,1,2,... in case more than 1 application started on the same system
@@ -48,11 +48,11 @@ nDLFftSize=4096
 nULFftSize=4096
 
 nFrameDuplexType=1 # 0 - FDD 1 - TDD
-nTddPeriod=5 #[0-9] DDDFU, for S it's 6:4:4
+nTddPeriod=5 #[0-9] DDDFU, for S it's 10:2:2
 sSlotConfig0=0,0,0,0,0,0,0,0,0,0,0,0,0,0 # (0) - DL (1) - UL (2) - GUARD
 sSlotConfig1=0,0,0,0,0,0,0,0,0,0,0,0,0,0 # (0) - DL (1) - UL (2) - GUARD
 sSlotConfig2=0,0,0,0,0,0,0,0,0,0,0,0,0,0 # (0) - DL (1) - UL (2) - GUARD
-sSlotConfig3=0,0,0,0,0,0,2,2,2,2,1,1,1,1 # (0) - DL (1) - UL (2) - GUARD
+sSlotConfig3=0,0,0,0,0,0,0,0,0,0,2,2,1,1 # (0) - DL (1) - UL (2) - GUARD
 sSlotConfig4=1,1,1,1,1,1,1,1,1,1,1,1,1,1 # (0) - DL (1) - UL (2) - GUARD
 
 MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single 
@@ -73,7 +73,7 @@ ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
 duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
 ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
-numSlots=10 #number of slots per IQ files
+numSlots=20 #number of slots per IQ files
 antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0
 antC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   #CC0
 antC2=./usecase/cat_b/mu1_100mhz/ant_2.bin   #CC0
@@ -186,21 +186,25 @@ antSrsC63=./usecase/cat_b/mu1_100mhz/ant_7.bin
 ##Section Settings
 DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used 
 
-nPrbElemDl=4
+nPrbElemDl=2
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
-# weight base beams 
-PrbElemDl0=0,48,0,14,0,1,1,9,1
-PrbElemDl1=48,48,0,14,1,1,1,9,1
-PrbElemDl2=96,48,0,14,2,1,1,9,1
-PrbElemDl3=144,34,0,14,3,1,1,9,1
+# weight base beams
+PrbElemDl0=0,50,0,14,0,1,1,9,1
+PrbElemDl1=50,50,0,14,1,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwDl0=2,25,0,0,9,1
+ExtBfwDl1=2,25,0,0,9,1
 
-nPrbElemUl=4
+nPrbElemUl=2
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
-# weight base beams 
-PrbElemUl0=0,48,0,14,0,1,1,9,1
-PrbElemUl1=48,48,0,14,1,1,1,9,1
-PrbElemUl2=96,48,0,14,2,1,1,9,1
-PrbElemUl3=144,34,0,14,3,1,1,9,1
+# weight base beams
+PrbElemUl0=0,50,0,14,0,1,1,9,1
+PrbElemUl1=50,50,0,14,1,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwUl0=2,25,0,0,9,1
+ExtBfwUl1=2,25,0,0,9,1
 
 ###########################################################
 
@@ -234,8 +238,8 @@ T2a_min_up=71  # 71.35in us
 T2a_max_up=428 # 428.12us
 
 #Transmission Window
-Ta3_min=20 # in us 
-Ta3_max=32 # in us 
+Ta3_min=20 # in us
+Ta3_max=32 # in us
 
 ###########################################################
 ##O-DU Settings
@@ -254,7 +258,7 @@ T1a_min_up=96  #71 + 25 us
 T1a_max_up=196 #71 + 25 us
 
 #Reception Window
-Ta4_min=0  # in us 
-Ta4_max=75 # in us 
+Ta4_min=0  # in us
+Ta4_max=75 # in us
 ###########################################################
 

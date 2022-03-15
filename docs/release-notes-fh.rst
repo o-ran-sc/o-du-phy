@@ -1,4 +1,4 @@
-..    Copyright (c) 2019 Intel
+..    Copyright (c) 2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -18,6 +18,18 @@
    
 Front Haul Interface Library Release Notes
 ==========================================
+Version FH oran_e_maintenance_release_v1.0, March 2022 
+------------------------------------------------------
+
+* Update to DPDK 20.11.
+* Static Compression support which reduces overhead in user plane packets.
+* QoS support per configuration table 3-7.
+* DDP Profile for O-RAN FH.
+* VPP like vectorization of packet handling.
+* C-plane update.
+* Support for Measurement of dummy payloads in the range of 40 to 1400 bytes per user.
+* CVL(Columbiaville) measured transport implementation including timing parameters adjustment
+  prior to C/U plane traffic.
 
 Version FH oran_release_bronze_v1.1, Aug 2020
 ------------------------------------------------
@@ -66,6 +78,8 @@ Version FH seedcode_v1.0, 25 Jul 2019
 * RU Category  Support of CAT-B RU (i.e. precoding in RU)
 * Beamforming Beam Index Based and Real Time BF weights
 * Transport Features QoS over FrontHaul and Application Fragmentation
+
+
 
 
 

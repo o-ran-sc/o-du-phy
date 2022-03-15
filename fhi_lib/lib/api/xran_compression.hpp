@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -61,7 +61,7 @@ namespace BlockFloatCompander
 
   struct CompressedData
   {
-    /// Compressed data
+    /// Pointer to compressed data buffer
     CACHE_ALIGNED uint8_t dataCompressedDataOut[k_numSampsCompressed];
     CACHE_ALIGNED uint8_t *dataCompressed;
     /// Size of mantissa including sign bit
@@ -76,7 +76,7 @@ namespace BlockFloatCompander
 
   struct ExpandedData
   {
-    /// Expanded data or input data to compressor
+    /// Pointer to expanded data buffer
     CACHE_ALIGNED int16_t dataExpandedIn[k_numSampsExpanded];
     CACHE_ALIGNED int16_t *dataExpanded;
 
@@ -93,6 +93,10 @@ namespace BlockFloatCompander
   /// Reference compression and expansion functions
   void BFPCompressRef(const ExpandedData& dataIn, CompressedData* dataOut);
   void BFPExpandRef(const CompressedData& dataIn, ExpandedData* dataOut);
+
+  /// User-Plane specific compression and expansion functions 9b Matissa 16RB ONLY
+  void BFPCompressUserPlaneAvx512_9b16RB(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BFPExpandUserPlaneAvx512_9b16RB(const CompressedData& dataIn, ExpandedData* dataOut);
 
   /// User-Plane specific compression and expansion functions
   void BFPCompressUserPlaneAvx512(const ExpandedData& dataIn, CompressedData* dataOut);
@@ -113,5 +117,25 @@ namespace BlockFloatCompander
   /// Control-Plane specific compression and expansion functions for 64 antennas
   void BFPCompressCtrlPlane64Avx512(const ExpandedData& dataIn, CompressedData* dataOut);
   void BFPExpandCtrlPlane64Avx512(const CompressedData& dataIn, ExpandedData* dataOut);
-}
 
+
+  /// User-Plane specific compression and expansion functions
+  void BFPCompressUserPlaneAvxSnc(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BFPExpandUserPlaneAvxSnc(const CompressedData& dataIn, ExpandedData* dataOut);
+
+  /// Control-Plane specific compression and expansion functions for 8 antennas
+  void BFPCompressCtrlPlane8AvxSnc(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BFPExpandCtrlPlane8AvxSnc(const CompressedData& dataIn, ExpandedData* dataOut);
+
+  /// Control-Plane specific compression and expansion functions for 16 antennas
+  void BFPCompressCtrlPlane16AvxSnc(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BFPExpandCtrlPlane16AvxSnc(const CompressedData& dataIn, ExpandedData* dataOut);
+
+  /// Control-Plane specific compression and expansion functions for 32 antennas
+  void BFPCompressCtrlPlane32AvxSnc(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BFPExpandCtrlPlane32AvxSnc(const CompressedData& dataIn, ExpandedData* dataOut);
+
+  /// Control-Plane specific compression and expansion functions for 64 antennas
+  void BFPCompressCtrlPlane64AvxSnc(const ExpandedData& dataIn, CompressedData* dataOut);
+  void BFPExpandCtrlPlane64AvxSnc(const CompressedData& dataIn, ExpandedData* dataOut);
+}
