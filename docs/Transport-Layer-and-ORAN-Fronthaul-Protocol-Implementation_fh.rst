@@ -807,16 +807,20 @@ Table 8. Levels of support
 |            || Exten     |            |            |     |     |     |
 |            | sions      |            |            |     |     |     |
 |            +------------+------------+------------+-----+-----+-----+
+|            ||           |            |            |     |     |     |
+|            || *Ext*\    | bfw        | Supported  | Y   | Y   | N   |
+|            || *Type=1:* | CompHdr    |            |     |     |     |
 |            |            |            |            |     |     |     |
-|            || *ExtType*\| bfw        | Supported  | Y   | Y   | N   |
-|            || *=1:*     | CompHdr    |            |     |     |     |
-|            || *Beam*    || (beam     |            |     |     |     |
-|            | *forming*  | forming    |            |     |     |     |
+|            || *Beam*    || \(bea     |            |     |     |     |
+|            |            |            |            |     |     |     |
+|            || *forming* | forming    |            |     |     |     |
+|            |            |            |            |     |     |     |
 |            || *Weights* || weight    |            |     |     |     |
 |            || *Exten*   || compre    |            |     |     |     |
 |            | *sion*     || ssion     |            |     |     |     |
 |            || *Type*    | header)    |            |     |     |     |
-|            |            +------------+------------+-----+-----+-----+
+|            ||           +------------+------------+-----+-----+-----+
+|            ||           ||           |            |     |     |     |
 |            ||           || bf        | Supported  | Y   | Y   | N   |
 |            ||           | wCompParam |            |     |     |     |
 |            ||           || (beam     |            |     |     |     |

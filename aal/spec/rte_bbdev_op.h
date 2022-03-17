@@ -9,9 +9,6 @@
  * @file rte_bbdev_op.h
  *
  * Defines wireless base band layer 1 operations and capabilities
- *
- * @warning
- * @b EXPERIMENTAL: this API may change without prior notice
  */
 
 #ifdef __cplusplus
@@ -50,8 +47,6 @@ extern "C" {
 #define RTE_BBDEV_TURBO_MAX_CODE_BLOCKS (64)
 /* LDPC:  Maximum number of Code Blocks in Transport Block.*/
 #define RTE_BBDEV_LDPC_MAX_CODE_BLOCKS (256)
-/* 12 CS maximum */
-#define RTE_BBDEV_MAX_CS_2 (6)
 
 /** Flags for turbo decoder operation and capability structure */
 enum rte_bbdev_op_td_flag_bitmasks {
@@ -216,20 +211,6 @@ enum rte_bbdev_op_ldpcenc_flag_bitmasks {
 	RTE_BBDEV_LDPC_ENC_CONCATENATION = (1ULL << 7)
 };
 
-/** Flags for DFT operation and capability structure */
-enum rte_bbdev_op_fft_flag_bitmasks {
-	/** Flexible windowing capability */
-	RTE_BBDEV_FFT_WINDOWING = (1ULL << 0),
-	/** Flexible adjustment of Cyclic Shift time offset */
-	RTE_BBDEV_FFT_CS_ADJUSTMENT = (1ULL << 1),
-	/** To bypass the DFT and get directly into iDFT input */
-	RTE_BBDEV_FFT_DFT_BYPASS = (1ULL << 2),
-	/** To bypass the IDFT and get directly the DFT output */
-	RTE_BBDEV_FFT_IDFT_BYPASS = (1ULL << 3),
-	/** To bypass time domain windowing */
-	RTE_BBDEV_FFT_WINDOWING_BYPASS = (1ULL << 4)
-};
-
 /** Flags for the Code Block/Transport block mode  */
 enum rte_bbdev_op_cb_mode {
 	/** One operation is one or fraction of one transport block  */
@@ -237,7 +218,6 @@ enum rte_bbdev_op_cb_mode {
 	/** One operation is one code block mode */
 	RTE_BBDEV_CODE_BLOCK = 1,
 };
-
 
 /** Data input and output buffer for BBDEV operations */
 struct rte_bbdev_op_data {
@@ -709,50 +689,6 @@ struct rte_bbdev_op_ldpc_enc {
 	};
 };
 
-/** Operation structure for FFT processing.
- *
- * The operation processes the data for multiple antennas in a single call
- * (.i.e for all the REs belonging to a given SRS sequence for instance)
- *
- * The output mbuf data structure is expected to be allocated by the
- * application with enough room for the output data.
- */
-struct rte_bbdev_op_fft {
-	/** Input data starting from first antenna */
-	struct rte_bbdev_op_data base_input;
-	/** Output data starting from first antenna and first cyclic shift */
-	struct rte_bbdev_op_data base_output;
-	/** Flags from rte_bbdev_op_fft_flag_bitmasks */
-	uint32_t op_flags;
-	/** Input sequence size in 32-bits points */
-	uint16_t input_sequence_size;
-	/** Padding at the start of the sequence */
-	uint16_t input_leading_padding;
-	/** Output sequence size in 32-bits points */
-	uint16_t output_sequence_size;
-	/** Depadding at the start of the DFT output */
-	uint16_t output_leading_depadding;
-	/** Window index being used for each cyclic shift output */
-	uint8_t window_index[RTE_BBDEV_MAX_CS_2];
-	/** Bitmap of the cyclic shift output requested */
-	uint16_t cs_bitmap;
-	/** Number of antennas as a log2 – 8 to 128 */
-	uint8_t num_antennas_log2;
-	/** iDFT size as a log2 - 32 to 2048 */
-	uint8_t idft_log2;
-	/** DFT size as a log2 - 8 to 2048 */
-	uint8_t dft_log2;
-	/** Adjustment of position of the cyclic shifts - -31 to 31 */
-	int8_t cs_time_adjustment;
-	/** iDFT shift down */
-	int8_t idft_shift;
-	/** DFT shift down */
-	int8_t dft_shift;
-	/** NCS reciprocal factor  */
-	uint16_t ncs_reciprocal;
-};
-
-
 /** List of the capabilities for the Turbo Decoder */
 struct rte_bbdev_op_cap_turbo_dec {
 	/** Flags from rte_bbdev_op_td_flag_bitmasks */
@@ -805,16 +741,6 @@ struct rte_bbdev_op_cap_ldpc_enc {
 	uint16_t num_buffers_dst;
 };
 
-/** List of the capabilities for the FFT */
-struct rte_bbdev_op_cap_fft {
-	/** Flags from rte_bbdev_op_ldpcenc_flag_bitmasks */
-	uint32_t capability_flags;
-	/** Num input code block buffers */
-	uint16_t num_buffers_src;
-	/** Num output code block buffers */
-	uint16_t num_buffers_dst;
-};
-
 /** Different operation types supported by the device */
 enum rte_bbdev_op_type {
 	RTE_BBDEV_OP_NONE,  /**< Dummy operation that does nothing */
@@ -822,7 +748,6 @@ enum rte_bbdev_op_type {
 	RTE_BBDEV_OP_TURBO_ENC,  /**< Turbo encode */
 	RTE_BBDEV_OP_LDPC_DEC,  /**< LDPC decode */
 	RTE_BBDEV_OP_LDPC_ENC,  /**< LDPC encode */
-	RTE_BBDEV_OP_FFT,  /**< FFT */
 	RTE_BBDEV_OP_TYPE_COUNT,  /**< Count of different op types */
 };
 
@@ -866,18 +791,6 @@ struct rte_bbdev_dec_op {
 	};
 };
 
-/** Structure specifying a single fft operation */
-struct rte_bbdev_fft_op {
-	/** Status of operation that was performed */
-	int status;
-	/** Mempool which op instance is in */
-	struct rte_mempool *mempool;
-	/** Opaque pointer for user data */
-	void *opaque_data;
-	/** Contains turbo decoder specific parameters */
-	struct rte_bbdev_op_fft fft;
-};
-
 /** Operation capabilities supported by a device */
 struct rte_bbdev_op_cap {
 	enum rte_bbdev_op_type type;  /**< Type of operation */
@@ -886,7 +799,6 @@ struct rte_bbdev_op_cap {
 		struct rte_bbdev_op_cap_turbo_enc turbo_enc;
 		struct rte_bbdev_op_cap_ldpc_dec ldpc_dec;
 		struct rte_bbdev_op_cap_ldpc_enc ldpc_enc;
-		struct rte_bbdev_op_cap_fft fft;
 	} cap;  /**< Operation-type specific capabilities */
 };
 
@@ -905,7 +817,6 @@ struct rte_bbdev_op_pool_private {
  *   Operation type as string or NULL if op_type is invalid
  *
  */
-__rte_experimental
 const char*
 rte_bbdev_op_type_str(enum rte_bbdev_op_type op_type);
 
@@ -929,7 +840,6 @@ rte_bbdev_op_type_str(enum rte_bbdev_op_type op_type);
  *   - Pointer to a mempool on success,
  *   - NULL pointer on failure.
  */
-__rte_experimental
 struct rte_mempool *
 rte_bbdev_op_pool_create(const char *name, enum rte_bbdev_op_type type,
 		unsigned int num_elements, unsigned int cache_size,
@@ -949,7 +859,6 @@ rte_bbdev_op_pool_create(const char *name, enum rte_bbdev_op_type type,
  *   - 0 on success
  *   - EINVAL if invalid mempool is provided
  */
-__rte_experimental
 static inline int
 rte_bbdev_enc_op_alloc_bulk(struct rte_mempool *mempool,
 		struct rte_bbdev_enc_op **ops, uint16_t num_ops)
@@ -986,7 +895,6 @@ rte_bbdev_enc_op_alloc_bulk(struct rte_mempool *mempool,
  *   - 0 on success
  *   - EINVAL if invalid mempool is provided
  */
-__rte_experimental
 static inline int
 rte_bbdev_dec_op_alloc_bulk(struct rte_mempool *mempool,
 		struct rte_bbdev_dec_op **ops, uint16_t num_ops)
@@ -1010,42 +918,6 @@ rte_bbdev_dec_op_alloc_bulk(struct rte_mempool *mempool,
 }
 
 /**
- * Bulk allocate fft operations from a mempool with parameter defaults reset.
- *
- * @param mempool
- *   Operation mempool, created by rte_bbdev_op_pool_create().
- * @param ops
- *   Output array to place allocated operations
- * @param num_ops
- *   Number of operations to allocate
- *
- * @returns
- *   - 0 on success
- *   - EINVAL if invalid mempool is provided
- */
-__rte_experimental
-static inline int
-rte_bbdev_fft_op_alloc_bulk(struct rte_mempool *mempool,
-		struct rte_bbdev_fft_op **ops, uint16_t num_ops)
-{
-	struct rte_bbdev_op_pool_private *priv;
-	int ret;
-
-	/* Check type */
-	priv = (struct rte_bbdev_op_pool_private *)
-			rte_mempool_get_priv(mempool);
-	if (unlikely(priv->type != RTE_BBDEV_OP_FFT))
-		return -EINVAL;
-
-	/* Get elements */
-	ret = rte_mempool_get_bulk(mempool, (void **)ops, num_ops);
-	if (unlikely(ret < 0))
-		return ret;
-
-	return 0;
-}
-
-/**
  * Free decode operation structures that were allocated by
  * rte_bbdev_dec_op_alloc_bulk().
  * All structures must belong to the same mempool.
@@ -1055,7 +927,6 @@ rte_bbdev_fft_op_alloc_bulk(struct rte_mempool *mempool,
  * @param num_ops
  *   Number of structures
  */
-__rte_experimental
 static inline void
 rte_bbdev_dec_op_free_bulk(struct rte_bbdev_dec_op **ops, unsigned int num_ops)
 {
@@ -1073,32 +944,12 @@ rte_bbdev_dec_op_free_bulk(struct rte_bbdev_dec_op **ops, unsigned int num_ops)
  * @param num_ops
  *   Number of structures
  */
-__rte_experimental
 static inline void
 rte_bbdev_enc_op_free_bulk(struct rte_bbdev_enc_op **ops, unsigned int num_ops)
 {
 	if (num_ops > 0)
 		rte_mempool_put_bulk(ops[0]->mempool, (void **)ops, num_ops);
 }
-
-/**
- * Free encode operation structures that were allocated by
- * rte_bbdev_fft_op_alloc_bulk().
- * All structures must belong to the same mempool.
- *
- * @param ops
- *   Operation structures
- * @param num_ops
- *   Number of structures
- */
-__rte_experimental
-static inline void
-rte_bbdev_fft_op_free_bulk(struct rte_bbdev_fft_op **ops, unsigned int num_ops)
-{
-	if (num_ops > 0)
-		rte_mempool_put_bulk(ops[0]->mempool, (void **)ops, num_ops);
-}
-
 
 #ifdef __cplusplus
 }

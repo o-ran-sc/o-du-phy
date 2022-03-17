@@ -21,7 +21,7 @@ ORAN 5G FAPI TM Release Notes
 =============================
 
 Version FAPI TM oran_e_maintenance_release_v1.0, Mar 2022
-------------------------------------------------------
+---------------------------------------------------------
 
 * Increased test coverage. Now DL, UL, FD, URLLC and Massive MIMO use cases are supported.
 * Support for features not properly defined in the SCF 5G FAPI 2.0 specs has been added by

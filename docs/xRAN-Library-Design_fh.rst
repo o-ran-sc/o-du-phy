@@ -17,7 +17,7 @@
    <br />
 
 O-RAN Library Design
-===================
+====================
 
 .. contents::
     :depth: 3
@@ -37,6 +37,14 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │   ├── src
 
+│   │   ├── app_io_fh_xran.c
+
+│   │   ├── app_io_fh_xran.h
+
+│   │   ├── app_profile_xran.c
+
+│   │   ├── app_profile_xran.h
+
 │   │   ├── common.c
 
 │   │   ├── common.h
@@ -53,23 +61,13 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │   └── usecase
 
+│       ├── cat_a
+
 │       ├── cat_b
 
 │       ├── lte_a
 
 │       ├── lte_b
-
-│       ├── mu0_10mhz
-
-│       ├── mu0_20mhz
-
-│       ├── mu0_5mhz
-
-│       ├── mu1_100mhz
-
-│       └── mu3_100mhz
-
-├── banner.txt
 
 ├── build.sh
 
@@ -84,6 +82,8 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 │   │   ├── xran_cp_api.h
 
 │   │   ├── xran_fh_o_du.h
+
+│   │   ├── xran_lib_mlog_tasks_id.h
 
 │   │   ├── xran_mlog_lnx.h
 
@@ -119,17 +119,39 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │       ├── xran_app_frag.h
 
+│       ├── xran_bfp_byte_packing_utils.hpp
+
+│       ├── xran_bfp_cplane8.cpp
+
+│       ├── xran_bfp_cplane8_snc.cpp
+
 │       ├── xran_bfp_cplane16.cpp
+
+       ├── xran_bfp_cplane16_snc.cpp
 
 │       ├── xran_bfp_cplane32.cpp
 
+│       ├── xran_bfp_cplane32_snc.cpp
+
 │       ├── xran_bfp_cplane64.cpp
+
+│       ├── xran_bfp_cplane64_snc.cpp
 
 │       ├── xran_bfp_cplane8.cpp
 
 │       ├── xran_bfp_ref.cpp
 
+│       ├── xran_bfp_uplane.cpp
+
+│       ├── xran_bfp_uplane_9b16rb.cpp
+
+│       ├── xran_bfp_uplane_snc.cpp
+
 │       ├── xran_bfp_utils.hpp
+
+│       ├── xran_cb_proc.c
+
+│       ├── xran_cb_proc.h
 
 │       ├── xran_common.c
 
@@ -137,23 +159,55 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │       ├── xran_compression.cpp
 
+│       ├── xran_compression_snc.cpp
+
 │       ├── xran_cp_api.c
+
+│       ├── xran_cp_proc.c
+
+│       ├── xran_cp_proc.h
+
+│       ├── xran_delay_measurement.c
+
+│       ├── xran_dev.c
+
+│       ├── xran_dev.h
+
+│       ├── xran_ecpri_owd_measurements.h
 
 │       ├── xran_frame_struct.c
 
 │       ├── xran_frame_struct.h
 
-│       ├── xran_lib_mlog_tasks_id.h
-
 │       ├── xran_main.c
 
+│       ├── xran_main.h
+
+│       ├── xran_mem_mgr.c
+
+│       ├── xran_mem_mgr.h
+
+│       ├── xran_mod_compression.cpp
+
+│       ├── xran_mod_compression.h
+
+│       ├── xran_prach_cfg.h
+
 │       ├── xran_printf.h
+
+│       ├── xran_rx_proc.c
+
+│       ├── xran_rx_proc.h
 
 │       ├── xran_sync_api.c
 
 │       ├── xran_timer.c
 
 │       ├── xran_transport.c
+
+│       ├── xran_tx_proc.c
+
+│       ├── xran_tx_proc.h
 
 │       ├── xran_ul_tables.c
 

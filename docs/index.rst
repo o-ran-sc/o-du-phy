@@ -81,7 +81,7 @@ Running L1 and TESTMAC
 * :ref:`search`
 
 Test Cases for the E Maintenance Release
-=================================
+========================================
 
 .. toctree::
    :maxdepth: 2
