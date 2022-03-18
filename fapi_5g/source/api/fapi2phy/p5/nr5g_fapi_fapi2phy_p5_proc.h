@@ -27,33 +27,38 @@
 #define _NR5G_FAPI_FAP2PHY_P5_PROC_H_
 
 uint8_t nr5g_fapi_config_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_config_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg);
 
 uint8_t nr5g_fapi_start_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_start_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg);
 
 uint8_t nr5g_fapi_stop_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_stop_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg);
 
 uint8_t nr5g_fapi_shutdown_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_vendor_ext_shutdown_req_t * p_fapi_req);
 
-uint8_t nr5g_fapi_shutdown_request(
-    p_nr5g_fapi_phy_instance_t p_phy_instance,
-    fapi_vendor_ext_shutdown_req_t * p_fapi_msg);
-
 #ifdef DEBUG_MODE
 uint8_t nr5g_fapi_dl_iq_samples_request(
+    bool is_urllc,
     fapi_vendor_ext_iq_samples_req_t * p_fapi_req);
 uint8_t nr5g_fapi_ul_iq_samples_request(
+    bool is_urllc,
     fapi_vendor_ext_iq_samples_req_t * p_fapi_req);
+uint8_t nr5g_fapi_add_remove_core_message(
+    bool is_urllc,
+    fapi_vendor_ext_add_remove_core_msg_t * p_fapi_req);
 #endif
 
 #endif                          //_NR5G_FAPI_FAP2PHY_P5_PROC_H_

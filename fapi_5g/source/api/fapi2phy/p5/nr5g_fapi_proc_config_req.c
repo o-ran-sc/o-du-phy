@@ -45,6 +45,7 @@
  *
 **/
 uint8_t nr5g_fapi_config_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_config_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg)
@@ -110,6 +111,20 @@ uint8_t nr5g_fapi_config_request(
             p_fapi_vendor_msg->config_req_vendor.sequence_hop_flag;
         p_ia_config_req->nHoppingId =
             p_fapi_vendor_msg->config_req_vendor.hopping_id;
+        p_ia_config_req->nUrllcCapable =
+            p_fapi_vendor_msg->config_req_vendor.urllc_capable;
+        p_ia_config_req->nUrllcMiniSlotMask =
+            p_fapi_vendor_msg->config_req_vendor.urllc_mini_slot_mask;
+        p_ia_config_req->nPrachNrofRxRU =
+            p_fapi_vendor_msg->config_req_vendor.prach_nr_of_rx_ru;
+        p_ia_config_req->nNrOfDLPorts =
+            p_fapi_vendor_msg->config_req_vendor.nr_of_dl_ports;
+        p_ia_config_req->nNrOfULPorts =
+            p_fapi_vendor_msg->config_req_vendor.nr_of_ul_ports;
+        p_ia_config_req->nSSBSubcSpacing =
+            p_fapi_vendor_msg->config_req_vendor.ssb_subc_spacing;
+        p_phy_instance->phy_config.use_vendor_EpreXSSB =
+            p_fapi_vendor_msg->config_req_vendor.use_vendor_EpreXSSB;
     }
 
     p_ia_config_req->nDLFftSize =
@@ -118,10 +133,9 @@ uint8_t nr5g_fapi_config_request(
     p_ia_config_req->nULFftSize =
         nr5g_fapi_calc_fft_size(p_ia_config_req->nSubcCommon,
         p_ia_config_req->nULBandwidth);
-    p_ia_config_req->nPrachNrofRxRU = p_ia_config_req->nNrOfRxAnt;
 
     /* Add element to send list */
-    nr5g_fapi_fapi2phy_add_to_api_list(p_list_elem);
+    nr5g_fapi_fapi2phy_add_to_api_list(is_urllc, p_list_elem);
 
     p_stats->iapi_stats.iapi_config_req++;
     NR5G_FAPI_LOG(INFO_LOG, ("[CONFIG.request][%d]", p_phy_instance->phy_id));
@@ -171,8 +185,6 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
 
             case FAPI_NUM_TX_ANT_TAG:
                 p_ia_config_req->nNrOfTxAnt =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
-                p_ia_config_req->nNrOfDLPorts =
                     GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
                 break;
 
@@ -191,8 +203,6 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
             case FAPI_NUM_RX_ANT_TAG:
                 p_phy_instance->phy_config.n_nr_of_rx_ant =
                     p_ia_config_req->nNrOfRxAnt =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
-                p_ia_config_req->nNrOfULPorts =
                     GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
                 break;
 
@@ -226,8 +236,9 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
 
             case FAPI_SCS_COMMON_TAG:
                 p_ia_config_req->nSubcCommon =
+                    p_ia_config_req->nSSBSubcSpacing =
+                    p_phy_instance->phy_config.sub_c_common =
                     GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
-                p_ia_config_req->nSSBSubcSpacing = p_ia_config_req->nSubcCommon;
                 break;
 
             /***** PRACH Config *****/
@@ -275,8 +286,6 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
                 p_ia_config_req->nSSBPrbOffset =
                     GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length) / (pow(2,
                         p_ia_config_req->nSubcCommon));
-                p_phy_instance->phy_config.nSSBPrbOffset =
-                    p_ia_config_req->nSSBPrbOffset;
                 break;
 
             case FAPI_SSB_PERIOD_TAG:
@@ -309,7 +318,7 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
                 break;
 
             case FAPI_BEAM_ID_TAG:
-                if (n_beamid_idx < 64) {
+                if (n_beamid_idx < MAX_NUM_ANT) {
                     p_ia_config_req->nBeamId[n_beamid_idx++] =
                         GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
                 }
@@ -350,6 +359,28 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
                 break;
         }
     }
+    nr5g_fapi_config_req_fill_dependent_fields(p_ia_config_req);
+    return SUCCESS;
+}
+
+ /** @ingroup group_source_api_p5_fapi2phy_proc
+ *
+ *  @param[in,out]  p_ia_config_req Pointer to IAPI CONFIG.request structure.
+ *
+ *  @return     Returns ::SUCCESS and ::FAILURE.
+ *
+ *  @description
+ *  This function converts IAPI Config.request structure fields that depend on
+ *  others. The order ofLV 5G FAPI 222.10.02 - 3.3.2.1
+ *
+**/
+uint8_t nr5g_fapi_config_req_fill_dependent_fields(
+    PCONFIGREQUESTStruct p_ia_config_req)
+{
+    if (0 == p_ia_config_req->nFrameDuplexType) { // FDD
+        p_ia_config_req->nTddPeriod = 0;
+    }
+
     return SUCCESS;
 }
 

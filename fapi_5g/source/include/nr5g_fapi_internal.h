@@ -27,12 +27,15 @@
 #include "fapi_interface.h"
 #include "nr5g_fapi_common_types.h"
 
-#define  MAX_UL_SLOT_INFO_COUNT                      10 //Maximum no of Slots for which UL_TTI.request info has to
+#define  MAX_UL_SLOT_INFO_COUNT                      20 //Maximum no of Slots for which UL_TTI.request info has to
+#define  MAX_UL_SYMBOL_INFO_COUNT                    FAPI_MAX_NR_OF_SYMBOLS
+//Maximum no of symbols which may be configured with separate UL_TTI.request (URLLC)
 #define  FAPI_MAX_NUM_PUSCH_PDU                     255 //as per Table 3-44
 #define  FAPI_MAX_NUM_PUCCH_PDU                     255 //as per Table 3-44
 #define  FAPI_MAX_NUM_SRS_PDU                       255 //as per Table 3-73
 #define  FAPI_MAX_NUM_RACH_PDU                      255 //as per Table 3-74
-#define  FAPI_MAX_PHY_INSTANCES                      12
+#define  FAPI_MAX_PHY_INSTANCES                      24
+#define  FAPI_MAX_SLOT_INFO_URLLC                     2
 
 // CONFIGURATION INFORMATION CARRIER CONFIGURATION BANDWIDTH
 #define FAPI_BANDWIDTH_5_MHZ                          5

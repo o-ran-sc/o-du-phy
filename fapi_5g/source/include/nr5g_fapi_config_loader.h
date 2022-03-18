@@ -30,6 +30,7 @@
 #include "nr5g_fapi_log.h"
 
 #define NR5G_FAPI_DEVICE_NAME_LEN   512
+#define NR5G_FAPI_MEMORY_ZONE_NAME_LEN  512
 
 enum {
     DPDK_IOVA_PA_MODE = 0,
@@ -55,6 +56,7 @@ typedef struct _nr5g_fapi_config_wls_cfg {
 
 typedef struct nr5g_fapi_config_dpdk_cfg_t {
     uint8_t iova_mode;          /*0 - PA mode, 1 - VA mode */
+    char memory_zone[NR5G_FAPI_MEMORY_ZONE_NAME_LEN];
 } nr5g_fapi_config_dpdk_cft_t;
 
 typedef struct _nr5g_fapi_config_log_cfg {
@@ -70,6 +72,7 @@ typedef struct _nr5g_fapi_cfg {
     nr5g_fapi_config_log_cfg_t logger;
     nr5g_fapi_thread_info_t mac2phy_thread_info;
     nr5g_fapi_thread_info_t phy2mac_thread_info;
+    nr5g_fapi_thread_info_t urllc_thread_info;
     nr5g_fapi_config_dpdk_cft_t dpdk;
 } nr5g_fapi_cfg_t,
 *p_nr5g_fapi_cfg_t;

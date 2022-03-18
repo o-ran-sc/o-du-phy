@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -22,6 +22,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include <stdint.h>
 
 /** WLS driver client operates as slave in terms of management of shared memory */
 #define WLS_SLAVE_CLIENT   0
@@ -53,7 +55,9 @@ extern "C" {
 /** @ingroup wls_mod
  *
  *  @param[in]   ifacename - pointer to string with device driver name (/dev/wls)
- *  @param[in]   modef     - mode of operation (Master or Slave)
+ *  @param[in]   mode         - mode of operation (Master or Slave)
+ *  @param[in]   nWlsMacMemorySize - Pointer with size of Memory blocks managed by MAC
+ *  @param[in]   nWlsPhyMemorySize - Pointer with size of Memory blocks managed by L1 (SRS Channel Estimates)
  *
  *  @return  pointer to WLS handle
  *
@@ -64,8 +68,9 @@ extern "C" {
  *
 **/
 //-------------------------------------------------------------------------------------------
-void* WLS_Open(const char *ifacename, unsigned int mode, unsigned long long nWlsMemorySize);
+void* WLS_Open(const char *ifacename, unsigned int mode, uint64_t *nWlsMacMemorySize, uint64_t *nWlsPhyMemorySize);
 
+uint32_t WLS_SetMode(void* h, unsigned int mode);
 //-------------------------------------------------------------------------------------------
 /** @ingroup wls_mod
  *
@@ -81,7 +86,7 @@ void* WLS_Open(const char *ifacename, unsigned int mode, unsigned long long nWls
  *
 **/
 //-------------------------------------------------------------------------------------------
-void* WLS_Open_Dual(const char *ifacename, unsigned int mode, unsigned long long nWlsMemorySize, void** handle1);
+void* WLS_Open_Dual(const char *ifacename, unsigned int mode, uint64_t *nWlsMacMemorySize, uint64_t *nWlsPhyMemorySize, void** handle1);
 
 //-------------------------------------------------------------------------------------------
 /** @ingroup wls_mod
@@ -155,7 +160,7 @@ int WLS_Ready1(void* h);
  *
 **/
 //-------------------------------------------------------------------------------------------
-void* WLS_Alloc(void* h, unsigned int size);
+void* WLS_Alloc(void* h, uint64_t size);
 
 //-------------------------------------------------------------------------------------------
 /** @ingroup wls_mod

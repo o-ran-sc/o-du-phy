@@ -78,7 +78,7 @@ ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
 duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
 ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
-numSlots=10 #number of slots per IQ files
+numSlots=20 #number of slots per IQ files
 antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0
 antC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   #CC0
 antC2=./usecase/cat_b/mu1_100mhz/ant_2.bin   #CC0

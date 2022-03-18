@@ -31,6 +31,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/stat.h>
-//#include <sys/types.h>
+#include <semaphore.h>
+#include <stdbool.h>
 
 #endif

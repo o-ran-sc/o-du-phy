@@ -78,7 +78,7 @@ ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
 duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
 ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
-numSlots=10 #number of slots per IQ files
+numSlots=20 #number of slots per IQ files
 antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0
 antC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   #CC0
 antC2=./usecase/cat_b/mu1_100mhz/ant_2.bin   #CC0
@@ -133,6 +133,12 @@ PrbElemDl0=0,48,0,14,1,1,1,9,1
 PrbElemDl1=48,48,0,14,2,1,1,9,1
 PrbElemDl2=96,48,0,14,3,1,1,9,1
 PrbElemDl3=144,48,0,14,4,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwDl0=12,4,0,0,9,1
+ExtBfwDl1=12,4,0,0,9,1
+ExtBfwDl2=12,4,0,0,9,1
+ExtBfwDl3=12,4,0,0,9,1
 
 nPrbElemUl=4
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
@@ -141,6 +147,12 @@ PrbElemUl0=0,48,0,14,1,1,1,9,1
 PrbElemUl1=48,48,0,14,2,1,1,9,1
 PrbElemUl2=96,48,0,14,3,1,1,9,1
 PrbElemUl3=144,48,0,14,4,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwUl0=12,4,0,0,9,1
+ExtBfwUl1=12,4,0,0,9,1
+ExtBfwUl2=12,4,0,0,9,1
+ExtBfwUl3=12,4,0,0,9,1
 
 ###########################################################
 

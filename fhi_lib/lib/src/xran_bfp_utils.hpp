@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -29,11 +29,6 @@
 
 namespace BlockFloatCompander
 {
-  /// Define function signatures for byte packing functions
-  typedef __m512i(*PackFunction)(const __m512i);
-  typedef __m512i(*UnpackFunction)(const uint8_t*);
-  typedef __m256i(*UnpackFunction256)(const uint8_t*);
-
   /// Calculate exponent based on 16 max abs values using leading zero count.
   inline __m512i
   maskUpperWord(const __m512i inData)
@@ -45,6 +40,7 @@ namespace BlockFloatCompander
     return _mm512_and_epi64(inData, k_upperWordMask);
   }
 
+
   /// Calculate exponent based on 16 max abs values using leading zero count.
   inline __m512i
   expLzCnt(const __m512i maxAbs, const __m512i totShiftBits)
@@ -54,6 +50,8 @@ namespace BlockFloatCompander
     return _mm512_subs_epu16(totShiftBits, lzCount);
   }
 
+
+  /// Full horizontal max of 16b values
   inline int
   horizontalMax1x32(const __m512i maxAbsReg)
   {
@@ -67,297 +65,68 @@ namespace BlockFloatCompander
     return _mm512_reduce_max_epi32(maxAbs32);
   }
 
-  /// Pack compressed 9 bit data in network byte order
-  /// See https://soco.intel.com/docs/DOC-2665619
+
+  /// Perform horizontal max of 16 bit values across each lane
   inline __m512i
-  networkBytePack9b(const __m512i compData)
+  horizontalMax4x16(const __m512i maxAbsIn)
   {
-    /// Logical shift left to align network order byte parts
-    const __m512i k_shiftLeft = _mm512_set_epi64(0x0000000100020003, 0x0004000500060007,
-                                                 0x0000000100020003, 0x0004000500060007,
-                                                 0x0000000100020003, 0x0004000500060007,
-                                                 0x0000000100020003, 0x0004000500060007);
-    const auto compDataPacked = _mm512_sllv_epi16(compData, k_shiftLeft);
+    /// Swap 64b in each lane and compute max
+    const auto k_perm64b = _mm512_set_epi64(6, 7, 4, 5, 2, 3, 0, 1);
+    auto maxAbsPerm = _mm512_permutexvar_epi64(k_perm64b, maxAbsIn);
+    auto maxAbsHorz = _mm512_max_epi16(maxAbsIn, maxAbsPerm);
 
-    /// First epi8 shuffle of even indexed samples
-    const __m512i k_byteShuffleMask1 = _mm512_set_epi64(0x0000000000000000, 0x0C0D080904050001,
-                                                        0x0000000000000000, 0x0C0D080904050001,
-                                                        0x0000000000000000, 0x0C0D080904050001,
-                                                        0x0000000000000000, 0x0C0D080904050001);
-    constexpr uint64_t k_byteMask1 = 0x00FF00FF00FF00FF;
-    const auto compDataShuff1 = _mm512_maskz_shuffle_epi8(k_byteMask1, compDataPacked, k_byteShuffleMask1);
+    /// Swap each pair of 32b in each lane and compute max
+    const auto k_perm32b = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1);
+    maxAbsPerm = _mm512_permutexvar_epi32(k_perm32b, maxAbsHorz);
+    maxAbsHorz = _mm512_max_epi16(maxAbsHorz, maxAbsPerm);
 
-    /// Second epi8 shuffle of odd indexed samples
-    const __m512i k_byteShuffleMask2 = _mm512_set_epi64(0x000000000000000E, 0x0F0A0B0607020300,
-                                                        0x000000000000000E, 0x0F0A0B0607020300,
-                                                        0x000000000000000E, 0x0F0A0B0607020300,
-                                                        0x000000000000000E, 0x0F0A0B0607020300);
-    constexpr uint64_t k_byteMask2 = 0x01FE01FE01FE01FE;
-    const auto compDataShuff2 = _mm512_maskz_shuffle_epi8(k_byteMask2, compDataPacked, k_byteShuffleMask2);
-
-    /// Ternary blend of the two shuffled results
-    const __m512i k_ternLogSelect = _mm512_set_epi64(0x00000000000000FF, 0x01FC07F01FC07F00,
-                                                     0x00000000000000FF, 0x01FC07F01FC07F00,
-                                                     0x00000000000000FF, 0x01FC07F01FC07F00,
-                                                     0x00000000000000FF, 0x01FC07F01FC07F00);
-    return _mm512_ternarylogic_epi64(compDataShuff1, compDataShuff2, k_ternLogSelect, 0xd8);
+    /// Swap each IQ pair in each lane (via 32b rotation) and compute max
+    maxAbsPerm = _mm512_rol_epi32(maxAbsHorz, BlockFloatCompander::k_numBitsIQ);
+    return _mm512_max_epi16(maxAbsHorz, maxAbsPerm);
   }
 
 
-  /// Pack compressed 10 bit data in network byte order
-  /// See https://soco.intel.com/docs/DOC-2665619
+  /// Perform U-plane input data re-ordering and vertical max abs of 16b values
+  /// Works on 4 RB at a time
   inline __m512i
-  networkBytePack10b(const __m512i compData)
+  maxAbsVertical4RB(const __m512i inA, const __m512i inB, const __m512i inC)
   {
-    /// Logical shift left to align network order byte parts
-    const __m512i k_shiftLeft = _mm512_set_epi64(0x0000000200040006, 0x0000000200040006,
-                                                 0x0000000200040006, 0x0000000200040006,
-                                                 0x0000000200040006, 0x0000000200040006,
-                                                 0x0000000200040006, 0x0000000200040006);
-    const auto compDataPacked = _mm512_sllv_epi16(compData, k_shiftLeft);
+    /// Re-order the next 4RB in input data into 3 registers
+    /// Input SIMD vectors are:
+    ///   [A A A A A A A A A A A A B B B B]
+    ///   [B B B B B B B B C C C C C C C C]
+    ///   [C C C C D D D D D D D D D D D D]
+    /// Re-ordered SIMD vectors are:
+    ///   [A A A A B B B B C C C C D D D D]
+    ///   [A A A A B B B B C C C C D D D D]
+    ///   [A A A A B B B B C C C C D D D D]
+    constexpr uint8_t k_msk1 = 0b11111100; // Copy first lane of src
+    constexpr int k_shuff1 = 0x41;
+    const auto z_w1 = _mm512_mask_shuffle_i64x2(inA, k_msk1, inB, inC, k_shuff1);
 
-    /// First epi8 shuffle of even indexed samples
-    const __m512i k_byteShuffleMask1 = _mm512_set_epi64(0x000000000000000C, 0x0D08090004050001,
-                                                        0x000000000000000C, 0x0D08090004050001,
-                                                        0x000000000000000C, 0x0D08090004050001,
-                                                        0x000000000000000C, 0x0D08090004050001);
-    constexpr uint64_t k_byteMask1 = 0x01EF01EF01EF01EF;
-    const auto compDataShuff1 = _mm512_maskz_shuffle_epi8(k_byteMask1, compDataPacked, k_byteShuffleMask1);
+    constexpr uint8_t k_msk2 = 0b11000011; // Copy middle two lanes of src
+    constexpr int k_shuff2 = 0xB1;
+    const auto z_w2 = _mm512_mask_shuffle_i64x2(inB, k_msk2, inA, inC, k_shuff2);
 
-    /// Second epi8 shuffle of odd indexed samples
-    const __m512i k_byteShuffleMask2 = _mm512_set_epi64(0x0000000000000E0F, 0x0A0B000607020300,
-                                                        0x0000000000000E0F, 0x0A0B000607020300,
-                                                        0x0000000000000E0F, 0x0A0B000607020300,
-                                                        0x0000000000000E0F, 0x0A0B000607020300);
-    constexpr uint64_t k_byteMask2 = 0x03DE03DE03DE03DE;
-    const auto compDataShuff2 = _mm512_maskz_shuffle_epi8(k_byteMask2, compDataPacked, k_byteShuffleMask2);
+    constexpr uint8_t k_msk3 = 0b00111111; // Copy last lane of src
+    constexpr int k_shuff3 = 0xBE;
+    const auto z_w3 = _mm512_mask_shuffle_i64x2(inC, k_msk3, inA, inB, k_shuff3);
 
-    /// Ternary blend of the two shuffled results
-    const __m512i k_ternLogSelect = _mm512_set_epi64(0x000000000000FF03, 0xF03F00FF03F03F00,
-                                                     0x000000000000FF03, 0xF03F00FF03F03F00,
-                                                     0x000000000000FF03, 0xF03F00FF03F03F00,
-                                                     0x000000000000FF03, 0xF03F00FF03F03F00);
-    return _mm512_ternarylogic_epi64(compDataShuff1, compDataShuff2, k_ternLogSelect, 0xd8);
+    /// Perform max abs on these 3 registers
+    const auto abs16_1 = _mm512_abs_epi16(z_w1);
+    const auto abs16_2 = _mm512_abs_epi16(z_w2);
+    const auto abs16_3 = _mm512_abs_epi16(z_w3);
+    return _mm512_max_epi16(_mm512_max_epi16(abs16_1, abs16_2), abs16_3);
   }
 
 
-  /// Pack compressed 12 bit data in network byte order
-  /// See https://soco.intel.com/docs/DOC-2665619
+  /// Selects first 32 bit value in each src lane and packs into laneNum of dest
   inline __m512i
-  networkBytePack12b(const __m512i compData)
+  slidePermute(const __m512i src, const __m512i dest, const int laneNum)
   {
-    /// Logical shift left to align network order byte parts
-    const __m512i k_shiftLeft = _mm512_set_epi64(0x0000000400000004, 0x0000000400000004,
-                                                 0x0000000400000004, 0x0000000400000004,
-                                                 0x0000000400000004, 0x0000000400000004,
-                                                 0x0000000400000004, 0x0000000400000004);
-    const auto compDataPacked = _mm512_sllv_epi16(compData, k_shiftLeft);
-
-    /// First epi8 shuffle of even indexed samples
-    const __m512i k_byteShuffleMask1 = _mm512_set_epi64(0x00000000000C0D00, 0x0809000405000001,
-                                                        0x00000000000C0D00, 0x0809000405000001,
-                                                        0x00000000000C0D00, 0x0809000405000001,
-                                                        0x00000000000C0D00, 0x0809000405000001);
-    constexpr uint64_t k_byteMask1 = 0x06DB06DB06DB06DB;
-    const auto compDataShuff1 = _mm512_maskz_shuffle_epi8(k_byteMask1, compDataPacked, k_byteShuffleMask1);
-
-    /// Second epi8 shuffle of odd indexed samples
-    const __m512i k_byteShuffleMask2 = _mm512_set_epi64(0x000000000E0F000A, 0x0B00060700020300,
-                                                        0x000000000E0F000A, 0x0B00060700020300,
-                                                        0x000000000E0F000A, 0x0B00060700020300,
-                                                        0x000000000E0F000A, 0x0B00060700020300);
-    constexpr uint64_t k_byteMask2 = 0x0DB60DB60DB60DB6;
-    const auto compDataShuff2 = _mm512_maskz_shuffle_epi8(k_byteMask2, compDataPacked, k_byteShuffleMask2);
-
-    /// Ternary blend of the two shuffled results
-    const __m512i k_ternLogSelect = _mm512_set_epi64(0x00000000FF0F00FF, 0x0F00FF0F00FF0F00,
-                                                     0x00000000FF0F00FF, 0x0F00FF0F00FF0F00,
-                                                     0x00000000FF0F00FF, 0x0F00FF0F00FF0F00,
-                                                     0x00000000FF0F00FF, 0x0F00FF0F00FF0F00);
-    return _mm512_ternarylogic_epi64(compDataShuff1, compDataShuff2, k_ternLogSelect, 0xd8);
-  }
-
-
-  /// Unpack compressed 9 bit data in network byte order
-  /// See https://soco.intel.com/docs/DOC-2665619
-  inline __m512i
-  networkByteUnpack9b(const uint8_t* inData)
-  {
-    /// Align chunks of compressed bytes into lanes to allow for expansion
-    const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(inData);
-    const auto k_expPerm = _mm512_set_epi32(9, 8, 7, 6, 7, 6, 5, 4,
-                                            5, 4, 3, 2, 3, 2, 1, 0);
-    const auto inLaneAlign = _mm512_permutexvar_epi32(k_expPerm, *rawDataIn);
-
-    /// Byte shuffle to get all bits for each sample into 16b chunks
-    /// Due to previous permute to get chunks of bytes into each lane, there is
-    /// a different shuffle offset in each lane
-    const __m512i k_byteShuffleMask = _mm512_set_epi64(0x0A0B090A08090708, 0x0607050604050304,
-                                                       0x090A080907080607, 0x0506040503040203,
-                                                       0x0809070806070506, 0x0405030402030102,
-                                                       0x0708060705060405, 0x0304020301020001);
-    const auto inDatContig = _mm512_shuffle_epi8(inLaneAlign, k_byteShuffleMask);
-
-    /// Logical shift left to set sign bit
-    const __m512i k_slBits = _mm512_set_epi64(0x0007000600050004, 0x0003000200010000,
-                                              0x0007000600050004, 0x0003000200010000,
-                                              0x0007000600050004, 0x0003000200010000,
-                                              0x0007000600050004, 0x0003000200010000);
-    const auto inSetSign = _mm512_sllv_epi16(inDatContig, k_slBits);
-
-    /// Mask to zero unwanted bits
-    const __m512i k_expMask = _mm512_set1_epi16(0xFF80);
-    return _mm512_and_epi64(inSetSign, k_expMask);
-  }
-
-
-  /// Unpack compressed 10 bit data in network byte order
-  /// See https://soco.intel.com/docs/DOC-2665619
-  inline __m512i
-  networkByteUnpack10b(const uint8_t* inData)
-  {
-    /// Align chunks of compressed bytes into lanes to allow for expansion
-    const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(inData);
-    const auto k_expPerm = _mm512_set_epi32(10, 9, 8, 7, 8, 7, 6, 5,
-                                             5, 4, 3, 2, 3, 2, 1, 0);
-    const auto inLaneAlign = _mm512_permutexvar_epi32(k_expPerm, *rawDataIn);
-
-    /// Byte shuffle to get all bits for each sample into 16b chunks
-    /// Due to previous permute to get chunks of bytes into each lane, lanes
-    /// 0 and 2 happen to be aligned, but lane 1 is offset by 2 bytes
-    const __m512i k_byteShuffleMask = _mm512_set_epi64(0x0A0B090A08090708, 0x0506040503040203,
-                                                       0x0809070806070506, 0x0304020301020001,
-                                                       0x0A0B090A08090708, 0x0506040503040203,
-                                                       0x0809070806070506, 0x0304020301020001);
-    const auto inDatContig = _mm512_shuffle_epi8(inLaneAlign, k_byteShuffleMask);
-
-    /// Logical shift left to set sign bit
-    const __m512i k_slBits = _mm512_set_epi64(0x0006000400020000, 0x0006000400020000,
-                                              0x0006000400020000, 0x0006000400020000,
-                                              0x0006000400020000, 0x0006000400020000,
-                                              0x0006000400020000, 0x0006000400020000);
-    const auto inSetSign = _mm512_sllv_epi16(inDatContig, k_slBits);
-
-    /// Mask to zero unwanted bits
-    const __m512i k_expMask = _mm512_set1_epi16(0xFFC0);
-    return _mm512_and_epi64(inSetSign, k_expMask);
-  }
-
-
-  /// Unpack compressed 12 bit data in network byte order
-  /// See https://soco.intel.com/docs/DOC-2665619
-  inline __m512i
-  networkByteUnpack12b(const uint8_t* inData)
-  {
-    /// Align chunks of compressed bytes into lanes to allow for expansion
-    const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(inData);
-    const auto k_expPerm = _mm512_set_epi32(12, 11, 10, 9, 9, 8, 7, 6,
-                                             6, 5, 4, 3, 3, 2, 1, 0);
-    const auto inLaneAlign = _mm512_permutexvar_epi32(k_expPerm, *rawDataIn);
-
-    /// Byte shuffle to get all bits for each sample into 16b chunks
-    /// For 12b mantissa all lanes post-permute are aligned and require same shuffle offset
-    const __m512i k_byteShuffleMask = _mm512_set_epi64(0x0A0B090A07080607, 0x0405030401020001,
-                                                       0x0A0B090A07080607, 0x0405030401020001,
-                                                       0x0A0B090A07080607, 0x0405030401020001,
-                                                       0x0A0B090A07080607, 0x0405030401020001);
-    const auto inDatContig = _mm512_shuffle_epi8(inLaneAlign, k_byteShuffleMask);
-
-    /// Logical shift left to set sign bit
-    const __m512i k_slBits = _mm512_set_epi64(0x0004000000040000, 0x0004000000040000,
-                                              0x0004000000040000, 0x0004000000040000,
-                                              0x0004000000040000, 0x0004000000040000,
-                                              0x0004000000040000, 0x0004000000040000);
-    const auto inSetSign = _mm512_sllv_epi16(inDatContig, k_slBits);
-
-    /// Mask to zero unwanted bits
-    const __m512i k_expMask = _mm512_set1_epi16(0xFFF0);
-    return _mm512_and_epi64(inSetSign, k_expMask);
-  }
-
-
-  /// Unpack compressed 9 bit data in network byte order
-  /// See https://soco.intel.com/docs/DOC-2665619
-  /// This unpacking function is for 256b registers
-  inline __m256i
-  networkByteUnpack9b256(const uint8_t* inData)
-  {
-    /// Align chunks of compressed bytes into lanes to allow for expansion
-    const __m256i* rawDataIn = reinterpret_cast<const __m256i*>(inData);
-    const auto k_expPerm = _mm256_set_epi32(5, 4, 3, 2, 3, 2, 1, 0);
-    const auto inLaneAlign = _mm256_permutexvar_epi32(k_expPerm, *rawDataIn);
-
-    /// Byte shuffle to get all bits for each sample into 16b chunks
-    /// Due to previous permute to get chunks of bytes into each lane, there is
-    /// a different shuffle offset in each lane
-    const __m256i k_byteShuffleMask = _mm256_set_epi64x(0x0809070806070506, 0x0405030402030102,
-                                                        0x0708060705060405, 0x0304020301020001);
-    const auto inDatContig = _mm256_shuffle_epi8(inLaneAlign, k_byteShuffleMask);
-
-    /// Logical shift left to set sign bit
-    const __m256i k_slBits = _mm256_set_epi64x(0x0007000600050004, 0x0003000200010000,
-                                               0x0007000600050004, 0x0003000200010000);
-    const auto inSetSign = _mm256_sllv_epi16(inDatContig, k_slBits);
-
-    /// Mask to zero unwanted bits
-    const __m256i k_expMask = _mm256_set1_epi16(0xFF80);
-    return _mm256_and_si256(inSetSign, k_expMask);
-  }
-
-
-  /// Unpack compressed 10 bit data in network byte order
-  /// See https://soco.intel.com/docs/DOC-2665619
-  /// This unpacking function is for 256b registers
-  inline __m256i
-  networkByteUnpack10b256(const uint8_t* inData)
-  {
-    /// Align chunks of compressed bytes into lanes to allow for expansion
-    const __m256i* rawDataIn = reinterpret_cast<const __m256i*>(inData);
-    const auto k_expPerm = _mm256_set_epi32(5, 4, 3, 2, 3, 2, 1, 0);
-    const auto inLaneAlign = _mm256_permutexvar_epi32(k_expPerm, *rawDataIn);
-
-    /// Byte shuffle to get all bits for each sample into 16b chunks
-    /// Due to previous permute to get chunks of bytes into each lane, lanes
-    /// 0 and 2 happen to be aligned, but lane 1 is offset by 2 bytes
-    const __m256i k_byteShuffleMask = _mm256_set_epi64x(0x0A0B090A08090708, 0x0506040503040203,
-                                                        0x0809070806070506, 0x0304020301020001);
-    const auto inDatContig = _mm256_shuffle_epi8(inLaneAlign, k_byteShuffleMask);
-
-    /// Logical shift left to set sign bit
-    const __m256i k_slBits = _mm256_set_epi64x(0x0006000400020000, 0x0006000400020000,
-                                               0x0006000400020000, 0x0006000400020000);
-    const auto inSetSign = _mm256_sllv_epi16(inDatContig, k_slBits);
-
-    /// Mask to zero unwanted bits
-    const __m256i k_expMask = _mm256_set1_epi16(0xFFC0);
-    return _mm256_and_si256(inSetSign, k_expMask);
-  }
-
-
-  /// Unpack compressed 12 bit data in network byte order
-  /// See https://soco.intel.com/docs/DOC-2665619
-  /// This unpacking function is for 256b registers
-  inline __m256i
-  networkByteUnpack12b256(const uint8_t* inData)
-  {
-    /// Align chunks of compressed bytes into lanes to allow for expansion
-    const __m256i* rawDataIn = reinterpret_cast<const __m256i*>(inData);
-    const auto k_expPerm = _mm256_set_epi32(6, 5, 4, 3, 3, 2, 1, 0);
-    const auto inLaneAlign = _mm256_permutexvar_epi32(k_expPerm, *rawDataIn);
-
-    /// Byte shuffle to get all bits for each sample into 16b chunks
-    /// For 12b mantissa all lanes post-permute are aligned and require same shuffle offset
-    const __m256i k_byteShuffleMask = _mm256_set_epi64x(0x0A0B090A07080607, 0x0405030401020001,
-                                                        0x0A0B090A07080607, 0x0405030401020001);
-    const auto inDatContig = _mm256_shuffle_epi8(inLaneAlign, k_byteShuffleMask);
-
-    /// Logical shift left to set sign bit
-    const __m256i k_slBits = _mm256_set_epi64x(0x0004000000040000, 0x0004000000040000,
-                                               0x0004000000040000, 0x0004000000040000);
-    const auto inSetSign = _mm256_sllv_epi16(inDatContig, k_slBits);
-
-    /// Mask to zero unwanted bits
-    const __m256i k_expMask = _mm256_set1_epi16(0xFFF0);
-    return _mm256_and_si256(inSetSign, k_expMask);
+    const auto k_selectVals = _mm512_set_epi32(28, 24, 20, 16, 28, 24, 20, 16,
+      28, 24, 20, 16, 28, 24, 20, 16);
+    constexpr uint16_t k_laneMsk[4] = { 0x000F, 0x00F0, 0x0F00, 0xF000 };
+    return _mm512_mask_permutex2var_epi32(dest, k_laneMsk[laneNum], k_selectVals, src);
   }
 }

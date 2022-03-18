@@ -66,7 +66,7 @@ uint8_t nr5g_fapi_config_response(
     }
     // Create FAPI message header
     if (FAPI_STATE_IDLE == p_phy_instance->state)
-        nr5g_fapi_message_header_per_phy(phy_id);
+        nr5g_fapi_message_header_per_phy(phy_id, false);
 
     p_stats = &p_phy_instance->stats;
     p_stats->iapi_stats.iapi_config_res++;
@@ -97,7 +97,7 @@ uint8_t nr5g_fapi_config_response(
     p_fapi_resp->number_of_missing_tlvs = 0;
 
     // Add element to send list
-    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
 
     p_stats->fapi_stats.fapi_config_res++;
     NR5G_FAPI_LOG(INFO_LOG, ("[CONFIG.response][%d]", phy_id));

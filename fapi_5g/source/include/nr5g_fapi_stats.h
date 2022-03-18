@@ -32,9 +32,9 @@
 
 void nr5g_fapi_print_phy_instance_stats(
     p_nr5g_fapi_phy_instance_t p_phy_instance);
-int nr5g_fapi_check_for_file_link(
+inline int nr5g_fapi_check_for_file_link(
     char *fname);
-int nr5g_fapi_change_file_permission(
+inline int nr5g_fapi_change_file_permission(
     int fd,
     mode_t mode);
 

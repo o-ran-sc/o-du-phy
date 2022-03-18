@@ -87,7 +87,7 @@ uint8_t nr5g_fapi_error_indication(
     // p_fapi_error_ind->message_id     =   ; // TODO message id is not supported in IAPI error indication
     p_fapi_error_ind->error_code = p_iapi_resp->nStatus;
 
-    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
 
     // phyStats->iaL1ApiStats.errorInd++; //TODO
     NR5G_FAPI_LOG(INFO_LOG, ("[NR5G_FAPI][ERROR.indication][%d][%d,%d]",

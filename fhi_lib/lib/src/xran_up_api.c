@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -25,8 +25,7 @@
  *
  **/
 #include <inttypes.h>
-
-#include <rte_memcpy.h>
+#include <immintrin.h>
 #include <rte_mbuf.h>
 
 #include "xran_fh_o_du.h"
@@ -35,8 +34,6 @@
 #include "xran_printf.h"
 #include "xran_mlog_lnx.h"
 #include "xran_common.h"
-
-extern uint32_t xran_lib_ota_tti;
 
 /**
  * @brief Builds eCPRI header in xRAN packet
@@ -62,30 +59,30 @@ static int build_ecpri_hdr(struct rte_mbuf *mbuf,
     if (NULL == ecpri_hdr)
         return 1;
 
-    ecpri_hdr->cmnhdr.ecpri_ver = XRAN_ECPRI_VER;
-    ecpri_hdr->cmnhdr.ecpri_resv = 0;
-    ecpri_hdr->cmnhdr.ecpri_concat = 0;
-    ecpri_hdr->cmnhdr.ecpri_mesg_type = ECPRI_IQ_DATA;
+    ecpri_hdr->cmnhdr.data.data_num_1 = 0x0;
+    ecpri_hdr->cmnhdr.bits.ecpri_ver = XRAN_ECPRI_VER;
+    //ecpri_hdr->cmnhdr.bits.ecpri_resv = 0;
+    //ecpri_hdr->cmnhdr.bits.ecpri_concat = 0;
+    ecpri_hdr->cmnhdr.bits.ecpri_mesg_type = ECPRI_IQ_DATA;
 
     if (iq_data_offset + iq_samples_bytes_in_mbuf > iq_data_num_bytes) {
-        ecpri_hdr->cmnhdr.ecpri_payl_size =
+        ecpri_hdr->cmnhdr.bits.ecpri_payl_size =
             rte_cpu_to_be_16(sizeof(struct radio_app_common_hdr) +
                 sizeof(struct data_section_hdr) +
                 (iq_data_num_bytes - iq_data_offset) +
-                xran_get_ecpri_hdr_size());
-        ecpri_hdr->ecpri_seq_id.e_bit = 1;  /* last segment */
+                XRAN_ECPRI_HDR_SZ); //xran_get_ecpri_hdr_size());
+        ecpri_hdr->ecpri_seq_id.bits.e_bit = 1;  /* last segment */
     } else {
-        ecpri_hdr->cmnhdr.ecpri_payl_size =
+        ecpri_hdr->cmnhdr.bits.ecpri_payl_size =
             rte_cpu_to_be_16(sizeof(struct radio_app_common_hdr) +
                 sizeof(struct data_section_hdr) +
                 iq_samples_bytes_in_mbuf +
-                xran_get_ecpri_hdr_size());
-        ecpri_hdr->ecpri_seq_id.e_bit = 0;
+                XRAN_ECPRI_HDR_SZ); //xran_get_ecpri_hdr_size());
+        ecpri_hdr->ecpri_seq_id.bits.e_bit = 0;
     }
 
-//    ecpri_hdr->ecpri_xtc_id = 0;    /* currently not used */
-    ecpri_hdr->ecpri_seq_id.seq_id = 0;
-    ecpri_hdr->ecpri_seq_id.sub_seq_id = iq_data_offset /
+    ecpri_hdr->ecpri_xtc_id = 0;    /* currently not used */
+    ecpri_hdr->ecpri_seq_id.bits.sub_seq_id = iq_data_offset /
         iq_samples_bytes_in_mbuf;
 
     return 0;
@@ -103,41 +100,43 @@ static int build_ecpri_hdr(struct rte_mbuf *mbuf,
  * @param comp_meth Compression method
  * @return int int 0 on success, non zero on failure
  */
-static int xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
+static inline int xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
                               uint8_t ecpri_mesg_type,
                               int payl_size,
                               uint8_t CC_ID,
                               uint8_t Ant_ID,
                               uint8_t seq_id,
-                              uint8_t comp_meth)
+                              uint8_t comp_meth,
+                              enum xran_comp_hdr_type staticEn)
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
     struct xran_ecpri_hdr *ecpri_hdr = (struct xran_ecpri_hdr *)(pChar + sizeof(struct rte_ether_hdr));
     uint16_t    ecpri_payl_size = payl_size
                                 + sizeof(struct data_section_hdr)
                                 + sizeof(struct radio_app_common_hdr)
-                                + xran_get_ecpri_hdr_size();
-
-    if (comp_meth != XRAN_COMPMETHOD_NONE)
+                                + XRAN_ECPRI_HDR_SZ; //xran_get_ecpri_hdr_size();
+    if ((comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
         ecpri_payl_size += sizeof(struct data_section_compression_hdr);
-
     if (NULL == ecpri_hdr)
         return 1;
 
-    ecpri_hdr->cmnhdr.ecpri_ver       = XRAN_ECPRI_VER;
-    ecpri_hdr->cmnhdr.ecpri_resv      = 0;     // should be zero
-    ecpri_hdr->cmnhdr.ecpri_concat    = 0;
-    ecpri_hdr->cmnhdr.ecpri_mesg_type = ecpri_mesg_type;
-    ecpri_hdr->cmnhdr.ecpri_payl_size = rte_cpu_to_be_16(ecpri_payl_size);
+    ecpri_hdr->cmnhdr.data.data_num_1 = 0x0;
+    ecpri_hdr->cmnhdr.bits.ecpri_ver       = XRAN_ECPRI_VER;
+    //ecpri_hdr->cmnhdr.bits.ecpri_resv      = 0;     // should be zero
+    //ecpri_hdr->cmnhdr.bits.ecpri_concat    = 0;
+    ecpri_hdr->cmnhdr.bits.ecpri_mesg_type = ecpri_mesg_type;
+    ecpri_hdr->cmnhdr.bits.ecpri_payl_size = rte_cpu_to_be_16(ecpri_payl_size);
 
     /* one to one lls-CU to RU only and band sector is the same */
     ecpri_hdr->ecpri_xtc_id = xran_compose_cid(0, 0, CC_ID, Ant_ID);
 
-    ecpri_hdr->ecpri_seq_id.seq_id = seq_id;
+    /* no transport layer fragmentation supported */
+    ecpri_hdr->ecpri_seq_id.data.data_num_1 = 0x8000;
+    ecpri_hdr->ecpri_seq_id.bits.seq_id = seq_id;
 
     /* no transport layer fragmentation supported */
-    ecpri_hdr->ecpri_seq_id.sub_seq_id  = 0;
-    ecpri_hdr->ecpri_seq_id.e_bit       = 1;
+    //ecpri_hdr->ecpri_seq_id.sub_seq_id  = 0;
+    //ecpri_hdr->ecpri_seq_id.e_bit       = 1;
 
     return 0;
 }
@@ -151,7 +150,7 @@ static int xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
  *                      packet.
  * @return int 0 on success, non zero on failure
  */
-static int build_application_layer(
+static inline int build_application_layer(
     struct rte_mbuf *mbuf,
     const struct radio_app_common_hdr *app_hdr_input)
 {
@@ -162,7 +161,7 @@ static int build_application_layer(
     if (NULL == app_hdr)
         return 1;
 
-    rte_memcpy(app_hdr, app_hdr_input, sizeof(struct radio_app_common_hdr));
+    memcpy(app_hdr, app_hdr_input, sizeof(struct radio_app_common_hdr));
 
     return 0;
 }
@@ -174,7 +173,7 @@ static int build_application_layer(
  * @param sec_hdr Section header structure to be set in mbuf packet
  * @return int 0 on success, non zero on failure
  */
-static int build_section_hdr(
+static inline int build_section_hdr(
     struct rte_mbuf *mbuf,
     const struct data_section_hdr *sec_hdr)
 {
@@ -185,7 +184,7 @@ static int build_section_hdr(
     if (NULL == section_hdr)
         return 1;
 
-    rte_memcpy(section_hdr, sec_hdr, sizeof(struct data_section_hdr));
+    memcpy(section_hdr, sec_hdr, sizeof(struct data_section_hdr));
 
     return 0;
 }
@@ -198,18 +197,18 @@ static int build_section_hdr(
  * @param iq_data_offset IQ data btyes already sent.
  * @return uint16_t Bytes that have been appended to the packet.
  */
-static uint16_t append_iq_samples_ex(
+static inline uint16_t append_iq_samples_ex(
     struct rte_mbuf *mbuf,
+    int iq_sam_offset,
     const void *iq_data_start,
     const uint32_t iq_data_num_bytes,
     enum xran_input_byte_order iq_buf_byte_order,
     uint32_t do_copy)
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
-    void *iq_sam_buf  = (pChar + sizeof(struct rte_ether_hdr) + sizeof (struct xran_ecpri_hdr)
-                        + sizeof(struct radio_app_common_hdr)
-                        + sizeof(struct data_section_hdr));
+    void *iq_sam_buf;
 
+    iq_sam_buf = (pChar + iq_sam_offset);
     if (iq_sam_buf == NULL){
         print_err("iq_sam_buf == NULL\n");
         return 0;
@@ -226,7 +225,7 @@ static uint16_t append_iq_samples_ex(
 
     else if(iq_buf_byte_order == XRAN_NE_BE_BYTE_ORDER){
         if(do_copy) {
-           rte_memcpy(iq_sam_buf, (uint8_t *)iq_data_start,  iq_data_num_bytes);
+           memcpy(iq_sam_buf, (uint8_t *)iq_data_start,  iq_data_num_bytes);
         }
     }
 
@@ -262,7 +261,7 @@ static uint16_t append_iq_samples(
 
     void *iq_sam_buf = (void *)rte_pktmbuf_append(mbuf, iq_bytes_to_send);
 
-    rte_memcpy(iq_sam_buf, (uint8_t *)iq_data_start + iq_data_offset,
+    memcpy(iq_sam_buf, (uint8_t *)iq_data_start + iq_data_offset,
             iq_bytes_to_send);
 
     return iq_bytes_to_send;
@@ -276,7 +275,7 @@ static uint16_t append_iq_samples(
  *                to be set in mbuf packet
  * @return int 0 on success, non zero on failure
  */
-static int build_compression_hdr(
+static inline int build_compression_hdr(
     struct rte_mbuf *mbuf,
     const struct data_section_compression_hdr *compr_hdr)
 {
@@ -288,7 +287,7 @@ static int build_compression_hdr(
     if (NULL == compression_hdr)
         return 1;
 
-    rte_memcpy(compression_hdr, compr_hdr, sizeof(*compression_hdr));
+    memcpy(compression_hdr, compr_hdr, sizeof(*compression_hdr));
 
     return 0;
 }
@@ -308,7 +307,7 @@ static int append_comp_param(struct rte_mbuf *mbuf, union compression_params *ud
     if (NULL == compr_param)
         return 1;
 
-    rte_memcpy(compr_param, ud_comp_param, sizeof(union compression_params));
+    memcpy(compr_param, ud_comp_param, sizeof(union compression_params));
 
     return 0;
 }
@@ -330,13 +329,14 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
     uint8_t *subframe_id,
     uint8_t *slot_id,
     uint8_t *symb_id,
-    struct ecpri_seq_id *seq_id,
+    union ecpri_seq_id *seq_id,
     uint16_t *num_prbu,
     uint16_t *start_prbu,
     uint16_t *sym_inc,
     uint16_t *rb,
     uint16_t *sect_id,
     int8_t   expect_comp,
+    enum xran_comp_hdr_type staticComp,
     uint8_t *compMeth,
     uint8_t *iqWidth)
 {
@@ -359,10 +359,13 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
     if (seq_id)
         *seq_id = ecpri_hdr->ecpri_seq_id;
 
+    if(*CC_ID == 0xFF && *Ant_ID == 0xFF) {
+        /* if not classified vi HW Queue parse packet  */
     xran_decompose_cid((uint16_t)ecpri_hdr->ecpri_xtc_id, &result);
 
     *CC_ID  = result.ccId;
     *Ant_ID = result.ruPortId;
+    }
 
     /* Process radio header. */
     struct radio_app_common_hdr *radio_hdr =
@@ -400,7 +403,10 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
     *sect_id    = data_hdr->fields.sect_id;
 
     if(expect_comp) {
-        const struct data_section_compression_hdr *data_compr_hdr =
+            const struct data_section_compression_hdr *data_compr_hdr;
+        if (staticComp != XRAN_COMP_HDR_TYPE_STATIC)
+        {
+            data_compr_hdr =
             (void *) rte_pktmbuf_adj(mbuf, sizeof(*data_hdr));
 
         if (data_compr_hdr == NULL)
@@ -408,11 +414,17 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
 
         *compMeth = data_compr_hdr->ud_comp_hdr.ud_comp_meth;
         *iqWidth =  data_compr_hdr->ud_comp_hdr.ud_iq_width;
-
         const uint8_t *compr_param =
             (void *)rte_pktmbuf_adj(mbuf, sizeof(*data_compr_hdr));
 
             *iq_data_start = (void *)compr_param; /*rte_pktmbuf_adj(mbuf, sizeof(*compr_param))*/;
+        }
+        else
+        {
+            *iq_data_start = rte_pktmbuf_adj(mbuf, sizeof(*data_hdr));
+        }
+
+
     } else {
         *iq_data_start = rte_pktmbuf_adj(mbuf, sizeof(*data_hdr));
     }
@@ -422,7 +434,6 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
 
 #if XRAN_MLOG_VAR
     mlogVar[mlogVarCnt++] = 0xBBBBBBBB;
-    mlogVar[mlogVarCnt++] = xran_lib_ota_tti;
     mlogVar[mlogVarCnt++] = radio_hdr->frame_id;
     mlogVar[mlogVarCnt++] = radio_hdr->sf_slot_sym.subframe_id;
     mlogVar[mlogVarCnt++] = radio_hdr->sf_slot_sym.slot_id;
@@ -459,15 +470,19 @@ int32_t xran_prepare_iq_symbol_portion(
                         uint8_t CC_ID,
                         uint8_t Ant_ID,
                         uint8_t seq_id,
+                        enum xran_comp_hdr_type staticEn,
                         uint32_t do_copy)
 {
+    int offset;
+
     if(xran_build_ecpri_hdr_ex(mbuf,
                            ECPRI_IQ_DATA,
                            iq_data_num_bytes,
                            CC_ID,
                            Ant_ID,
                            seq_id,
-                           params->compr_hdr_param.ud_comp_hdr.ud_comp_meth)){
+                           params->compr_hdr_param.ud_comp_hdr.ud_comp_meth,
+                           staticEn)){
         print_err("xran_build_ecpri_hdr_ex return 0\n");
         return 0;
     }
@@ -482,18 +497,15 @@ int32_t xran_prepare_iq_symbol_portion(
         return 0;
     }
 
-
-    if(params->compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE) {
+    offset = sizeof(struct rte_ether_hdr)
+                + sizeof(struct xran_ecpri_hdr)
+                + sizeof(struct radio_app_common_hdr)
+                + sizeof(struct data_section_hdr);
+    if ((params->compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC)) {
         if (build_compression_hdr(mbuf, &(params->compr_hdr_param)) !=0)
             return 0;
-
-         /* payload expected to start with udCompParam */
-
-        /*if(append_comp_param(mbuf, &(params->compr_param)) !=0)
-            return 0;*/
+        offset += sizeof(struct data_section_compression_hdr);
     }
-
-
-    return append_iq_samples_ex(mbuf, iq_data_start, iq_data_num_bytes, iq_buf_byte_order, do_copy);
+    return (do_copy ? append_iq_samples_ex(mbuf, offset, iq_data_start, iq_data_num_bytes, iq_buf_byte_order, do_copy) : iq_data_num_bytes);
 }
 

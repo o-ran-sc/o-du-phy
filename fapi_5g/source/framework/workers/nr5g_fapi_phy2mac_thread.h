@@ -21,6 +21,7 @@
 #include "gnb_l1_l2_api.h"
 
 void nr5g_fapi_phy2mac_api_recv_handler(
+    bool is_urllc,
     void *config,
     PMAC2PHY_QUEUE_EL p_msg_list);
 

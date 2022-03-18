@@ -90,7 +90,7 @@ uint8_t nr5g_fapi_stop_indication(
         p_fapi_resp->header.msg_id = FAPI_STOP_INDICATION;
         p_fapi_resp->header.length = (uint16_t) sizeof(fapi_stop_ind_t);
         /* Add element to send list */
-        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
         p_stats->fapi_stats.fapi_stop_ind++;
         NR5G_FAPI_LOG(INFO_LOG, ("[STOP.indication][%d]", phy_id));
 #else
@@ -100,8 +100,8 @@ uint8_t nr5g_fapi_stop_indication(
         fapi_req.sfn = 0;
         fapi_req.slot = 0;
         fapi_req.test_type = 0;
-        nr5g_fapi_shutdown_request(p_phy_instance, &fapi_req);
-        nr5g_fapi_fapi2phy_send_api_list();
+        nr5g_fapi_shutdown_request(0, p_phy_instance, &fapi_req);
+        nr5g_fapi_fapi2phy_send_api_list(0);
 #endif
     } else if (FAILURE == p_iapi_resp->nStatus) {
         p_list_elem =
@@ -122,7 +122,7 @@ uint8_t nr5g_fapi_stop_indication(
         p_fapi_error_ind->message_id = FAPI_STOP_REQUEST;
         p_fapi_error_ind->error_code = p_iapi_resp->nStatus;
         /* Add element to send list */
-        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+        nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
         p_stats->fapi_stats.fapi_error_ind++;
         NR5G_FAPI_LOG(INFO_LOG, ("[STOP.indication][ERROR.indication][%d]",
                 phy_id));

@@ -27,6 +27,7 @@
 #include "nr5g_fapi_fapi2mac_p7_proc.h"
 #include "nr5g_fapi_fapi2mac_p7_pvt_proc.h"
 #include "nr5g_fapi_memory.h"
+#include "nr5g_fapi_snr_conversion.h"
 
  /** @ingroup group_source_api_p7_fapi2mac_proc
  *
@@ -40,7 +41,9 @@
  *
 **/
 uint8_t nr5g_fapi_uci_indication(
+    bool is_urllc,
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,
+    p_fapi_api_stored_vendor_queue_elems vendor_extension_elems,
     PRXUCIIndicationStruct p_phy_uci_ind)
 {
     uint8_t phy_id;
@@ -83,19 +86,30 @@ uint8_t nr5g_fapi_uci_indication(
     p_fapi_uci_ind->header.msg_id = FAPI_UCI_INDICATION;
     p_fapi_uci_ind->header.length = (uint16_t) sizeof(fapi_uci_indication_t);
 
-    if (nr5g_fapi_uci_indication_to_fapi_translation(p_phy_instance,
-            p_phy_uci_ind, p_fapi_uci_ind)) {
+    fapi_vendor_p7_ind_msg_t* p_fapi_vend_p7 =
+        nr5g_fapi_proc_vendor_p7_msg_get(vendor_extension_elems, phy_id);
+    fapi_vendor_ext_snr_t* p_fapi_snr = p_fapi_vend_p7 ? &p_fapi_vend_p7->uci_snr : NULL;
+    fapi_vendor_ext_uci_ind_t* p_fapi_vend_uci_ind = p_fapi_vend_p7 ? &p_fapi_vend_p7->uci_ind : NULL;
+    
+    if (p_fapi_vend_uci_ind) {
+        p_fapi_vend_uci_ind->carrier_idx = phy_id;
+        p_fapi_vend_uci_ind->sym = p_phy_uci_ind->sSFN_Slot.nSym;
+    }
+
+    if (nr5g_fapi_uci_indication_to_fapi_translation(is_urllc, p_phy_instance,
+            p_phy_uci_ind, p_fapi_uci_ind, p_fapi_snr)) {
         NR5G_FAPI_LOG(ERROR_LOG,
             ("[UCI.indication] FAPI to L1 " "translation failed"));
         return FAILURE;
     }
     /* Add element to send list */
-    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, is_urllc);
 
     p_stats->fapi_stats.fapi_uci_ind++;
-    NR5G_FAPI_LOG(DEBUG_LOG, ("[UCI.indication][%d][%d,%d]",
+    NR5G_FAPI_LOG(DEBUG_LOG, ("[UCI.indication][%u][%u,%u,%u] is_urllc %u",
             p_phy_instance->phy_id,
-            p_phy_uci_ind->sSFN_Slot.nSFN, p_phy_uci_ind->sSFN_Slot.nSlot));
+        p_phy_uci_ind->sSFN_Slot.nSFN, p_phy_uci_ind->sSFN_Slot.nSlot,
+        p_phy_uci_ind->sSFN_Slot.nSym, is_urllc));
 
     return SUCCESS;
 }
@@ -145,7 +159,8 @@ nr5g_fapi_pucch_info_t *nr5g_fapi_get_pucch_info(
 void nr5g_fapi_fill_uci_format_0_1(
     nr5g_fapi_pucch_info_t * p_pucch_info,
     ULUCIPDUDataStruct * p_uci_pdu_data_struct,
-    fapi_uci_pdu_info_t * p_fapi_uci_pdu_info)
+    fapi_uci_pdu_info_t * p_fapi_uci_pdu_info,
+    int16_t * p_fapi_snr)
 {
     uint8_t pucch_detected, num_harq, i;
 
@@ -161,7 +176,12 @@ void nr5g_fapi_fill_uci_format_0_1(
     p_uci_pucch_f0_f1->pduBitmap = 0;
     p_uci_pucch_f0_f1->pucchFormat = p_pucch_info->pucch_format;
 
-    p_uci_pucch_f0_f1->ul_cqi = (p_uci_pdu_data_struct->nSNR + 64) * 2;
+    if(p_fapi_snr)
+    {
+        *p_fapi_snr = p_uci_pdu_data_struct->nSNR;
+    }
+
+    p_uci_pucch_f0_f1->ul_cqi = nr5g_fapi_convert_snr_iapi_to_fapi(p_uci_pdu_data_struct->nSNR);
     p_uci_pucch_f0_f1->rnti = p_uci_pdu_data_struct->nRNTI;
     p_uci_pucch_f0_f1->timingAdvance = 31;
     p_uci_pucch_f0_f1->rssi = 880;
@@ -215,7 +235,8 @@ void nr5g_fapi_fill_uci_format_0_1(
 void nr5g_fapi_fill_uci_format_2_3_4(
     nr5g_fapi_pucch_info_t * p_pucch_info,
     ULUCIPDUDataStruct * p_uci_pdu_data_struct,
-    fapi_uci_pdu_info_t * p_fapi_uci_pdu_info)
+    fapi_uci_pdu_info_t * p_fapi_uci_pdu_info,
+    int16_t * p_fapi_snr)
 {
     uint8_t pucch_detected;
     uint16_t num_uci_bits;
@@ -227,9 +248,14 @@ void nr5g_fapi_fill_uci_format_2_3_4(
     p_uci_pucch_f2_f3_f4->handle = p_pucch_info->handle;
     p_uci_pucch_f2_f3_f4->pduBitmap = 0;
     p_uci_pucch_f2_f3_f4->pucchFormat = p_pucch_info->pucch_format;
-    p_uci_pucch_f2_f3_f4->ul_cqi = (p_uci_pdu_data_struct->nSNR + 64) * 2;
+    p_uci_pucch_f2_f3_f4->ul_cqi = nr5g_fapi_convert_snr_iapi_to_fapi(p_uci_pdu_data_struct->nSNR);
     p_uci_pucch_f2_f3_f4->rnti = p_uci_pdu_data_struct->nRNTI;
     p_uci_pucch_f2_f3_f4->timingAdvance = 31;
+
+    if(p_fapi_snr)
+    {
+        *p_fapi_snr = p_uci_pdu_data_struct->nSNR;
+    }
 
     pucch_detected = p_uci_pdu_data_struct->pucchDetected;
 #ifdef DEBUG_MODE
@@ -272,13 +298,15 @@ void nr5g_fapi_fill_uci_format_2_3_4(
  *
 **/
 uint8_t nr5g_fapi_uci_indication_to_fapi_translation(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     PRXUCIIndicationStruct p_phy_uci_ind,
-    fapi_uci_indication_t * p_fapi_uci_ind)
+    fapi_uci_indication_t * p_fapi_uci_ind,
+    fapi_vendor_ext_snr_t * p_fapi_snr)
 {
     uint8_t num_uci, i;
-    uint8_t slot_no, pucch_format;
-    uint16_t frame_no;
+    uint8_t symbol_no, pucch_format;
+    uint16_t slot_no, frame_no;
 
     nr5g_fapi_pucch_info_t *p_pucch_info;
     fapi_uci_pdu_info_t *p_fapi_uci_pdu_info;
@@ -290,9 +318,10 @@ uint8_t nr5g_fapi_uci_indication_to_fapi_translation(
 
     frame_no = p_fapi_uci_ind->sfn = p_phy_uci_ind->sSFN_Slot.nSFN;
     slot_no = p_fapi_uci_ind->slot = p_phy_uci_ind->sSFN_Slot.nSlot;
+    symbol_no = p_phy_uci_ind->sSFN_Slot.nSym;
 
     p_ul_slot_info =
-        nr5g_fapi_get_ul_slot_info(frame_no, slot_no, p_phy_instance);
+        nr5g_fapi_get_ul_slot_info(is_urllc, frame_no, slot_no, symbol_no, p_phy_instance);
 
     if (p_ul_slot_info == NULL) {
         NR5G_FAPI_LOG(ERROR_LOG, (" [UCI.indication] No Valid data available "
@@ -317,6 +346,7 @@ uint8_t nr5g_fapi_uci_indication_to_fapi_translation(
         }
 
         pucch_format = p_pucch_info->pucch_format;
+        int16_t* p_fapi_snr_arr = p_fapi_snr ? &p_fapi_snr->nSNR[i] : NULL;
 
         switch (pucch_format) {
             case FAPI_PUCCH_FORMAT_TYPE_0:
@@ -326,7 +356,7 @@ uint8_t nr5g_fapi_uci_indication_to_fapi_translation(
                     p_fapi_uci_pdu_info->pduSize =
                         sizeof(fapi_uci_o_pucch_f0f1_t);
                     nr5g_fapi_fill_uci_format_0_1(p_pucch_info,
-                        p_uci_pdu_data_struct, p_fapi_uci_pdu_info);
+                        p_uci_pdu_data_struct, p_fapi_uci_pdu_info, p_fapi_snr_arr);
                 }
                 break;
 
@@ -338,7 +368,7 @@ uint8_t nr5g_fapi_uci_indication_to_fapi_translation(
                     p_fapi_uci_pdu_info->pduSize =
                         sizeof(fapi_uci_o_pucch_f2f3f4_t);
                     nr5g_fapi_fill_uci_format_2_3_4(p_pucch_info,
-                        p_uci_pdu_data_struct, p_fapi_uci_pdu_info);
+                        p_uci_pdu_data_struct, p_fapi_uci_pdu_info, p_fapi_snr_arr);
                 }
                 break;
 

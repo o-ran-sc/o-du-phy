@@ -23,7 +23,7 @@ appMode=1 # O-DU(0) | O-RU(1)
 xranRanTech=1 # 5G NR (0) | LTE (1)
 xranMode=0 # Category A  (0) (precoder in lls-CU) | Category B (1) (precoder in RU)
 ccNum=1 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 12)
-antNum=4 # Number of Antennas per CC (default: 4) or number of Digital streams for Category B 
+antNum=4 # Number of Antennas per CC (default: 4) or number of Digital streams for Category B
 
 ##Numerology
 mu=0 #15Khz Sub Carrier Spacing
@@ -38,7 +38,7 @@ nULFftSize=512
 nFrameDuplexType=0 # 0 - FDD 1 - TDD
 nTddPeriod=0 #TDD priod e.g. DDDS 4
 
-MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single 
+MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single
  #xRAN network layer transaction. supported 1500 bytes and 9600 bytes (Jumbo Frame)
 Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
@@ -59,7 +59,7 @@ duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
 ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
 
-numSlots=40 #number of slots per IQ files
+numSlots=20 #number of slots per IQ files
 antC0=./usecase/lte_a/mu0_5mhz/ant_0.bin   #CC0
 antC1=./usecase/lte_a/mu0_5mhz/ant_1.bin   #CC0
 antC2=./usecase/lte_a/mu0_5mhz/ant_2.bin   #CC0
@@ -110,9 +110,9 @@ BandSector_ID_bitwidth=3
 CC_ID_bitwidth=3
 RU_Port_ID_bitwidth=8
 
-# LTE-FDD-FR1-CAT-A-NoBF / LTE-FDD-FR1-CAT-A-DBF 
+# LTE-FDD-FR1-CAT-A-NoBF / LTE-FDD-FR1-CAT-A-DBF
 # O-RAN.WG4.IOT.0-v02.00
-# Table A.2.3.2-1: LTE FDD IOT Profile 2 - LTE-FDD-FR1-CAT-A-NoBF  
+# Table A.2.3.2-1: LTE FDD IOT Profile 2 - LTE-FDD-FR1-CAT-A-NoBF
 
 #U-plane
 ##Transmission Window
@@ -120,11 +120,11 @@ T1a_max_up=437
 T1a_min_up=366
 
 #Reception Window U-plane
-T2a_max_up=437 
-T2a_min_up=206 
-             
-Tadv_cp_dl=125 
-            
+T2a_max_up=437
+T2a_min_up=206
+
+Tadv_cp_dl=125
+
 #Transmission Window
 Ta3_max=232 #in us
 Ta3_min=70 #in us
@@ -138,8 +138,8 @@ T1a_max_cp_ul=356
 T1a_min_cp_ul=285
 
 #Reception Window C-plane UL
-T2a_max_cp_ul=356 #in us 
-T2a_min_cp_ul=125 #in us  
+T2a_max_cp_ul=356 #in us
+T2a_min_cp_ul=125 #in us
 
 ###########################################################
 ##O-DU Settings
@@ -149,7 +149,7 @@ T1a_max_cp_dl=562 #in T1a_max_up + Tcp_adv_dl as per Annex B
 T1a_min_cp_dl=491 #in T1a_min_up + Tcp_adv_dl as per Annex B
 
 #O-RU Reception Window C-plane DL
-T2a_max_cp_dl=562 #in T2a_max_up + Tcp_adv_dl as per Annex B 
-T2a_min_cp_dl=331 #in T2a_min_up + Tcp_adv_dl as per Annex B 
+T2a_max_cp_dl=562 #in T2a_max_up + Tcp_adv_dl as per Annex B
+T2a_min_cp_dl=331 #in T2a_min_up + Tcp_adv_dl as per Annex B
 ###########################################################
 

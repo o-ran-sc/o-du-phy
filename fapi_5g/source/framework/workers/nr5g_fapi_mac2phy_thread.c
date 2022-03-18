@@ -42,6 +42,7 @@ void *nr5g_fapi_mac2phy_thread_func(
     pthread_t thread;
     p_fapi_api_queue_elem_t p_msg_list = NULL;
     p_nr5g_fapi_phy_ctx_t p_phy_ctx = (p_nr5g_fapi_phy_ctx_t) config;
+    uint64_t start_tick;
 
     NR5G_FAPI_LOG(INFO_LOG, ("[MAC2PHY] Thread %s launched LWP:%ld on "
             "Core: %d\n", __func__, pthread_self(),
@@ -56,7 +57,12 @@ void *nr5g_fapi_mac2phy_thread_func(
     while (!p_phy_ctx->process_exit) {
         p_msg_list = nr5g_fapi_fapi2mac_wls_recv();
         if (p_msg_list)
-            nr5g_fapi_mac2phy_api_recv_handler(config, p_msg_list);
+            nr5g_fapi_mac2phy_api_recv_handler(false, config, p_msg_list);
+
+        start_tick = __rdtsc();
+        NR5G_FAPI_LOG(TRACE_LOG, ("[MAC2PHY] Send to PHY.."));
+        nr5g_fapi_fapi2phy_send_api_list(0);
+        tick_total_wls_send_per_tti_dl += __rdtsc() - start_tick;
     }
     pthread_exit(NULL);
 }
@@ -74,6 +80,7 @@ void *nr5g_fapi_mac2phy_thread_func(
 **/
 //------------------------------------------------------------------------------
 void nr5g_fapi_mac2phy_api_recv_handler(
+    bool is_urllc,
     void *config,
     p_fapi_api_queue_elem_t p_msg_list)
 {
@@ -99,18 +106,18 @@ void nr5g_fapi_mac2phy_api_recv_handler(
         if (num_apis > 0 && p_msg_list->p_next) {   // likely
             p_per_carr_api_list = p_per_carr_api_list->p_next;
             p_msg_list = p_per_carr_api_list;
-            NR5G_FAPI_LOG(TRACE_LOG, ("[MAC2PHY] PHY_ID: %d NUM APIs: %d\n",
+            NR5G_FAPI_LOG(TRACE_LOG, ("\n[MAC2PHY] PHY_ID: %d NUM APIs: %d\n",
                     phy_id, num_apis));
         } else {                // unlikely
             // skip to next carrier list. since current fapi message hearder
             // has no apis
             if (p_msg_list->p_next) {
-                NR5G_FAPI_LOG(TRACE_LOG, ("[MAC2PHY] No APIs for PHY_ID: %d."
+                NR5G_FAPI_LOG(TRACE_LOG, ("\n[MAC2PHY] No APIs for PHY_ID: %d."
                         " Skip...\n", phy_id));
                 p_msg_list = p_msg_list->p_next;
                 continue;
             } else {
-                NR5G_FAPI_LOG(ERROR_LOG, ("[MAC2PHY] PHY_ID: %d NUM APIs: %d\n",
+                NR5G_FAPI_LOG(ERROR_LOG, ("\n[MAC2PHY] PHY_ID: %d NUM APIs: %d\n",
                         phy_id, num_apis));
                 return;
             }
@@ -140,7 +147,8 @@ void nr5g_fapi_mac2phy_api_recv_handler(
         if (p_per_carr_api_list) {
             p_fapi_msg = (fapi_msg_t *) (p_per_carr_api_list + 1);
 #ifdef DEBUG_MODE
-            if ((p_fapi_msg->msg_id != FAPI_VENDOR_EXT_UL_IQ_SAMPLES)) {
+            if ((p_fapi_msg->msg_id != FAPI_VENDOR_EXT_UL_IQ_SAMPLES) &&
+                (p_fapi_msg->msg_id != FAPI_VENDOR_EXT_ADD_REMOVE_CORE)) {
 #endif
                 p_phy_instance = &p_phy_ctx->phy_instance[phy_id];
                 if (FAPI_STATE_IDLE == p_phy_instance->state) {
@@ -155,18 +163,13 @@ void nr5g_fapi_mac2phy_api_recv_handler(
 #ifdef DEBUG_MODE
             }
 #endif
-            nr5g_fapi_mac2phy_api_processing_handler(p_phy_instance,
+
+            nr5g_fapi_mac2phy_api_processing_handler(is_urllc, p_phy_instance,
                 p_per_carr_api_list);
             p_per_carr_api_list = NULL;
         }
     }
     tick_total_parse_per_tti_dl += __rdtsc() - start_tick;
-    start_tick = __rdtsc();
-
-    // Send to PHY
-    NR5G_FAPI_LOG(TRACE_LOG, ("[MAC2PHY] Send to PHY.."));
-    nr5g_fapi_fapi2phy_send_api_list();
-    tick_total_wls_send_per_tti_dl += __rdtsc() - start_tick;
 }
 
 //------------------------------------------------------------------------------
@@ -182,6 +185,7 @@ void nr5g_fapi_mac2phy_api_recv_handler(
 **/
 //------------------------------------------------------------------------------
 void nr5g_fapi_mac2phy_api_processing_handler(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     p_fapi_api_queue_elem_t p_msg_list)
 {
@@ -206,7 +210,7 @@ void nr5g_fapi_mac2phy_api_processing_handler(
                 return;
             }
             p_vendor_msg = (fapi_vendor_msg_t *) p_fapi_msg;
-            NR5G_FAPI_LOG(TRACE_LOG, ("[MAC2PHY] Vendor Msg: %p\n",
+            NR5G_FAPI_LOG(DEBUG_LOG, ("[MAC2PHY] P7 Vendor Msg: %p",
                     p_vendor_msg));
             // disconnect the vendor element from the api list
             p_prev_elm->p_next = NULL;
@@ -249,20 +253,24 @@ void nr5g_fapi_mac2phy_api_processing_handler(
         switch (p_fapi_msg->msg_id) {
                 /*  P5 Vendor Message Processing */
 #ifdef DEBUG_MODE
+            case FAPI_VENDOR_EXT_ADD_REMOVE_CORE:
+                nr5g_fapi_add_remove_core_message(is_urllc,
+                    (fapi_vendor_ext_add_remove_core_msg_t *) p_fapi_msg);
+                break;
             case FAPI_VENDOR_EXT_UL_IQ_SAMPLES:
-                nr5g_fapi_ul_iq_samples_request(
+                nr5g_fapi_ul_iq_samples_request(is_urllc,
                     (fapi_vendor_ext_iq_samples_req_t *) p_fapi_msg);
                 break;
 
             case FAPI_VENDOR_EXT_DL_IQ_SAMPLES:
-                nr5g_fapi_dl_iq_samples_request(
+                nr5g_fapi_dl_iq_samples_request(is_urllc,
                     (fapi_vendor_ext_iq_samples_req_t *) p_fapi_msg);
                 break;
 
 #endif
             case FAPI_VENDOR_EXT_SHUTDOWN_REQUEST:
                 {
-                    nr5g_fapi_shutdown_request(p_phy_instance,
+                    nr5g_fapi_shutdown_request(is_urllc, p_phy_instance,
                         (fapi_vendor_ext_shutdown_req_t *) p_fapi_msg);
                     nr5g_fapi_statistic_info_print();
                     if (g_statistic_start_flag == 1)
@@ -273,7 +281,7 @@ void nr5g_fapi_mac2phy_api_processing_handler(
                 /*  P5 Message Processing */
             case FAPI_CONFIG_REQUEST:
                 {
-                    nr5g_fapi_config_request(p_phy_instance,
+                    nr5g_fapi_config_request(is_urllc, p_phy_instance,
                         (fapi_config_req_t *)
                         p_fapi_msg, p_vendor_msg);
                     nr5g_fapi_statistic_info_init();
@@ -282,13 +290,13 @@ void nr5g_fapi_mac2phy_api_processing_handler(
                 break;
 
             case FAPI_START_REQUEST:
-                nr5g_fapi_start_request(p_phy_instance, (fapi_start_req_t *)
+                nr5g_fapi_start_request(is_urllc, p_phy_instance, (fapi_start_req_t *)
                     p_fapi_msg, p_vendor_msg);
                 break;
 
             case FAPI_STOP_REQUEST:
                 {
-                    nr5g_fapi_stop_request(p_phy_instance, (fapi_stop_req_t *)
+                    nr5g_fapi_stop_request(is_urllc, p_phy_instance, (fapi_stop_req_t *)
                         p_fapi_msg, p_vendor_msg);
                     nr5g_fapi_statistic_info_print();
                     if (g_statistic_start_flag == 1)
@@ -299,7 +307,7 @@ void nr5g_fapi_mac2phy_api_processing_handler(
                 /*  P7 Message Processing */
             case FAPI_DL_TTI_REQUEST:
                 {
-                    nr5g_fapi_dl_tti_request(p_phy_instance,
+                    nr5g_fapi_dl_tti_request(is_urllc, p_phy_instance,
                         (fapi_dl_tti_req_t *)
                         p_fapi_msg, p_vendor_msg);
                     if (g_statistic_start_flag == 0)
@@ -308,22 +316,24 @@ void nr5g_fapi_mac2phy_api_processing_handler(
                 break;
 
             case FAPI_UL_TTI_REQUEST:
-                nr5g_fapi_ul_tti_request(p_phy_instance, (fapi_ul_tti_req_t *)
+                nr5g_fapi_ul_tti_request(is_urllc, p_phy_instance, (fapi_ul_tti_req_t *)
                     p_fapi_msg, p_vendor_msg);
                 break;
 
             case FAPI_UL_DCI_REQUEST:
-                nr5g_fapi_ul_dci_request(p_phy_instance, (fapi_ul_dci_req_t *)
+                nr5g_fapi_ul_dci_request(is_urllc, p_phy_instance, (fapi_ul_dci_req_t *)
                     p_fapi_msg, p_vendor_msg);
                 break;
 
             case FAPI_TX_DATA_REQUEST:
-                nr5g_fapi_tx_data_request(p_phy_instance, (fapi_tx_data_req_t *)
+                nr5g_fapi_tx_data_request(is_urllc, p_phy_instance, (fapi_tx_data_req_t *)
                     p_fapi_msg, p_vendor_msg);
                 p_msg_list->p_tx_data_elm_list = NULL;
                 break;
 
             default:
+                NR5G_FAPI_LOG(ERROR_LOG, ("[MAC2PHY THREAD] Received Unknown Message: [msg_id = 0x%x]",
+                    p_fapi_msg->msg_id));
                 break;
         }
         p_msg_list = p_msg_list->p_next;

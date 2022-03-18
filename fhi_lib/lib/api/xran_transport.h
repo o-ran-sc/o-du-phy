@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -36,6 +36,8 @@ extern "C" {
 #include <rte_mbuf.h>
 
 #include "xran_pkt.h"
+
+#define XRAN_ECPRI_HDR_SZ (sizeof(struct xran_ecpri_hdr) - sizeof(union xran_ecpri_cmn_hdr))
 
 struct xran_eaxc_info {
     uint8_t cuPortId;

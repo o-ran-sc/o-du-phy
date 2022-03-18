@@ -1,4 +1,4 @@
-..    Copyright (c) 2019-2020 Intel
+..    Copyright (c) 2019-2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@ Wls Lib Installation Guide
 The wls library uses DPDK as the basis for the shared memory operations and requires that DPDK 
 be installed in the system since in the makefile it uses the RTE_SDK environment variable when
 building the library. |br|
-The current release was tested using DPDK version 19.11 but it doesn't preclude the 
+The current release was tested using DPDK version 20.11 but it doesn't preclude the 
 use of newer releases. |br|
 Also the library uses the Intel Compiler that is defined as part of the ODULOW documentation.
 

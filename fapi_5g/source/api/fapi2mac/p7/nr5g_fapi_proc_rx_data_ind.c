@@ -40,11 +40,12 @@
  *
 **/
 uint8_t nr5g_fapi_rx_data_indication(
+    bool is_urllc,
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,
+    p_fapi_api_stored_vendor_queue_elems vendor_extension_elems,
     PRXULSCHIndicationStruct p_phy_rx_ulsch_ind)
 {
     uint8_t phy_id;
-
     fapi_rx_data_indication_t *p_fapi_rx_data_ind;
     p_fapi_api_queue_elem_t p_list_elem;
     p_nr5g_fapi_phy_instance_t p_phy_instance = NULL;
@@ -72,9 +73,11 @@ uint8_t nr5g_fapi_rx_data_indication(
 
     p_stats = &p_phy_instance->stats;
     p_stats->iapi_stats.iapi_rx_data_ind++;
+
     p_list_elem =
         nr5g_fapi_fapi2mac_create_api_list_elem(FAPI_RX_DATA_INDICATION, 1,
         sizeof(fapi_rx_data_indication_t));
+
     if (!p_list_elem) {
         NR5G_FAPI_LOG(ERROR_LOG,
             ("[NR5G_FAPI][RX_DATA.indication] Unable to create "
@@ -87,20 +90,30 @@ uint8_t nr5g_fapi_rx_data_indication(
     p_fapi_rx_data_ind->header.length =
         (uint16_t) sizeof(fapi_rx_data_indication_t);
 
-    if (nr5g_fapi_rx_data_indication_to_fapi_translation(p_phy_instance,
+    fapi_vendor_p7_ind_msg_t* p_fapi_vend_p7 =
+        nr5g_fapi_proc_vendor_p7_msg_get(vendor_extension_elems, phy_id);
+    fapi_vendor_ext_rx_data_ind_t* p_fapi_vend_rx_data_ind =
+        p_fapi_vend_p7 ? &p_fapi_vend_p7->rx_data_ind : NULL;
+        
+    if (p_fapi_vend_rx_data_ind) {
+        p_fapi_vend_rx_data_ind->carrier_idx = phy_id;
+        p_fapi_vend_rx_data_ind->sym = p_phy_rx_ulsch_ind->sSFN_Slot.nSym;
+    }
+
+    if (nr5g_fapi_rx_data_indication_to_fapi_translation(is_urllc, p_phy_instance,
             p_phy_rx_ulsch_ind, p_fapi_rx_data_ind)) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[NR5G_FAPI][RX_DATA.indication] L1 to FAPI "
                 "translation failed"));
         return FAILURE;
     }
 
-    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, is_urllc);
 
     p_stats->fapi_stats.fapi_rx_data_ind++;
-    NR5G_FAPI_LOG(DEBUG_LOG, ("[NR5G_FAPI][%d][%d,%d]",
+    NR5G_FAPI_LOG(DEBUG_LOG, ("[RX_DATA.indication][%u][%u,%u,%u] is_urllc %u",
             p_phy_instance->phy_id,
-            p_phy_rx_ulsch_ind->sSFN_Slot.nSFN,
-            p_phy_rx_ulsch_ind->sSFN_Slot.nSlot));
+        p_phy_rx_ulsch_ind->sSFN_Slot.nSFN, p_phy_rx_ulsch_ind->sSFN_Slot.nSlot,
+        p_phy_rx_ulsch_ind->sSFN_Slot.nSym, is_urllc));
 
     return SUCCESS;
 }
@@ -151,13 +164,14 @@ nr5g_fapi_pusch_info_t *nr5g_fapi_get_pusch_info(
  *
 **/
 uint8_t nr5g_fapi_rx_data_indication_to_fapi_translation(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     PRXULSCHIndicationStruct p_phy_rx_ulsch_ind,
     fapi_rx_data_indication_t * p_fapi_rx_data_ind)
 {
     uint8_t num_ulsch, i;
-    uint8_t slot_no;
-    uint16_t frame_no;
+    uint8_t symbol_no;
+    uint16_t slot_no, frame_no;
 
     nr5g_fapi_pusch_info_t *p_pusch_info;
     fapi_pdu_ind_info_t *p_fapi_pdu_ind_info;
@@ -169,9 +183,10 @@ uint8_t nr5g_fapi_rx_data_indication_to_fapi_translation(
 
     frame_no = p_fapi_rx_data_ind->sfn = p_phy_rx_ulsch_ind->sSFN_Slot.nSFN;
     slot_no = p_fapi_rx_data_ind->slot = p_phy_rx_ulsch_ind->sSFN_Slot.nSlot;
+    symbol_no = p_phy_rx_ulsch_ind->sSFN_Slot.nSym;
 
     p_ul_slot_info =
-        nr5g_fapi_get_ul_slot_info(frame_no, slot_no, p_phy_instance);
+        nr5g_fapi_get_ul_slot_info(is_urllc, frame_no, slot_no, symbol_no, p_phy_instance);
 
     if (p_ul_slot_info == NULL) {
         NR5G_FAPI_LOG(ERROR_LOG,
@@ -191,8 +206,8 @@ uint8_t nr5g_fapi_rx_data_indication_to_fapi_translation(
         if (p_pusch_info == NULL) {
             NR5G_FAPI_LOG(ERROR_LOG,
                 ("[NR5G_FAPI] [RX_DATA.indication] No Valid data available "
-                    "nUEId:%d, frame_no:%d, slot_no:%d",
-                    p_rx_ulsch_pdu_data->nUEId, frame_no, slot_no));
+                    "nUEId:%d, frame_no:%d, slot_no:%d, urllc %u",
+                    p_rx_ulsch_pdu_data->nUEId, frame_no, slot_no, is_urllc));
             return FAILURE;
         }
 
@@ -203,7 +218,10 @@ uint8_t nr5g_fapi_rx_data_indication_to_fapi_translation(
         p_fapi_pdu_ind_info->timingAdvance = p_pusch_info->timing_advance;
         p_fapi_pdu_ind_info->rssi = 880;
         p_fapi_pdu_ind_info->pdu_length = p_rx_ulsch_pdu_data->nPduLen;
+        if (p_fapi_pdu_ind_info->pdu_length > 0)
+        {
         p_fapi_pdu_ind_info->pduData = (void *)p_rx_ulsch_pdu_data->pPayload;
+        }
 
         p_stats->fapi_stats.fapi_rx_data_ind_pdus++;
     }

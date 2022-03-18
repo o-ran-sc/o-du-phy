@@ -28,17 +28,17 @@
 #define NR5G_FAPI_MEMSET(s, x, c, n) nr5g_fapi_memset_bound_check(s, x, c, n)
 #define NR5G_FAPI_STRCPY(d, x, s, n) nr5g_fapi_strcpy_bound_check(d, x, s, n)
 
-uint8_t nr5g_fapi_memcpy_bound_check(
+inline uint8_t nr5g_fapi_memcpy_bound_check(
     void *d,
     size_t x,
     const void *s,
     size_t n);
-uint8_t nr5g_fapi_memset_bound_check(
+inline uint8_t nr5g_fapi_memset_bound_check(
     void *s,
     size_t x,
     const int32_t c,
     size_t n);
-uint8_t nr5g_fapi_strcpy_bound_check(
+inline uint8_t nr5g_fapi_strcpy_bound_check(
     char *d,
     size_t x,
     const char *s,

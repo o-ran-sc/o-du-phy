@@ -1,6 +1,19 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
-% <COPYRIGHT_TAG>
+% Copyright (c) 2021 Intel.
+% 
+% Licensed under the Apache License, Version 2.0 (the "License");
+% you may not use this file except in compliance with the License.
+% You may obtain a copy of the License at
+% 
+% http://www.apache.org/licenses/LICENSE-2.0
+% 
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+% 
 %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -70,11 +83,11 @@ trx_all = ...
     ]
 path_to_usecase_all = ... 
     [
-      "./usecase/mu0_5mhz/"; 
-      "./usecase/mu0_10mhz/"; 
-      "./usecase/mu0_20mhz/"; 
-      "./usecase/mu1_100mhz/"; 
-      "./usecase/mu3_100mhz/"; 
+      "./usecase/cat_a/mu0_5mhz/";
+      "./usecase/cat_a/mu0_10mhz/";
+      "./usecase/cat_a/mu0_20mhz/";
+      "./usecase/cat_a/mu1_100mhz/";
+      "./usecase/cat_a/mu3_100mhz/";
       "./usecase/cat_b/mu1_100mhz/";
       "./usecase/lte_a/mu0_20mhz/";
       "./usecase/lte_a/mu0_10mhz/";
@@ -88,7 +101,7 @@ path_to_usecase_all = cellstr(path_to_usecase_all)
 
 nSlots_all = ...
     [
-       40,40,40,40,40,10,40,40,40,10,10,10 
+       20,20,20,20,20,20,20,20,20,10,10,10
     ]
 
 %select mu and bw to generate test files
@@ -278,3 +291,51 @@ for test_num =(1:1:tests_total)
         end  
     end
 end
+
+%% generate IQ file with valid constellation, for DL modulation compression
+% only in mu1_100mhz
+%constellation = [4096, -4096];
+%constellation = [2590, 7770, -7770, -2590];
+%constellation = [633, 1897, 3161, 4425, -4424, -3160, -1897, -633];
+constellation_all = [628, 1885, 3141, 4398, 5654, 6911, 8167, 9424, -9424, -8167, -6911, -5654, -4398, -3141, -1885, -628;
+    633, 1897, 3161, 4425, -4424, -3160, -1897, -633, 633, 1897, 3161, 4425, -4424, -3160, -1897, -633;
+    2590, 7770, -7770, -2590, 2590, 7770, -7770, -2590, 2590, 7770, -7770, -2590, 2590, 7770, -7770, -2590;
+    4096, -4096, 4096, -4096, 4096, -4096, 4096, -4096, 4096, -4096, 4096, -4096, 4096, -4096, 4096, -4096;
+    ];
+
+numRBs = 273
+nSlots = 20
+path_all = ...
+    [
+      "./usecase/cat_a/mu1_100mhz/";
+      "./usecase/cat_b/mu1_100mhz/";
+      "./usecase/cat_b/mu1_100mhz/";
+      "./usecase/cat_b/mu1_100mhz/";
+    ]
+path_all = cellstr(path_all)
+modtype_all = ...
+    [
+      "256qam_ant_";
+      "64qam_ant_";
+      "16qam_ant_";
+      "qpsk_ant_";
+    ]
+modtype_all = cellstr(modtype_all)
+
+for test_num = 1:4
+    path = path_all(test_num);
+    constellation=constellation_all(test_num,:);
+    modtype = modtype_all(test_num);
+    for ant = 1:4
+        ant_in = rand(2*12*numRBs*14*nSlots,1); % random constellation
+        ant_in = 1+round(15 * ant_in);
+        ant_out = constellation(ant_in);
+        file_name = strcat(path,modtype, num2str(ant-1),".bin");
+        disp(file_name)
+        fileID = fopen(file_name,'w');
+        fwrite(fileID, ant_out, 'int16');
+        fclose(fileID);
+    end
+end
+
+

@@ -44,15 +44,13 @@
 **/
 #ifdef DEBUG_MODE
 uint8_t nr5g_fapi_ul_iq_samples_request(
+    bool is_urllc,
     fapi_vendor_ext_iq_samples_req_t * p_fapi_req)
 {
     uint16_t num_ant;
 
     fapi_vendor_ext_iq_samples_info_t *p_file_info;
     PMAC2PHY_QUEUE_EL p_list_elem;
-
-    /* Below print is for better logging on console in debug mode. */
-    NR5G_FAPI_LOG(INFO_LOG, (""));
 
     if (NULL == p_fapi_req) {
         NR5G_FAPI_LOG(ERROR_LOG, (" [UL_IQ_SAMPLES.request] Invalid fapi "
@@ -80,6 +78,14 @@ uint8_t nr5g_fapi_ul_iq_samples_request(
     p_file_info->startFrameNum = p_fapi_req->iq_samples_info.startFrameNum;
     p_file_info->startSlotNum = p_fapi_req->iq_samples_info.startSlotNum;
     p_file_info->startSymNum = p_fapi_req->iq_samples_info.startSymNum;
+
+    p_file_info->nDLCompressionIdx = p_fapi_req->iq_samples_info.nDLCompressionIdx;
+    p_file_info->nDLCompiqWidth = p_fapi_req->iq_samples_info.nDLCompiqWidth;
+    p_file_info->nDLCompScaleFactor = p_fapi_req->iq_samples_info.nDLCompScaleFactor;
+    p_file_info->nDLCompreMask = p_fapi_req->iq_samples_info.nDLCompreMask;
+    p_file_info->nULDecompressionIdx = p_fapi_req->iq_samples_info.nULDecompressionIdx;
+    p_file_info->nULDecompiqWidth = p_fapi_req->iq_samples_info.nULDecompiqWidth;
+
     if (FAILURE == NR5G_FAPI_MEMCPY(p_file_info->buffer,
             sizeof(uint8_t) * FAPI_MAX_IQ_SAMPLE_BUFFER_SIZE,
             p_fapi_req->iq_samples_info.buffer, sizeof(CONFIGREQUESTStruct))) {
@@ -104,6 +110,15 @@ uint8_t nr5g_fapi_ul_iq_samples_request(
             NR5G_FAPI_LOG(ERROR_LOG,
                 ("[UL_IQ_Samples.request] PRACH file name " "copy failed!!!"));
         }
+
+        if (FAILURE ==
+            NR5G_FAPI_STRCPY(p_file_info->filename_in_ul_iq_compressed[num_ant],
+                sizeof(uint8_t) * FAPI_MAX_IQ_SAMPLE_FILE_SIZE,
+                p_fapi_req->iq_samples_info.filename_in_ul_iq_compressed[num_ant],
+                sizeof(uint8_t) * FAPI_MAX_IQ_SAMPLE_FILE_SIZE)) {
+            NR5G_FAPI_LOG(ERROR_LOG,
+                ("[UL_IQ_Samples.request] compressed file name copy failed!!!"));
+        }
     }
 
     for (num_ant = 0; num_ant < FAPI_MAX_IQ_SAMPLE_UL_ANTENNA; num_ant++) {
@@ -117,7 +132,7 @@ uint8_t nr5g_fapi_ul_iq_samples_request(
         }
     }
 
-    nr5g_fapi_fapi2phy_add_to_api_list(p_list_elem);
+    nr5g_fapi_fapi2phy_add_to_api_list(is_urllc, p_list_elem);
     NR5G_FAPI_LOG(INFO_LOG, ("[UL_IQ_SAMPLES.request][%d]",
             p_fapi_req->iq_samples_info.carrNum));
 

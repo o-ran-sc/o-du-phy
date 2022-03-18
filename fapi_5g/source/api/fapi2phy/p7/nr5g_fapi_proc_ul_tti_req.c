@@ -31,6 +31,8 @@
 #include "nr5g_fapi_memory.h"
 #include <math.h>
 
+#define NUM_UL_PTRS_PORT_INDEX (12)
+
  /** @ingroup group_source_api_p7_fapi2phy_proc
  *
  *  @param[in]  p_phy_instance Pointer to PHY instance.
@@ -43,6 +45,7 @@
  *
 **/
 uint8_t nr5g_fapi_ul_tti_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_ul_tti_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg)
@@ -50,7 +53,6 @@ uint8_t nr5g_fapi_ul_tti_request(
     PULConfigRequestStruct p_ia_ul_config_req;
     PMAC2PHY_QUEUE_EL p_list_elem;
     nr5g_fapi_stats_t *p_stats;
-    UNUSED(p_fapi_vendor_msg);
 
     if (NULL == p_phy_instance) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[NR5G_FAPI][UL_TTI.request] Invalid "
@@ -83,8 +85,8 @@ uint8_t nr5g_fapi_ul_tti_request(
     p_ia_ul_config_req->sMsgHdr.nMessageLen =
         (uint16_t) sizeof(ULConfigRequestStruct);
 
-    if (FAILURE == nr5g_fapi_ul_tti_req_to_phy_translation(p_phy_instance,
-            p_fapi_req, p_ia_ul_config_req)) {
+    if (FAILURE == nr5g_fapi_ul_tti_req_to_phy_translation(is_urllc, p_phy_instance,
+            p_fapi_req, p_fapi_vendor_msg, p_ia_ul_config_req)) {
         nr5g_fapi_fapi2phy_destroy_api_list_elem(p_list_elem);
         NR5G_FAPI_LOG(DEBUG_LOG, ("[UL_TTI.request][%d][%d,%d] Not Sent",
                 p_phy_instance->phy_id, p_ia_ul_config_req->sSFN_Slot.nSFN,
@@ -92,13 +94,13 @@ uint8_t nr5g_fapi_ul_tti_request(
         return FAILURE;
     }
 
-    nr5g_fapi_fapi2phy_add_to_api_list(p_list_elem);
+    nr5g_fapi_fapi2phy_add_to_api_list(is_urllc, p_list_elem);
 
     p_stats->iapi_stats.iapi_ul_config_req++;
-    NR5G_FAPI_LOG(DEBUG_LOG, ("[UL_TTI.request][%d][%d,%d]",
+    NR5G_FAPI_LOG(DEBUG_LOG, ("[UL_TTI.request][%u][%u,%u,%u] is_urllc %u",
             p_phy_instance->phy_id,
-            p_ia_ul_config_req->sSFN_Slot.nSFN,
-            p_ia_ul_config_req->sSFN_Slot.nSlot));
+        p_ia_ul_config_req->sSFN_Slot.nSFN, p_ia_ul_config_req->sSFN_Slot.nSlot,
+        p_ia_ul_config_req->sSFN_Slot.nSym, is_urllc));
 
     return SUCCESS;
 }
@@ -168,45 +170,6 @@ uint32_t nr5g_fapi_calc_n_rbg_index_entry(
 
  /** @ingroup group_source_api_p7_fapi2phy_proc
  *
- *  @param[in]  fapi_alpha_scaling  Variable holding the FAPI Alpha Scaling Value.
- *  
- *  @return     Returns ::PHY equivalent Alpha Scaling Value.
- *
- *  @description
- *  This functions derives the PHY equivalent Alpha Scaling value from FAPI Alpha Scaling Value. 
- *
-**/
-uint8_t nr5g_fapi_calc_alpha_scaling(
-    uint8_t fapi_alpha_scaling)
-{
-    uint8_t alpha_scaling;
-
-    switch (fapi_alpha_scaling) {
-        case 0:
-            alpha_scaling = 127;
-            break;
-
-        case 1:
-            alpha_scaling = 166;
-            break;
-
-        case 2:
-            alpha_scaling = 205;
-            break;
-
-        case 3:
-            alpha_scaling = 255;
-            break;
-
-        default:
-            alpha_scaling = 0;
-            break;
-    }
-    return alpha_scaling;
-}
-
-/** @ingroup group_source_api_p7_fapi2phy_proc
- *
  *  @param[in]  p_pusch_data Pointer to FAPI Optional PUSCH Data structure.
  *  @param[in]  p_ul_data_chan Pointer to IAPI ULSCH PDU structure.
  *  
@@ -247,12 +210,12 @@ void nr5g_fapi_pusch_uci_to_phy_ulsch_translation(
     ULSCHPDUStruct * p_ul_data_chan)
 {
     p_ul_data_chan->nAck = p_pusch_uci->harqAckBitLength;
-    //csiPart1BitLength and csiPart2BitLength are ignored as per design
-    p_ul_data_chan->nAlphaScaling =
-        nr5g_fapi_calc_alpha_scaling(p_pusch_uci->alphaScaling);
-    //p_ul_data_chan->nAlphaScaling = 0;
+    p_ul_data_chan->nAlphaScaling = p_pusch_uci->alphaScaling;
     p_ul_data_chan->nBetaOffsetACKIndex = p_pusch_uci->betaOffsetHarqAck;
-    //betaOffsetCsi1 and betaOffsetCsi2 are ignored as per design
+    p_ul_data_chan->nBetaOffsetCSIP1Index = p_pusch_uci->betaOffsetCsi1;
+    p_ul_data_chan->nBetaOffsetCSIP2Index = p_pusch_uci->betaOffsetCsi2;
+    p_ul_data_chan->nCSIPart1 = p_pusch_uci->csiPart1BitLength;
+    p_ul_data_chan->nCSIPart2 = p_pusch_uci->csiPart2BitLength;
 }
 
 /** @ingroup group_source_api_p7_fapi2phy_proc
@@ -286,10 +249,13 @@ void nr5g_fapi_pusch_ptrs_to_phy_ulsch_translation(
     if (p_pusch_ptrs->numPtrsPorts > 0) {
         num_ptrs_ports = p_ul_data_chan->nNrOfPTRSPorts = 1;
     }
-    for (i = 0; (i < num_ptrs_ports && port_index < FAPI_MAX_PTRS_PORTS); i++) {
+    for (i = 0; i < num_ptrs_ports && i < FAPI_MAX_PTRS_PORTS; i++) {
         p_ptrs_info = &p_pusch_ptrs->ptrsInfo[i];
-        if ((p_ptrs_info->ptrsPortIndex >> i) & 0x01) {
-            p_ul_data_chan->nPTRSPortIndex[port_index++] = i;
+        for (port_index = 0; port_index < NUM_UL_PTRS_PORT_INDEX; port_index++)
+        {
+            if ((p_ptrs_info->ptrsPortIndex >> port_index) & 0x01) {
+                p_ul_data_chan->nPTRSPortIndex[i] = port_index;
+            }
         }
         //PTRSDmrsPort is ignored as per Design
         p_ul_data_chan->nPTRSReOffset = p_ptrs_info->ptrsReOffset;
@@ -411,57 +377,15 @@ void nr5g_fapi_pusch_to_phy_ulsch_translation(
         p_ul_data_chan->nPTRSPresent = 1;
     }
     p_ul_data_chan->nULType = 0;
-    p_ul_data_chan->nNrOfAntennaPorts =
-        p_phy_instance->phy_config.n_nr_of_rx_ant;
     p_ul_data_chan->nRBBundleSize = 0;
     p_ul_data_chan->nPMI = 0;
     p_ul_data_chan->nTransmissionScheme = 0;
     p_ul_data_chan->rsv1 = 0;
-    p_ul_data_chan->nNrofRxRU = p_phy_instance->phy_config.n_nr_of_rx_ant;
-    p_stats->iapi_stats.iapi_ul_tti_pusch_pdus++;
-}
 
- /** @ingroup group_source_api_p7_fapi2phy_proc
- *
- *  @param[in]  num_groups Variable holding the groups for which PUCCH resources 
-                are unique
- *  @param[in]  initial_cyclic_shift Variable holding the parameter initial_cyclic 
-                shift to be verified against the already receieved pucch resources.
- *  @param[in]  nr_of_layers Variable holding the parameter nr_of_symbols
-                to be verified against the already received pucch resources.
- *  @param[in]  start_symbol_index  Variable holding the parameter start_symbol_index
-                to be verified against the already received pucch resources.
- *  @param[in]  time_domain_occ_idx Variable holding the parameter time_domain_occ_idx
-                to be verified against the already received pucch resources.
- *  @param[in]  p_pucch_resources Pointer pointing to the received pucch resources.
- 
-*  @return     group_id, if pucch_resources match with parameters passed.
- *             0xFF, if pucch_resources not match with parameters passed.
- *  @description
- *  This function returns the group_id if parameters  passed already available in
- *  pucch_resources received earlier.
- *
-**/
-uint8_t nr5g_get_pucch_resources_group_id(
-    uint8_t num_groups,
-    uint16_t initial_cyclic_shift,
-    uint8_t nr_of_symbols,
-    uint8_t start_symbol_index,
-    uint8_t time_domain_occ_idx,
-    nr5g_fapi_pucch_resources_t * p_pucch_resources)
-{
-    uint8_t i, group_id = 0xFF;
-    for (i = 0; i < num_groups; i++) {
-        if ((initial_cyclic_shift == p_pucch_resources[i].initial_cyclic_shift)
-            && (nr_of_symbols == p_pucch_resources[i].nr_of_symbols)
-            && (start_symbol_index == p_pucch_resources[i].start_symbol_index)
-            && (time_domain_occ_idx ==
-                p_pucch_resources[i].time_domain_occ_idx)) {
-            group_id = p_pucch_resources[i].group_id;
-            break;
-        }
-    }
-    return group_id;
+    p_ul_data_chan->nNrOfAntennaPorts = 1;
+    p_ul_data_chan->nNrofRxRU = 1;
+
+    p_stats->iapi_stats.iapi_ul_tti_pusch_pdus++;
 }
 
  /** @ingroup group_source_api_p7_fapi2phy_proc
@@ -481,16 +405,9 @@ void nr5g_fapi_pucch_to_phy_ulcch_uci_translation(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     nr5g_fapi_pucch_info_t * p_pucch_info,
     fapi_ul_pucch_pdu_t * p_pucch_pdu,
-    uint8_t * num_group_ids,
-    nr5g_fapi_pucch_resources_t * p_pucch_resources,
     ULCCHUCIPDUStruct * p_ul_ctrl_chan)
 {
-    uint8_t group_id;
     nr5g_fapi_stats_t *p_stats;
-    uint8_t initial_cyclic_shift, nr_of_symbols;
-    uint8_t start_symbol_index, time_domain_occ_idx;
-    uint8_t num_groups = *num_group_ids;
-
     p_stats = &p_phy_instance->stats;
     p_stats->fapi_stats.fapi_ul_tti_pucch_pdus++;
     NR5G_FAPI_MEMSET(p_ul_ctrl_chan, sizeof(ULCCHUCIPDUStruct), 0,
@@ -515,42 +432,23 @@ void nr5g_fapi_pucch_to_phy_ulcch_uci_translation(
     }
     p_ul_ctrl_chan->nStartPRB = p_pucch_pdu->prbStart;
     p_ul_ctrl_chan->nPRBs = p_pucch_pdu->prbSize;
-    start_symbol_index = p_ul_ctrl_chan->nStartSymbolx =
-        p_pucch_pdu->startSymbolIndex;
-    nr_of_symbols = p_ul_ctrl_chan->nSymbols = p_pucch_pdu->nrOfSymbols;
+    p_ul_ctrl_chan->nStartSymbolx = p_pucch_pdu->startSymbolIndex;
+    p_ul_ctrl_chan->nSymbols = p_pucch_pdu->nrOfSymbols;
     p_ul_ctrl_chan->nFreqHopFlag = p_pucch_pdu->freqHopFlag;
 
     p_ul_ctrl_chan->n2ndHopPRB = p_pucch_pdu->secondHopPrb;
-    initial_cyclic_shift = p_ul_ctrl_chan->nM0 =
-        p_pucch_pdu->initialCyclicShift;
+    p_ul_ctrl_chan->nM0 = p_pucch_pdu->initialCyclicShift;
     p_ul_ctrl_chan->nID = p_pucch_pdu->dataScramblingId;
-    time_domain_occ_idx = p_ul_ctrl_chan->nFmt1OrthCCodeIdx =
-        p_pucch_pdu->timeDomainOccIdx;
+    p_ul_ctrl_chan->nFmt1OrthCCodeIdx = p_pucch_pdu->timeDomainOccIdx;
     p_ul_ctrl_chan->nFmt4OrthCCodeIdx = p_pucch_pdu->preDftOccIdx;
     p_ul_ctrl_chan->nFmt4OrthCCodeLength = p_pucch_pdu->preDftOccLen;
     p_ul_ctrl_chan->nAddDmrsFlag = p_pucch_pdu->addDmrsFlag;
     p_ul_ctrl_chan->nScramID = p_pucch_pdu->dmrsScramblingId;
     p_ul_ctrl_chan->nSRPriodAriv = p_pucch_pdu->srFlag;
     p_ul_ctrl_chan->nBitLenUci = p_pucch_pdu->bitLenHarq;
-    p_ul_ctrl_chan->nNrofRxRU = p_phy_instance->phy_config.n_nr_of_rx_ant;
 
-    group_id =
-        nr5g_get_pucch_resources_group_id(num_groups, initial_cyclic_shift,
-        nr_of_symbols, start_symbol_index, time_domain_occ_idx,
-        p_pucch_resources);
-    if (group_id == 0xFF) {
-        p_pucch_resources[num_groups].group_id = num_groups;
-        p_pucch_resources[num_groups].initial_cyclic_shift =
-            initial_cyclic_shift;
-        p_pucch_resources[num_groups].nr_of_symbols = nr_of_symbols;
-        p_pucch_resources[num_groups].start_symbol_index = start_symbol_index;
-        p_pucch_resources[num_groups].time_domain_occ_idx = time_domain_occ_idx;
-        p_ul_ctrl_chan->nGroupId = num_groups;
-        num_groups++;
-    } else {
-        p_ul_ctrl_chan->nGroupId = group_id;
-    }
-    *num_group_ids = num_groups;
+    p_ul_ctrl_chan->nNrofRxRU = 1;
+
     p_stats->iapi_stats.iapi_ul_tti_pucch_pdus++;
 }
 
@@ -613,7 +511,8 @@ void nr5g_fapi_srs_to_phy_srs_translation(
     p_ul_srs_chan->nTsrs = p_srs_pdu->tSrs;
     p_ul_srs_chan->nToffset = p_srs_pdu->tOffset;
     p_ul_srs_chan->nToffset = p_srs_pdu->tOffset;
-    p_ul_srs_chan->nNrofRxRU = p_phy_instance->phy_config.n_nr_of_rx_ant;
+
+    p_ul_srs_chan->nNrofRxRU = 1;
 
     p_stats->iapi_stats.iapi_ul_tti_srs_pdus++;
 }
@@ -631,14 +530,16 @@ void nr5g_fapi_srs_to_phy_srs_translation(
  *
 **/
 uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_ul_tti_req_t * p_fapi_req,
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
     PULConfigRequestStruct p_ia_ul_config_req)
 {
-    uint8_t i, j, num_group_id = 0;
-    uint8_t num_fapi_pdus, num_groups, num_ue = 0;
+    uint8_t i, j;
+    uint8_t num_fapi_pdus, num_groups, num_ue = 0u;
     uint16_t frame_no;
-    uint8_t slot_no;
+    uint8_t slot_no, symbol_no;
 
     fapi_ul_tti_req_pdu_t *p_fapi_ul_tti_req_pdu;
     fapi_ue_info_t *p_fapi_ue_grp_info;
@@ -649,7 +550,6 @@ uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
     PDUStruct *p_pdu_head;
     nr5g_fapi_ul_slot_info_t *p_ul_slot_info;
     nr5g_fapi_stats_t *p_stats;
-    nr5g_fapi_pucch_resources_t pucch_resources[FAPI_MAX_NUM_PUCCH_PDU];
 
     p_stats = &p_phy_instance->stats;
 
@@ -657,9 +557,18 @@ uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
     slot_no = p_ia_ul_config_req->sSFN_Slot.nSlot = p_fapi_req->slot;
     p_ia_ul_config_req->sSFN_Slot.nCarrierIdx = p_phy_instance->phy_id;
 
+    if (FAILURE == nr5g_fapi_ul_tti_req_to_phy_translation_vendor_ext_symbol_no(is_urllc,
+                                        p_fapi_vendor_msg, p_ia_ul_config_req, &symbol_no))
+    {
+        return FAILURE;
+    }
+
     p_ul_slot_info =
-        &p_phy_instance->ul_slot_info[(slot_no % MAX_UL_SLOT_INFO_COUNT)];
-    nr5g_fapi_set_ul_slot_info(frame_no, slot_no, p_ul_slot_info);
+       &p_phy_instance->ul_slot_info[is_urllc]
+            [(slot_no % MAX_UL_SLOT_INFO_COUNT)]
+            [symbol_no % MAX_UL_SYMBOL_INFO_COUNT];// TODO:  will be split in 2 in a separate MR, as non-urllc does not need symbol info
+
+    nr5g_fapi_set_ul_slot_info(frame_no, slot_no, symbol_no, p_ul_slot_info);
 
     num_fapi_pdus = p_ia_ul_config_req->nPDU = p_fapi_req->nPdus;
     num_groups = p_ia_ul_config_req->nGroup = p_fapi_req->nGroup;
@@ -672,11 +581,11 @@ uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
             p_phy_instance->phy_config.phy_cell_id;
     }
     p_ia_ul_config_req->nUlsrs = 0;
-    for (i = 0; i < num_groups; i++) {
+    for (i = 0u; i < num_groups; i++) {
         p_pusch_grp_info = &p_ia_ul_config_req->sPUSCHGroupInfoStruct[i];
         p_fapi_ue_grp_info = &p_fapi_req->ueGrpInfo[i];
         num_ue = p_pusch_grp_info->nUE = p_fapi_ue_grp_info->nUe;
-        for (j = 0; j < num_ue; j++) {
+        for (j = 0u; j < num_ue; j++) {
             p_pusch_grp_info->nPduIdx[j] = p_fapi_ue_grp_info->pduIdx[j];
         }
     }
@@ -702,7 +611,8 @@ uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
                     p_ul_data_chan = (ULSCHPDUStruct *) p_pdu_head;
                     nr5g_fapi_pusch_to_phy_ulsch_translation(p_phy_instance,
                         &p_ul_slot_info->pusch_info[p_ul_slot_info->num_ulsch],
-                        &p_fapi_ul_tti_req_pdu->pdu.pusch_pdu, p_ul_data_chan);
+                        &p_fapi_ul_tti_req_pdu->pdu.pusch_pdu,
+                        p_ul_data_chan);
                     p_ul_slot_info->num_ulsch++;
                 }
                 break;
@@ -712,8 +622,8 @@ uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
                     p_ul_ctrl_chan = (ULCCHUCIPDUStruct *) p_pdu_head;
                     nr5g_fapi_pucch_to_phy_ulcch_uci_translation(p_phy_instance,
                         &p_ul_slot_info->pucch_info[p_ul_slot_info->num_ulcch],
-                        &p_fapi_ul_tti_req_pdu->pdu.pucch_pdu, &num_group_id,
-                        pucch_resources, p_ul_ctrl_chan);
+                        &p_fapi_ul_tti_req_pdu->pdu.pucch_pdu,
+                        p_ul_ctrl_chan);
                     p_ul_slot_info->num_ulcch++;
                 }
                 break;
@@ -741,6 +651,135 @@ uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
         p_pdu_head =
             (PDUStruct *) ((uint8_t *) p_pdu_head + p_pdu_head->nPDUSize);
         p_stats->iapi_stats.iapi_ul_tti_pdus++;
+    }
+
+    if (NULL != p_fapi_vendor_msg) {
+        nr5g_fapi_ul_tti_req_to_phy_translation_vendor_ext(p_fapi_vendor_msg,
+                                                           p_ia_ul_config_req);
+    }
+
+    return SUCCESS;
+}
+
+ /** @ingroup group_source_api_p7_fapi2phy_proc
+ *
+ *  @param[in]  p_fapi_vendor_msg  Pointer to FAPI UL_TTI.request vendor message.
+ *  @param[in]  p_ia_ul_config_req Pointer to IAPI UL_TTI.request structure.
+ *  
+ *  @return     no return.
+ *
+ *  @description
+ *  This function fills fields for UL_TTI.request structure that come from
+ *  a vendor extension.
+ *
+**/
+void nr5g_fapi_ul_tti_req_to_phy_translation_vendor_ext(
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
+    PULConfigRequestStruct p_ia_ul_config_req)
+{
+    uint8_t i = 0u;
+
+    fapi_vendor_ul_tti_req_t *p_vendor_ul_tti_req = NULL;
+    fapi_vendor_ul_tti_req_pdu_t *p_fapi_vendor_ul_tti_req_pdu = NULL;
+    fapi_vendor_ul_pusch_pdu_t *p_vendor_pusch_pdu = NULL;
+    fapi_vendor_ul_pucch_pdu_t *p_vendor_pucch_pdu = NULL;
+    fapi_vendor_ul_srs_pdu_t *p_vendor_srs_pdu = NULL;
+
+    ULSCHPDUStruct *p_ul_data_chan;
+    ULCCHUCIPDUStruct *p_ul_ctrl_chan;
+    SRSPDUStruct *p_ul_srs_chan;
+    PDUStruct *p_pdu_head;
+
+    p_vendor_ul_tti_req = &p_fapi_vendor_msg->p7_req_vendor.ul_tti_req;
+
+    p_pdu_head = p_ia_ul_config_req->sULPDU;
+
+    for (i = 0u; i < p_ia_ul_config_req->nPDU; i++) {
+        p_fapi_vendor_ul_tti_req_pdu = &p_vendor_ul_tti_req->ul_pdus[i];
+
+        switch (p_pdu_head->nPDUType) {
+            case UL_PDU_TYPE_PRACH:
+                // Not used
+                break;
+
+            case UL_PDU_TYPE_ULSCH:
+                {
+                    p_ul_data_chan = (ULSCHPDUStruct *) p_pdu_head;
+                    p_vendor_pusch_pdu = &p_fapi_vendor_ul_tti_req_pdu->pdu.pusch_pdu;
+
+                    p_ul_data_chan->nNrOfAntennaPorts = p_vendor_pusch_pdu->nr_of_antenna_ports;
+                    p_ul_data_chan->nNrofRxRU = p_vendor_pusch_pdu->nr_of_rx_ru;
+                    NR5G_FAPI_MEMCPY(p_ul_data_chan->nRxRUIdx, sizeof(p_ul_data_chan->nRxRUIdx),
+                                    p_vendor_pusch_pdu->rx_ru_idx, sizeof(p_vendor_pusch_pdu->rx_ru_idx));
+                }
+                break;
+
+            case UL_PDU_TYPE_ULCCH_UCI:
+                {
+                    p_ul_ctrl_chan = (ULCCHUCIPDUStruct *) p_pdu_head;
+                    p_vendor_pucch_pdu = &p_fapi_vendor_ul_tti_req_pdu->pdu.pucch_pdu;
+
+                    p_ul_ctrl_chan->nNrofRxRU = p_vendor_pucch_pdu->nr_of_rx_ru;
+                    p_ul_ctrl_chan->nGroupId = p_vendor_pucch_pdu->group_id;
+                    NR5G_FAPI_MEMCPY(p_ul_ctrl_chan->nRxRUIdx, sizeof(p_ul_ctrl_chan->nRxRUIdx),
+                                        p_vendor_pucch_pdu->rx_ru_idx, sizeof(p_vendor_pucch_pdu->rx_ru_idx));
+                }
+                break;
+
+            case UL_PDU_TYPE_SRS:
+                {
+                    p_ul_srs_chan = (SRSPDUStruct *) p_pdu_head;
+                    p_vendor_srs_pdu = &p_fapi_vendor_ul_tti_req_pdu->pdu.srs_pdu;
+
+                    p_ul_srs_chan->nNrofRxRU = p_vendor_srs_pdu->nr_of_rx_ru;
+                    NR5G_FAPI_MEMCPY(p_ul_srs_chan->nRxRUIdx, sizeof(p_ul_srs_chan->nRxRUIdx),
+                                    p_vendor_srs_pdu->rx_ru_idx, sizeof(p_vendor_srs_pdu->rx_ru_idx));
+                }
+                break;
+
+            default:
+                {
+                    NR5G_FAPI_LOG(ERROR_LOG,
+                        ("[NR5G_FAPI] [UL_TTI.request] Unknown PDU Type :%d",
+                            p_ia_ul_config_req->sMsgHdr.nMessageType));
+                    return;
+                }
+        }
+        p_pdu_head =
+            (PDUStruct *) ((uint8_t *) p_pdu_head + p_pdu_head->nPDUSize);
+    }
+}
+
+
+ /** @ingroup group_source_api_p7_fapi2phy_proc
+ *
+ *  @param[in]  p_fapi_vendor_msg  Pointer to FAPI UL_TTI.request vendor message.
+ *  @param[in]  p_ia_ul_config_req Pointer to IAPI UL_TTI.request structure.
+ *  
+ *  @return     Returns ::SUCCESS and ::FAILURE.
+ * 
+ *  @description
+ *  This function fills symbol_no field for UL_TTI.request structure and fails if 
+ *  the mode is urllc and there is no associated vendor_msg.
+ *
+**/
+uint8_t nr5g_fapi_ul_tti_req_to_phy_translation_vendor_ext_symbol_no(
+    bool is_urllc,
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
+    PULConfigRequestStruct p_ia_ul_config_req,
+    uint8_t* symbol_no)
+{
+    // for non-urllc mode symbol_no is a don't care
+    *symbol_no = 0u;
+    if (is_urllc)
+    {
+        if (NULL == p_fapi_vendor_msg)
+        {
+            NR5G_FAPI_LOG(ERROR_LOG, ("[NR5G_FAPI][UL_TTI.request] No vendor ext for URLLC! "
+                    "_vendor_ul_tti_req"));
+            return FAILURE;
+        }
+        *symbol_no = p_ia_ul_config_req->sSFN_Slot.nSym = p_fapi_vendor_msg->p7_req_vendor.ul_tti_req.sym;
     }
     return SUCCESS;
 }

@@ -54,6 +54,7 @@
  *
 **/
 uint8_t nr5g_fapi_start_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_start_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg)
@@ -118,7 +119,7 @@ uint8_t nr5g_fapi_start_request(
 #endif
 
     /* Add element to send list */
-    nr5g_fapi_fapi2phy_add_to_api_list(p_list_elem);
+    nr5g_fapi_fapi2phy_add_to_api_list(is_urllc, p_list_elem);
 
     p_stats->iapi_stats.iapi_start_req++;
     NR5G_FAPI_LOG(INFO_LOG, ("[START.request][%d]", p_phy_instance->phy_id));

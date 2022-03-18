@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -37,12 +37,11 @@
 #include <sys/types.h>
 #include <stdlib.h>
 #include <math.h>
-
+#include <immintrin.h>
 #include <rte_config.h>
 #include <rte_common.h>
 #include <rte_log.h>
 #include <rte_memory.h>
-#include <rte_memcpy.h>
 #include <rte_memzone.h>
 #include <rte_eal.h>
 #include <rte_per_lcore.h>
@@ -66,178 +65,98 @@
 #include "ethernet.h"
 #include "ethdi.h"
 
-/* Our mbuf pools. */
+/* mbuf pools */
 struct rte_mempool *_eth_mbuf_pool          = NULL;
-struct rte_mempool *_eth_mbuf_pool_inderect = NULL;
+struct rte_mempool *_eth_mbuf_pool_indirect = NULL;
 struct rte_mempool *_eth_mbuf_pool_rx     = NULL;
-struct rte_mempool *_eth_mbuf_pool_small  = NULL;
-struct rte_mempool *_eth_mbuf_pool_big    = NULL;
+struct rte_mempool *_eth_mbuf_pkt_gen       = NULL;
 
 struct rte_mempool *socket_direct_pool    = NULL;
 struct rte_mempool *socket_indirect_pool  = NULL;
 
+struct rte_mempool *_eth_mbuf_pool_vf_rx[16][RTE_MAX_QUEUES_PER_PORT] = {NULL};
+struct rte_mempool *_eth_mbuf_pool_vf_small[16]    = {NULL};
 
-/*
- * Make sure the ring indexes are big enough to cover buf space x2
- * This ring-buffer maintains the property head - tail <= RINGSIZE.
- * head == tail:  ring buffer empty
- * head - tail == RINGSIZE: ring buffer full
- */
-typedef uint16_t ring_idx;
-static struct {
-    ring_idx head;
-    ring_idx read_head;
-    ring_idx tail;
-    char buf[1024];      /* needs power of 2! */
-} io_ring = { {0}, 0, 0};
-
-#define RINGSIZE sizeof(io_ring.buf)
-#define RINGMASK (RINGSIZE - 1)
-
-int __xran_delayed_msg(const char *fmt, ...)
+void
+xran_init_mbuf_pool(uint32_t mtu)
 {
-#if 0
-    va_list ap;
-    int msg_len;
-    char localbuf[RINGSIZE];
-    ring_idx old_head, new_head;
-    ring_idx copy_len;
+    uint16_t data_room_size = MBUF_POOL_ELEMENT;
+    printf("%s: socket %d\n",__FUNCTION__, rte_socket_id());
 
-    /* first prep a copy of the message on the local stack */
-    va_start(ap, fmt);
-    msg_len = vsnprintf(localbuf, RINGSIZE, fmt, ap);
-    va_end(ap);
-
-    /* atomically reserve space in the ring */
-    for (;;) {
-        old_head = io_ring.head;        /* snapshot head */
-        /* free always within range of [0, RINGSIZE] - proof by induction */
-        const ring_idx free = RINGSIZE - (old_head - io_ring.tail);
-
-        copy_len = RTE_MIN(msg_len, free);
-        if (copy_len <= 0)
-            return 0;   /* vsnprintf error or ringbuff full. Drop log. */
-
-        new_head = old_head + copy_len;
-        RTE_ASSERT((ring_idx)(new_head - io_ring.tail) <= RINGSIZE);
-
-        if (likely(__atomic_compare_exchange_n(&io_ring.head, &old_head,
-                        new_head, 0, __ATOMIC_ACQUIRE, __ATOMIC_RELAXED)))
-            break;
-    }
-
-    /* Now copy data in at ease. */
-    const int copy_start = (old_head & RINGMASK);
-    if (copy_start < (new_head & RINGMASK))     /* no wrap */
-        memcpy(io_ring.buf + copy_start, localbuf, copy_len);
-    else {                                      /* wrap-around */
-        const int chunk_len = RINGSIZE - copy_start;
-
-        memcpy(io_ring.buf + copy_start, localbuf, chunk_len);
-        memcpy(io_ring.buf, localbuf + chunk_len, copy_len - chunk_len);
-    }
-
-    /* wait for previous writes to complete before updating read_head. */
-    while (io_ring.read_head != old_head)
-        rte_pause();
-    io_ring.read_head = new_head;
-
-
-    return copy_len;
- #endif
-    return 0;
+    if (mtu <= 1500) {
+        data_room_size = MBUF_POOL_ELM_SMALL;
 }
 
-/*
- * Display part of the message stored in the ring buffer.
- * Might require multiple calls to print the full message.
- * Will return 0 when nothing left to print.
- */
-#if 0
-int xran_show_delayed_message(void)
-{
-    ring_idx tail = io_ring.tail;
-    ring_idx wlen = io_ring.read_head - tail; /* always within [0, RINGSIZE] */
-
-    if (wlen <= 0)
-        return 0;
-
-    tail &= RINGMASK;   /* modulo the range down now that we have wlen */
-
-    /* Make sure we're not going over buffer end. Next call will wrap. */
-    if (tail + wlen > RINGSIZE)
-        wlen = RINGSIZE - tail;
-
-    RTE_ASSERT(tail + wlen <= RINGSIZE);
-
-    /* We use write() here to avoid recaculating string length in fwrite(). */
-    const ssize_t written = write(STDOUT_FILENO, io_ring.buf + tail, wlen);
-    if (written <= 0)
-        return 0;   /* To avoid moving tail the wrong way on error. */
-
-    /* Move tail up. Only we touch it. And we only print from one core. */
-    io_ring.tail += written;
-
-    return written;     /* next invocation will print the rest if any */
-}
-#endif
-
-void xran_init_mbuf_pool(void)
-{
     /* Init the buffer pool */
     if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
         _eth_mbuf_pool = rte_pktmbuf_pool_create("mempool", NUM_MBUFS,
-                MBUF_CACHE, 0, MBUF_POOL_ELEMENT, rte_socket_id());
-#ifdef XRAN_ATTACH_MBUF
-        _eth_mbuf_pool_inderect = rte_pktmbuf_pool_create("mempool_indirect", NUM_MBUFS,
-                MBUF_CACHE, 0, MBUF_POOL_ELEMENT, rte_socket_id());*/
-#endif
-        _eth_mbuf_pool_rx = rte_pktmbuf_pool_create("mempool_rx", NUM_MBUFS,
-                MBUF_CACHE, 0, MBUF_POOL_ELEMENT, rte_socket_id());
-        _eth_mbuf_pool_small = rte_pktmbuf_pool_create("mempool_small",
-                NUM_MBUFS, MBUF_CACHE, 0, MBUF_POOL_ELM_SMALL, rte_socket_id());
-        _eth_mbuf_pool_big = rte_pktmbuf_pool_create("mempool_big",
-                NUM_MBUFS_BIG, 0, 0, MBUF_POOL_ELM_BIG, rte_socket_id());
+                MBUF_CACHE, 0, data_room_size, rte_socket_id());
+        _eth_mbuf_pool_indirect = rte_pktmbuf_pool_create("mempool_indirect", NUM_MBUFS_VF,
+                MBUF_CACHE, 0, 0, rte_socket_id());
+        _eth_mbuf_pkt_gen = rte_pktmbuf_pool_create("mempool_pkt_gen",
+                NUM_MBUFS, MBUF_CACHE, 0, MBUF_POOL_PKT_GEN_ELM, rte_socket_id());
     } else {
         _eth_mbuf_pool = rte_mempool_lookup("mempool");
-        _eth_mbuf_pool_inderect = rte_mempool_lookup("mempool_indirect");
-        _eth_mbuf_pool_rx = rte_mempool_lookup("mempool_rx");
-        _eth_mbuf_pool_small = rte_mempool_lookup("mempool_small");
-        _eth_mbuf_pool_big = rte_mempool_lookup("mempool_big");
+        _eth_mbuf_pool_indirect = rte_mempool_lookup("mempool_indirect");
+        _eth_mbuf_pkt_gen = rte_mempool_lookup("mempool_pkt_gen");
     }
+
     if (_eth_mbuf_pool == NULL)
         rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
-#ifdef XRAN_ATTACH_MBUF
-    if (_eth_mbuf_pool_inderect == NULL)
+    if (_eth_mbuf_pool_indirect == NULL)
         rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
-#endif
-    if (_eth_mbuf_pool_rx == NULL)
-        rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
-    if (_eth_mbuf_pool_small == NULL)
-        rte_panic("Cannot create small mbuf pool: %s\n", rte_strerror(rte_errno));
-    if (_eth_mbuf_pool_big == NULL)
-        rte_panic("Cannot create big mbuf pool: %s\n", rte_strerror(rte_errno));
+    if (_eth_mbuf_pkt_gen == NULL)
+        rte_panic("Cannot create packet gen pool: %s\n", rte_strerror(rte_errno));
 
     if (socket_direct_pool == NULL)
         socket_direct_pool = _eth_mbuf_pool;
 
     if (socket_indirect_pool == NULL)
-        socket_indirect_pool = _eth_mbuf_pool_inderect;
+        socket_indirect_pool = _eth_mbuf_pool_indirect;
+}
+
+/* Configure the Rx with optional split. */
+int
+rx_queue_setup(uint16_t port_id, uint16_t rx_queue_id,
+           uint16_t nb_rx_desc, unsigned int socket_id,
+           struct rte_eth_rxconf *rx_conf, struct rte_mempool *mp)
+{
+    unsigned int i, mp_n;
+    int ret;
+#ifndef RTE_ETH_RX_OFFLOAD_BUFFER_SPLIT
+#define RTE_ETH_RX_OFFLOAD_BUFFER_SPLIT 0x00100000
+#endif
+    if ((rx_conf->offloads & RTE_ETH_RX_OFFLOAD_BUFFER_SPLIT) == 0) {
+#if (RTE_VER_YEAR >= 21)
+        rx_conf->rx_seg = NULL;
+        rx_conf->rx_nseg = 0;
+#endif
+        ret = rte_eth_rx_queue_setup(port_id, rx_queue_id,
+                         nb_rx_desc, socket_id,
+                         rx_conf, mp);
+        return ret;
+
+    } else {
+        printf("rx_queue_setup error\n");
+        ret = -EINVAL;
+        return ret;
+    }
 }
 
 /* Init NIC port, then start the port */
-void xran_init_port(int p_id)
+void xran_init_port(int p_id, uint16_t num_rxq, uint32_t mtu)
 {
     static uint16_t nb_rxd = BURST_SIZE;
     static uint16_t nb_txd = BURST_SIZE;
     struct rte_ether_addr addr;
-    struct rte_eth_rxmode rxmode =
-            { .split_hdr_size = 0,
+    struct rte_eth_rxmode rxmode = {
+            .split_hdr_size = 0,
               .max_rx_pkt_len = MAX_RX_LEN,
-              .offloads=(DEV_RX_OFFLOAD_JUMBO_FRAME /*|DEV_RX_OFFLOAD_CRC_STRIP*/)
+            .offloads       = DEV_RX_OFFLOAD_JUMBO_FRAME
             };
     struct rte_eth_txmode txmode = {
-                .mq_mode = ETH_MQ_TX_NONE
+            .mq_mode        = ETH_MQ_TX_NONE,
+            .offloads       = DEV_TX_OFFLOAD_MULTI_SEGS
             };
     struct rte_eth_conf port_conf = {
             .rxmode = rxmode,
@@ -250,11 +169,27 @@ void xran_init_port(int p_id)
     struct rte_eth_dev_info dev_info;
     const char *drv_name = "";
     int sock_id = rte_eth_dev_socket_id(p_id);
+    char rx_pool_name[32]    = "";
+    uint16_t data_room_size = MBUF_POOL_ELEMENT;
+    uint16_t qi = 0;
+    uint32_t num_mbufs = 0;
+
+    if (mtu <= 1500) {
+        rxmode.offloads &= ~DEV_RX_OFFLOAD_JUMBO_FRAME;
+        rxmode.max_rx_pkt_len = RTE_ETHER_MAX_LEN;
+        data_room_size = MBUF_POOL_ELM_SMALL;
+    }
 
     rte_eth_dev_info_get(p_id, &dev_info);
     if (dev_info.driver_name)
         drv_name = dev_info.driver_name;
     printf("initializing port %d for TX, drv=%s\n", p_id, drv_name);
+
+    if (dev_info.tx_offload_capa & DEV_TX_OFFLOAD_MBUF_FAST_FREE){
+        printf("set DEV_TX_OFFLOAD_MBUF_FAST_FREE\n");
+        port_conf.txmode.offloads |=
+            DEV_TX_OFFLOAD_MBUF_FAST_FREE;
+    }
 
     rte_eth_macaddr_get(p_id, &addr);
 
@@ -264,8 +199,16 @@ void xran_init_port(int p_id)
         addr.addr_bytes[0], addr.addr_bytes[1], addr.addr_bytes[2],
         addr.addr_bytes[3], addr.addr_bytes[4], addr.addr_bytes[5]);
 
+    if(num_rxq > 1) {
+        nb_rxd    = 2048;
+        num_mbufs = 2*nb_rxd-1;
+    } else {
+        nb_rxd    = BURST_SIZE;
+        num_mbufs = NUM_MBUFS;
+    }
+
     /* Init port */
-    ret = rte_eth_dev_configure(p_id, 1, 1, &port_conf);
+    ret = rte_eth_dev_configure(p_id, num_rxq, 1, &port_conf);
     if (ret < 0)
         rte_panic("Cannot configure port %u (%d)\n", p_id, ret);
 
@@ -278,28 +221,77 @@ void xran_init_port(int p_id)
     }
     printf("Port %u: nb_rxd %d nb_txd %d\n", p_id, nb_rxd, nb_txd);
 
+    for (qi = 0; qi < num_rxq; qi++) {
+        snprintf(rx_pool_name, RTE_DIM(rx_pool_name), "%s_p_%d_q_%d", "mp_rx_", p_id, qi);
+        printf("[%d] %s num blocks %d\n", p_id, rx_pool_name, num_mbufs);
+        _eth_mbuf_pool_vf_rx[p_id][qi] = rte_pktmbuf_pool_create(rx_pool_name, num_mbufs,
+                    MBUF_CACHE, 0, data_room_size, rte_socket_id());
+
+        if (_eth_mbuf_pool_vf_rx[p_id][qi] == NULL)
+            rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
+    }
+
+    snprintf(rx_pool_name, RTE_DIM(rx_pool_name), "%s_%d", "mempool_small_", p_id);
+    printf("[%d] %s\n", p_id, rx_pool_name);
+    _eth_mbuf_pool_vf_small[p_id] = rte_pktmbuf_pool_create(rx_pool_name, NUM_MBUFS_VF,
+                MBUF_CACHE, 0, MBUF_POOL_ELM_SMALL_INDIRECT, rte_socket_id());
+
+    if (_eth_mbuf_pool_vf_small[p_id] == NULL)
+        rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
+
     /* Init RX queues */
+    fflush(stdout);
     rxq_conf = dev_info.default_rxconf;
-    ret = rte_eth_rx_queue_setup(p_id, 0, nb_rxd,
-        sock_id, &rxq_conf, _eth_mbuf_pool_rx);
+
+    for (qi = 0; qi < num_rxq; qi++) {
+        ret = rx_queue_setup(p_id, qi, nb_rxd,
+                sock_id, &rxq_conf, _eth_mbuf_pool_vf_rx[p_id][qi]);
+    }
+
     if (ret < 0)
         rte_panic("Cannot init RX for port %u (%d)\n",
             p_id, ret);
 
     /* Init TX queues */
+    fflush(stdout);
     txq_conf = dev_info.default_txconf;
+
     ret = rte_eth_tx_queue_setup(p_id, 0, nb_txd, sock_id, &txq_conf);
     if (ret < 0)
         rte_panic("Cannot init TX for port %u (%d)\n",
                 p_id, ret);
 
+    ret = rte_eth_dev_set_ptypes(p_id, RTE_PTYPE_UNKNOWN, NULL, 0);
+    if (ret < 0)
+        rte_panic("Port %d: Failed to disable Ptype parsing\n", p_id);
+
     /* Start port */
     ret = rte_eth_dev_start(p_id);
     if (ret < 0)
         rte_panic("Cannot start port %u (%d)\n", p_id, ret);
-
 }
 
+void xran_init_port_mempool(int p_id, uint32_t mtu)
+{
+    int ret;
+    int sock_id = rte_eth_dev_socket_id(p_id);
+    char rx_pool_name[32]    = "";
+    uint16_t data_room_size = MBUF_POOL_ELEMENT;
+
+    if (mtu <= 1500) {
+        data_room_size = MBUF_POOL_ELM_SMALL;
+}
+
+    snprintf(rx_pool_name, RTE_DIM(rx_pool_name), "%s_%d", "mempool_small_", p_id);
+    printf("[%d] %s\n", p_id, rx_pool_name);
+    _eth_mbuf_pool_vf_small[p_id] = rte_pktmbuf_pool_create(rx_pool_name, NUM_MBUFS_VF,
+                MBUF_CACHE, 0, MBUF_POOL_ELM_SMALL, rte_socket_id());
+
+    if (_eth_mbuf_pool_vf_small[p_id] == NULL)
+        rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
+
+
+}
 
 /* Prepend ethernet header, possibly vlan tag. */
 void xran_add_eth_hdr_vlan(struct rte_ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb)

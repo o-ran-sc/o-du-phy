@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -59,6 +59,9 @@ struct xran_radioapp_udComp_header {
  *      Common Radio Application Header for C-Plane
  */
 struct xran_cp_radioapp_common_header {     /* 6bytes, first 4bytes need the conversion for byte order */
+    union {
+        uint32_t all_bits;
+        struct {
     uint32_t    startSymbolId:6;        /**< 5.4.4.7 start symbol identifier */
     uint32_t    slotId:6;               /**< 5.4.4.6 slot identifier */
     uint32_t    subframeId:4;           /**< 5.4.4.5 subframe identifier */
@@ -66,9 +69,21 @@ struct xran_cp_radioapp_common_header {     /* 6bytes, first 4bytes need the con
     uint32_t    filterIndex:4;          /**< 5.4.4.3 filter index, XRAN_FILTERINDEX_xxxx */
     uint32_t    payloadVer:3;           /**< 5.4.4.2 payload version, should be 1 */
     uint32_t    dataDirection:1;        /**< 5.4.4.1 data direction (gNB Tx/Rx) */
+        };
+    } field;
     uint8_t     numOfSections;          /**< 5.4.4.8 number of sections */
     uint8_t     sectionType;            /**< 5.4.4.9 section type */
     } __attribute__((__packed__));
+
+#define xran_cp_radioapp_cmn_hdr_bitwidth_StartSymId      0
+#define xran_cp_radioapp_cmn_hdr_bitwidth_SlotId          6
+#define xran_cp_radioapp_cmn_hdr_bitwidth_SubFrameId      12
+#define xran_cp_radioapp_cmn_hdr_bitwidth_FrameId         16
+#define xran_cp_radioapp_cmn_hdr_bitwidth_FilterIdex      24
+#define xran_cp_radioapp_cmn_hdr_bitwidth_PayLoadVer      28
+#define xran_cp_radioapp_cmn_hdr_bitwidth_DataDir         31
+
+
 
 /**
  * @ingroup xran_cp_pkt
@@ -90,6 +105,7 @@ struct xran_cp_radioapp_frameStructure {
  */
 struct xran_cp_radioapp_section_header {    /* 8bytes, need the conversion for byte order */
     union {
+        uint32_t first_4byte;
         struct {
             uint32_t    reserved:16;
             uint32_t    numSymbol:4;    /**< 5.4.5.7 number of symbols */
@@ -114,14 +130,28 @@ struct xran_cp_radioapp_section_header {    /* 8bytes, need the conversion for b
             uint32_t    reMask:12;      /**< 5.4.5.5 resource element mask */
             } s5;
         } u;
-
+    union {
+        uint32_t second_4byte;
+        struct {
     uint32_t    numPrbc:8;              /**< 5.4.5.6 number of contiguous PRBs per control section  0000 0000b = all PRBs */
     uint32_t    startPrbc:10;           /**< 5.4.5.4 starting PRB of control section */
     uint32_t    symInc:1;               /**< 5.4.5.3 symbol number increment command XRAN_SYMBOLNUMBER_xxxx */
     uint32_t    rb:1;                   /**< 5.4.5.2 resource block indicator, XRAN_RBIND_xxx */
     uint32_t    sectionId:12;           /**< 5.4.5.1 section identifier */
+            } common;
+        } u1;
     } __attribute__((__packed__));
 
+#define xran_cp_radioapp_sec_hdr_sc_BeamID       0
+#define xran_cp_radioapp_sec_hdr_sc_Ef           15
+#define xran_cp_radioapp_sec_hdr_sc_NumSym       16
+#define xran_cp_radioapp_sec_hdr_sc_ReMask       20
+
+#define xran_cp_radioapp_sec_hdr_c_NumPrbc       0
+#define xran_cp_radioapp_sec_hdr_c_StartPrbc     8
+#define xran_cp_radioapp_sec_hdr_c_SymInc        18
+#define xran_cp_radioapp_sec_hdr_c_RB            19
+#define xran_cp_radioapp_sec_hdr_c_SecId         20
 
 struct xran_cp_radioapp_section_ext_hdr {
     /* 12 bytes, need to convert byte order for two parts respectively
@@ -203,8 +233,9 @@ struct xran_cp_radioapp_section_ext2 {
  *      Only be used for LTE TM2-4 and not for other LTE TMs nor NR.
  *      The structure is reordered for byte order conversion.
  */
-struct xran_cp_radioapp_section_ext3_first {
+union xran_cp_radioapp_section_ext3_first {
     /* 16 bytes, need to convert byte order for two parts - 8/8 bytes */
+    struct{
     uint64_t    reserved1:8;
     uint64_t    crsSymNum:4;        /**< 5.4.7.3.6 CRS symbol number indication */
     uint64_t    reserved0:3;
@@ -222,7 +253,27 @@ struct xran_cp_radioapp_section_ext3_first {
     uint64_t    beamIdAP2:16;       /**< 5.4.7.3.9 beam id to be used for antenna port 2 */
     uint64_t    beamIdAP3:16;       /**< 5.4.7.3.10 beam id to be used for antenna port 3 */
     uint64_t    reserved2:16;
+    }all_bits;
+
+    struct{
+        __m128i     data_field1;
+    }data_field;
     } __attribute__((__packed__));
+
+#define xran_cp_radioapp_sec_ext3_Res1           0
+#define xran_cp_radioapp_sec_ext3_CrcSymNum      8
+#define xran_cp_radioapp_sec_ext3_Res0           12
+#define xran_cp_radioapp_sec_ext3_CrcShift       15
+#define xran_cp_radioapp_sec_ext3_CrcReMask      16
+#define xran_cp_radioapp_sec_ext3_TxScheme       28
+
+#define xran_cp_radioapp_sec_ext3_NumLayers      0
+#define xran_cp_radioapp_sec_ext3_LayerId        4
+#define xran_cp_radioapp_sec_ext3_CodebookIdx    8
+#define xran_cp_radioapp_sec_ext3_ExtLen         16
+#define xran_cp_radioapp_sec_ext3_ExtType        24
+#define xran_cp_radioapp_sec_ext3_EF             31
+
 
 /**
  * @ingroup xran_cp_pkt
@@ -233,7 +284,9 @@ struct xran_cp_radioapp_section_ext3_first {
  *      Only be used for LTE TM2-4 and not for other LTE TMs nor NR.
  *      The structure is reordered for byte order conversion.
  */
-struct xran_cp_radioapp_section_ext3_non_first {
+union xran_cp_radioapp_section_ext3_non_first {
+    uint32_t data_field;
+    struct {
     /* 4 bytes, need to convert byte order at once */
     uint32_t    numLayers:4;        /**< 5.4.7.3.4 number of layers used for DL transmission */
     uint32_t    layerId:4;          /**< 5.4.7.3.2 Layer ID for DL transmission */
@@ -242,6 +295,7 @@ struct xran_cp_radioapp_section_ext3_non_first {
     uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
     uint32_t    extType:7;          /**< 5.4.6.1 extension type */
     uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+    }all_bits;
     } __attribute__((__packed__));
 
 /**
@@ -280,6 +334,154 @@ struct xran_cp_radioapp_section_ext5 {
     uint32_t    csf1:1;             /**< 5.4.7.5.2 constellation shift flag */
     uint32_t    mcScaleReMask1:12;  /**< 5.4.7.5.1 modulation compression power scale RE mask */
     } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Non-contiguous PRB allocation in time and frequency domain.
+ *      ExtType 6, Defined in 5.4.7.6 Table 5-28
+ *      Only applies to section type 1 3, and 5.
+ *      The structure is reordered for byte order conversion.
+ */
+union xran_cp_radioapp_section_ext6 {
+    struct {
+        uint64_t    symbolMask:14;      /**< 5.4.7.6.3 symbol bit mask */
+        uint64_t    reserved1:2;
+        uint64_t    rbgMask:28;         /**< 5.4.7.6.2 resource block group bit mask */
+        uint64_t    rbgSize:3;          /**< 5.4.7.6.1 resource block group size */
+        uint64_t    reserved0:1;
+        uint64_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+        uint64_t    extType:7;          /**< 5.4.6.1 extension type */
+        uint64_t    ef:1;               /**< 5.4.6.2 extension flag */
+    }all_bits;
+
+    struct{
+        uint64_t     data_field1;
+    }data_field;
+} __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      eAxC Mask Selection Extension (ExtType 7)
+ *      Defined in 5.4.7.7 Table 5-29
+ *      applies to section type 0
+ *      The structure is reordered for byte order conversion.
+ */
+struct xran_cp_radioapp_section_ext7 {
+    uint32_t    eAxCmask:16;        /**< 5.4.7.7.1 eAxC Mask */
+    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
+    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+    } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Regularization factor (ExtType 8), defined in 5.4.7.8 Table 5-30
+ *      applies to section type 5 instead of sending section type 6
+ *      The structure is reordered for byte order conversion.
+ */
+struct xran_cp_radioapp_section_ext8 {
+    uint32_t    regularizationFactor:16; /**< 5.4.7.8.1 eAxC Mask */
+    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
+    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+    } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Dynamic Spectrum Sharing parameters (ExtType 9)
+ *      Defined in 5.4.7.9 Table 5-31
+ *      The structure does not need the conversion of byte order.
+ */
+struct xran_cp_radioapp_section_ext9 {
+    uint8_t     extType:7;          /**< 5.4.6.1 extension type */
+    uint8_t     ef:1;               /**< 5.4.6.2 extension flag */
+    uint8_t     extLen;             /**< 5.4.6.3 extension length, in 32bits words */
+    uint8_t     technology;         /**< 5.4.7.9.1 technology (interface name) */
+    uint8_t     reserved;
+    } __attribute__((__packed__));
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Section description for group configuration of multiple ports
+ *      ExtType 10, Defined in 5.4.7.10 Table 5-32 and Table 5-33
+ *      Applies to section type 1 3, and 5.
+ *      The structure does not need the conversion of byte order.
+ */
+union xran_cp_radioapp_section_ext10 {
+    uint32_t data_field;
+    struct{
+        uint8_t     extType:7;          /**< 5.4.6.1 extension type */
+        uint8_t     ef:1;               /**< 5.4.6.2 extension flag */
+        uint8_t     extLen;             /**< 5.4.6.3 extension length, in 32bits words */
+        uint8_t     numPortc:6;         /**< 5.4.7.10.2 the number of eAxC ports */
+        uint8_t     beamGroupType:2;    /**< 5.4.7.10.1 the type of beam grouping */
+        uint8_t     reserved;           /**< beam IDs start from here for group type 2 */
+        }all_bits;
+    } __attribute__((__packed__));
+
+
+#define xran_cp_radioapp_sec_ext10_ExtType        0
+#define xran_cp_radioapp_sec_ext10_EF             7
+#define xran_cp_radioapp_sec_ext10_ExtLen         8
+#define xran_cp_radioapp_sec_ext10_NumPortc       16
+#define xran_cp_radioapp_sec_ext10_BeamGroupType  22
+#define xran_cp_radioapp_sec_ext10_Res0           24
+
+
+/**
+ * @ingroup xran_cp_pkt
+ *
+ * @description
+ *      Flexible Beamforming Weights Extension Type (ExtType 11)
+ *      Defined in 5.4.7.11 Table 5-35
+ *      The structure is reordered for network byte order.
+ */
+union xran_cp_radioapp_section_ext11 {
+    struct {
+        uint32_t    reserved:6;
+        uint32_t    RAD:1;              /**< 5.4.7.11.8 Reset After PRB Discontinuity */
+        uint32_t    disableBFWs:1;      /**< 5.4.7.11.6 disable beamforming weights */
+        uint32_t    extLen:16;          /**< extension length in 32bits words - 2bytes */
+        uint32_t    extType:7;          /**< 5.4.6.1 extension type */
+        uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+        uint8_t     numBundPrb;         /**< 5.4.7.11.3 Number of bundled PRBs per beamforming weights */
+        uint8_t     bfwCompMeth:4;      /**< 5.4.7.11.1 Beamforming weight Compression method (5.4.7.1.1) */
+        uint8_t     bfwIqWidth:4;       /**< 5.4.7.11.1 Beamforming weight IQ bit width (5.4.7.1.1) */
+    } all_bits;
+    struct{
+        uint32_t    data_field1;
+        uint16_t    data_field2;
+    }data_field;
+    /*
+     *   bfwCompParam               5.4.7.11.2 beamforming weight compression parameter for PRB bundle
+     *   beamId                     beam ID for PRB bundle (15bits)
+     *   bfwI / bfwQ .......        beamforming weights for PRB bundle
+     *     .....
+     * repeat until PRB bundle L
+     *
+     *   zero pad (4-byte boundary)
+     */
+    } __attribute__((__packed__));
+
+#define xran_cp_radioapp_sec_ext11_bitfield_REV             0
+#define xran_cp_radioapp_sec_ext11_bitfield_RAD             6
+#define xran_cp_radioapp_sec_ext11_bitfield_DisBFWs         7
+#define xran_cp_radioapp_sec_ext11_bitfield_ExtLen          8
+#define xran_cp_radioapp_sec_ext11_bitfield_ExtType         24
+#define xran_cp_radioapp_sec_ext11_bitfield_Ef              31
+#define xran_cp_radioapp_sec_ext11_bitfield_NumPrb          0
+#define xran_cp_radioapp_sec_ext11_bitfield_BFWCompMeth     8
+#define xran_cp_radioapp_sec_ext11_bitfield_BFWIQWidth      12
 
 
 /**********************************************************

@@ -54,6 +54,7 @@ int main(
     nr5g_fapi_dpdk_wait(config);
     pthread_attr_destroy(&config->phy2mac_thread_info.thread_attr);
     pthread_attr_destroy(&config->mac2phy_thread_info.thread_attr);
+    pthread_attr_destroy(&config->urllc_thread_info.thread_attr);
     free(config);
     return 0;
 }

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 
 #include "xran_compression.hpp"
 #include "xran_bfp_utils.hpp"
+#include "xran_bfp_byte_packing_utils.hpp"
 #include <complex>
 #include <algorithm>
 #include <immintrin.h>

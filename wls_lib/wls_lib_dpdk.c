@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -108,9 +108,7 @@ static pthread_mutex_t wls_get_lock1;
 
 static wls_us_ctx_t* wls_us_ctx = NULL;
 static wls_us_ctx_t* wls_us_ctx1 = NULL;
-static const struct rte_memzone *hp_memzone = NULL;
 static long hugePageSize = WLS_HUGE_DEF_PAGE_SIZE;
-static uint64_t gWlsMemorySize = 0;
 
 static inline int wls_check_ctx(void *h)
 {
@@ -166,29 +164,34 @@ static int wls_initialize(const char *ifacename, uint64_t nWlsMemorySize)
 {
     int ret;
     pthread_mutexattr_t attr;
-
-    uint64_t nSize = nWlsMemorySize + sizeof(wls_drv_ctx_t);
-    uint8_t *pMemZone;
-    const struct rte_memzone *mng_ctx_memzone;
+    uint64_t nSize = nWlsMemorySize + WLS_RUP512B(sizeof(wls_drv_ctx_t));
+    struct rte_memzone *mng_memzone;
     wls_drv_ctx_t *mng_ctx;
 
-    mng_ctx_memzone = rte_memzone_reserve_aligned(ifacename, nSize, rte_socket_id(), get_hugepagesz_flag(hugePageSize), hugePageSize);
-    if (mng_ctx_memzone == NULL) {
+    if (rte_eal_process_type() != RTE_PROC_PRIMARY)
+    {
+        PLIB_ERR("Only DPDK primary process can perform initialization \n");
+        return -1;
+    }
+
+    // Get memory from 1GB huge page and align by 4 Cache Lines
+    mng_memzone = (struct rte_memzone *)rte_memzone_reserve_aligned(ifacename, nSize, rte_socket_id(), get_hugepagesz_flag(hugePageSize), hugePageSize);
+    if (mng_memzone == NULL) {
         PLIB_ERR("Cannot reserve memory zone[%s]: %s\n", ifacename, rte_strerror(rte_errno));
         return -1;
     }
 
-    pMemZone = ((uint8_t *)mng_ctx_memzone->addr) + nWlsMemorySize;
-    memset(pMemZone, 0, sizeof(wls_drv_ctx_t));
-    mng_ctx = (wls_drv_ctx_t *)pMemZone;
+    mng_ctx = (wls_drv_ctx_t *)(mng_memzone->addr);
+    memset(mng_ctx, 0, sizeof(wls_drv_ctx_t));
 
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
     if (ret = pthread_mutex_init(&mng_ctx->mng_mutex, &attr)) {
-        PLIB_ERR("Failed to initialize mng_mutex %d\n", ret);
         pthread_mutexattr_destroy(&attr);
+        PLIB_ERR("Failed to initialize mng_mutex %d\n", ret);
         return ret;
     }
+
     pthread_mutexattr_destroy(&attr);
     PLIB_DEBUG("Run wls_initialized\n");
     return 0;
@@ -462,12 +465,13 @@ static int wls_process_wait1(void* h)
 }
 
 
-void* WLS_Open(const char *ifacename, unsigned int mode, unsigned long long nWlsMemorySize)
+void *WLS_Open(const char *ifacename, unsigned int mode, uint64_t *nWlsMacMemorySize, uint64_t *nWlsPhyMemorySize)
 {
     wls_us_ctx_t* pWls_us = NULL;
+    wls_drv_ctx_t *pWlsDrvCtx;
     int i, len;
     char temp[WLS_DEV_SHM_NAME_LEN] = {0};
-    uint8_t *pMemZone;
+    static const struct rte_memzone *mng_memzone;
 
     gethugepagesizes(&hugePageSize, 1);
 
@@ -477,22 +481,41 @@ void* WLS_Open(const char *ifacename, unsigned int mode, unsigned long long nWls
     strncpy(temp, ifacename, WLS_DEV_SHM_NAME_LEN - 1);
     PLIB_INFO("Open %s (DPDK memzone)\n", temp);
 
-    static const struct rte_memzone *mng_memzone;
-    mng_memzone = rte_memzone_lookup(temp);
-    if ((mng_memzone == NULL)&&(RTE_PROC_PRIMARY==rte_eal_process_type())) {
-        wls_initialize(temp, nWlsMemorySize);
-    }
-
-    mng_memzone = rte_memzone_lookup(temp);
-    if (mng_memzone == NULL) {
+    mng_memzone = (struct rte_memzone *)rte_memzone_lookup(temp);
+    if (mng_memzone == NULL)
+    {
+        if (mode == WLS_SLAVE_CLIENT)
+        {
+            wls_initialize(temp, *nWlsMacMemorySize+*nWlsPhyMemorySize);
+            mng_memzone = (struct rte_memzone *)rte_memzone_lookup(temp);
+            if (mng_memzone == NULL)
+            {
         PLIB_ERR("Cannot initialize wls shared memory: %s\n", temp);
         return NULL;
     }
+        }
+        else
+        {
+            PLIB_ERR("Cannot locate memory zone: %s. Is the Primary Process running?\n", temp);
+            return NULL;
+        }
+    }
 
-    pMemZone = ((uint8_t *)mng_memzone->addr) + nWlsMemorySize;
+    pWlsDrvCtx = (wls_drv_ctx_t *)(mng_memzone->addr);
+    PLIB_INFO("WLS_Open %p\n", pWlsDrvCtx);
+    if (mode == WLS_SLAVE_CLIENT)
+    {
+        pWlsDrvCtx->nMacBufferSize = *nWlsMacMemorySize;
+        pWlsDrvCtx->nPhyBufferSize = *nWlsPhyMemorySize;
+    }
+    else
+    {
+        *nWlsMacMemorySize = pWlsDrvCtx->nMacBufferSize;
+        *nWlsPhyMemorySize = pWlsDrvCtx->nPhyBufferSize;
+    }
 
-    PLIB_INFO("WLS_Open %p\n", pMemZone);
-    if ((pWls_us = wls_create_us_ctx((wls_drv_ctx_t *)pMemZone)) == NULL) {
+    if ((pWls_us = wls_create_us_ctx(pWlsDrvCtx)) == NULL)
+    {
         PLIB_ERR("WLS_Open failed to create context\n");
         return NULL;
     }
@@ -502,7 +525,6 @@ void* WLS_Open(const char *ifacename, unsigned int mode, unsigned long long nWls
     pWls_us->padding_wls_us_user_space_va = 0LL;
     pWls_us->wls_us_user_space_va = pWls_us;
     pWls_us->wls_us_ctx_size = sizeof (*pWls_us);
-    gWlsMemorySize = nWlsMemorySize;
 
     wls_mutex_init(&wls_put_lock);
     wls_mutex_init(&wls_get_lock);
@@ -519,13 +541,14 @@ void* WLS_Open(const char *ifacename, unsigned int mode, unsigned long long nWls
     return wls_us_ctx;
 }
 
-void* WLS_Open_Dual(const char *ifacename, unsigned int mode, unsigned long long nWlsMemorySize, void** handle1)
+void *WLS_Open_Dual(const char *ifacename, unsigned int mode, uint64_t *nWlsMacMemorySize, uint64_t *nWlsPhyMemorySize, void** handle1)
 {
     wls_us_ctx_t* pWls_us = NULL;
     wls_us_ctx_t* pWls_us1 = NULL;
+    wls_drv_ctx_t *pWlsDrvCtx;
     int i, len;
     char temp[WLS_DEV_SHM_NAME_LEN] = {0};
-    uint8_t *pMemZone;
+    static const struct rte_memzone *mng_memzone;
 
     gethugepagesizes(&hugePageSize, 1);
 
@@ -535,22 +558,34 @@ void* WLS_Open_Dual(const char *ifacename, unsigned int mode, unsigned long long
     strncpy(temp, ifacename, WLS_DEV_SHM_NAME_LEN - 1);
     PLIB_INFO("Open %s (DPDK memzone)\n", temp);
 
-    static const struct rte_memzone *mng_memzone;
-    mng_memzone = rte_memzone_lookup(temp);
-    if ((mng_memzone == NULL)&&(RTE_PROC_PRIMARY==rte_eal_process_type())) {
-        wls_initialize(temp, nWlsMemorySize);
-    }
-
-    mng_memzone = rte_memzone_lookup(temp);
-    if (mng_memzone == NULL) {
+    mng_memzone = (struct rte_memzone *)rte_memzone_lookup(temp);
+    if (mng_memzone == NULL)
+    {
+        if (mode == WLS_SLAVE_CLIENT)
+        {
+            wls_initialize(temp, *nWlsMacMemorySize+*nWlsPhyMemorySize);
+            mng_memzone = (struct rte_memzone *)rte_memzone_lookup(temp);
+            if (mng_memzone == NULL)
+            {
         PLIB_ERR("Cannot initialize wls shared memory: %s\n", temp);
         return NULL;
     }
+        }
+        else
+        {
+            PLIB_ERR("Cannot locate memory zone: %s. Is the Primary Process running?\n", temp);
+            return NULL;
+        }
+    }
 
-    pMemZone = ((uint8_t *)mng_memzone->addr) + nWlsMemorySize;
-    PLIB_INFO("nWlsMemorySize is %llu\n", nWlsMemorySize);
-    PLIB_INFO("WLS_Open Dual 1 %p\n", pMemZone);
-     if ((pWls_us = wls_create_us_ctx((wls_drv_ctx_t *)pMemZone)) == NULL) {
+    pWlsDrvCtx = (wls_drv_ctx_t *)(mng_memzone->addr);
+    *nWlsMacMemorySize = pWlsDrvCtx->nMacBufferSize;
+    *nWlsPhyMemorySize = pWlsDrvCtx->nPhyBufferSize;
+    PLIB_INFO("nWlsMemorySize is %lu\n", *nWlsMacMemorySize+*nWlsPhyMemorySize);
+    PLIB_INFO("WLS_Open Dual 1 %p\n", pWlsDrvCtx);
+
+    if ((pWls_us = wls_create_us_ctx(pWlsDrvCtx)) == NULL)
+    {
         PLIB_ERR("WLS_Open Dual 1 failed to create context\n");
         return NULL;
      }
@@ -561,7 +596,6 @@ void* WLS_Open_Dual(const char *ifacename, unsigned int mode, unsigned long long
         pWls_us->padding_wls_us_user_space_va = 0LL;
         pWls_us->wls_us_user_space_va = pWls_us;
         pWls_us->wls_us_ctx_size = sizeof (*pWls_us);
-        gWlsMemorySize = nWlsMemorySize;
 
         wls_mutex_init(&wls_put_lock);
         wls_mutex_init(&wls_get_lock);
@@ -579,32 +613,31 @@ void* WLS_Open_Dual(const char *ifacename, unsigned int mode, unsigned long long
      }
      
      // Create second context to support the second wls shared memory interface
-     if ((pWls_us1 = wls_create_us_ctx((wls_drv_ctx_t *)pMemZone)) == NULL) {
+    if ((pWls_us1 = wls_create_us_ctx(pWlsDrvCtx)) == NULL)
+    {
         PLIB_ERR("WLS_Open Dual failed to create context 1\n");
         return NULL;
      }
      else
      {
         PLIB_DEBUG("Local: pWls_us1 %p\n", pWls_us1);
+
         pWls_us1->padding_wls_us_user_space_va = 0LL;
         pWls_us1->wls_us_user_space_va = pWls_us1;
         pWls_us1->wls_us_ctx_size = sizeof (*pWls_us1);
-        gWlsMemorySize = nWlsMemorySize;
 
         wls_mutex_init(&wls_put_lock1);
         wls_mutex_init(&wls_get_lock1);
 
         pWls_us1->mode = mode;
         pWls_us1->secmode = WLS_SEC_NA;
-        PLIB_INFO("Mode %d Secmode %d\n", pWls_us1->mode, pWls_us1->secmode);
+        PLIB_INFO("Mode %d SecMode %d \n", pWls_us1->mode, pWls_us1->secmode);
 
         PLIB_INFO("WLS shared management memzone 2: %s\n", temp);
         strncpy(pWls_us1->wls_dev_name, temp, WLS_DEV_SHM_NAME_LEN - 1);
     	wls_us_ctx1 = pWls_us1; // Now the second context is for the L2-FT_fapi
 	    PLIB_INFO("pWLs_us1 is %p\n", wls_us_ctx1);
-
      }
-
     return wls_us_ctx1; // returning second context preserves the L2 legacy code
 }
 
@@ -643,9 +676,9 @@ int WLS_Ready1(void* h)
 int WLS_Close(void* h)
 {
     wls_us_ctx_t* pWls_us = (wls_us_ctx_t*) h;
-    int ret = 0;
-    uint8_t *pMemZone;
     wls_drv_ctx_t *pDrv_ctx;
+    struct rte_memzone *mng_memzone;
+    int ret = 0;
 
     if (!wls_us_ctx) {
         PLIB_ERR("Library was not opened\n");
@@ -655,16 +688,13 @@ int WLS_Close(void* h)
     if (wls_check_ctx(h))
         return -1;
 
-    static const struct rte_memzone *mng_memzone;
-    mng_memzone = rte_memzone_lookup(pWls_us->wls_dev_name);
+    mng_memzone = (struct rte_memzone *)rte_memzone_lookup(pWls_us->wls_dev_name);
     if (mng_memzone == NULL) {
         PLIB_ERR("Cannot find mng memzone: %s %s\n",
                     pWls_us->wls_dev_name, rte_strerror(rte_errno));
         return -1;
     }
-
-    pMemZone = ((uint8_t *)mng_memzone->addr) + gWlsMemorySize;
-    pDrv_ctx = (wls_drv_ctx_t *)pMemZone;
+    pDrv_ctx = (wls_drv_ctx_t *)(mng_memzone->addr);
 
     PLIB_INFO("WLS_Close\n");
     if ((ret = wls_destroy_us_ctx(pWls_us, pDrv_ctx)) < 0) {
@@ -677,7 +707,9 @@ int WLS_Close(void* h)
 
     wls_us_ctx = NULL;
 
+    printf("WLS_Close: nWlsClients[%d]\n", pDrv_ctx->nWlsClients);
     if (0 == pDrv_ctx->nWlsClients) {
+        printf("WLS_Close: Freeing Allocated MemZone\n");
         wls_mutex_destroy(&pDrv_ctx->mng_mutex);
         rte_memzone_free(mng_memzone);
     }
@@ -687,9 +719,9 @@ int WLS_Close(void* h)
 int WLS_Close1(void* h)
 {
     wls_us_ctx_t* pWls_us = (wls_us_ctx_t*) h;
-    int ret = 0;
-    uint8_t *pMemZone;
     wls_drv_ctx_t *pDrv_ctx;
+    struct rte_memzone *mng_memzone;
+    int ret = 0;
 
     if (!wls_us_ctx1) {
         PLIB_ERR("Library was not opened\n");
@@ -699,16 +731,13 @@ int WLS_Close1(void* h)
     if (wls_check_ctx1(h))
         return -1;
 
-    static const struct rte_memzone *mng_memzone;
-    mng_memzone = rte_memzone_lookup(pWls_us->wls_dev_name);
+    mng_memzone = (struct rte_memzone *)rte_memzone_lookup(pWls_us->wls_dev_name);
     if (mng_memzone == NULL) {
         PLIB_ERR("Cannot find mng memzone: %s %s\n",
                     pWls_us->wls_dev_name, rte_strerror(rte_errno));
         return -1;
     }
-
-    pMemZone = ((uint8_t *)mng_memzone->addr) + gWlsMemorySize;
-    pDrv_ctx = (wls_drv_ctx_t *)pMemZone;
+    pDrv_ctx = (wls_drv_ctx_t *)(mng_memzone->addr);
 
     PLIB_INFO("WLS_Close1\n");
     if ((ret = wls_destroy_us_ctx1(pWls_us, pDrv_ctx)) < 0) {
@@ -721,74 +750,77 @@ int WLS_Close1(void* h)
 
     wls_us_ctx1 = NULL;
 
+    printf("WLS_Close1: nWlsClients[%d]\n", pDrv_ctx->nWlsClients);
     if (0 == pDrv_ctx->nWlsClients) {
+        printf("WLS_Close1: Freeing Allocated MemZone\n");
         wls_mutex_destroy(&pDrv_ctx->mng_mutex);
         rte_memzone_free(mng_memzone);
     }
     return 0;
 }
 
-void* WLS_Alloc(void* h, unsigned int size)
+uint32_t WLS_SetMode(void* h, unsigned int mode)
 {
     wls_us_ctx_t* pWls_us = (wls_us_ctx_t*) h;
-    static const struct rte_memzone *mng_memzone;
-    long nHugePage;
-    void *pvirtAddr = NULL;
-    int count;
-
-    if ((NULL != hp_memzone)&&(pWls_us->dualMode != WLS_DUAL_MODE)) {
-        PLIB_ERR("Memory zone already reserved\n");
-        return hp_memzone->addr;
+    pWls_us->mode = mode;
+    return 0;
     }
 
+void* WLS_Alloc(void* h, uint64_t size)
+{
+    wls_us_ctx_t* pWls_us = (wls_us_ctx_t*) h;
+    wls_drv_ctx_t *pDrv_ctx;
     hugepage_tabl_t* pHugePageTlb = &pWls_us->hugepageTbl[0];
-    hugepage_tabl_t* pHugePageTlb1 = &pWls_us->hugepageTbl[1];
-    hugepage_tabl_t* pHugePageTlb2 = &pWls_us->hugepageTbl[2];
+    void *pvirtAddr = NULL;
+    struct rte_memzone *mng_memzone;
+    uint32_t nHugePage;
+    uint64_t HugePageMask, alloc_base, alloc_end;
 
-    PLIB_INFO("hugePageSize on the system is %ld\n", hugePageSize);
+    // TODOINFO null/value check was removed. Check if it works properly.
+    PLIB_INFO("hugePageSize on the system is %ld 0x%08lx\n", hugePageSize, hugePageSize);
 
-    /* calculate total number of hugepages */
-    nHugePage = DIV_ROUND_OFFSET(size, hugePageSize);
-
-    if (nHugePage >= MAX_N_HUGE_PAGES) {
-        PLIB_INFO("not enough hugepages: need %ld  system has %d\n", nHugePage, MAX_N_HUGE_PAGES);
+    mng_memzone = (struct rte_memzone *)rte_memzone_lookup(pWls_us->wls_dev_name);
+    if (mng_memzone == NULL)
+    {
+        PLIB_ERR("Cannot find mng memzone: %s %s\n",
+                    pWls_us->wls_dev_name, rte_strerror(rte_errno));
         return NULL;
     }
 
-    mng_memzone = rte_memzone_lookup(pWls_us->wls_dev_name);
-    if (mng_memzone == NULL) {
-        PLIB_ERR("Cannot initialize wls shared memory: %s\n", pWls_us->wls_dev_name);
-        return NULL;
-    }
+    pDrv_ctx = mng_memzone->addr;
 
-    hp_memzone = (struct rte_memzone *)mng_memzone;
-    pvirtAddr = (void *)hp_memzone->addr;
+    pvirtAddr = (void *)((uint8_t *)pDrv_ctx + WLS_RUP512B(sizeof(wls_drv_ctx_t)));
+    HugePageMask = ((unsigned long) hugePageSize - 1);
+    alloc_base = (uint64_t) pvirtAddr & ~HugePageMask;
+    alloc_end = (uint64_t) pvirtAddr + (size - WLS_RUP512B(sizeof(wls_drv_ctx_t)));
 
-    if (rte_eal_process_type() == RTE_PROC_PRIMARY) {
-        memset(pvirtAddr, 0, sizeof (wls_drv_ctx_t));
-    }
-
-    for (count = 0; count < nHugePage; count++) {
+    nHugePage = 0;
+    while(1)
+    {
         /*Increment virtual address to next hugepage to create table*/
-        pHugePageTlb[count].pageVa = ((unsigned char*) pvirtAddr + \
-                                                (count * hugePageSize));
-        /*Creating dummy page fault in process for each page
-                                                inorder to get pagemap*/
-        *(unsigned char*) pHugePageTlb[count].pageVa = 1;
+        pHugePageTlb[nHugePage].pageVa = (alloc_base + (nHugePage * hugePageSize));
 
-        if (wls_VirtToIova((uint64_t*) pHugePageTlb[count].pageVa,
-                &pHugePageTlb[count].pagePa) == -1) {
+        if (pHugePageTlb[nHugePage].pageVa > alloc_end)
+            break;
+
+        /* Creating dummy page fault in process for each page inorder to get pagemap */
+        (*(unsigned char*) pHugePageTlb[nHugePage].pageVa) = 1;
+
+        if (wls_VirtToIova((uint64_t*) pHugePageTlb[nHugePage].pageVa, &pHugePageTlb[nHugePage].pagePa) == -1)
+        {
             PLIB_ERR("Virtual to physical conversion failed\n");
             return NULL;
         }
+
+        nHugePage++;
     }
 
     PLIB_DEBUG("count is %d, pHugePageTlb->pageVa is %p  pHugePageTlb1->pageVa is %p  pHugePageTlb2->pageVa is %p\n",count, pHugePageTlb->pageVa, pHugePageTlb1->pageVa, pHugePageTlb2->pageVa);
-    PLIB_INFO("WLS_Alloc [%d] bytes\n", size);
+    PLIB_INFO("WLS_Alloc Size Requested [%ld] bytes HugePageSize [0x%08lx] nHugePagesMapped[%d]\n", size, hugePageSize, nHugePage);
 
     pWls_us->HugePageSize = (uint32_t) hugePageSize;
     pWls_us->alloc_buffer = pvirtAddr;
-    pWls_us->alloc_size = (uint32_t) (nHugePage * hugePageSize);
+    pWls_us->nHugePage    = nHugePage;
 
     if ((pWls_us->mode == WLS_MASTER_CLIENT)||(pWls_us->secmode == WLS_SEC_MASTER)) {
         wls_us_ctx_t *pWls_usRem = (wls_us_ctx_t*) pWls_us->dst_user_va;
@@ -804,11 +836,11 @@ void* WLS_Alloc(void* h, unsigned int size)
 
 int WLS_Free(void* h, PVOID pMsg)
 {
-    static const struct rte_memzone *mng_memzone;
     wls_us_ctx_t* pWls_us = (wls_us_ctx_t*) h;
     wls_drv_ctx_t *pDrv_ctx;
+    struct rte_memzone *mng_memzone;
 
-    mng_memzone = rte_memzone_lookup(pWls_us->wls_dev_name);
+    mng_memzone = (struct rte_memzone *)rte_memzone_lookup(pWls_us->wls_dev_name);
     if (mng_memzone == NULL) {
         PLIB_ERR("Cannot find mng memzone: %s %s\n",
                     pWls_us->wls_dev_name, rte_strerror(rte_errno));
@@ -828,8 +860,7 @@ int WLS_Free(void* h, PVOID pMsg)
     }
 
     PLIB_DEBUG("WLS_Free %s\n", shm_name);
-    if ( (1 == pDrv_ctx->nWlsClients) && hp_memzone)
-        hp_memzone = NULL;
+
     return 0;
 }
 
@@ -1143,7 +1174,7 @@ unsigned long long WLS_VA2PA(void* h, PVOID pMsg)
         return (uint64_t) ret;
     }
 
-    alloc_base = (unsigned long) pWls_us->alloc_buffer;
+    alloc_base = (uint64_t) pWls_us->alloc_buffer & ~HugePageMask;
 
     pHugePageTlb = &pWls_us->hugepageTbl[0];
 
@@ -1154,7 +1185,16 @@ unsigned long long WLS_VA2PA(void* h, PVOID pMsg)
     PLIB_DEBUG("WLS_VA2PA %lx base %llx off %llx  count %u\n", (unsigned long) pMsg,
             (uint64_t) hugePageBase, (uint64_t) hugePageOffet, count);
 
+    if (count < MAX_N_HUGE_PAGES)
+    {
+
     ret = pHugePageTlb[count].pagePa + hugePageOffet;
+    }
+    else
+    {
+        PLIB_ERR("WLS_VA2PA: Out of range [%p]\n", pMsg);
+        return 0;
+    }
 
     //printf("       WLS_VA2PA: %p -> %p   HugePageSize[%d] HugePageMask[%p] count[%d] pagePa[%p] hugePageBase[%p] alloc_buffer[%p] hugePageOffet[%lld]\n",
     //    pMsg, (void*)ret, pWls_us->HugePageSize, (void*)HugePageMask, count, (void*)pHugePageTlb[count].pagePa, (void*)hugePageBase, pWls_us->alloc_buffer, hugePageOffet);
@@ -1170,7 +1210,7 @@ void* WLS_PA2VA(void* h, unsigned long long pMsg)
     hugepage_tabl_t* pHugePageTlb;
     uint64_t hugePageBase;
     uint64_t hugePageOffet;
-    unsigned int count;
+    unsigned int nHugePage;
     int i;
     uint64_t HugePageMask = ((uint64_t) pWls_us->HugePageSize - 1);
 
@@ -1184,12 +1224,12 @@ void* WLS_PA2VA(void* h, unsigned long long pMsg)
     hugePageBase = (uint64_t) pMsg & ~HugePageMask;
     hugePageOffet = (uint64_t) pMsg & HugePageMask;
 
-    count = pWls_us->alloc_size / pWls_us->HugePageSize;
+    nHugePage = pWls_us->nHugePage;
 
-    PLIB_DEBUG("WLS_PA2VA %llx base %llx off %llx  count %d\n", (uint64_t) pMsg,
-            (uint64_t) hugePageBase, (uint64_t) hugePageOffet, count);
+    PLIB_DEBUG("WLS_PA2VA %llx base %llx off %llx  nHugePage %d\n", (uint64_t) pMsg,
+            (uint64_t) hugePageBase, (uint64_t) hugePageOffet, nHugePage);
 
-    for (i = 0; i < count; i++) {
+    for (i = 0; i < nHugePage; i++) {
         if (pHugePageTlb[i].pagePa == hugePageBase) {
             ret = (unsigned long) pHugePageTlb[i].pageVa;
             ret += hugePageOffet;
@@ -1197,8 +1237,9 @@ void* WLS_PA2VA(void* h, unsigned long long pMsg)
         }
     }
 
-    //printf("       WLS_VA2PA: %p -> %p   HugePageSize[%d] HugePageMask[%p] count[%d] pagePa[%p] hugePageBase[%p] alloc_buffer[%p] hugePageOffet[%lld]\n",
-    //    (void*)pMsg, (void*)ret, pWls_us->HugePageSize, (void*)HugePageMask, count, (void*)pHugePageTlb[count].pagePa, (void*)hugePageBase, pWls_us->alloc_buffer, hugePageOffet);
+    //printf("       WLS_VA2PA: %p -> %p   HugePageSize[%d] HugePageMask[%p] nHugePage[%d] pagePa[%p] hugePageBase[%p] alloc_buffer[%p] hugePageOffet[%lld]\n",
+    //    (void*)pMsg, (void*)ret, pWls_us->HugePageSize, (void*)HugePageMask, nHugePage, (void*)pHugePageTlb[nHugePage].pagePa, (void*)hugePageBase, pWls_us->alloc_buffer, hugePageOffet);
+    PLIB_ERR("WLS_PA2VA: Out of range [%p]\n", (void*)pMsg);
 
     return (void*) (ret);
 }

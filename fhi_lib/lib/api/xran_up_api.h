@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -80,17 +80,18 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
     uint8_t *subframe_id,
     uint8_t *slot_id,
     uint8_t *symb_id,
-    struct ecpri_seq_id *seq_id,
+    union ecpri_seq_id *seq_id,
     uint16_t *num_prbu,
     uint16_t *start_prbu,
     uint16_t *sym_inc,
     uint16_t *rb,
     uint16_t *sect_id,
     int8_t   expect_comp,
+    enum xran_comp_hdr_type staticComp,
     uint8_t *compMeth,
     uint8_t *iqWidth);
 
-int xran_prepare_iq_symbol_portion(
+inline int xran_prepare_iq_symbol_portion(
                         struct rte_mbuf *mbuf,
                         const void *iq_data_start,
                         const enum xran_input_byte_order iq_buf_byte_order,
@@ -99,6 +100,7 @@ int xran_prepare_iq_symbol_portion(
                         uint8_t CC_ID,
                         uint8_t Ant_ID,
                         uint8_t seq_id,
+                        enum xran_comp_hdr_type staticEn,
                         uint32_t do_copy);
 
 #ifdef __cplusplus

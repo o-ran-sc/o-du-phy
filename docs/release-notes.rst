@@ -1,4 +1,4 @@
-..    Copyright (c) 2019 Intel
+..    Copyright (c) 2019-2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -18,6 +18,14 @@
    
 O-DU Low Project Release Notes
 ==========================================
+
+O-DU Low oran_e_maintenance_release_v1.0, Mar 2022
+--------------------------------------------------
+
+* Enhanced features for MMIMO, URLLC and additional bandwidth use cases.
+* Enhanced test coverage by multiple new test cases added to the release.
+* Bug fixes per O-RAN 2021 Plugest integration with multiple equipment vendors.
+* Refer to the individual components release notes for additional information.
 
 O-DU Low Bronze Release V 1.1, Aug 2020
 -----------------------------------------

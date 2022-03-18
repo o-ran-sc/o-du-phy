@@ -44,6 +44,7 @@
  *
 **/
 uint8_t nr5g_fapi_tx_data_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_tx_data_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg)
@@ -51,7 +52,6 @@ uint8_t nr5g_fapi_tx_data_request(
     PTXRequestStruct p_ia_tx_req;
     PMAC2PHY_QUEUE_EL p_list_elem;
     nr5g_fapi_stats_t *p_stats;
-    UNUSED(p_fapi_vendor_msg);
 
     if (NULL == p_phy_instance) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[TX_Data.request] Invalid " "phy instance"));
@@ -74,14 +74,14 @@ uint8_t nr5g_fapi_tx_data_request(
     }
 
     p_ia_tx_req = (PTXRequestStruct) (p_list_elem + 1);
-    nr5g_fapi_tx_data_req_to_phy_translation(p_phy_instance, p_fapi_req,
-        p_ia_tx_req);
-    nr5g_fapi_fapi2phy_add_to_api_list(p_list_elem);
+    nr5g_fapi_tx_data_req_to_phy_translation(p_phy_instance, p_fapi_req, p_fapi_vendor_msg, p_ia_tx_req);
+    nr5g_fapi_fapi2phy_add_to_api_list(is_urllc, p_list_elem);
 
     p_stats->iapi_stats.iapi_tx_req++;
-    NR5G_FAPI_LOG(DEBUG_LOG, ("[TX_Data.request][%d][%d,%d]",
-            p_phy_instance->phy_id, p_ia_tx_req->sSFN_Slot.nSFN,
-            p_ia_tx_req->sSFN_Slot.nSlot));
+    NR5G_FAPI_LOG(DEBUG_LOG, ("[TX_Data.request][%u][%u,%u,%u] is_urllc %u",
+        p_phy_instance->phy_id,
+        p_ia_tx_req->sSFN_Slot.nSFN, p_ia_tx_req->sSFN_Slot.nSlot,
+        p_ia_tx_req->sSFN_Slot.nSym, is_urllc));
 
     return SUCCESS;
 }
@@ -101,6 +101,7 @@ uint8_t nr5g_fapi_tx_data_request(
 uint8_t nr5g_fapi_tx_data_req_to_phy_translation(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_tx_data_req_t * p_fapi_req,
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
     PTXRequestStruct p_phy_req)
 {
 #define GATHER_SIZE 3
@@ -125,6 +126,12 @@ uint8_t nr5g_fapi_tx_data_req_to_phy_translation(
     p_phy_req->sSFN_Slot.nCarrierIdx = p_phy_instance->phy_id;
     p_phy_req->sSFN_Slot.nSFN = p_fapi_req->sfn;
     p_phy_req->sSFN_Slot.nSlot = p_fapi_req->slot;
+
+    if (NULL != p_fapi_vendor_msg) {
+        nr5g_fapi_tx_data_req_to_phy_translation_vendor_ext(p_fapi_vendor_msg,
+                                                            p_phy_req);
+    }
+
     p_phy_req->nPDU = p_fapi_req->num_pdus;
     p_phy_pdu = (PDLPDUDataStruct) (p_phy_req + 1);
 
@@ -192,4 +199,23 @@ uint8_t nr5g_fapi_tx_data_req_to_phy_translation(
         p_phy_pdu++;
     }
     return SUCCESS;
+}
+
+ /** @ingroup group_source_api_p7_fapi2phy_proc
+ *
+ *  @param[in]  p_fapi_vendor_msg Pointer to FAPI TX_Data.request structure.
+ *  @param[in]  p_ia_tx_req       Pointer to IAPI TX_Data.request structure.
+ *  
+ *  @return     no return.
+ *
+ *  @description
+ *  This function fills fields for TX.Data structure that come from
+ *  a vendor extension.
+ *
+**/
+void nr5g_fapi_tx_data_req_to_phy_translation_vendor_ext(
+    fapi_vendor_msg_t * p_fapi_vendor_msg,
+    PTXRequestStruct p_phy_req)
+{
+    p_phy_req->sSFN_Slot.nSym = p_fapi_vendor_msg->p7_req_vendor.tx_data_req.sym;
 }

@@ -21,11 +21,7 @@
 ulimit -c unlimited
 echo 1 > /proc/sys/kernel/core_uses_pid
 
-
-#40G
-#./build/sample-app ./usecase/mu3_100mhz/config_file_o_du.dat  0000:d8:02.0 0000:d8:02.1
-
-#25G
-
-./build/sample-app -c ./usecase/cat_b/mu1_100mhz/101/config_file_o_ru.dat -p 2  0000:21:0a.0  0000:21:0a.1
-#./build/sample-app ./usecase/mu1_100mhz/config_file_o_ru.dat  0000:18:0a.0  0000:18:0a.1
+./build/sample-app --usecasefile ./usecase/cat_b/mu1_100mhz/3301/usecase_ru.cfg --num_eth_vfs 6 \
+--vf_addr_o_xu_a "0000:17:01.0,0000:17:09.0" \
+--vf_addr_o_xu_b "0000:17:11.0,0000:17:19.0" \
+--vf_addr_o_xu_c "0000:65:01.0,0000:65:09.0"

@@ -1,4 +1,4 @@
-..    Copyright (c) 2020 Intel
+..    Copyright (c) 2020-2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -120,12 +120,12 @@ Table 2. Reference Documents
 | Document                            | Document                      |
 |                                     | No./Location                  |
 +-------------------------------------+-------------------------------+
-| 1) FlexRAN 5G New Radio Reference   | CDI 603575   Intel Corp.      |
-|    Solution L1-L2 API Specification |                               |
-|    July 2019                        |                               |
+|| 1) FlexRAN 5G New Radio Reference  | CDI 603575   Intel Corp.      |
+||    Solution L1-L2 API Specification|                               |
+||    Rev 10.00 March 2021            |                               |
 +-------------------------------------+-------------------------------+
-| 2) 5G FAPI:PHY API Specification,   | 222.10.02/ smallcellforum.org |
-|    Version 1.0.5, March 2020        |                               |
+|| 2) 5G FAPI:PHY API Specification,  | 222.10.02/ smallcellforum.org |
+||   Version 2.0.0, March 2020        |                               |
 +-------------------------------------+-------------------------------+
 
 

@@ -29,10 +29,12 @@
 #include "gnb_l1_l2_api.h"
 
 uint8_t nr5g_fapi_message_header(
-    p_nr5g_fapi_phy_ctx_t p_phy_ctx);
+    p_nr5g_fapi_phy_ctx_t p_phy_ctx,
+    bool is_urllc);
 
 uint8_t nr5g_fapi_message_header_per_phy(
-    uint8_t phy_id);
+    uint8_t phy_id,
+    bool is_urllc);
 
 uint8_t nr5g_fapi_config_response(
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,

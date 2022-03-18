@@ -57,9 +57,9 @@ void *nr5g_fapi_phy2mac_thread_func(
     while (!p_phy_ctx->process_exit) {
         p_msg_list = nr5g_fapi_fapi2phy_wls_recv();
         if (p_msg_list)
-            nr5g_fapi_phy2mac_api_recv_handler(config, p_msg_list);
+            nr5g_fapi_phy2mac_api_recv_handler(false, config, p_msg_list);
 
-        nr5g_fapi_fapi2mac_send_api_list();
+        nr5g_fapi_fapi2mac_send_api_list(false);
     }
     pthread_exit(NULL);
 }
@@ -77,16 +77,18 @@ void *nr5g_fapi_phy2mac_thread_func(
 **/
 //------------------------------------------------------------------------------
 void nr5g_fapi_phy2mac_api_recv_handler(
+    bool is_urllc,
     void *config,
     PMAC2PHY_QUEUE_EL p_msg_list)
 {
     PMAC2PHY_QUEUE_EL p_curr_msg;
     PL1L2MessageHdr p_msg_header = NULL;
     uint64_t start_tick = __rdtsc();
-
+    fapi_api_stored_vendor_queue_elems vendor_extension_elems;
     NR5G_FAPI_LOG(TRACE_LOG, ("[PHY2MAC] %s:", __func__));
 
-    nr5g_fapi_message_header((p_nr5g_fapi_phy_ctx_t) config);
+    memset(&vendor_extension_elems, 0, sizeof(vendor_extension_elems));
+    nr5g_fapi_message_header((p_nr5g_fapi_phy_ctx_t) config, is_urllc);
 
     p_curr_msg = (PMAC2PHY_QUEUE_EL) p_msg_list;
     while (p_curr_msg) {
@@ -140,48 +142,61 @@ void nr5g_fapi_phy2mac_api_recv_handler(
                 /*  P7 Message Processing */
             case MSG_TYPE_PHY_RX_ULSCH_IND:
                 {
-                    nr5g_fapi_rx_data_indication((p_nr5g_fapi_phy_ctx_t) config,
+                    nr5g_fapi_rx_data_indication(is_urllc,
+                        (p_nr5g_fapi_phy_ctx_t) config,
+                        &vendor_extension_elems,
                         (PRXULSCHIndicationStruct) p_msg_header);
                 }
                 break;
 
             case MSG_TYPE_PHY_RX_ULSCH_UCI_IND:
                 {
-                    //Not Supported
+                    nr5g_fapi_rx_data_uci_indication(is_urllc,
+                        (p_nr5g_fapi_phy_ctx_t) config,
+                        (PRXULSCHUCIIndicationStruct) p_msg_header);
                 }
                 break;
 
             case MSG_TYPE_PHY_CRC_IND:
                 {
-                    nr5g_fapi_crc_indication((p_nr5g_fapi_phy_ctx_t) config,
+                    nr5g_fapi_crc_indication(is_urllc,
+                        (p_nr5g_fapi_phy_ctx_t) config,
+                        &vendor_extension_elems,
                         (PCRCIndicationStruct) p_msg_header);
                 }
                 break;
 
             case MSG_TYPE_PHY_UCI_IND:
                 {
-                    nr5g_fapi_uci_indication((p_nr5g_fapi_phy_ctx_t) config,
+                    nr5g_fapi_uci_indication(is_urllc,
+                        (p_nr5g_fapi_phy_ctx_t) config,
+                        &vendor_extension_elems,
                         (PRXUCIIndicationStruct) p_msg_header);
                 }
                 break;
 
             case MSG_TYPE_PHY_RX_RACH_IND:
                 {
-                    nr5g_fapi_rach_indication((p_nr5g_fapi_phy_ctx_t) config,
+                    nr5g_fapi_rach_indication(is_urllc,
+                        (p_nr5g_fapi_phy_ctx_t) config,
                         (PRXRACHIndicationStruct) p_msg_header);
                 }
                 break;
 
             case MSG_TYPE_PHY_RX_SRS_IND:
                 {
-                    nr5g_fapi_srs_indication((p_nr5g_fapi_phy_ctx_t) config,
+                    nr5g_fapi_srs_indication(is_urllc,
+                        (p_nr5g_fapi_phy_ctx_t) config,
+                        &vendor_extension_elems,
                         (PRXSRSIndicationStruct) p_msg_header);
                 }
                 break;
 
             case MSG_TYPE_PHY_SLOT_IND:
                 {
-                    nr5g_fapi_slot_indication((p_nr5g_fapi_phy_ctx_t) config,
+                    nr5g_fapi_slot_indication(is_urllc,
+                        (p_nr5g_fapi_phy_ctx_t) config,
+                        &vendor_extension_elems,
                         (PSlotIndicationStruct) p_msg_header);
                     nr5g_fapi_statistic_info_set_all();
                 }
@@ -193,12 +208,14 @@ void nr5g_fapi_phy2mac_api_recv_handler(
                 break;
 
             default:
-                printf("%s: Unknown Message type: %x\n", __func__,
-                    p_msg_header->nMessageType);
+                NR5G_FAPI_LOG(ERROR_LOG, ("[PHY2MAC THREAD] Received Unknown Message: [nMessageType = 0x%x]",
+                    p_msg_header->nMessageType));
                 break;
         }
         p_curr_msg = p_curr_msg->pNext;
     }
+    nr5g_fapi_proc_vendor_p7_msgs_move_to_api_list(is_urllc, &vendor_extension_elems);
+
     tick_total_parse_per_tti_ul += __rdtsc() - start_tick;
 
 }

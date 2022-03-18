@@ -1,6 +1,6 @@
 #/******************************************************************************
 #*
-#*   Copyright (c) 2019 Intel.
+#*   Copyright (c) 2020 Intel.
 #*
 #*   Licensed under the Apache License, Version 2.0 (the "License");
 #*   you may not use this file except in compliance with the License.
@@ -56,8 +56,8 @@ ifeq ($(RTE_SDK),)
 endif
 
 RTE_TARGET ?= x86_64-native-linux-icc
-RTE_INC := $(RTE_SDK)/$(RTE_TARGET)/include
 
+RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
 API_DIR := $(PROJECT_DIR)/api
 SRC_DIR := $(PROJECT_DIR)/src
 ETH_DIR := $(PROJECT_DIR)/ethernet
@@ -79,14 +79,31 @@ CC_SRC = $(ETH_DIR)/ethdi.c \
 	$(SRC_DIR)/xran_ul_tables.c     \
 	$(SRC_DIR)/xran_frame_struct.c  \
 	$(SRC_DIR)/xran_app_frag.c \
-	$(SRC_DIR)/xran_main.c
+	$(SRC_DIR)/xran_dev.c \
+	$(SRC_DIR)/xran_rx_proc.c \
+	$(SRC_DIR)/xran_tx_proc.c \
+	$(SRC_DIR)/xran_cp_proc.c \
+	$(SRC_DIR)/xran_cb_proc.c \
+	$(SRC_DIR)/xran_mem_mgr.c \
+	$(SRC_DIR)/xran_main.c \
+	$(SRC_DIR)/xran_delay_measurement.c
 
 CPP_SRC = $(SRC_DIR)/xran_compression.cpp \
 	$(SRC_DIR)/xran_bfp_ref.cpp \
 	$(SRC_DIR)/xran_bfp_cplane8.cpp \
 	$(SRC_DIR)/xran_bfp_cplane16.cpp \
 	$(SRC_DIR)/xran_bfp_cplane32.cpp \
-	$(SRC_DIR)/xran_bfp_cplane64.cpp
+	$(SRC_DIR)/xran_bfp_cplane64.cpp \
+	$(SRC_DIR)/xran_bfp_uplane_9b16rb.cpp \
+	$(SRC_DIR)/xran_bfp_uplane.cpp \
+	$(SRC_DIR)/xran_mod_compression.cpp
+
+CPP_SRC_SNC = $(SRC_DIR)/xran_compression_snc.cpp \
+	$(SRC_DIR)/xran_bfp_cplane8_snc.cpp \
+	$(SRC_DIR)/xran_bfp_cplane16_snc.cpp \
+	$(SRC_DIR)/xran_bfp_cplane32_snc.cpp \
+	$(SRC_DIR)/xran_bfp_cplane64_snc.cpp \
+	$(SRC_DIR)/xran_bfp_uplane_snc.cpp
 
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
@@ -95,12 +112,12 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
         -fPIC \
 	-Wall \
 	-Wimplicit-function-declaration \
-	-g -O3 -wd1786
+	-g -O3 -wd1786 -mcmodel=large
 
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
                 -no-prec-div -fp-model fast=2 -fPIC \
                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
-        -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
+        -Werror -Wno-unused-variable -std=c++14 -mcmodel=large
 
 INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
 DEF :=
@@ -111,7 +128,9 @@ else
 	DEF += -UMLOG_ENABLED
 endif
 
+
 #DEF += -DFCN_ADAPT
+#DEF += -DFCN_1_2_6_EARLIER
 
 AS_FLAGS :=
 AR_FLAGS := rc
@@ -120,17 +139,22 @@ PROJECT_OBJ_DIR := build/obj
 
 CC_OBJS := $(patsubst %.c,%.o,$(CC_SRC))
 CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
+CPP_OBJS_SNC := $(patsubst %.cpp,%.o,$(CPP_SRC_SNC))
 AS_OBJS := $(patsubst %.s,%.o,$(AS_SRC))
-OBJS    := $(CC_OBJS) $(CPP_OBJS) $(AS_OBJS) $(LIBS)
+OBJS    := $(CC_OBJS) $(CPP_OBJS) $(CPP_OBJS_SNC) $(AS_OBJS) $(LIBS)
 DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS))))
 
 CC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CC_OBJS))
 CPP_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS))
+CPP_SNC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS_SNC))
 
 AS_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(AS_OBJS))
-CPP_COMP       := -O3 -xcore-avx512 -restrict -g -fasm-blocks
+#-qopt-report=5 -qopt-matmul -qopt-report-phase=all
+CPP_COMP       := -O3 -DNDEBUG  -xcore-avx512 -fPIE -restrict -fasm-blocks
+CPP_COMP_SNC   := -O3 -DNDEBUG -march=icelake-server -fPIE -restrict -fasm-blocks
 CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
 CPP_FLAGS_FULL := $(CPP_FLAGS) $(CPP_COMP) $(INC) $(DEF)
+CPP_FLAGS_FULL_SNC := $(CPP_FLAGS) $(CPP_COMP_SNC) $(INC) $(DEF)
 
 AS_FLAGS := $(AS_FLAGS) $(INC)
 
@@ -142,6 +166,7 @@ else
 
 CC_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CC_SRC)))
 CPP_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CPP_SRC)))
+CPP_SNC_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CPP_SRC_SNC)))
 GENERATE_DEPS := generate_deps
 endif
 
@@ -159,8 +184,11 @@ $(CC_DEPS) :
 $(CPP_DEPS) :
 	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPP_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
 
+$(CPP_SNC_DEPS) :
+	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPP_FLAGS_FULL_SNC) >> $(PROJECT_DEP_FILE)
+
 .PHONY : generate_deps
-generate_deps : clear_dep $(CC_DEPS) $(CPP_DEPS)
+generate_deps : clear_dep $(CC_DEPS) $(CPP_DEPS) $(CPP_SNC_DEPS)
 
 
 .PHONY : echo_start_build
@@ -178,6 +206,10 @@ $(CPP_OBJTARGETS) :
 	@echo [CPP]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(CPP) -c $(CPP_FLAGS_FULL) -o"$@" $(patsubst %.o,%.cpp,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
+$(CPP_SNC_OBJTARGETS) :
+	@echo [CPP-SNC]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
+	@$(CPP) -c $(CPP_FLAGS_FULL_SNC) -o"$@" $(patsubst %.o,%.cpp,$(subst $(PROJECT_OBJ_DIR)/,,$@))
+
 $(AS_OBJTARGETS) :
 	@echo [AS]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(AS) $(AS_FLAGS) -o"$@" $(patsubst %.o,%.s,$(subst $(PROJECT_OBJ_DIR)/,,$@))
@@ -191,7 +223,7 @@ endif
 .PHONY: clean xclean
 clean:
 	@echo [CLEAN]  : $(PROJECT_NAME)
-	@$(RM) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+	@$(RM) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(CPP_SNC_OBJTARGETS) $(AS_OBJTARGETS)
 
 xclean: clean
 ifneq ($(wildcard $(PROJECT_DIR)/$(PROJECT_MAKE)),)
@@ -211,10 +243,11 @@ welcome_line :
 
 debug :  all
 release :  all
-$(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+
+$(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(CPP_SNC_OBJTARGETS) $(AS_OBJTARGETS)
 	@echo [AR]    $(subst $(BUILDDIR)/,,$@)
 ifeq ($(XRAN_LIB_SO),)
-	@$(AR) $(AR_FLAGS) $@ $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+	@$(AR) $(AR_FLAGS) $@ $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(CPP_SNC_OBJTARGETS) $(AS_OBJTARGETS)
 else
-	@$(CC) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS) -shared -fPIC -o $@
+	@$(CC) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(CPP_SNC_OBJTARGETS) $(AS_OBJTARGETS) -shared -fPIC -o $@
 endif

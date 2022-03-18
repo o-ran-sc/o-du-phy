@@ -39,6 +39,7 @@
  *
 **/
 uint8_t nr5g_fapi_rach_indication(
+    bool is_urllc,
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,
     PRXRACHIndicationStruct p_phy_rach_ind)
 {
@@ -84,19 +85,20 @@ uint8_t nr5g_fapi_rach_indication(
     p_fapi_rach_ind->header.msg_id = FAPI_RACH_INDICATION;
     p_fapi_rach_ind->header.length = (uint16_t) sizeof(fapi_rach_indication_t);
 
-    if (nr5g_fapi_rach_indication_to_fapi_translation(p_phy_instance,
+    if (nr5g_fapi_rach_indication_to_fapi_translation(is_urllc, p_phy_instance,
             p_phy_rach_ind, p_fapi_rach_ind)) {
         NR5G_FAPI_LOG(ERROR_LOG,
             ("[RACH.indication] L1 to FAPI " "translation failed"));
         return FAILURE;
     }
 
-    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
 
     p_stats->fapi_stats.fapi_rach_ind++;
-    NR5G_FAPI_LOG(DEBUG_LOG, ("[RACH.indication][%d][%d,%d]",
+    NR5G_FAPI_LOG(DEBUG_LOG, ("[RACH.indication][%u][%u,%u,%u] is_urllc %u",
             p_phy_instance->phy_id,
-            p_phy_rach_ind->sSFN_Slot.nSFN, p_phy_rach_ind->sSFN_Slot.nSlot));
+            p_phy_rach_ind->sSFN_Slot.nSFN, p_phy_rach_ind->sSFN_Slot.nSlot,
+            p_phy_rach_ind->sSFN_Slot.nSym, is_urllc));
 
     return SUCCESS;
 }
@@ -154,15 +156,16 @@ uint8_t nr5g_fapi_start_slot_freq_idx_occ(
  *
 **/
 uint8_t nr5g_fapi_rach_indication_to_fapi_translation(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     PRXRACHIndicationStruct p_phy_rach_ind,
     fapi_rach_indication_t * p_fapi_rach_ind)
 {
     uint8_t num_preamble, num_pdus = 0, i;
-    uint8_t slot_no, preamble_no;
+    uint8_t symbol_no, preamble_no;
     uint8_t slot_freq_idx_entry;
     uint8_t slot_index, freq_index, symbol_index;
-    uint16_t frame_no;
+    uint16_t slot_no, frame_no;
 
     fapi_rach_pdu_t *p_fapi_rach_pdu;
     fapi_rach_pdu_t *p_fapi_rach_pdu_match;
@@ -175,9 +178,10 @@ uint8_t nr5g_fapi_rach_indication_to_fapi_translation(
 
     frame_no = p_fapi_rach_ind->sfn = p_phy_rach_ind->sSFN_Slot.nSFN;
     slot_no = p_fapi_rach_ind->slot = p_phy_rach_ind->sSFN_Slot.nSlot;
+    symbol_no = p_phy_rach_ind->sSFN_Slot.nSym;
 
     p_ul_slot_info =
-        nr5g_fapi_get_ul_slot_info(frame_no, slot_no, p_phy_instance);
+        nr5g_fapi_get_ul_slot_info(is_urllc, frame_no, slot_no, symbol_no, p_phy_instance);
 
     if (p_ul_slot_info == NULL) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[RACH.indication] No Valid data available "

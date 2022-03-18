@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -45,7 +45,8 @@
 
 #ifdef _DEBUG_
 #define WLS_DEBUG(format, args...)            \
-do {                                          \
+do                                                  \
+{                                                   \
     printk(KERN_INFO "wls debug: " format,##args); \
 }while(0)
 #else /*_DEBUG_*/
@@ -99,7 +100,17 @@ enum {
 };
 
 
-#define WLS_US_CLIENTS_MAX 64
+#define WLS_RUP512B(x) (((x)+511)&(~511))
+#define WLS_RUP256B(x) (((x)+255)&(~255))
+#define WLS_RUP128B(x) (((x)+127)&(~127))
+#define WLS_RUP64B(x) (((x)+63)&(~63))
+#define WLS_RUP32B(x) (((x)+31)&(~31))
+#define WLS_RUP16B(x) (((x)+15)&(~15))
+#define WLS_RUP8B(x)  (((x)+7)&(~7))
+#define WLS_RUP4B(x)  (((x)+3)&(~3))
+#define WLS_RUP2B(x)  (((x)+1)&(~1))
+
+#define WLS_US_CLIENTS_MAX 4
 
 #define CACHE_LINE_SIZE 64                  /**< Cache line size. */
 #define CACHE_LINE_MASK (CACHE_LINE_SIZE-1) /**< Cache line mask. */
@@ -126,23 +137,20 @@ enum {
 
 typedef struct hugepage_tabl_s
 {
-    union {
-        void     *pageVa;
-        uint64_t padding_pageVa;
-    };
+    uint64_t pageVa;
     uint64_t pagePa;
 }hugepage_tabl_t;
 
 #define DMA_MAP_MAX_BLOCK_SIZE 64*1024
-#define MAX_N_HUGE_PAGES 512
-#define UL_FREE_BLOCK_QUEUE_SIZE  384
+#define MAX_N_HUGE_PAGES            32
+#define UL_FREE_BLOCK_QUEUE_SIZE    1200
 
-#define WLS_GET_QUEUE_N_ELEMENTS  384
-#define WLS_PUT_QUEUE_N_ELEMENTS  384
+#define WLS_GET_QUEUE_N_ELEMENTS    1024
+#define WLS_PUT_QUEUE_N_ELEMENTS    1024
 
 #define WLS_DEV_SHM_NAME_LEN      RTE_MEMZONE_NAMESIZE
 
-#define FIFO_LEN 384
+#define FIFO_LEN 1024
 
 typedef struct wls_wait_req_s {
     uint64_t wls_us_kernel_va;
@@ -211,7 +219,7 @@ typedef struct wls_us_ctx_s
     // dst userspace context address (local user sapce va)
     volatile uint64_t    dst_pa;
 
-    uint32_t  alloc_size;
+    uint32_t nHugePage;
     wls_us_priv_t wls_us_private;
     uint32_t  mode;
     uint32_t  secmode;
@@ -239,6 +247,8 @@ typedef struct wls_drv_ctx_s
     wls_us_ctx_t        p_wls_us_ctx[WLS_US_CLIENTS_MAX];
     wls_us_ctx_t        p_wls_us_pa_ctx[WLS_US_CLIENTS_MAX];
     uint32_t            nWlsClients;
+    uint32_t            nMacBufferSize;
+    uint32_t            nPhyBufferSize;
     pthread_mutex_t mng_mutex;
 }wls_drv_ctx_t;
 
@@ -278,12 +288,7 @@ typedef struct wls_wake_up_req_s {
 }wls_wake_up_req_t;
 
 
-#define SYS_CPU_CLOCK              (2300000000L)
-#define CLOCK_PER_MS               (SYS_CPU_CLOCK/1000)
-#define CLOCK_PER_US               (SYS_CPU_CLOCK/1000000)
-
-static inline uint64_t
-wls_rdtsc(void)
+static inline uint64_t wls_rdtsc(void)
 {
     union {
         uint64_t tsc_64;
@@ -298,18 +303,6 @@ wls_rdtsc(void)
              "=d" (tsc.hi_32));
     return tsc.tsc_64;
 }
-
-static inline uint64_t rdtsc_ticks_diff(unsigned long curr, unsigned long prev)
-{
-    if (curr >= prev)
-        return (unsigned long)(curr - prev);
-    else
-        return (unsigned long)(0xFFFFFFFFFFFFFFFF - prev + curr);
-}
-
-void  wls_show_data(void* ptr, unsigned int size);
-void *wls_get_sh_ctx(void);
-void *wls_get_sh_ctx_pa(void);
 
 #endif /* __WLS_H__*/
 

@@ -21,7 +21,7 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 #include <time.h>
-
+#include <immintrin.h>
 #include "common.h"
 #include "xran_fh_o_du.h"
 #include "xran_pkt.h"
@@ -32,70 +32,7 @@
 #include "xran_mlog_lnx.h"
 
 extern enum app_state state;
-
-int iq_playback_buffer_size_dl = IQ_PLAYBACK_BUFFER_BYTES;
-int iq_playback_buffer_size_ul = IQ_PLAYBACK_BUFFER_BYTES;
-
-int iq_bfw_buffer_size_dl = IQ_PLAYBACK_BUFFER_BYTES;
-int iq_bfw_buffer_size_ul = IQ_PLAYBACK_BUFFER_BYTES;
-
-int iq_srs_buffer_size_ul = IQ_PLAYBACK_BUFFER_BYTES;
-
-uint8_t numCCPorts = 1;
-/* Number of antennas supported by front-end */
-
-uint8_t num_eAxc = 4;
-/* Number of CPRI ports supported by front-end */
-
-int16_t *p_tx_play_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t tx_play_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-int32_t tx_play_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
-
-int16_t *p_tx_prach_play_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t tx_prach_play_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-int32_t tx_prach_play_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
-
-int16_t *p_tx_srs_play_buffer[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-int32_t tx_srs_play_buffer_size[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-int32_t tx_srs_play_buffer_position[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-
-int16_t *p_rx_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t rx_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-int32_t rx_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
-
-int16_t *p_prach_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t prach_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-int32_t prach_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
-
-int16_t *p_srs_log_buffer[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-int32_t srs_log_buffer_size[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-int32_t srs_log_buffer_position[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR];
-
-int16_t *p_tx_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t tx_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-
-int16_t *p_rx_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t rx_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-
-/* beamforming weights for UL (O-DU) */
-int16_t *p_tx_dl_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t tx_dl_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-int32_t tx_dl_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
-
-/* beamforming weights for UL (O-DU) */
-int16_t *p_tx_ul_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t tx_ul_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-int32_t tx_ul_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
-
-/* beamforming weights for UL (O-RU) */
-int16_t *p_rx_dl_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t rx_dl_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-int32_t rx_dl_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
-
-/* beamforming weights for UL (O-RU) */
-int16_t *p_rx_ul_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
-int32_t rx_ul_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-int32_t rx_ul_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+struct o_xu_buffers* p_o_xu_buff[XRAN_PORTS_NUM] = {NULL, NULL, NULL, NULL};
 
 // F1 Tables 38.101-1 Table 5.3.2-1. Maximum transmission bandwidth configuration NRB
 uint16_t nLteNumRbsPerSymF1[1][4] =

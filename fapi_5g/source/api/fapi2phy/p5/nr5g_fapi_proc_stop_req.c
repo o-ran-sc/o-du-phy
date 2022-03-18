@@ -46,6 +46,7 @@
  *
 **/
 uint8_t nr5g_fapi_stop_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_stop_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg)
@@ -88,7 +89,7 @@ uint8_t nr5g_fapi_stop_request(
     p_stop_req->sSFN_Slot.nCarrierIdx = p_phy_instance->phy_id;
 
     /* Add element to send list */
-    nr5g_fapi_fapi2phy_add_to_api_list(p_list_elem);
+    nr5g_fapi_fapi2phy_add_to_api_list(is_urllc, p_list_elem);
 
     p_stats->iapi_stats.iapi_stop_req++;
     NR5G_FAPI_LOG(INFO_LOG, ("[STOP.request][%d]", p_phy_instance->phy_id));

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -42,7 +42,7 @@ extern "C"
 void tx_cp_dl_cb(struct rte_timer *tim, void *arg);
 void tx_cp_ul_cb(struct rte_timer *tim, void *arg);
 int xran_process_tx_sym(void *arg);
-int process_mbuf(struct rte_mbuf *pkt);
+int process_mbuf(struct rte_mbuf *pkt, void *arg, struct xran_eaxc_info *p_cid);
 
 
 /* wrapper functions for performace tests */
@@ -86,12 +86,14 @@ void xran_ut_rx_up_ul()
 int send_mbuf_up(struct rte_mbuf *mbuf, uint16_t type, uint16_t vf_id)
 {
     rte_pktmbuf_free(mbuf);
+
     return (1);
 }
 
 int send_mbuf_cp_perf(struct rte_mbuf *mbuf, uint16_t type, uint16_t vf_id)
 {
     rte_pktmbuf_free(mbuf);
+    /*  TODO: need to free chained mbufs */
     return (1);
 }
 
@@ -230,8 +232,8 @@ protected:
 /* C-Plane DL chain (tx_cp_dl_cb) only */
 TEST_P(TestChain, CPlaneDLPerf)
 {
-    xranlib->Init(&m_xranConf);
-    xranlib->Open(send_mbuf_cp_perf, send_mbuf_up,
+    xranlib->Init(0, &m_xranConf);
+    xranlib->Open(0, send_mbuf_cp_perf, send_mbuf_up,
             (void *)utcp_fh_rx_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
 
     performance("C", module_name, xran_ut_tx_cp_dl);
@@ -243,8 +245,8 @@ TEST_P(TestChain, CPlaneDLPerf)
 /* C-Plane UL chain (tx_cp_ul_cb) only */
 TEST_P(TestChain, CPlaneULPerf)
 {
-    xranlib->Init(&m_xranConf);
-    xranlib->Open(send_mbuf_cp_perf, send_mbuf_up,
+    xranlib->Init(0, &m_xranConf);
+    xranlib->Open(0, send_mbuf_cp_perf, send_mbuf_up,
             (void *)utcp_fh_rx_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
 
     performance("C", module_name, xran_ut_tx_cp_ul);
@@ -258,14 +260,14 @@ TEST_P(TestChain, UPlaneDLPerf)
 {
     bool flag_cpen;
 
-    xranlib->Init(&m_xranConf);
+    xranlib->Init(0, &m_xranConf);
 
     /* save current CP enable flag */
     flag_cpen = xranlib->is_cpenable()?true:false;
 
     /* need to disable CP to make U-Plane work without CP */
     xranlib->apply_cpenable(false);
-    xranlib->Open(send_mbuf_cp_perf, send_mbuf_up,
+    xranlib->Open(0, send_mbuf_cp_perf, send_mbuf_up,
             (void *)utcp_fh_rx_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
 
     performance("C", module_name, xran_ut_tx_up_dl);
@@ -282,14 +284,14 @@ TEST_P(TestChain, APlaneDLPerf)
 {
     bool flag_cpen;
 
-    xranlib->Init(&m_xranConf);
+    xranlib->Init(0, &m_xranConf);
 
     /* save current CP enable flag */
     flag_cpen = xranlib->is_cpenable()?true:false;
 
     /* Enable CP by force to make UP work by CP's section information */
     xranlib->apply_cpenable(true);
-    xranlib->Open(send_mbuf_cp_perf, send_mbuf_up,
+    xranlib->Open(0, send_mbuf_cp_perf, send_mbuf_up,
             (void *)utcp_fh_rx_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
 
     performance("C", module_name, xran_ut_tx_cpup_dl);

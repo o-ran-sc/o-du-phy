@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 
 #include <stdint.h>
 #include <endian.h>
+#include <immintrin.h>
 #include <rte_common.h>
 #include <rte_config.h>
 
@@ -48,7 +49,7 @@
  */
 int xran_get_ecpri_hdr_size(void)
 {
-    return(sizeof(struct xran_ecpri_hdr) - sizeof(struct xran_ecpri_cmn_hdr));
+    return(sizeof(struct xran_ecpri_hdr) - sizeof(union xran_ecpri_cmn_hdr));
 }
 
 /**
@@ -68,6 +69,9 @@ uint16_t xran_compose_cid(uint8_t CU_Port_ID, uint8_t BandSector_ID, uint8_t CC_
   struct xran_eaxcid_config *conf;
 
     conf = xran_get_conf_eAxC(NULL);
+
+    if(conf == NULL)
+      rte_panic("conf == NULL");
 
     cid = ((CU_Port_ID      << conf->bit_cuPortId)      & conf->mask_cuPortId)
         | ((BandSector_ID   << conf->bit_bandSectorId)  & conf->mask_bandSectorId)
@@ -93,6 +97,9 @@ void xran_decompose_cid(uint16_t cid, struct xran_eaxc_info *result)
     conf = xran_get_conf_eAxC(NULL);
     cid = rte_be_to_cpu_16(cid);
 
+    if(conf == NULL)
+      rte_panic("conf == NULL");
+
     result->cuPortId        = (cid&conf->mask_cuPortId)     >> conf->bit_cuPortId;
     result->bandSectorId    = (cid&conf->mask_bandSectorId) >> conf->bit_bandSectorId;
     result->ccId            = (cid&conf->mask_ccId)         >> conf->bit_ccId;
@@ -116,7 +123,7 @@ inline void xran_update_ecpri_payload_size(struct rte_mbuf *mbuf, int size)
 
     ecpri_hdr = rte_pktmbuf_mtod(mbuf, struct xran_ecpri_hdr *);
 
-    ecpri_hdr->cmnhdr.ecpri_payl_size = rte_cpu_to_be_16(size);
+    ecpri_hdr->cmnhdr.bits.ecpri_payl_size = rte_cpu_to_be_16(size);
 }
 
 
@@ -155,19 +162,24 @@ int xran_build_ecpri_hdr(struct rte_mbuf *mbuf,
         }
 
     /* Fill common header */
-    tmp->cmnhdr.ecpri_ver           = XRAN_ECPRI_VER;
-    tmp->cmnhdr.ecpri_resv          = 0;     // should be zero
-    tmp->cmnhdr.ecpri_concat        = 0;
-    tmp->cmnhdr.ecpri_mesg_type     = ECPRI_RT_CONTROL_DATA;
+    /*tmp->cmnhdr.bits.ecpri_ver           = XRAN_ECPRI_VER;
+    //tmp->cmnhdr.bits.ecpri_resv          = 0;     // should be zero
+    //tmp->cmnhdr.bits.ecpri_concat        = 0;
+    //tmp->cmnhdr.bits.ecpri_mesg_type     = ECPRI_RT_CONTROL_DATA;*/
+
+    tmp->cmnhdr.data.data_num_1 = (XRAN_ECPRI_VER << xran_ecpri_cmn_hdr_bitfield_EcpriVer)
+                                | (ECPRI_RT_CONTROL_DATA << xran_ecpri_cmn_hdr_bitfield_EcpriMsgType);
     tmp->ecpri_xtc_id               = xran_compose_cid(0, 0, CC_ID, Ant_ID);
 
     /* TODO: Transport layer fragmentation is not supported */
-    tmp->ecpri_seq_id.seq_id        = seq_id;
-    tmp->ecpri_seq_id.sub_seq_id    = 0;
-    tmp->ecpri_seq_id.e_bit         = 1;
+    //tmp->ecpri_seq_id.bits.seq_id        = seq_id;
+    //tmp->ecpri_seq_id.bits.sub_seq_id    = 0;
+    //tmp->ecpri_seq_id.bits.e_bit         = 1;
+    tmp->ecpri_seq_id.data.data_num_1 = (seq_id << ecpri_seq_id_bitfield_seq_id)
+                                      | (1 << ecpri_seq_id_bitfield_e_bit);
 
     /* Starts with eCPRI header size */
-    payloadlen = xran_get_ecpri_hdr_size();
+    payloadlen = XRAN_ECPRI_HDR_SZ; //xran_get_ecpri_hdr_size();
 
     *ecpri_hdr = tmp;
 
@@ -193,8 +205,7 @@ int xran_parse_ecpri_hdr(struct rte_mbuf *mbuf,
                     struct xran_ecpri_hdr **ecpri_hdr,
                     struct xran_recv_packet_info *pkt_info)
 {
-  int ret;
-
+    int ret = XRAN_STATUS_SUCCESS;
 
     *ecpri_hdr = rte_pktmbuf_mtod(mbuf, void *);
     if(*ecpri_hdr == NULL) {
@@ -202,26 +213,32 @@ int xran_parse_ecpri_hdr(struct rte_mbuf *mbuf,
         return (XRAN_STATUS_INVALID_PACKET);
         }
 
+    if(((*ecpri_hdr)->cmnhdr.bits.ecpri_ver != XRAN_ECPRI_VER) || ((*ecpri_hdr)->cmnhdr.bits.ecpri_resv != 0)){
+        print_err("Invalid eCPRI version - %d", (*ecpri_hdr)->cmnhdr.bits.ecpri_ver);
+        print_err("Invalid reserved field - %d", (*ecpri_hdr)->cmnhdr.bits.ecpri_resv);
+        return (XRAN_STATUS_INVALID_PACKET);
+    }
+
     /* Process eCPRI header */
-    ret = XRAN_STATUS_SUCCESS;
-    if((*ecpri_hdr)->cmnhdr.ecpri_ver != XRAN_ECPRI_VER) {
+    /*if((*ecpri_hdr)->cmnhdr.ecpri_ver != XRAN_ECPRI_VER) {
         print_err("Invalid eCPRI version - %d", (*ecpri_hdr)->cmnhdr.ecpri_ver);
         ret = XRAN_STATUS_INVALID_PACKET;
-        }
-    if((*ecpri_hdr)->cmnhdr.ecpri_resv != 0) {
+        }*/
+    /*if((*ecpri_hdr)->cmnhdr.ecpri_resv != 0) {
         print_err("Invalid reserved field - %d", (*ecpri_hdr)->cmnhdr.ecpri_resv);
         ret = XRAN_STATUS_INVALID_PACKET;
-        }
+        }*/
+
 
     if(pkt_info != NULL) {
         /* store the information from header */
-        pkt_info->ecpri_version = (*ecpri_hdr)->cmnhdr.ecpri_ver;
-        pkt_info->msg_type      = (enum ecpri_msg_type)(*ecpri_hdr)->cmnhdr.ecpri_mesg_type;
-        pkt_info->payload_len   = rte_be_to_cpu_16((*ecpri_hdr)->cmnhdr.ecpri_payl_size);
+        pkt_info->ecpri_version = (*ecpri_hdr)->cmnhdr.bits.ecpri_ver;
+        pkt_info->msg_type      = (enum ecpri_msg_type)(*ecpri_hdr)->cmnhdr.bits.ecpri_mesg_type;
+        pkt_info->payload_len   = rte_be_to_cpu_16((*ecpri_hdr)->cmnhdr.bits.ecpri_payl_size);
 
-        pkt_info->seq_id        = (*ecpri_hdr)->ecpri_seq_id.seq_id;
-        pkt_info->subseq_id     = (*ecpri_hdr)->ecpri_seq_id.sub_seq_id;
-        pkt_info->ebit          = (*ecpri_hdr)->ecpri_seq_id.e_bit;
+        pkt_info->seq_id        = (*ecpri_hdr)->ecpri_seq_id.bits.seq_id;
+        pkt_info->subseq_id     = (*ecpri_hdr)->ecpri_seq_id.bits.sub_seq_id;
+        pkt_info->ebit          = (*ecpri_hdr)->ecpri_seq_id.bits.e_bit;
         xran_decompose_cid((*ecpri_hdr)->ecpri_xtc_id, &(pkt_info->eaxc));
         }
 

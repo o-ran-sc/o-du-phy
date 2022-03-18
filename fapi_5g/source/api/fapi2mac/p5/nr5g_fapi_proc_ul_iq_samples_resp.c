@@ -63,7 +63,7 @@ uint8_t nr5g_fapi_ul_iq_samples_response(
     p_phy_instance = &p_phy_ctx->phy_instance[phy_id];
     // Create FAPI message header
     if (p_phy_instance->state == FAPI_STATE_IDLE) {
-        nr5g_fapi_message_header_per_phy(phy_id);
+        nr5g_fapi_message_header_per_phy(phy_id, false);
     }
 
     p_list_elem =
@@ -81,9 +81,9 @@ uint8_t nr5g_fapi_ul_iq_samples_response(
         (uint16_t) sizeof(fapi_vendor_ext_ul_iq_samples_res_t);
 
     /* Add element to send list */
-    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
+    nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem, false);
 
-    NR5G_FAPI_LOG(INFO_LOG, ("[UL_IQ_SAMPLES.response]%d]", phy_id));
+    NR5G_FAPI_LOG(INFO_LOG, ("[UL_IQ_SAMPLES.response][%d]", phy_id));
 
     return SUCCESS;
 }

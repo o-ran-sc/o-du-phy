@@ -1,4 +1,4 @@
-..    Copyright (c) 2019-2020 Intel
+..    Copyright (c) 2019-2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -20,6 +20,13 @@
 ORAN 5G FAPI TM Release Notes
 =============================
 
+Version FAPI TM oran_e_maintenance_release_v1.0, Mar 2022
+---------------------------------------------------------
+
+* Increased test coverage. Now DL, UL, FD, URLLC and Massive MIMO use cases are supported.
+* Support for features not properly defined in the SCF 5G FAPI 2.0 specs has been added by
+  means of vendor specific fields.
+  
 Version FAPI TM oran_release_bronze_v1.1, Aug 2020
 ------------------------------------------------------
 

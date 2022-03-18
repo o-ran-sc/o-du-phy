@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -177,16 +177,16 @@ void performance_cp(void *pHandle,struct xran_cp_gen_params *params, struct xran
 
     mbuf = (struct rte_mbuf*)rte_pktmbuf_alloc(_eth_mbuf_pool);
 
-    generate_cpmsg_prach(pHandle, params, sect_geninfo, mbuf, pxran_lib_ctx,
+    generate_cpmsg_prach(pxran_lib_ctx, params, sect_geninfo, mbuf, pxran_lib_ctx,
         frame_id, subframe_id, slot_id,
-        beam_id, cc_id, prach_port_id, seq_id);
+        beam_id, cc_id, prach_port_id, 0, seq_id);
 
     seq_id++;
 
     rte_pktmbuf_free(mbuf);
 }
 
-TEST_P(PrachPerf, PacketGen)//TestCaseName   TestName
+TEST_P(PrachPerf, PrachPerfPacketGen)//TestCaseName   TestName
 {
     int ret;
     void *pHandle = NULL;
@@ -196,9 +196,9 @@ TEST_P(PrachPerf, PacketGen)//TestCaseName   TestName
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
 
-    ret = generate_cpmsg_prach(pHandle, &m_params, m_pSectGenInfo, m_pTestBuffer, &m_xran_dev_ctx,
+    ret = generate_cpmsg_prach(&m_xran_dev_ctx, &m_params, m_pSectGenInfo, m_pTestBuffer, &m_xran_dev_ctx,
         m_frameId, m_subframeId, m_slotId,
-        m_beamId, m_ccId, m_antId, 0);
+        m_beamId, m_ccId, m_antId, 0, 0);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
 

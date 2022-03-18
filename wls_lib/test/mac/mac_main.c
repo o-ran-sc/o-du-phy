@@ -33,7 +33,6 @@
 #define WLS_TEST_DEV_NAME "wls"
 #define WLS_TEST_MSG_ID   1
 #define WLS_TEST_MSG_SIZE 100
-#define WLS_TEST_MEM_SIZE 2126512128 
 
 #define N_MAC_MSGS   16
 
@@ -53,7 +52,7 @@ int main()
     }
     printf("\n[MAC] DPDK Init - Done\n");
 
-    wls_mac_init(WLS_TEST_DEV_NAME, WLS_TEST_MEM_SIZE);
+    wls_mac_init(WLS_TEST_DEV_NAME, WLS_MSG_BLOCK_SIZE);
     printf("\n[MAC] WLS Init - Done\n");
 
     for (i=0; i< N_MAC_MSGS; i++)

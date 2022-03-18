@@ -34,6 +34,9 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
     fapi_config_req_t * p_fapi_req,
     PCONFIGREQUESTStruct p_ia_config_req);
 
+uint8_t nr5g_fapi_config_req_fill_dependent_fields(
+    PCONFIGREQUESTStruct p_ia_config_req);
+
 uint8_t nr5g_fapi_calc_phy_tdd_period(
     uint8_t fapi_tdd_period,
     uint8_t n_subc_common);

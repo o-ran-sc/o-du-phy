@@ -1,4 +1,4 @@
-..    Copyright (c) 2020 Intel
+..    Copyright (c) 2022 Intel
 ..
 ..  Licensed under the Apache License, Version 2.0 (the "License");
 ..  you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@
 O-RAN O-DU Low
 ==============
 
-**User Guide, August 2020**
+**User Guide, March 2022**
   
 .. toctree::
    :maxdepth: 2
@@ -80,8 +80,8 @@ Running L1 and TESTMAC
 
 * :ref:`search`
 
-Test Cases for the Bronze Release
-=================================
+Test Cases for the E Maintenance Release
+========================================
 
 .. toctree::
    :maxdepth: 2

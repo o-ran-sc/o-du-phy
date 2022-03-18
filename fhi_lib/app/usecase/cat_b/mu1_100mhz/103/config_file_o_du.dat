@@ -79,11 +79,11 @@ ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
 duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
 ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
-numSlots=10 #number of slots per IQ files
-antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0
-antC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   #CC0
-antC2=./usecase/cat_b/mu1_100mhz/ant_2.bin   #CC0
-antC3=./usecase/cat_b/mu1_100mhz/ant_3.bin   #CC0
+numSlots=20 #number of slots per IQ files
+antC0=./usecase/cat_b/mu1_100mhz/qpsk_ant_0.bin   #CC0
+antC1=./usecase/cat_b/mu1_100mhz/qpsk_ant_1.bin   #CC0
+antC2=./usecase/cat_b/mu1_100mhz/qpsk_ant_2.bin   #CC0
+antC3=./usecase/cat_b/mu1_100mhz/qpsk_ant_3.bin   #CC0
 antC4=./usecase/cat_b/mu1_100mhz/ant_4.bin   #CC1
 antC5=./usecase/cat_b/mu1_100mhz/ant_5.bin   #CC1
 antC6=./usecase/cat_b/mu1_100mhz/ant_6.bin   #CC1
@@ -130,16 +130,24 @@ srsSym=8192 # (1<<13) symbol used for SRS (def: sym 13)
 DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used 
 
 nPrbElemDl=2
-#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType, Scalefactor, REMask
 # weight base beams 
-PrbElemDl0=0,90,0,14,0,1,1,9,1
-PrbElemDl1=90,90,0,14,1,1,1,9,1
+PrbElemDl0=0,90,0,14,0,1,4,1,1,8192,4095
+PrbElemDl1=90,90,0,14,1,1,4,1,1,8192,4095
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwDl0=30,3,0,0,9,1
+ExtBfwDl1=30,3,0,0,9,1
 
 nPrbElemUl=2
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
 # weight base beams 
 PrbElemUl0=0,64,0,14,0,1,1,9,1
 PrbElemUl1=64,26,0,14,1,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwUl0=30,3,0,0,9,1
+ExtBfwUl1=30,3,0,0,9,1
 
 ###########################################################
 

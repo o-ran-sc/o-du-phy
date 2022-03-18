@@ -27,21 +27,25 @@
 #define _NR5G_FAPI_FAP2PHY_P7_PROC_H_
 
 uint8_t nr5g_fapi_dl_tti_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_dl_tti_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg);
 
 uint8_t nr5g_fapi_ul_tti_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_ul_tti_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg);
 
 uint8_t nr5g_fapi_ul_dci_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_ul_dci_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg);
 
 uint8_t nr5g_fapi_tx_data_request(
+    bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     fapi_tx_data_req_t * p_fapi_req,
     fapi_vendor_msg_t * p_fapi_vendor_msg);

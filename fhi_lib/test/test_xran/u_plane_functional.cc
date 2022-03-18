@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -73,6 +73,7 @@ TEST_P(U_planeCheck, Test_DLUL)
     uint8_t seq_id =0;
     uint32_t do_copy = 0;
     uint8_t compMeth = 0;
+    enum xran_comp_hdr_type staticEn = XRAN_COMP_HDR_TYPE_DYNAMIC;
     uint8_t iqWidth =  16;
 
     int32_t prep_bytes;
@@ -87,7 +88,7 @@ TEST_P(U_planeCheck, Test_DLUL)
     prep_bytes = prepare_symbol_ex(direction,
                                 section_id,
                                 test_buffer,
-                                (struct rb_map *)iq_offset,
+                                (uint8_t *)iq_offset,
                                 compMeth,
                                 iqWidth,
                                 iq_buf_byte_order,
@@ -100,7 +101,8 @@ TEST_P(U_planeCheck, Test_DLUL)
                                 CC_ID,
                                 RU_Port_ID,
                                 seq_id,
-                                do_copy);
+                                do_copy,
+                                staticEn);
 
     ASSERT_EQ(prep_bytes, 3168);
 
@@ -113,11 +115,11 @@ TEST_P(U_planeCheck, Test_DLUL)
                                             sizeof (struct xran_ecpri_hdr) +
                                             sizeof(struct radio_app_common_hdr));
 
-    ASSERT_EQ (ecpri_hdr->cmnhdr.ecpri_mesg_type,  ECPRI_IQ_DATA);
-    payl_size =  rte_be_to_cpu_16(ecpri_hdr->cmnhdr.ecpri_payl_size);
+    ASSERT_EQ (ecpri_hdr->cmnhdr.bits.ecpri_mesg_type,  ECPRI_IQ_DATA);
+    payl_size =  rte_be_to_cpu_16(ecpri_hdr->cmnhdr.bits.ecpri_payl_size);
     ASSERT_EQ (payl_size,  3180);
 
-    ASSERT_EQ(app_hdr->data_direction, direction);
+    ASSERT_EQ(app_hdr->data_feature.data_direction, direction);
     ASSERT_EQ(app_hdr->frame_id, frame_id);
 
     res_sect.fields.all_bits = rte_be_to_cpu_32(section_hdr->fields.all_bits);
@@ -127,7 +129,7 @@ TEST_P(U_planeCheck, Test_DLUL)
     {
         /* UL direction */
         void *iq_samp_buf;
-        struct ecpri_seq_id seq;
+        union ecpri_seq_id seq;
         int num_bytes = 0;
 
         uint8_t CC_ID = 0;
@@ -167,6 +169,7 @@ TEST_P(U_planeCheck, Test_DLUL)
                                 &rb,
                                 &sect_id,
                                 0,
+                                XRAN_COMP_HDR_TYPE_DYNAMIC,
                                 &compMeth,
                                 &iqWidth);
 

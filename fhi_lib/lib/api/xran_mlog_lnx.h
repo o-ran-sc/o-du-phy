@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -35,6 +35,7 @@ extern "C"
 #define MLogRestart(a)              MLOG_FALSE
 #define MLogPrint(a)                MLOG_FALSE
 #define MLogGetFileLocation()       NULL
+#define MLogGetFileName()           NULL
 #define MLogGetFileSize()           0
 #define MLogSetMask(a)              MLOG_FALSE
 #define MLogGetMask()

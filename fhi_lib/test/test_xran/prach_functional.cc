@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -174,7 +174,7 @@ protected:
 };
 
 
-TEST_P(PrachCheck, PacketGen)//TestCaseName   TestName
+TEST_P(PrachCheck, PrachPacketGen)//TestCaseName   TestName
 {
     int ret;
     int32_t i;
@@ -208,9 +208,9 @@ TEST_P(PrachCheck, PacketGen)//TestCaseName   TestName
     ret = xran_open(pHandle, m_xranConf);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
-    ret = generate_cpmsg_prach(pHandle, &m_params, m_pSectGenInfo, m_pTestBuffer, &m_xran_dev_ctx,
+    ret = generate_cpmsg_prach(&m_xran_dev_ctx, &m_params, m_pSectGenInfo, m_pTestBuffer, &m_xran_dev_ctx,
         m_frameId, m_subframeId, m_slotId,
-        m_beamId, m_ccId, m_antId, 0);
+        m_beamId, m_ccId, m_antId, 0, 0);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
     /* Verify the result */
     EXPECT_EQ(m_params.sectionType, XRAN_CP_SECTIONTYPE_3);
@@ -238,7 +238,7 @@ TEST_P(PrachCheck, PacketGen)//TestCaseName   TestName
     EXPECT_EQ(m_params.sections[0].info.symInc, XRAN_SYMBOLNUMBER_NOTINC);
     EXPECT_EQ(m_params.sections[0].info.startPrbc, m_startPrbc);
     EXPECT_EQ(m_params.sections[0].info.numPrbc, m_numPrbc);
-    EXPECT_EQ(m_params.sections[0].info.numSymbol, m_numSymbol*m_occassionsInPrachSlot);
+    EXPECT_EQ(m_params.sections[0].info.numSymbol, m_numSymbol);
     EXPECT_EQ(m_params.sections[0].info.reMask, 0xfff);
     EXPECT_EQ(m_params.sections[0].info.beamId, m_beamId);
     EXPECT_EQ(m_params.sections[0].info.freqOffset, m_freqOffset);
