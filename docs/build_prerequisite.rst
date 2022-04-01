@@ -25,26 +25,69 @@ Build Prerequisite
     
 This section describes how to install and build the required components needed to build the FHI Library, WLS Library and the 5G FAPI TM modules.
 
-Install ICC
-------------
-Intel® C++ Compiler v19.0.3 is used for the test application and system integration with L1, 
-The Intel® C++ Compiler can be obtained using the following link https://software.intel.com/en-us/system-studio/choose-download with community |br|
-license::
+Install ICC and System Studio
+-----------------------------
+Intel® C++ Compiler and System Studio v19.0.3 is used for the test application and system integration with L1,available from the following link 
+https://registrationcenter-download.intel.com/akdlm/irc_nas/emb/15322/system_studio_2019_update_3_composer_edition_offline.tar.gz
 
-         COPY $icc_license_file $BUILD_DIR/license.lic
+The Intel® C++ Compiler can be used with a community license generated from the text below save it to a file named license.lic
+
+PACKAGE IF1C22FFF INTEL 2023.0331 4F89A5B28D2F COMPONENTS="CCompL \
+	Comp-CA Comp-CL Comp-OpenMP Comp-PointerChecker MKernL \
+	PerfPrimL ThreadBB" OPTIONS=SUITE ck=209 SIGN=9661868C5C80
+INCREMENT IF1C22FFF INTEL 2023.0331 31-mar-2023 uncounted \
+	90F19E3889A3 VENDOR_STRING="SUPPORT=COM \
+	https://registrationcenter.intel.com" HOSTID=ID=07472690 \
+	PLATFORMS="i86_n i86_r i86_re amd64_re x64_n" ck=175 \
+	SN=SMSAJ7B6G8WS TS_OK SIGN=920966B67D16
+PACKAGE IF1C22FFF INTEL 2023.0331 4F89A5B28D2F COMPONENTS="CCompL \
+	Comp-CA Comp-CL Comp-OpenMP Comp-PointerChecker MKernL \
+	PerfPrimL ThreadBB" OPTIONS=SUITE ck=209 SIGN=9661868C5C80
+INCREMENT IF1C22FFF INTEL 2023.0331 31-mar-2023 uncounted \
+	32225D03FBAA VENDOR_STRING="SUPPORT=COM \
+	https://registrationcenter.intel.com" HOSTID=ID=07472690 \
+	PLATFORMS="i86_n i86_r i86_re amd64_re x64_n" ck=80 \
+	SN=SMSAJ7B6G8WS SIGN=2577A4F65138
+PACKAGE IF1C22FFF INTEL 2023.0331 4F89A5B28D2F COMPONENTS="CCompL \
+	Comp-CA Comp-CL Comp-OpenMP Comp-PointerChecker MKernL \
+	PerfPrimL ThreadBB" OPTIONS=SUITE ck=209 SIGN=9661868C5C80
+INCREMENT IF1C22FFF INTEL 2023.0331 31-mar-2023 uncounted \
+	90F19E3889A3 VENDOR_STRING="SUPPORT=COM \
+	https://registrationcenter.intel.com" HOSTID=ID=07472690 \
+	PLATFORMS="i86_n i86_r i86_re amd64_re x64_n" ck=175 \
+	SN=SMSAJ7B6G8WS TS_OK SIGN=920966B67D16
+PACKAGE IF1C22FFF INTEL 2023.0331 4F89A5B28D2F COMPONENTS="CCompL \
+	Comp-CA Comp-CL Comp-OpenMP Comp-PointerChecker MKernL \
+	PerfPrimL ThreadBB" OPTIONS=SUITE ck=209 SIGN=9661868C5C80
+INCREMENT IF1C22FFF INTEL 2023.0331 31-mar-2023 uncounted \
+	32225D03FBAA VENDOR_STRING="SUPPORT=COM \
+	https://registrationcenter.intel.com" HOSTID=ID=07472690 \
+	PLATFORMS="i86_n i86_r i86_re amd64_re x64_n" ck=80 \
+	SN=SMSAJ7B6G8WS SIGN=2577A4F65138
+PACKAGE I4BB00C7C INTEL 2023.0331 8D6186E5077C COMPONENTS="Comp-CA \
+	Comp-CL Comp-OpenMP Comp-PointerChecker MKernL PerfPrimL \
+	ThreadBB" OPTIONS=SUITE ck=131 SIGN=7BB6EE06F9A6
+INCREMENT I4BB00C7C INTEL 2023.0331 31-mar-2023 uncounted \
+	F1765BD5FCB4 VENDOR_STRING="SUPPORT=COM \
+	https://registrationcenter.intel.com" HOSTID=ID=07472690 \
+	PLATFORMS="i86_mac x64_mac" ck=114 SN=SMSAJ7B6G8WS \
+	SIGN=4EC364AC3576 
     
-*Note: The version available at this link is always the latest ICC version, the verification for that version may not have been 
-performed yet, so please provide feedback through O-DU Low project WIKI page if you face any issues.*
+Then copy license file to the build directory under license.lic ::
+
+         COPY license.lic $BUILD_DIR/license.lic
+    
+*Note: Use serial number CG7X-J7B6G8WS*
 
 
 You can follow the installation guide from above website to download Intel System Studio and install. Intel® Math Kernel Library, Intel® Integrated Performance Primitives and Intel® C++ Compiler are mandatory components.
 Here we are using the Linux* Host,Linux* Target and standalone installer as one example, below link might need update based on the website ::
 
-         #wget https://registrationcenter-download.intel.com/akdlm/irc_nas/16789/system_studio_2020_u2_ultimate_edition_offline.tar.gz
+         #wget https://registrationcenter-download.intel.com/akdlm/irc_nas/emb/15322/system_studio_2019_update_3_composer_edition_offline.tar.gz
          #cd /opt && mkdir intel && cp $BUILD_DIR/license.lic intel/license.lic
-         #tar -zxvf $BUILD_DIR/system_studio_2020_u2_ultimate_edition_offline.tar.gz
+         #tar -zxvf $BUILD_DIR/system_studio_2019_update_3_composer_edition_offline.tar.gz
 
-Edit system_studio_2020_ultimate_edition_offline/silent.cfg to accept the EULA file as below example::
+Edit system_studio_2029_update_3_composer_edition_offline/silent.cfg to accept the EULA file as below example::
   
          ACCEPT_EULA=accept
          PSET_INSTALL_DIR=opt/intel
@@ -56,19 +99,19 @@ Silent installation::
          #./install.sh -s silent.cfg
 
 Set env for ICC::
- 
-         #source /opt/intel/system_studio_2020/bin/iccvars.sh intel64
-         #export PATH=/opt/intel/system_studio_2020/bin/:$PATH
+         Check for your installation path. The folloing is an example
+         #source /opt/intel_2019/system_studio_2019/compiler_and_libraries_2019.3.206/linux/bin/iccvars.sh intel64
+         #export PATH=/opt/intel_2019/system_studio_2019/compiler_and_libraries_2019.3.206/linux/bin/:$PATH
 
 
 Download and Build DPDK
 -----------------------
    - download DPDK::
      
-         #wget http://static.dpdk.org/rel/dpdk-20.11.tar.x
-         #tar -xf dpdk-20.11.tar.xz
+         #wget http://static.dpdk.org/rel/dpdk-20.11.1.tar.x
+         #tar -xf dpdk-20.11.1.tar.xz
          #export RTE_TARGET=x86_64-native-linuxapp-icc
-         #export RTE_SDK=Intallation_DIR/dpdk-20.11
+         #export RTE_SDK=Intallation_DIR/dpdk-20.11.1
 
    - patch DPDK for O-RAN FHI lib, this patch is specific for O-RAN FHI to reduce the data transmission latency of Intel NIC. This may not be needed for some NICs, please refer to |br| O-RAN FHI Lib Introduction -> setup configuration -> A.2 prerequisites
 
@@ -76,18 +119,29 @@ Download and Build DPDK
 
 
    - build DPDK
-      build DPDK::
-        Set your ICC installation path to /usertools/dpdk-setup.sh, DEFAULT_PATH="your ICC installation path"/bin/iccvars.sh, then run it to build DPDK with below option. 
-        #./usertools/dpdk-setup.sh
-        select [39] x86_64-native-linuxapp-icc
-        exit   [62] Exit Script
-        please pay attention, the number 39 might change in your setup, you need choose accordingly to option 'x86_64-native-linuxapp-icc'   
-  
+        This release uses DPDK version 20.11.1 plus patches so the build procedure for the DPDK is the following
+        
+        export RTE_TARGET=x86_64-native-linuxapp-icc
+        export WIRELESS_SDK_TARGET_ISA=avx512
+        export WIRELESS_SDK_TOOLCHAIN=icc
+        export SDK_BUILD=build-${WIRELESS_DSK_TARGET_ISA}-icc
+        
+        Then locate the shell script file compilervars.sh that goes into the system studio 2019 installation folder and invoke following the example below:
+        source /opt/intel_2019/system_studio_2019/compilers_and_libraries_2019/linux/bin/compilervars.sh -arch intel64 -platform linux
+
+        The build procedure uses meson and ninja so if not present in your system please install before the next step
+        
+        Then at the root of the DPDK folder issue::
+        
+           meson build
+           cd build
+           ninja
+        
     - set DPDK path
        DPDK path is needed during build and run lib/app::
 
-        #export RTE_SDK=Installation_DIR/dpdk-20.11
-        #export DESTDIR=Installation_DIR/dpdk-20.11
+        #export RTE_SDK=Installation_DIR/dpdk-20.11.1
+        #export DESTDIR=Installation_DIR/dpdk-20.11.1
 
 
 Install google test
@@ -133,7 +187,7 @@ following illustration is just an example::
 - #set the phy root DIR                                                            
 - export DIR_ROOT_PHY=$DIR_ROOT/phy                                                
 - #set the DPDK root DIR                                                           
-- #export DIR_ROOT_DPDK=/home/dpdk-19.11                                           
+- #export DIR_ROOT_DPDK=/home/dpdk-20.11.1                                           
 - #set the GTEST root DIR                                                          
 - #export DIR_ROOT_GTEST=/home/gtest/gtest-1.7.0                                                                                                                   
 - export DIR_WIRELESS_TEST_5G=$DIR_ROOT_L1_BIN/testcase                            

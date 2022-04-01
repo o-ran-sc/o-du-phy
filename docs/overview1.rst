@@ -218,68 +218,69 @@ Reference Documents
 
 Table 2. Reference Documents
 
-+----------------------------------+----------------------------------+
-| Document                         | Document                         |
-|                                  | No./Location                     |
-+==================================+==================================+
-| *FlexRAN Reference Solution      | 575822                           |
-| Software Release Notes*          |                                  |
-+----------------------------------+----------------------------------+
-| *FlexRAN Reference Solution L1   | 571741                           |
-| XML Configuration User Guide*    |                                  |
-+----------------------------------+----------------------------------+
-| *FlexRAN Reference Solution LTE  | 571742                           |
-| eNB L2-L1 Application            |                                  |
-| Programming Interface [API]      |                                  |
-| Specification*                   |                                  |
-+----------------------------------+----------------------------------+
-| *FlexRAN Reference Solution      | 576423                           |
-| L2-L1 nFAPI Specification*       |                                  |
-+----------------------------------+----------------------------------+
-| *FlexRAN and Mobile Edge Compute | 575891                           |
-| (MEC) Platform Setup Guide*      |                                  |
-+----------------------------------+----------------------------------+
-| *FlexRAN 5G NR Reference         | 603577                           |
-| Solution RefPHY (Doxygen).*      |                                  |
-+----------------------------------+----------------------------------+
-|    *Intel® Ethernet Controller   | 617015                           |
-|    E810*                         |                                  |
-|                                  |                                  |
-| *Dynamic Device Personalization  |                                  |
-| (DDP)*                           |                                  |
-|                                  |                                  |
-| *Technology Guide*               |                                  |
-+----------------------------------+----------------------------------+
-| *3GPP\* specification series*    | https://www.3gpp.org             |
-|                                  | dynareport/SpecList.htm          |
-|                                  | ?release=Rel-15&tech=3&ts=1&tr=1 |
-+----------------------------------+----------------------------------+
-| *Wolf Pass Server Documentation* | https://ark.intel.com/products/  |
-|                                  | codename/80739/Wolf-Pass         |
-+----------------------------------+----------------------------------+
-| *Intel® C++ Compiler in Intel®   | https://software.intel.com/      |
-| Parallel Studio XE*              | en-us/c-compilers/ipsxe          |
-+----------------------------------+----------------------------------+
-| *DPDK documentation*             | http://dpdk.org/doc/guides/      |
-+----------------------------------+----------------------------------+
-| *O-RAN Fronthaul Working Group   | https://www.o-ran.org/           |
-| Control, User and                | specifications                   |
-| Synchronization Plane            |                                  |
-| Specification                    |                                  |
-| (ORAN-WG4.CUS.0-v04.00)*         |                                  |
-+----------------------------------+----------------------------------+
-| *ORAN Specification*             | https://www.o-ran.org/           |
-|                                  | adopter-license                  |
-+----------------------------------+----------------------------------+
-| *IEEE-1588-2008 IEEE Standard    | https://standards.ieee.org/      |
-| for a Precision Clock            | standard/1588-2008.html          |
-| Synchronization Protocol for     |                                  |
-| Networked Measurement and        |                                  |
-| Control Systems*                 |                                  |
-+----------------------------------+----------------------------------+
-| *eCPRI Specification V2.0        | http://www.cpri.info/spec.html   |
-| Interface Specification*         |                                  |
-+----------------------------------+----------------------------------+
++----------------------------------+-------------------------------------+
+| Document                         | Document                            |
+|                                  | No./Location                        |
++==================================+=====================================+
+|| *FlexRAN Reference Solution*    | 575822                              |
+|| *Software Release Notes*        |                                     |
++----------------------------------+-------------------------------------+
+|| *FlexRAN Reference Solution L1* | 571741                              |
+|| *XML Configuration User Guide*  |                                     |
++----------------------------------+-------------------------------------+
+|| *FlexRAN Reference Solution LTE*| 571742                              |
+|| *eNB L2-L1 Application*         |                                     |
+|| *Programming Interface [API]*   |                                     |
+|| *Specification*                 |                                     |
++----------------------------------+-------------------------------------+
+|| *FlexRAN Reference Solution*    | 576423                              |
+|| *L2-L1 nFAPI Specification*     |                                     |
++----------------------------------+-------------------------------------+
+|| *FlexRAN and Mobile Edge*       | 575891                              |
+|| *Compute(MEC) Platform*         |                                     |
+|| *Setup Guide*                   |                                     |
++----------------------------------+-------------------------------------+
+|| *FlexRAN 5G NR Reference*       | 603577                              |
+|| *Solution RefPHY (Doxygen).*    |                                     |
++----------------------------------+-------------------------------------+
+|| *Intel® Ethernet Controller*    | 617015                              |
+|| *E810*                          |                                     |
+|                                  |                                     |
+|| *Dynamic Device*                |                                     |
+|| *Personalization (DDP)*         |                                     |
+|| *Technology Guide*              |                                     |
++----------------------------------+-------------------------------------+
+| *3GPP\* specification series*    | https://www.3gpp.org/specifications |
+|                                  |                                     |
++----------------------------------+-------------------------------------+
+| *Wolf Pass Server Documentation* |                                     |
++----------------------------------+-------------------------------------+
+| *Intel® C++ Compiler in Intel®   |                                     |
+| Parallel Studio XE*              |                                     |
++----------------------------------+-------------------------------------+
+| *DPDK documentation*             | https://core.dpdk.org/doc/          |
++----------------------------------+-------------------------------------+
+|| *O-RAN Fronthaul Working Group* | https://www.o-ran.org/specifications|
+|| *Control, User and*             |                                     |
+|| *Synchronization Plane*         |                                     |
+|| *Specification*                 |                                     |
+|| *(ORAN-WG4.CUS.0-v04.00)*       |                                     |
++----------------------------------+-------------------------------------+
+| *ORAN Specifications*            | https://www.o-ran.org/specifications|
+|                                  |                                     |
++----------------------------------+-------------------------------------+
+|| *IEEE-1588-2008 IEEE Standard*  | https://standards.ieee.org/         |
+|| *for a Precision Clock*         | standard/1588-2008.html             |
+|| *Synchronization Protocol for*  |                                     |
+|| *Networked Measurement and*     |                                     |
+|| *Control Systems*               |                                     |
++----------------------------------+-------------------------------------+
+|| *eCPRI Specification V2.0*      || https://www.networkdatapedia.com// |
+|| *Interface Specification*       || post/2019/10/05/capturing-/        |
+|                                  || packets-through-ecpri-v20/         |
+|                                  || -which-enables-5g                  |
+|                                  |                                     |
++----------------------------------+-------------------------------------+
 
 
 

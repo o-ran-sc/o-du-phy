@@ -71,11 +71,11 @@ The unit test for the ORAN 5G FAPI TM requires the testmac and L1 binaries that 
 in a later section and that for the O-RAN current Release consists of a suite of tests in timer mode
 where the DL, UL and FD paths are exercised for different channel types and numerologies 0, 1 and 2.
 
-1.Open SSH session and cd l1\bin\nr5g\gnb\l1 |br|
+1.Open SSH session and cd l1\\bin\\nr5g\\gnb\\l1 |br|
 2.Issue l1.sh |br|
 3.Open a second SSH session and cd fapi_5g\bin |br|
 4.Issue ./oran_5g_fapi.sh --cfg oran_5g_fapi.cfg |br|
-5.Open a third SSH session and cd l1\bin\nr5g\gnb\testmac |br|
+5.Open a third SSH session and cd l1\\bin\\nr5g\\gnb\\testmac |br|
 6.Issue ./l2.sh |br|
 7.From the testmac command prompt (i.e. the l2 executable) issue::
 run Direction Numerology Bandwidth TestCase

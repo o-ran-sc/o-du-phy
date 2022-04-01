@@ -43,9 +43,9 @@ Dependencies
 ------------
 
 O-RAN library implementation depends on the Data Plane Development Kit
-(DPDK v20.11).
+(DPDK v20.11.1).
 
-DPDK v20.11 should be patched with corresponding DPDK patch provided
+DPDK v20.11.1 should be patched with corresponding DPDK patch provided
 with FlexRAN release (see *Table 1*, FlexRAN Reference Solution Software
 Release Notes)
 

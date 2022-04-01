@@ -808,25 +808,22 @@ Table 8. Levels of support
 |            | sions      |            |            |     |     |     |
 |            +------------+------------+------------+-----+-----+-----+
 |            ||           |            |            |     |     |     |
-|            || *Ext*\    | bfw        | Supported  | Y   | Y   | N   |
-|            || *Type=1:* | CompHdr    |            |     |     |     |
-|            |            |            |            |     |     |     |
-|            || *Beam*    || \(bea     |            |     |     |     |
-|            |            |            |            |     |     |     |
+|            || *Ext*\    || bfw       | Supported  | Y   | Y   | N   |
+|            || *Type=1:* || CompHdr   |            |     |     |     |
+|            || *Beam*    || (beam\    |            |     |     |     |
 |            || *forming* | forming    |            |     |     |     |
-|            |            |            |            |     |     |     |
 |            || *Weights* || weight    |            |     |     |     |
-|            || *Exten*   || compre    |            |     |     |     |
-|            | *sion*     || ssion     |            |     |     |     |
-|            || *Type*    | header)    |            |     |     |     |
+|            || *Exten\*  || compre\   |            |     |     |     |
+|            | *sion*     | ssion      |            |     |     |     |
+|            || *Type*    || header)   |            |     |     |     |
 |            ||           +------------+------------+-----+-----+-----+
 |            ||           ||           |            |     |     |     |
 |            ||           || bf        | Supported  | Y   | Y   | N   |
 |            ||           | wCompParam |            |     |     |     |
 |            ||           || (beam     |            |     |     |     |
-|            ||           | forming    |            |     |     |     |
+|            ||           || forming   |            |     |     |     |
 |            ||           || weight    |            |     |     |     |
-|            ||           || compre    |            |     |     |     |
+|            ||           || compre\   |            |     |     |     |
 |            ||           | ssion      |            |     |     |     |
 |            ||           || parameter)|            |     |     |     |
 |            ||           +------------+------------+-----+-----+-----+
@@ -846,7 +843,7 @@ Table 8. Levels of support
 |            +------------+------------+------------+-----+-----+-----+
 |            ||           || bfaCompHdr| Supported  | Y   | N   | N   |
 |            || *ExtType*\||           |            |     |     |     |
-|            ||  *=2:*    || (beam     |            |     |     |     |
+|            ||  *=2:*    || (beam\    |            |     |     |     |
 |            || *Beam*    | forming    |            |     |     |     |
 |            | *forming*  || attributes|            |     |     |     |
 |            || *Attribu* || compre    |            |     |     |     |
@@ -1045,14 +1042,14 @@ Table 8. Levels of support
 |            |            || (symbol   |            |     |     |     |
 |            |            || bit mask) |            |     |     |     |
 |            +------------+------------+------------+-----+-----+-----+
-|            || *Ext*     | beam       | Supported  | Y   | N   | N   |
-|            | *Type=10:* | GroupType  |            |     |     |     |
+|            || *Ext*     || beam      | Supported  | Y   | N   | N   |
+|            | *Type=10:* || GroupType |            |     |     |     |
 |            || *Section* |            |            |     |     |     |
-|            || *des*     |            |            |     |     |     |
+|            || *des\*    |            |            |     |     |     |
 |            | *cription* |            |            |     |     |     |
-|            || *for gro* |            |            |     |     |     |
+|            || *for gro\*|            |            |     |     |     |
 |            | *up*       |            |            |     |     |     |
-|            || *configu* |            |            |     |     |     |
+|            || *configu\*|            |            |     |     |     |
 |            | *ration of*|            |            |     |     |     |
 |            || *multiple*|            |            |     |     |     |
 |            || *ports*   |            |            |     |     |     |
@@ -1082,7 +1079,7 @@ Table 8. Levels of support
 |            |            | ssion      |            |     |     |     |
 |            |            || parameter)|            |     |     |     |
 |            |            +------------+------------+-----+-----+-----+
-|            |            || numBund   | Supported  | Y   | Y   | N   |
+|            |            || numBund\  | Supported  | Y   | Y   | N   |
 |            |            | Prb        |            |     |     |     |
 |            |            || (Number   |            |     |     |     |
 |            |            || of        |            |     |     |     |
@@ -1324,7 +1321,7 @@ positive time with respect to the epoch.
 The compensation value is used with Action Types 0x00 (Request), 0x02
 (Response) or 0x05 (Follow_up) for all others this field contains zeros.
 This value is the compensation time measured in nanoseconds and
-multiplied by 2\ :sup:16 and follows the format for the
+multiplied by 2\ :sup:`16` and follows the format for the
 correctionField in the common message header specified by the IEE
 1588-2008 clause 13.3.
 
@@ -1439,24 +1436,24 @@ Table 9. Section Types
 +--------------+--------------------------+--------------------------+
 | Section Type | Target Scenario          | Remarks                  |
 +--------------+--------------------------+--------------------------+
-| 0            | Unused Resource Blocks   | Not supported            |
-|              | or symbols in Downlink   |                          |
-|              | or Uplink                |                          |
+| 0            || Unused Resource Blocks  | Not supported            |
+|              || or symbols in Downlink  |                          |
+|              || or Uplink               |                          |
 +--------------+--------------------------+--------------------------+
-| 1            | Most DL/UL radio         | Supported                |
-|              | channels                 |                          |
+| 1            || Most DL/UL radio        | Supported                |
+|              || channels                |                          |
 +--------------+--------------------------+--------------------------+
 | 2            | reserved for future use  | N/A                      |
 +--------------+--------------------------+--------------------------+
-| 3            | PRACH and                | Only PRACH is supported. |
-|              | mixed-numerology         | Mixed numerology is not  |
-|              | channels                 | supported.               |
+| 3            || PRACH and               || Only PRACH is supported.|
+|              || mixed-numerology        || Mixed numerology is not |
+|              || channels                || supported.              |
 +--------------+--------------------------+--------------------------+
 | 4            | Reserved for future use  | Not supported            |
 +--------------+--------------------------+--------------------------+
-| 5            | UE scheduling            | Not supported            |
-|              | information (UE-ID       |                          |
-|              | assignment to section)   |                          |
+| 5            || UE scheduling           | Not supported            |
+|              || information (UE-ID      |                          |
+|              || assignment to section)  |                          |
 +--------------+--------------------------+--------------------------+
 | 6            | Channel information      | Not supported            |
 +--------------+--------------------------+--------------------------+

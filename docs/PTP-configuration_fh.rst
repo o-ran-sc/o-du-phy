@@ -61,7 +61,7 @@ Kernel processing the packet. Not every NIC supports that feature. To
 confirm that currently attached NIC support Hardware Timestamps, use
 ethtool with the command::
 
-ethtool -T eth0
+    ethtool -T eth0
 
 Where the eth0 is the potential PHC port. The output from the command
 should say that there is Hardware Timestamps support.
@@ -100,7 +100,7 @@ To set up PTP for Linux*:
 
 22. Modify configs/default.cfg to control frequency of Sync interval to 0.0625 s. ::
 
-    logSyncInterval -4
+        logSyncInterval -4
 
 ptp4l 
 =====

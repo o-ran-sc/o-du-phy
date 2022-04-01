@@ -57,6 +57,9 @@ Software/Firmware Requirements
 The specific DDP package requires certain firmware and DPDK versions and
 Intel® Ethernet 800 Series firmware/NVM versions. Support for eCPRI DDP
 profile included starting from Columbiaville (CVL)release 2.4 or later.
+This section is for general information purposes as the binaries provided
+for this FlexRan release in github.com are built with DPDK 20.11.1 and the
+mix and match of binaries is not supported.
 The required DPDK version contains the support of loading the specific
 Wireless Edge DDP package.
 
@@ -70,7 +73,8 @@ Wireless Edge DDP package.
 
 -  DPDK version— 21.02 (or later)
 
--  For FlexRAN release 21.03, corresponding support of CVL 2.4 driver pack and DPDK 21.02 is “experimental” and subject to additional testing and potential changes.
+-  For FlexRAN oran_e_maintenance_release_v1.0, corresponding support of CVL 2.4 driver pack and DPDK 21.02 is “experimental” and subject to additional 
+   testing and potential changes.
 
 DDP Package Setup
 =================
@@ -717,42 +721,42 @@ Table 15. RTE FLOW Actions
 +----------+----------------------------+-------------------------+
 | Action\* | Description                | Configuration Structure |
 +==========+============================+=========================+
-| END      | End marker for action      | none                    |
-|          | lists                      |                         |
+| END      || End marker for action     | none                    |
+|          || lists                     |                         |
 +----------+----------------------------+-------------------------+
-| VOID     | Used as a placeholder for  | none                    |
-|          | convenience                |                         |
+| VOID     || Used as a placeholder for | none                    |
+|          || convenience               |                         |
 +----------+----------------------------+-------------------------+
-| PASSTHRU | Leaves traffic up for      | none                    |
-|          | additional processing by   |                         |
-|          | subsequent flow rules;     |                         |
-|          | makes a flow rule          |                         |
-|          | non-terminating.           |                         |
+| PASSTHRU || Leaves traffic up for     | none                    |
+|          || additional processing by  |                         |
+|          || subsequent flow rules;    |                         |
+|          || makes a flow rule         |                         |
+|          || non-terminating.          |                         |
 +----------+----------------------------+-------------------------+
-| MARK     | Attaches an integer value  | rte_flow_action_mark    |
-|          | to packets and sets        |                         |
-|          | PKT_RX_FDIR and            |                         |
-|          | PKT_RX_FDIR_ID mbuf flags  |                         |
+| MARK     || Attaches an integer value | rte_flow_action_mark    |
+|          || to packets and sets       |                         |
+|          || PKT_RX_FDIR and           |                         |
+|          || PKT_RX_FDIR_ID mbuf flags |                         |
 +----------+----------------------------+-------------------------+
-| QUEUE    | Assigns packets to a given | rte_flow_action_queue   |
-|          | queue index                |                         |
+| QUEUE    || Assigns packets to a given| rte_flow_action_queue   |
+|          || queue index               |                         |
 +----------+----------------------------+-------------------------+
-| DROP     | Drops packets              | none                    |
+| DROP     || Drops packets             | none                    |
 +----------+----------------------------+-------------------------+
-| COUNT    | Enables Counters for this  | rte_flow_action_count   |
-|          | flow rule                  |                         |
+| COUNT    || Enables Counters for this | rte_flow_action_count   |
+|          || flow rule                 |                         |
 +----------+----------------------------+-------------------------+
-| RSS      | Similar to QUEUE, except   | rte_flow_action_rss     |
-|          | RSS is additionally        |                         |
-|          | performed on packets to    |                         |
-|          | spread them among several  |                         |
-|          | queues according to the    |                         |
-|          | provided parameters.       |                         |
+| RSS      || Similar to QUEUE, except  | rte_flow_action_rss     |
+|          || RSS is additionally       |                         |
+|          || performed on packets to   |                         |
+|          || spread them among several |                         |
+|          || queues according to the   |                         |
+|          || provided parameters.      |                         |
 +----------+----------------------------+-------------------------+
-| VF       | Directs matching traffic   | rte_flow_action_vf      |
-|          | to a given virtual         |                         |
-|          | function of the current    |                         |
-|          | device                     |                         |
+| VF       || Directs matching traffic  | rte_flow_action_vf      |
+|          || to a given virtual        |                         |
+|          || function of the current   |                         |
+|          || device                    |                         |
 +----------+----------------------------+-------------------------+
 
 Route to specific Queue id based on ecpriRtcid/ecpriPcid
@@ -774,12 +778,12 @@ Channel ID (pc_id)
 +=======+==========+=======================+=======================+
 | 0     | Ethernet | 0                     | 0                     |
 +-------+----------+-----------------------+-----------------------+
-| 1     | eCPRI    | hdr.common.type =     | hdr.common.type =     |
-|       |          | RTE_EC                | 0xff;                 |
-|       |          | PRI_MSG_TYPE_IQ_DATA; |                       |
-|       |          |                       | hdr.type0.pc_id =     |
-|       |          | hdr.type0.pc_id =     | 0xffff;               |
-|       |          | pc_id;                |                       |
+| 1     | eCPRI    || hdr.common.type =    || hdr.common.type =    |
+|       |          || RTE_EC               || 0xff;                |
+|       |          || PRI_MSG_TYPE_IQ_DATA;|                       |
+|       |          |                       || hdr.type0.pc_id =    |
+|       |          || hdr.type0.pc_id =    || 0xffff;              |
+|       |          || pc_id;               |                       |
 +-------+----------+-----------------------+-----------------------+
 | 2     | END      | 0                     | 0                     |
 +-------+----------+-----------------------+-----------------------+

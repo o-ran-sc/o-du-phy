@@ -21,7 +21,7 @@ Front Haul Interface Library Release Notes
 Version FH oran_e_maintenance_release_v1.0, March 2022 
 ------------------------------------------------------
 
-* Update to DPDK 20.11.
+* Update to DPDK 20.11.1.
 * Static Compression support which reduces overhead in user plane packets.
 * QoS support per configuration table 3-7.
 * DDP Profile for O-RAN FH.
