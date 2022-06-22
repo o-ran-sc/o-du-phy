@@ -75,7 +75,7 @@ antC14=./usecase/cat_a/mu0_20mhz/ant_14.bin #CC3
 antC15=./usecase/cat_a/mu0_20mhz/ant_15.bin #CC3
 
 ## RACH TODO: update for PRACH
-rachEanble=1 # Enable (1)| disable (0) PRACH configuration
+rachEnable=1 # Enable (1)| disable (0) PRACH configuration
 #rachOffset=43 # RB offset for prach detection (see RIU spec)
 prachConfigIndex=189 # PRACH config index as per TS36.211 - Table 5.7.1-2 : PRACH Configuration Index
 
@@ -83,7 +83,21 @@ antPrachC0=./usecase/cat_a/mu0_20mhz/ant_0.bin
 antPrachC1=./usecase/cat_a/mu0_20mhz/ant_1.bin
 antPrachC2=./usecase/cat_a/mu0_20mhz/ant_2.bin
 antPrachC3=./usecase/cat_a/mu0_20mhz/ant_3.bin
+###########################################################
+##Section Settings
+DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used
 
+nPrbElemDl=1
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+# weight base beams
+PrbElemDl0=0,106,0,14,0,1,0,16,1
+PrbElemDl1=50,56,0,14,0,1,0,16,1
+nPrbElemUl=1
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+# weight base beams
+PrbElemUl0=0,106,0,14,0,1,0,16,1
+PrbElemUl1=50,56,0,14,0,1,0,16,1
+###########################################################
 
 ## control of IQ byte order
 iqswap=0 #do swap of IQ before send buffer to eth

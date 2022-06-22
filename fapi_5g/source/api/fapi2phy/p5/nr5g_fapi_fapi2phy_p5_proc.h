@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -26,6 +26,9 @@
 #ifndef _NR5G_FAPI_FAP2PHY_P5_PROC_H_
 #define _NR5G_FAPI_FAP2PHY_P5_PROC_H_
 
+uint8_t nr5g_fapi_param_response(
+    p_nr5g_fapi_phy_instance_t p_phy_instance);
+    
 uint8_t nr5g_fapi_config_request(
     bool is_urllc,
     p_nr5g_fapi_phy_instance_t p_phy_instance,

@@ -23,11 +23,21 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 ##############################################################
 #  Tools configuration
 ##############################################################
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
 CC  := icc
 CPP := icpc
 AS := as
 AR := ar
 LD := icc
+else ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+    CC  := icx
+    CPP := icpx
+    AS  := as
+    AR  := llvm-ar
+    LD  := icx
+else
+    $(error "Please define WIRELESS_SDK_TOOLCHAIN environment variable")
+endif
 OBJDUMP := objdump
 
 ifeq ($(SHELL),cmd.exe)
@@ -40,10 +50,16 @@ CP := cp -f
 RM := rm -rf
 endif
 
-PROJECT_NAME := sample-app
 PROJECT_TYPE := elf
 PROJECT_DIR  := $(XRAN_DIR)/app
-BUILDDIR := ./build
+ifeq ($(ORU),1)
+	PROJECT_NAME := sample-app-ru
+	BUILDDIR := build-oru
+else
+	PROJECT_NAME := sample-app
+	BUILDDIR := build
+endif
+
 PROJECT_BINARY := $(BUILDDIR)/$(PROJECT_NAME)
 
 ifeq ($(RTE_SDK),)
@@ -51,7 +67,6 @@ ifeq ($(RTE_SDK),)
 endif
 
 RTE_TARGET ?= x86_64-native-linuxapp-gcc
-
 RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
 
 API_DIR := $(XRAN_DIR)/lib/api
@@ -64,11 +79,29 @@ ifeq ($(MLOG_DIR),)
 endif
 endif
 
+
+##############################################################
+# FRAMEWORK
+##############################################################
+ifeq ($(FWK), 1)
+FW_INC := $(DIR_WIRELESS_FW)/enhanced_bbupool/inc
+FW_LIBS := -L$(DIR_WIRELESS_FW)/enhanced_bbupool/build -Wl,--whole-archive -Wl,-lebbupool -Wl,--no-whole-archive
+endif
+
 CC_SRC = $(SRC_DIR)/common.c \
 	$(SRC_DIR)/config.c \
 	$(SRC_DIR)/app_io_fh_xran.c \
 	$(SRC_DIR)/app_profile_xran.c \
 	$(SRC_DIR)/sample-app.c
+
+ifeq ($(FWK), 1)
+CC_SRC += $(SRC_DIR)/aux_cline.c \
+	$(SRC_DIR)/app_bbu_main.c \
+	$(SRC_DIR)/app_bbu_pool.c \
+	$(SRC_DIR)/ebbu_pool_cfg.c \
+	$(SRC_DIR)/app_dl_bbu_pool_tasks.c \
+	$(SRC_DIR)/app_ul_bbu_pool_tasks.c
+endif
 
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
@@ -76,12 +109,28 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-g \
 	-Wall \
 	-Wimplicit-function-declaration \
-	-g -O3 -wd1786 -mcmodel=large
+	-g -O3 -mcmodel=large
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
+CC_FLAGS += -wd1786 -xcore-avx512
+endif
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+CC_FLAGS += -xcore-avx512 -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
+endif
 
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
                 -no-prec-div -fp-model fast=2\
                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
         -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
+CPP_FLAGS += -xcore-avx512 -fp-model fast=2 -no-prec-div -no-prec-sqrt -fast-transcendentals -restrict
+endif
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+CPP_FLAGS +=  -fp-model fast -march=icelake-server -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
+endif
 
 INC :=  -I$(API_DIR) -I$(RTE_INC) -I$(OWD_DIR)
 DEF :=
@@ -93,22 +142,47 @@ else
 	DEF += -UMLOG_ENABLED
 endif
 
+ifeq ($(FWK),1)
+	INC  += -I$(FW_INC)
+	DEF += -DFWK_ENABLED
+else
+	DEF += -UFWK_ENABLED
+endif
 
+ifeq ($(ORU),1)
+	DEF += -DXRAN_O_RU_BUILD
+else
+	DEF += -UXRAN_O_RU_BUILD
+endif
+
+
+ifeq ($(ORU),1)
+	XRAN_LIB_DIR=$(XRAN_DIR)/lib/build-oru
+	LD_FLAGS += -L$(XRAN_LIB_DIR) -lxran-oru
+else
 XRAN_LIB_DIR=$(XRAN_DIR)/lib/build
 LD_FLAGS += -L$(XRAN_LIB_DIR) -lxran
+endif
 
 RTE_LIBS = $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --static --libs libdpdk)
-
 LD_FLAGS += $(RTE_LIBS)
 
 ifeq ($(MLOG),1)
 	LD_FLAGS +=  -L$(MLOG_DIR)/bin -lmlog
 endif
 
+ifeq ($(FWK),1)
+LD_FLAGS += ${FW_LIBS}
+endif
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+LD_FLAGS += -Wl,-lstdc++
+endif
+
 AS_FLAGS :=
 AR_FLAGS := rc
 
-PROJECT_OBJ_DIR := build/obj
+PROJECT_OBJ_DIR := $(BUILDDIR)/obj
 
 CC_OBJS := $(patsubst %.c,%.o,$(CC_SRC))
 CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
@@ -205,6 +279,7 @@ debug :  all
 release :  all
 
 $(PROJECT_BINARY): $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+	@$(MD) $(BUILDDIR)
 	@echo "[LD] $@ "
 	@$(LD) -o $@ $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS) $(LD_FLAGS) -Wl,-L $(BUILDDIR) -lrt -lpthread
 

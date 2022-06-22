@@ -33,6 +33,8 @@
 #include <pthread.h>
 #include <immintrin.h>
 #include <rte_mbuf.h>
+#include <stdio.h>
+#include <stdbool.h>
 
 #include "xran_common.h"
 #include "ethdi.h"
@@ -48,6 +50,8 @@
 #include "xran_mlog_lnx.h"
 
 static struct timespec sleeptime = {.tv_nsec = 1E3 }; /* 1 us */
+
+extern int32_t first_call;
 
 #define MBUFS_CNT 16
 
@@ -150,6 +154,7 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
     uint16_t sym_inc[MBUFS_CNT];
     uint16_t rb[MBUFS_CNT];
     uint16_t sect_id[MBUFS_CNT];
+    uint16_t prb_elem_id[MBUFS_CNT] = {0};
 
     uint8_t compMeth[MBUFS_CNT] = { 0 };
     uint8_t iqWidth[MBUFS_CNT] = { 0 };
@@ -158,8 +163,6 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
 
     uint32_t pkt_size[MBUFS_CNT];
 
-    void* pHandle = NULL;
-    int32_t valid_res, res_loc;
     int expect_comp = (p_dev_ctx->fh_cfg.ru_conf.compMeth != XRAN_COMPMETHOD_NONE);
     enum xran_comp_hdr_type staticComp = p_dev_ctx->fh_cfg.ru_conf.xranCompHdrType;
 
@@ -191,7 +194,8 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
     struct rte_mbuf* mb = NULL;
     struct xran_prb_map* pRbMap = NULL;
     struct xran_prb_elm* prbMapElm = NULL;
-    uint16_t iq_sample_size_bits;
+    //uint16_t iq_sample_size_bits;
+    uint16_t idxElm = 0, total_sections = 0;
 
 #if XRAN_MLOG_VAR
     uint32_t mlogVar[10];
@@ -199,12 +203,18 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
 #endif
 
     if (xran_port < 0) {
-        print_err("Invalid pHandle - %p", pHandle);
+        print_err("Invalid pHandle");
         return MBUF_FREE;
     }
 
     if (xran_port > XRAN_PORTS_NUM) {
         print_err("Invalid port - %d", xran_port);
+        return MBUF_FREE;
+    }
+
+    if(first_call == 0) {
+        for(i = 0; i < num; i++ )
+            ret_data[i] = MBUF_FREE;
         return MBUF_FREE;
     }
 
@@ -362,7 +372,6 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
         {
             compMeth[i] = compMeth_ini;
             iqWidth[i] = iqWidth_ini;
-            valid_res = XRAN_STATUS_SUCCESS;
 
             frame_id[i] = radio_hdr[i]->frame_id;
             subframe_id[i] = radio_hdr[i]->sf_slot_sym.subframe_id;
@@ -375,6 +384,9 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
             rb[i] = data_hdr[i]->fields.rb;
             sect_id[i] = data_hdr[i]->fields.sect_id;
 
+            if (num_prbu[i] == 0)
+                num_prbu[i] = p_dev_ctx->fh_cfg.nULRBs;
+
             if (expect_comp && (staticComp != XRAN_COMP_HDR_TYPE_STATIC))
             {
                 compMeth[i] = data_compr_hdr[i]->ud_comp_hdr.ud_comp_meth;
@@ -384,7 +396,6 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
             if (CC_ID[i] >= XRAN_MAX_CELLS_PER_PORT || Ant_ID[i] >= max_ant_num || symb_id[i] >= XRAN_NUM_OF_SYMBOL_PER_SLOT)
             {
                 ptr_seq_id_num_port[CC_ID[i] * max_ant_num + Ant_ID[i]] = seq_id[i]; // for next
-                valid_res = XRAN_STATUS_FAIL;
                 pCnt->Rx_pkt_dupl++;
 //                print_err("Invalid CC ID - %d or antenna ID or Symbol ID- %d", CC_ID[i], Ant_ID[i], symb_id[i]);
             }
@@ -396,6 +407,19 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
             pCnt->rx_counter++;
             pCnt->Rx_on_time++;
             pCnt->Total_msgs_rcvd++;
+            struct xran_prach_cp_config *PrachCfg = NULL;
+            if(p_dev_ctx->dssEnable){
+                tti = frame_id[i] * SLOTS_PER_SYSTEMFRAME(p_dev_ctx->interval_us_local) +
+                      subframe_id[i] * SLOTNUM_PER_SUBFRAME(p_dev_ctx->interval_us_local) + slot_id[i];
+                int techSlot = (tti % p_dev_ctx->dssPeriod);
+                if(p_dev_ctx->technology[techSlot] == 1)
+                    PrachCfg  = &(p_dev_ctx->PrachCPConfig);
+                else
+                    PrachCfg  = &(p_dev_ctx->PrachCPConfigLTE);
+            }
+            else{
+                PrachCfg = &(p_dev_ctx->PrachCPConfig);
+            }
 
             if (Ant_ID[i] >= p_dev_ctx->srs_cfg.eAxC_offset && p_dev_ctx->fh_cfg.srsEnable)
             {
@@ -407,9 +431,9 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
                     pCnt->rx_srs_packets++;
                 }
             }
-            else if (Ant_ID[i] >= p_dev_ctx->PrachCPConfig.eAxC_offset && p_dev_ctx->fh_cfg.prachEnable)
+            else if (Ant_ID[i] >= PrachCfg->eAxC_offset && p_dev_ctx->fh_cfg.prachEnable)
             {
-                Ant_ID[i] -= p_dev_ctx->PrachCPConfig.eAxC_offset;
+                Ant_ID[i] -= PrachCfg->eAxC_offset;
                 if (last[i] == 1)
                 {
                     prach_idx[num_prach] = i;
@@ -440,7 +464,7 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
 
         print_dbg("Completed receiving PRACH symbol %d, size=%d bytes\n", symb_id[i], num_bytes[i]);
 
-        int16_t res = xran_process_prach_sym(p_dev_ctx,
+        xran_process_prach_sym(p_dev_ctx,
                 pkt,
                 iq_samp_buf[i],
                 num_bytes[i],
@@ -466,8 +490,8 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
         print_dbg("SRS receiving symbol %d, size=%d bytes\n",
                 symb_id[i], symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID[i]][Ant_ID[i]]);
 
-        uint64_t t1 = MLogTick();
-        int16_t res = xran_process_srs_sym(p_dev_ctx,
+        uint64_t t1 = MLogXRANTick();
+        xran_process_srs_sym(p_dev_ctx,
                 pkt,
                 iq_samp_buf[i],
                 num_bytes[i],
@@ -486,16 +510,16 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
                 expect_comp,
                 compMeth[i],
                 iqWidth[i]);
-        MLogTask(PID_PROCESS_UP_PKT_SRS, t1, MLogTick());
+        MLogXRANTask(PID_PROCESS_UP_PKT_SRS, t1, MLogXRANTick());
     }
 
     if (num_pusch == MBUFS_CNT)
     {
         for (i = 0; i < MBUFS_CNT; i++)
         {
-            iq_sample_size_bits = 16;
-            if (expect_comp)
-                iq_sample_size_bits = iqWidth[i];
+            //iq_sample_size_bits = 16;
+            //if (expect_comp)
+            //    iq_sample_size_bits = iqWidth[i];
 
             tti = frame_id[i] * SLOTS_PER_SYSTEMFRAME(p_dev_ctx->interval_us_local) +
                 subframe_id[i] * SLOTNUM_PER_SUBFRAME(p_dev_ctx->interval_us_local) + slot_id[i];
@@ -504,10 +528,28 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
 
             if (pRbMap)
             {
-                prbMapElm = &pRbMap->prbMap[sect_id[i]];
-                if (sect_id[i] >= pRbMap->nPrbElm)
+                /** Get the prb_elem_id */
+                total_sections=0;
+                if(pRbMap->prbMap[0].bf_weight.extType == 1)
                 {
-//                    print_err("sect_id %d !=pRbMap->nPrbElm %d\n", sect_id[i], pRbMap->nPrbElm);
+                    for(idxElm=0 ; idxElm < pRbMap->nPrbElm ; idxElm++)
+                    {
+                        total_sections += pRbMap->prbMap[idxElm].bf_weight.numSetBFWs;
+                        if(total_sections >= (sect_id[i] + 1))
+                {
+                            prb_elem_id[i] = idxElm;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    prb_elem_id[i] = sect_id[i];
+                }
+
+                if (prb_elem_id[i] >= pRbMap->nPrbElm)
+                {
+                    print_err("sect_id %d, prb_elem_id %d !=pRbMap->nPrbElm %d\n", sect_id[i], prb_elem_id[i], pRbMap->nPrbElm);
                     ret_data[i] = MBUF_FREE;
                     continue;
                 }
@@ -528,8 +570,9 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
             else
             {
                 struct xran_section_desc* p_sec_desc = NULL;
-                prbMapElm = &pRbMap->prbMap[sect_id[i]];
-                p_sec_desc = prbMapElm->p_sec_desc[symb_id[i]][0];
+                prbMapElm = &pRbMap->prbMap[prb_elem_id[i]];
+                int16_t nSecDesc = prbMapElm->nSecDesc[symb_id[i]];
+                p_sec_desc = &prbMapElm->sec_desc[symb_id[i]][nSecDesc];
 
                 if (p_sec_desc)
                 {
@@ -544,6 +587,7 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
                     p_sec_desc->iq_buffer_len = num_bytes_pusch[i];
                     p_sec_desc->iq_buffer_offset = iq_offset[i];
                     ret_data[i] = MBUF_KEEP;
+                    prbMapElm->nSecDesc[symb_id[i]] += 1;
                 }
                 else
 {
@@ -559,9 +603,9 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
         {
             i = pusch_idx[j];
 
-            iq_sample_size_bits = 16;
-            if (expect_comp)
-                iq_sample_size_bits = iqWidth[i];
+            //iq_sample_size_bits = 16;
+            //if (expect_comp)
+            //    iq_sample_size_bits = iqWidth[i];
 
             tti = frame_id[i] * SLOTS_PER_SYSTEMFRAME(p_dev_ctx->interval_us_local) +
                 subframe_id[i] * SLOTNUM_PER_SUBFRAME(p_dev_ctx->interval_us_local) + slot_id[i];
@@ -570,10 +614,28 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
 
             if (pRbMap)
             {
-                prbMapElm = &pRbMap->prbMap[sect_id[i]];
-                if (sect_id[i] >= pRbMap->nPrbElm)
+                /** Get the prb_elem_id */
+                total_sections=0;
+                if(pRbMap->prbMap[0].bf_weight.extType == 1)
                 {
-//                    print_err("sect_id %d !=pRbMap->nPrbElm %d\n", sect_id[i], pRbMap->nPrbElm);
+                    for(idxElm=0 ; idxElm < pRbMap->nPrbElm ; idxElm++)
+                    {
+                        total_sections += pRbMap->prbMap[idxElm].bf_weight.numSetBFWs;
+                        if(total_sections >= (sect_id[i] + 1))
+                        {
+                            prb_elem_id[i] = idxElm;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    prb_elem_id[i] = sect_id[i];
+                }
+
+                if (prb_elem_id[i] >= pRbMap->nPrbElm)
+                {
+                    print_err("sect_id %d, prb_elem_id %d !=pRbMap->nPrbElm %d\n", sect_id[i], prb_elem_id[i], pRbMap->nPrbElm);
                     ret_data[i] = MBUF_FREE;
                     continue;
                 }
@@ -594,8 +656,9 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
             else
             {
                 struct xran_section_desc* p_sec_desc = NULL;
-                prbMapElm = &pRbMap->prbMap[sect_id[i]];
-                p_sec_desc = prbMapElm->p_sec_desc[symb_id[i]][0];
+                prbMapElm = &pRbMap->prbMap[prb_elem_id[i]];
+                int16_t nSecDesc = prbMapElm->nSecDesc[symb_id[i]];
+                p_sec_desc = &prbMapElm->sec_desc[symb_id[i]][nSecDesc];
 
                 if (p_sec_desc)
                 {
@@ -610,6 +673,7 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
                     p_sec_desc->iq_buffer_len = num_bytes_pusch[i];
                     p_sec_desc->iq_buffer_offset = iq_offset[i];
                     ret_data[i] = MBUF_KEEP;
+                    prbMapElm->nSecDesc[symb_id[i]] += 1;
                 }
                 else
                 {
@@ -625,7 +689,7 @@ int process_mbuf_batch(struct rte_mbuf* pkt_q[], void* handle, int16_t num, stru
 int
 process_mbuf(struct rte_mbuf *pkt, void* handle, struct xran_eaxc_info *p_cid)
 {
-    uint64_t tt1 = MLogTick();
+    uint64_t tt1 = MLogXRANTick();
     struct xran_device_ctx *p_dev_ctx = (struct xran_device_ctx *)handle;
     void *iq_samp_buf;
     union ecpri_seq_id seq;
@@ -650,12 +714,14 @@ process_mbuf(struct rte_mbuf *pkt, void* handle, struct xran_eaxc_info *p_cid)
     uint8_t compMeth = 0;
     uint8_t iqWidth = 0;
 
-    void *pHandle = NULL;
     int ret = MBUF_FREE;
     uint32_t mb_free = 0;
     int32_t valid_res = 0;
     int expect_comp  = (p_dev_ctx->fh_cfg.ru_conf.compMeth != XRAN_COMPMETHOD_NONE);
     enum xran_comp_hdr_type staticComp = p_dev_ctx->fh_cfg.ru_conf.xranCompHdrType;
+
+    if(first_call == 0)
+        return ret;
 
     if (staticComp == XRAN_COMP_HDR_TYPE_STATIC)
     {
@@ -663,181 +729,149 @@ process_mbuf(struct rte_mbuf *pkt, void* handle, struct xran_eaxc_info *p_cid)
         iqWidth = p_dev_ctx->fh_cfg.ru_conf.iqWidth;
     }
 
-    if(p_dev_ctx->xran2phy_mem_ready == 0)
+    if(p_dev_ctx->xran2phy_mem_ready == 0 || first_call == 0)
         return MBUF_FREE;
 
-    num_bytes = xran_extract_iq_samples(pkt,
-                                        &iq_samp_buf,
-                                        &CC_ID,
-                                        &Ant_ID,
-                                        &frame_id,
-                                        &subframe_id,
-                                        &slot_id,
-                                        &symb_id,
-                                        &seq,
-                                        &num_prbu,
-                                        &start_prbu,
-                                        &sym_inc,
-                                        &rb,
-                                        &sect_id,
-                                        expect_comp,
-                                        staticComp,
-                                        &compMeth,
-                                        &iqWidth);
-    if (num_bytes <= 0){
+    num_bytes = xran_extract_iq_samples(pkt, &iq_samp_buf,
+                                &CC_ID, &Ant_ID, &frame_id, &subframe_id, &slot_id, &symb_id, &seq,
+                                &num_prbu, &start_prbu, &sym_inc, &rb, &sect_id,
+                                expect_comp, staticComp, &compMeth, &iqWidth);
+    if (num_bytes <= 0)
+    {
         print_err("num_bytes is wrong [%d]\n", num_bytes);
         return MBUF_FREE;
     }
+    if (num_prbu == 0)
+        num_prbu = p_dev_ctx->fh_cfg.nULRBs;
 
-    valid_res = xran_pkt_validate(p_dev_ctx,
-                                pkt,
-                                iq_samp_buf,
-                                num_bytes,
-                                CC_ID,
-                                Ant_ID,
-                                frame_id,
-                                subframe_id,
-                                slot_id,
-                                symb_id,
-                                &seq,
-                                num_prbu,
-                                start_prbu,
-                                sym_inc,
-                                rb,
-                                sect_id);
-#ifndef FCN_ADAPT
-    if(valid_res != 0) {
-        print_dbg("valid_res is wrong [%d] ant %u (%u : %u : %u : %u) seq %u num_bytes %d\n", valid_res, Ant_ID, frame_id, subframe_id, slot_id, symb_id, seq.seq_id, num_bytes);
-        return MBUF_FREE;
-    }
-#endif
-    MLogTask(PID_PROCESS_UP_PKT_PARSE, tt1, MLogTick());
-    if (Ant_ID >= p_dev_ctx->srs_cfg.eAxC_offset && p_dev_ctx->fh_cfg.srsEnable) {
+    MLogXRANTask(PID_PROCESS_UP_PKT_PARSE, tt1, MLogXRANTick());
+    /* do not validate for NDM SRS */
+    if (Ant_ID >= p_dev_ctx->srs_cfg.eAxC_offset && p_dev_ctx->fh_cfg.srsEnable)
+    {
         /* SRS packet has ruportid = 2*num_eAxc + ant_id */
         Ant_ID -= p_dev_ctx->srs_cfg.eAxC_offset;
         symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID] += num_bytes;
 
-        if (seq.bits.e_bit == 1) {
+        if (seq.bits.e_bit == 1)
+        {
             print_dbg("SRS receiving symbol %d, size=%d bytes\n",
                 symb_id, symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]);
 
-            if (symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]) {
-               uint64_t t1 = MLogTick();
+            if (symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID])
+            {
+               uint64_t t1 = MLogXRANTick();
                int16_t res = xran_process_srs_sym(p_dev_ctx,
-                                pkt,
-                                iq_samp_buf,
-                                num_bytes,
-                                CC_ID,
-                                Ant_ID,
-                                frame_id,
-                                subframe_id,
-                                slot_id,
-                                symb_id,
-                                num_prbu,
-                                start_prbu,
-                                sym_inc,
-                                rb,
-                                sect_id,
-                                &mb_free,
-                                expect_comp,
-                                compMeth,
-                                iqWidth);
-                if(res == symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]) {
+                                pkt, iq_samp_buf, num_bytes,
+                                CC_ID, Ant_ID, frame_id, subframe_id, slot_id, symb_id,
+                                num_prbu, start_prbu, sym_inc, rb, sect_id,
+                                &mb_free, expect_comp, compMeth, iqWidth);
+                if(res == symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID])
                     ret = mb_free;
-                } else {
+                else
                     print_err("res != symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]\n");
-                }
+
                 pCnt->rx_srs_packets++;
-                MLogTask(PID_PROCESS_UP_PKT_SRS, t1, MLogTick());
+                MLogXRANTask(PID_PROCESS_UP_PKT_SRS, t1, MLogXRANTick());
             }
             symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID] = 0;
         }
-        else {
+        else
             print_dbg("Transport layer fragmentation (eCPRI) is not supported\n");
+    } /* if (Ant_ID >= p_dev_ctx->srs_cfg.eAxC_offset && p_dev_ctx->fh_cfg.srsEnable) */
+
+    else
+    {
+        valid_res = xran_pkt_validate(p_dev_ctx,
+                                pkt, iq_samp_buf, num_bytes,
+                                CC_ID, Ant_ID, frame_id, subframe_id, slot_id, symb_id,
+                                &seq, num_prbu, start_prbu, sym_inc, rb, sect_id);
+#ifndef FCN_ADAPT
+        if(valid_res != 0)
+        {
+            print_dbg("valid_res is wrong [%d] ant %u (%u : %u : %u : %u) seq %u num_bytes %d\n", valid_res, Ant_ID, frame_id, subframe_id, slot_id, symb_id, seq.bits.seq_id, num_bytes);
+            return MBUF_FREE;
+        }
+#endif
+        int tti = 0;
+        struct xran_prach_cp_config *PrachCfg = NULL;
+        if(p_dev_ctx->dssEnable){
+            tti = frame_id * SLOTS_PER_SYSTEMFRAME(p_dev_ctx->interval_us_local) +
+                    subframe_id * SLOTNUM_PER_SUBFRAME(p_dev_ctx->interval_us_local) + slot_id;
+            int techSlot = (tti % p_dev_ctx->dssPeriod);
+            if(p_dev_ctx->technology[techSlot] == 1)
+                PrachCfg  = &(p_dev_ctx->PrachCPConfig);
+            else
+                PrachCfg  = &(p_dev_ctx->PrachCPConfigLTE);
+        }
+        else{
+            PrachCfg = &(p_dev_ctx->PrachCPConfig);
         }
 
-    } else if (Ant_ID >= p_dev_ctx->PrachCPConfig.eAxC_offset && p_dev_ctx->fh_cfg.prachEnable) {
+        if (Ant_ID >= PrachCfg->eAxC_offset && p_dev_ctx->fh_cfg.prachEnable)
+        {
         /* PRACH packet has ruportid = num_eAxc + ant_id */
-        Ant_ID -= p_dev_ctx->PrachCPConfig.eAxC_offset;
+            Ant_ID -= PrachCfg->eAxC_offset;
         symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID] += num_bytes;
-        if (seq.bits.e_bit == 1) {
+            if (seq.bits.e_bit == 1)
+            {
             print_dbg("Completed receiving PRACH symbol %d, size=%d bytes\n",
                 symb_id, num_bytes);
 
-            if (symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]) {
+                if (symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID])
+                {
                 int16_t res =  xran_process_prach_sym(p_dev_ctx,
-                                                      pkt,
-                                                      iq_samp_buf,
-                                                      num_bytes,
-                                                      CC_ID,
-                                                      Ant_ID,
-                                                      frame_id,
-                                                      subframe_id,
-                                                      slot_id,
-                                                      symb_id,
-                                                      num_prbu,
-                                                      start_prbu,
-                                                      sym_inc,
-                                                      rb,
-                                                      sect_id,
-                                                      &mb_free);
-                if(res == symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]) {
+                                                          pkt, iq_samp_buf, num_bytes,
+                                                          CC_ID, Ant_ID, frame_id, subframe_id, slot_id, symb_id,
+                                                          num_prbu, start_prbu, sym_inc, rb, sect_id, &mb_free);
+                    if(res == symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID])
                     ret = mb_free;
-                } else {
+                    else
                     print_err("res != symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]\n");
-                }
+
                 pCnt->rx_prach_packets[Ant_ID]++;
             }
             symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID] = 0;
-        } else {
+            }
+            else
             print_dbg("Transport layer fragmentation (eCPRI) is not supported\n");
         }
-
-    } else { /* PUSCH */
+        else
+        {
+            /* PUSCH */
         symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID] += num_bytes;
 
-        if (seq.bits.e_bit == 1) {
+            if (seq.bits.e_bit == 1)
+            {
             print_dbg("Completed receiving symbol %d, size=%d bytes\n",
                 symb_id, symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]);
 
-            if (symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]) {
-                uint64_t t1 = MLogTick();
+                if (symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID])
+                {
+                    uint64_t t1 = MLogXRANTick();
                 int res = xran_process_rx_sym(p_dev_ctx,
-                                pkt,
-                                iq_samp_buf,
-                                symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID],
-                                CC_ID,
-                                Ant_ID,
-                                frame_id,
-                                subframe_id,
-                                slot_id,
-                                symb_id,
-                                num_prbu,
-                                start_prbu,
-                                sym_inc,
-                                rb,
-                                sect_id,
-                                &mb_free,
-                                expect_comp,
-                                compMeth,
-                                iqWidth);
-                if(res == symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]) {
+                                    pkt, iq_samp_buf, symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID],
+                                    CC_ID, Ant_ID, frame_id, subframe_id, slot_id, symb_id,
+                                    num_prbu, start_prbu, sym_inc, rb, sect_id,
+                                    &mb_free, expect_comp, compMeth, iqWidth);
+                    if(res == symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID])
                     ret = mb_free;
-                } else {
+                    else
                     print_err("res != symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID]\n");
-                }
+
                 pCnt->rx_pusch_packets[Ant_ID]++;
-                MLogTask(PID_PROCESS_UP_PKT, t1, MLogTick());
+                    MLogXRANTask(PID_PROCESS_UP_PKT, t1, MLogXRANTick());
             }
             symbol_total_bytes[p_dev_ctx->xran_port_id][CC_ID][Ant_ID] = 0;
-        } else {
-            print_dbg("Transport layer fragmentation (eCPRI) is not supported\n");
         }
+            else
+                print_dbg("Transport layer fragmentation (eCPRI) is not supported\n");
     }
+    } /* else */
 
     return ret;
 }
 
+#if 0
 static int set_iq_bit_width(uint8_t iq_bit_width, struct data_section_compression_hdr *compr_hdr)
 {
     if (iq_bit_width == MAX_IQ_BIT_WIDTH)
@@ -848,10 +882,11 @@ static int set_iq_bit_width(uint8_t iq_bit_width, struct data_section_compressio
     return  0;
 
 }
+#endif
 
 /* Send a single 5G symbol over multiple packets */
 inline int32_t prepare_symbol_ex(enum xran_pkt_dir direction,
-                uint16_t section_id,
+                uint16_t section_id_start,
                 struct rte_mbuf *mb,
                 uint8_t *data,
                 uint8_t     compMeth,
@@ -867,15 +902,17 @@ inline int32_t prepare_symbol_ex(enum xran_pkt_dir direction,
                 uint8_t RU_Port_ID,
                 uint8_t seq_id,
                 uint32_t do_copy,
-                enum xran_comp_hdr_type staticEn)
+                enum xran_comp_hdr_type staticEn,
+                uint16_t num_sections,
+                uint16_t iq_offset)
 {
-    int32_t n_bytes;
+    int32_t n_bytes , iq_len_aggr = 0;
     int32_t prep_bytes;
-    int16_t nPktSize;
-    uint32_t off;
+    int16_t nPktSize,idx, nprb_per_section;
+    uint32_t curr_sect_id;
     int parm_size;
-    struct xran_up_pkt_gen_params xp = { 0 };
-
+    struct xran_up_pkt_gen_params xp[XRAN_MAX_SECTIONS_PER_SLOT] = { 0 };
+    bool prbElemBegin , prbElemEnd;
 
     iqWidth = (iqWidth==0) ? 16 : iqWidth;
     switch(compMeth) {
@@ -884,60 +921,104 @@ inline int32_t prepare_symbol_ex(enum xran_pkt_dir direction,
         default:
             parm_size = 0;
         }
-    n_bytes = (3 * iqWidth + parm_size) * prb_num;
-    n_bytes = RTE_MIN(n_bytes, XRAN_MAX_MBUF_LEN);
 
-    nPktSize = sizeof(struct rte_ether_hdr)
+    nprb_per_section = prb_num/num_sections;
+    if(prb_num%num_sections)
+        nprb_per_section++;
+
+    n_bytes = (3 * iqWidth + parm_size)*nprb_per_section;
+    // n_bytes = RTE_MIN(n_bytes, XRAN_MAX_MBUF_LEN);
+
+    for(idx=0 ; idx < num_sections ; idx++)
+    {
+        prbElemBegin = (idx == 0) ? 1 : 0;
+        prbElemEnd   = (idx + 1 == num_sections) ? 1 : 0;
+        curr_sect_id = section_id_start + idx ;
+
+        iq_len_aggr += n_bytes;
+
+        if(prbElemBegin)
+        {
+             nPktSize = sizeof(struct rte_ether_hdr)
                 + sizeof(struct xran_ecpri_hdr)
-                + sizeof(struct radio_app_common_hdr)
-                + sizeof(struct data_section_hdr)
-                + n_bytes;
-    if ((compMeth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
-        nPktSize += sizeof(struct data_section_compression_hdr);
+                        + sizeof(struct radio_app_common_hdr) ;
+        }
 
-    /* radio app header */
-    xp.app_params.data_feature.value = 0x10;
-    xp.app_params.data_feature.data_direction = direction;
-    //xp.app_params.payl_ver       = 1;
-    //xp.app_params.filter_id      = 0;
-    xp.app_params.frame_id       = frame_id;
-    xp.app_params.sf_slot_sym.subframe_id    = subframe_id;
-    xp.app_params.sf_slot_sym.slot_id        = xran_slotid_convert(slot_id, 0);
-    xp.app_params.sf_slot_sym.symb_id        = symbol_no;
+        if(prbElemEnd){
+            if(((idx+1)*nprb_per_section) > prb_num){
+                nprb_per_section = (prb_num - idx*nprb_per_section);
+                // n_bytes = (3 * iqWidth + parm_size)*(nprb_per_section);
+            }
+        }
+
+        nPktSize += sizeof(struct data_section_hdr);
+
+        if ((compMeth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
+            nPktSize += sizeof(struct data_section_compression_hdr);
+
+        nPktSize += n_bytes;
+
+        /** radio app header
+         *  Setting app_params is redundant , its needed only once to create common Radio app header.
+        */
+        xp[idx].app_params.data_feature.value = 0x10;
+        xp[idx].app_params.data_feature.data_direction = direction;
+        // xp[idx].app_params.payl_ver       = 1;
+        // xp[idx].app_params.filter_id      = 0;
+        xp[idx].app_params.frame_id       = frame_id;
+        xp[idx].app_params.sf_slot_sym.subframe_id    = subframe_id;
+        xp[idx].app_params.sf_slot_sym.slot_id        = xran_slotid_convert(slot_id, 0);
+        xp[idx].app_params.sf_slot_sym.symb_id        = symbol_no;
 
     /* convert to network byte order */
-    xp.app_params.sf_slot_sym.value = rte_cpu_to_be_16(xp.app_params.sf_slot_sym.value);
+        xp[idx].app_params.sf_slot_sym.value = rte_cpu_to_be_16(xp[idx].app_params.sf_slot_sym.value);
 
-    xp.sec_hdr.fields.all_bits   = 0;
-    xp.sec_hdr.fields.sect_id    = section_id;
-    xp.sec_hdr.fields.num_prbu   = (uint8_t)prb_num;
-    xp.sec_hdr.fields.start_prbu = (uint8_t)prb_start;
-    //xp.sec_hdr.fields.sym_inc    = 0;
-    //xp.sec_hdr.fields.rb         = 0;
+        // printf("start_prbu = %d, prb_num = %d,num_sections = %d, nprb_per_section = %d,curr_sect_id = %d\n",(prb_start + idx*nprb_per_section),prb_num,num_sections,nprb_per_section,curr_sect_id);
+        xp[idx].sec_hdr.fields.all_bits   = 0;
+        xp[idx].sec_hdr.fields.sect_id    = curr_sect_id;
+        xp[idx].sec_hdr.fields.num_prbu   = XRAN_CONVERT_NUMPRBC(nprb_per_section); //(uint8_t)prb_num;
+        xp[idx].sec_hdr.fields.start_prbu = prb_start;
+        xp[idx].sec_hdr.fields.sym_inc    = 0;
+        xp[idx].sec_hdr.fields.rb         = 0;
 
     /* compression */
-    xp.compr_hdr_param.ud_comp_hdr.ud_comp_meth = compMeth;
-    xp.compr_hdr_param.ud_comp_hdr.ud_iq_width  = XRAN_CONVERT_IQWIDTH(iqWidth);
-    xp.compr_hdr_param.rsrvd                    = 0;
+        xp[idx].compr_hdr_param.ud_comp_hdr.ud_comp_meth = compMeth;
+        xp[idx].compr_hdr_param.ud_comp_hdr.ud_iq_width  = XRAN_CONVERT_IQWIDTH(iqWidth);
+        xp[idx].compr_hdr_param.rsrvd                    = 0;
+        prb_start += nprb_per_section;
+
+#if 0
+        printf("\nidx %hu num_prbu %u sect_id %u start_prbu %u sym_inc %u curr_sec_id %u",idx,(uint32_t)xp[idx].sec_hdr.fields.num_prbu,
+                                                                           (uint32_t)xp[idx].sec_hdr.fields.sect_id,
+                                                                           (uint32_t)xp[idx].sec_hdr.fields.start_prbu,
+                                                                           (uint32_t)xp[idx].sec_hdr.fields.sym_inc,curr_sect_id);
+
+#endif
 
     /* network byte order */
-    xp.sec_hdr.fields.all_bits  = rte_cpu_to_be_32(xp.sec_hdr.fields.all_bits);
+        xp[idx].sec_hdr.fields.all_bits  = rte_cpu_to_be_32(xp[idx].sec_hdr.fields.all_bits);
 
     if (mb == NULL){
         MLogPrint(NULL);
         errx(1, "out of mbufs after %d packets", 1);
     }
+    } /* for(idx=0 ; idx < num_sections ; idx++) */
+
+    //printf("\niq_len_aggr %u",iq_len_aggr);
 
     prep_bytes = xran_prepare_iq_symbol_portion(mb,
                                                   data,
                                                   iq_buf_byte_order,
-                                                  n_bytes,
-                                                  &xp,
+                                                  iq_len_aggr,
+                                                  xp,
                                                   CC_ID,
                                                   RU_Port_ID,
                                                   seq_id,
                                                   staticEn,
-                                                  do_copy);
+                                                  do_copy,
+                                                  num_sections,
+                                                  section_id_start,
+                                                  iq_offset);
     if (prep_bytes <= 0)
         errx(1, "failed preparing symbol");
 
@@ -974,7 +1055,122 @@ int32_t prepare_sf_slot_sym (enum xran_pkt_dir direction,
     return 0;
 }
 
+int send_symbol_mult_section_ex(void *handle,
+                enum xran_pkt_dir direction,
+                uint16_t section_id,
+                struct rte_mbuf *mb, uint8_t *data,
+                uint8_t compMeth, uint8_t iqWidth,
+                const enum xran_input_byte_order iq_buf_byte_order,
+                uint8_t frame_id, uint8_t subframe_id,
+                uint8_t slot_id, uint8_t symbol_no,
+                int prb_start, int prb_num,
+                uint8_t CC_ID, uint8_t RU_Port_ID, uint8_t seq_id)
+{
+    uint32_t do_copy = 0;
+    int32_t n_bytes;
+    int hdr_len, parm_size;
+    int32_t sent=0;
+    uint32_t loop = 0;
+    struct xran_device_ctx *p_dev_ctx = (struct xran_device_ctx *)handle;
+    struct xran_common_counters *pCnt = &p_dev_ctx->fh_counters;
+    enum xran_comp_hdr_type staticEn= XRAN_COMP_HDR_TYPE_DYNAMIC;
 
+
+    if (p_dev_ctx != NULL)
+    {
+        staticEn = p_dev_ctx->fh_cfg.ru_conf.xranCompHdrType;
+
+    hdr_len = sizeof(struct xran_ecpri_hdr)
+                + sizeof(struct radio_app_common_hdr)
+                + sizeof(struct data_section_hdr);
+        if ((compMeth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
+        hdr_len += sizeof(struct data_section_compression_hdr);
+
+    switch(compMeth) {
+        case XRAN_COMPMETHOD_BLKFLOAT:      parm_size = 1; break;
+        case XRAN_COMPMETHOD_MODULATION:    parm_size = 0; break;
+        default:
+            parm_size = 0;
+        }
+    int prb_num_pre_sec = (prb_num+2)/3;
+    int prb_offset = 0;
+    int data_offset = 0;
+    int prb_num_sec;
+    rte_iova_t ext_buff_iova = 0;
+
+    struct rte_mbuf *send_mb;
+    char        *p_sec_iq = NULL;
+    char        *ext_buff = NULL;
+    uint16_t    ext_buff_len = 0;
+    struct rte_mbuf_ext_shared_info * p_share_data = NULL;
+    struct rte_mbuf *eth_oran_hdr = NULL;
+    struct rte_mbuf *tmp = NULL;
+    for (loop = 0; loop < 3;loop++)
+    {
+        seq_id = xran_get_upul_seqid(handle, CC_ID, RU_Port_ID);
+        
+        prb_num_sec = ((loop+1)*prb_num_pre_sec > prb_num) ? (prb_num - loop*prb_num_pre_sec) : prb_num_pre_sec;
+        n_bytes = (3 * iqWidth + parm_size) * prb_num_sec;
+        char * pChar = NULL;
+
+        send_mb = xran_ethdi_mbuf_alloc(); /* will be freede by ETH */
+        if(send_mb ==  NULL) {
+            MLogPrint(NULL);
+            errx(1, "out of mbufs after %d packets", 1);
+            }
+        
+        pChar = rte_pktmbuf_append(send_mb, hdr_len + n_bytes);
+        if(pChar == NULL) {
+            MLogPrint(NULL);
+            errx(1, "incorrect mbuf size %d packets", 1);
+            }
+        pChar = rte_pktmbuf_prepend(send_mb, sizeof(struct rte_ether_hdr));
+        if(pChar == NULL) {
+            MLogPrint(NULL);
+            errx(1, "incorrect mbuf size %d packets", 1);
+            }
+        do_copy = 1; /* new mbuf hence copy of IQs  */
+        pChar = rte_pktmbuf_mtod(send_mb, char*);
+        char *pdata_start = (pChar + sizeof(struct rte_ether_hdr) + hdr_len);
+        memcpy(pdata_start,data  + data_offset,n_bytes);
+        
+
+        sent = prepare_symbol_ex(direction,
+                             section_id,
+                             send_mb,
+                             data  + data_offset,
+                             compMeth,
+                             iqWidth,
+                             iq_buf_byte_order,
+                             frame_id,
+                             subframe_id,
+                             slot_id,
+                             symbol_no,
+                             prb_start+prb_offset,
+                             prb_num_sec,
+                             CC_ID,
+                             RU_Port_ID,
+                             seq_id,
+                             do_copy,
+                             staticEn,
+                             1,
+                             0); /*Send a single section */
+        prb_offset += prb_num_sec;
+        data_offset += n_bytes;
+        if(sent) {
+            pCnt->tx_counter++;
+            pCnt->tx_bytes_counter += rte_pktmbuf_pkt_len(send_mb);
+            p_dev_ctx->send_upmbuf2ring(send_mb, ETHER_TYPE_ECPRI, xran_map_ecpriPcid_to_vf(p_dev_ctx, direction, CC_ID, RU_Port_ID));
+            }
+    
+     }
+
+#ifdef DEBUG
+    printf("Symbol %2d sent (%d packets, %d bytes)\n", symbol_no, i, n_bytes);
+#endif
+    }
+    return sent;
+}
 
 
 /* Send a single 5G symbol over multiple packets */
@@ -1034,6 +1230,14 @@ int send_symbol_ex(void *handle,
                 errx(1, "incorrect mbuf size %d packets", 1);
         }
         do_copy = 1; /* new mbuf hence copy of IQs  */
+
+        /**copy prach data start**/
+        pChar = rte_pktmbuf_mtod(mb, char*);
+        char *pdata_start = (pChar + sizeof(struct rte_ether_hdr) + hdr_len);
+        memcpy(pdata_start,data,n_bytes);
+        /**copy prach data end**/
+
+        
         }
     else {
         rte_pktmbuf_refcnt_update(mb, 1); /* make sure eth won't free our mbuf */
@@ -1056,7 +1260,9 @@ int send_symbol_ex(void *handle,
                          RU_Port_ID,
                          seq_id,
                          do_copy,
-                         staticEn);
+                         staticEn,
+                         1,
+                         0); /*Send a single section */
 
     if(sent){
         pCnt->tx_counter++;
@@ -1092,7 +1298,7 @@ int send_cpmsg(void *pHandle, struct rte_mbuf *mbuf,struct xran_cp_gen_params *p
     for(i=0; i<nsection; i++)
         xran_cp_add_section_info(pHandle, dir, cc_id, ru_port_id,
                 (slot_id + subframe_id*SLOTNUM_PER_SUBFRAME(p_dev_ctx->interval_us_local))%XRAN_MAX_SECTIONDB_CTX,
-                &sect_geninfo[i].info);
+                sect_geninfo[i].info);
 
     return (ret);
 }
@@ -1116,25 +1322,25 @@ int generate_cpmsg_dlul(void *pHandle, struct xran_cp_gen_params *params, struct
     params->hdr.compMeth         = comp_method;
 
     nsection = 0;
-    sect_geninfo[nsection].info.type        = params->sectionType;       // for database
-    sect_geninfo[nsection].info.startSymId  = params->hdr.startSymId;    // for database
-    sect_geninfo[nsection].info.iqWidth     = params->hdr.iqWidth;       // for database
-    sect_geninfo[nsection].info.compMeth    = params->hdr.compMeth;      // for database
-    sect_geninfo[nsection].info.id          = xran_alloc_sectionid(pHandle, dir, cc_id, ru_port_id, slot_id);
-    sect_geninfo[nsection].info.rb          = XRAN_RBIND_EVERY;
-    sect_geninfo[nsection].info.symInc      = symInc;
-    sect_geninfo[nsection].info.startPrbc   = prb_start;
-    sect_geninfo[nsection].info.numPrbc     = prb_num;
-    sect_geninfo[nsection].info.numSymbol   = numsym;
-    sect_geninfo[nsection].info.reMask      = 0xfff;
-    sect_geninfo[nsection].info.beamId      = beam_id;
+    sect_geninfo[nsection].info->type        = params->sectionType;       // for database
+    sect_geninfo[nsection].info->startSymId  = params->hdr.startSymId;    // for database
+    sect_geninfo[nsection].info->iqWidth     = params->hdr.iqWidth;       // for database
+    sect_geninfo[nsection].info->compMeth    = params->hdr.compMeth;      // for database
+    sect_geninfo[nsection].info->id          = xran_alloc_sectionid(pHandle, dir, cc_id, ru_port_id, subframe_id, slot_id);
+    sect_geninfo[nsection].info->rb          = XRAN_RBIND_EVERY;
+    sect_geninfo[nsection].info->symInc      = symInc;
+    sect_geninfo[nsection].info->startPrbc   = prb_start;
+    sect_geninfo[nsection].info->numPrbc     = prb_num;
+    sect_geninfo[nsection].info->numSymbol   = numsym;
+    sect_geninfo[nsection].info->reMask      = 0xfff;
+    sect_geninfo[nsection].info->beamId      = beam_id;
 
     for (loc_sym = 0; loc_sym < XRAN_NUM_OF_SYMBOL_PER_SLOT; loc_sym++) {
-        sect_geninfo[0].info.sec_desc[loc_sym].iq_buffer_offset = iq_buffer_offset;
-        sect_geninfo[0].info.sec_desc[loc_sym].iq_buffer_len    = iq_buffer_len;
+        sect_geninfo[0].info->sec_desc[loc_sym].iq_buffer_offset = iq_buffer_offset;
+        sect_geninfo[0].info->sec_desc[loc_sym].iq_buffer_len    = iq_buffer_len;
     }
 
-    sect_geninfo[nsection].info.ef          = 0;
+    sect_geninfo[nsection].info->ef          = 0;
     sect_geninfo[nsection].exDataSize       = 0;
 //    sect_geninfo[nsection].exData           = NULL;
     nsection++;
@@ -1147,7 +1353,7 @@ int generate_cpmsg_dlul(void *pHandle, struct xran_cp_gen_params *params, struct
         return (-1);
     }
 
-    ret = xran_prepare_ctrl_pkt(mbuf, params, cc_id, ru_port_id, seq_id);
+    ret = xran_prepare_ctrl_pkt(mbuf, params, cc_id, ru_port_id, seq_id,0);
     if(ret < 0){
         print_err("Fail to build control plane packet - [%d:%d:%d] dir=%d\n",
                     frame_id, subframe_id, slot_id, dir);
@@ -1158,11 +1364,25 @@ int generate_cpmsg_dlul(void *pHandle, struct xran_cp_gen_params *params, struct
 }
 
 int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struct xran_section_gen_info *sect_geninfo, struct rte_mbuf *mbuf, struct xran_device_ctx *pxran_lib_ctx,
-                uint8_t frame_id, uint8_t subframe_id, uint8_t slot_id,
+                uint8_t frame_id, uint8_t subframe_id, uint8_t slot_id, int tti,
                 uint16_t beam_id, uint8_t cc_id, uint8_t prach_port_id, uint16_t occasionid, uint8_t seq_id)
 {
     int nsection, ret;
-    struct xran_prach_cp_config  *pPrachCPConfig = &(pxran_lib_ctx->PrachCPConfig);
+    struct xran_prach_cp_config  *pPrachCPConfig = NULL;;
+    int i=0;
+    if(pxran_lib_ctx->dssEnable){
+        i = tti % pxran_lib_ctx->dssPeriod;
+        if(pxran_lib_ctx->technology[i]==1) {
+            pPrachCPConfig = &(pxran_lib_ctx->PrachCPConfig);
+        }
+        else
+        {
+            pPrachCPConfig = &(pxran_lib_ctx->PrachCPConfigLTE);
+        }
+    }
+    else
+        pPrachCPConfig = &(pxran_lib_ctx->PrachCPConfig);
+
     uint16_t timeOffset;
     uint16_t nNumerology = pxran_lib_ctx->fh_cfg.frame_conf.nNumerology;
     uint8_t startSymId;
@@ -1188,9 +1408,17 @@ int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struc
     {
         timeOffset += startSymId * (2048 + 144);
     }
+
+    if(XRAN_FILTERINDEX_PRACH_ABC == pPrachCPConfig->filterIdx)
+    {
     timeOffset = timeOffset >> nNumerology; //original number is Tc, convert to Ts based on mu
     if ((slot_id == 0) || (slot_id == (SLOTNUM_PER_SUBFRAME(pxran_lib_ctx->interval_us_local) >> 1)))
         timeOffset += 16;
+    }
+    else
+    {
+        //when prach scs lower than 15khz, timeOffset base 15khz not need to adjust.
+    }
 
     params->dir                  = XRAN_DIR_UL;
     params->sectionType          = XRAN_CP_SECTIONTYPE_3;
@@ -1204,27 +1432,52 @@ int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struc
         /* use timeOffset field for the CP length value for prach sequence */
     params->hdr.timeOffset       = timeOffset;
     params->hdr.fftSize          = xran_get_conf_fftsize(pHandle);
+	/*convert to o-ran ecpri specs scs index*/
+    switch(pPrachCPConfig->filterIdx)
+    {
+        case XRAN_FILTERINDEX_PRACH_012:
+            params->hdr.scs              = 12;
+            break;
+        case XRAN_FILTERINDEX_NPRACH:
+            params->hdr.scs              = 13;
+            break;
+        case XRAN_FILTERINDEX_PRACH_3:
+            params->hdr.scs              = 14;
+            break;
+        case XRAN_FILTERINDEX_LTE4:
+            params->hdr.scs              = 15;
+            break;
+        case XRAN_FILTERINDEX_PRACH_ABC:
     params->hdr.scs              = xran_get_conf_prach_scs(pHandle);
+            break;
+        default:
+            print_err("prach filterIdx error - [%d:%d:%d]--%d\n", frame_id, subframe_id, slot_id,pPrachCPConfig->filterIdx);
+            params->hdr.scs              = 0;
+            break;
+    }
     params->hdr.cpLength         = 0;
 
     nsection = 0;
-    sect_geninfo[nsection].info.type        = params->sectionType;       // for database
-    sect_geninfo[nsection].info.startSymId  = params->hdr.startSymId;    // for database
-    sect_geninfo[nsection].info.iqWidth     = params->hdr.iqWidth;       // for database
-    sect_geninfo[nsection].info.compMeth    = params->hdr.compMeth;      // for database
-    sect_geninfo[nsection].info.id          = xran_alloc_sectionid(pHandle, XRAN_DIR_UL, cc_id, prach_port_id, slot_id);
-    sect_geninfo[nsection].info.rb          = XRAN_RBIND_EVERY;
-    sect_geninfo[nsection].info.symInc      = XRAN_SYMBOLNUMBER_NOTINC;
-    sect_geninfo[nsection].info.startPrbc   = pPrachCPConfig->startPrbc;
-    sect_geninfo[nsection].info.numPrbc     = pPrachCPConfig->numPrbc,
-    sect_geninfo[nsection].info.numSymbol   = pPrachCPConfig->numSymbol;
-    sect_geninfo[nsection].info.reMask      = 0xfff;
-    sect_geninfo[nsection].info.beamId      = beam_id;
-    sect_geninfo[nsection].info.freqOffset  = pPrachCPConfig->freqOffset;
+    sect_geninfo[nsection].info->type        = params->sectionType;       // for database
+    sect_geninfo[nsection].info->startSymId  = params->hdr.startSymId;    // for database
+    sect_geninfo[nsection].info->iqWidth     = params->hdr.iqWidth;       // for database
+    sect_geninfo[nsection].info->compMeth    = params->hdr.compMeth;      // for database
+    sect_geninfo[nsection].info->id          = xran_alloc_sectionid(pHandle, XRAN_DIR_UL, cc_id, prach_port_id, subframe_id, slot_id);
+    sect_geninfo[nsection].info->rb          = XRAN_RBIND_EVERY;
+    sect_geninfo[nsection].info->symInc      = XRAN_SYMBOLNUMBER_NOTINC;
+    sect_geninfo[nsection].info->startPrbc   = pPrachCPConfig->startPrbc;
+    sect_geninfo[nsection].info->numPrbc     = pPrachCPConfig->numPrbc,
+    sect_geninfo[nsection].info->numSymbol   = pPrachCPConfig->numSymbol;
+    sect_geninfo[nsection].info->reMask      = 0xfff;
+    sect_geninfo[nsection].info->beamId      = beam_id;
+    sect_geninfo[nsection].info->freqOffset  = pPrachCPConfig->freqOffset;
+    sect_geninfo[nsection].info->prbElemBegin = 1;
+    sect_geninfo[nsection].info->prbElemEnd   = 1;
+
 
     pxran_lib_ctx->prach_last_symbol[cc_id] = pPrachCPConfig->startSymId + pPrachCPConfig->numSymbol*pPrachCPConfig->occassionsInPrachSlot - 1;
 
-    sect_geninfo[nsection].info.ef          = 0;
+    sect_geninfo[nsection].info->ef          = 0;
     sect_geninfo[nsection].exDataSize       = 0;
 //    sect_geninfo[nsection].exData           = NULL;
     nsection++;
@@ -1232,7 +1485,7 @@ int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struc
     params->numSections          = nsection;
     params->sections             = sect_geninfo;
 
-    ret = xran_prepare_ctrl_pkt(mbuf, params, cc_id, prach_port_id, seq_id);
+    ret = xran_prepare_ctrl_pkt(mbuf, params, cc_id, prach_port_id, seq_id,0);
     if(ret < 0){
         print_err("Fail to build prach control packet - [%d:%d:%d]\n", frame_id, subframe_id, slot_id);
         rte_pktmbuf_free(mbuf);
@@ -1246,9 +1499,8 @@ int process_ring(struct rte_ring *r, uint16_t ring_id, uint16_t q_id)
     assert(r);
 
     struct rte_mbuf *mbufs[MBUFS_CNT];
-    int i;
     uint32_t remaining;
-    uint64_t t1;
+    //uint64_t t1;
     const uint16_t dequeued = rte_ring_dequeue_burst(r, (void **)mbufs,
         RTE_DIM(mbufs), &remaining);
 
@@ -1274,22 +1526,22 @@ int32_t ring_processing_func(void* args)
     rte_timer_manage();
 
     if (ctx->bbdev_dec) {
-        t1 = MLogTick();
+        t1 = MLogXRANTick();
         retPoll = ctx->bbdev_dec();
         if (retPoll == 1)
         {
-            t2 = MLogTick();
-            MLogTask(PID_XRAN_BBDEV_UL_POLL + retPoll, t1, t2);
+            t2 = MLogXRANTick();
+            MLogXRANTask(PID_XRAN_BBDEV_UL_POLL + retPoll, t1, t2);
         }
     }
 
     if (ctx->bbdev_enc) {
-        t1 = MLogTick();
+        t1 = MLogXRANTick();
         retPoll = ctx->bbdev_enc();
         if (retPoll == 1)
         {
-            t2 = MLogTick();
-            MLogTask(PID_XRAN_BBDEV_DL_POLL + retPoll, t1, t2);
+            t2 = MLogXRANTick();
+            MLogXRANTask(PID_XRAN_BBDEV_DL_POLL + retPoll, t1, t2);
         }
     }
 
@@ -1333,8 +1585,8 @@ xran_generic_worker_thread(void *args)
                 break;
         }
 
-    if (XRAN_STOPPED == xran_if_current_state)
-        return -1;
+        if (XRAN_STOPPED == xran_if_current_state)
+            return -1;
 
         if(p_io_cfg->io_sleep)
             nanosleep(&sleeptime,NULL);
@@ -1370,4 +1622,3 @@ int ring_processing_thread(void *args)
     puts("Pkt processing thread finished.");
     return 0;
 }
-

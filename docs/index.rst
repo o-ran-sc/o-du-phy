@@ -19,7 +19,7 @@
 O-RAN O-DU Low
 ==============
 
-**User Guide, March 2022**
+**User Guide, June 2022**
   
 .. toctree::
    :maxdepth: 2
@@ -80,8 +80,8 @@ Running L1 and TESTMAC
 
 * :ref:`search`
 
-Test Cases for the E Maintenance Release
-========================================
+Test Cases for the F Release
+============================
 
 .. toctree::
    :maxdepth: 2

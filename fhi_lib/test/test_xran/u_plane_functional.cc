@@ -61,6 +61,7 @@ TEST_P(U_planeCheck, Test_DLUL)
 {
     enum xran_pkt_dir direction =  XRAN_DIR_DL;
     uint16_t section_id = 7;
+    uint16_t num_sections = 1;
     enum xran_input_byte_order iq_buf_byte_order = XRAN_CPU_LE_BYTE_ORDER;
     uint8_t frame_id = 99;
     uint8_t subframe_id  = 9;
@@ -102,7 +103,9 @@ TEST_P(U_planeCheck, Test_DLUL)
                                 RU_Port_ID,
                                 seq_id,
                                 do_copy,
-                                staticEn);
+                                staticEn,
+                                num_sections,
+                                0);
 
     ASSERT_EQ(prep_bytes, 3168);
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -81,6 +81,8 @@ enum {
 #define FAPI_MAX_NUM_SET_CORE_MASK ( 4 )
 #define FAPI_MAX_MASK_OPTIONS      ( 4 )
 #define FAPI_NUM_SPLIT_OPTIONS     ( 22 )
+#define FAPI_MAX_NUM_CELLS         ( 32 )
+#define FAPI_MAX_GROUP_NUM         ( 32 )
 #endif
 
     typedef struct {
@@ -243,7 +245,7 @@ enum {
         fapi_start_req_vendor_msg_t start_req_vendor;
         fapi_stop_req_vendor_msg_t stop_req_vendor;
         fapi_vendor_p7_msg_t p7_req_vendor;
-    } fapi_vendor_msg_t;
+    } fapi_vendor_msg_t; //TODO: union?
 
     typedef struct {
         fapi_msg_t header;
@@ -371,6 +373,7 @@ enum {
         uint32_t eOption;
         uint64_t nCoreMask[FAPI_MAX_MASK_OPTIONS][FAPI_MAX_NUM_SET_CORE_MASK];
         uint32_t nMacOptions[FAPI_NUM_SPLIT_OPTIONS];
+        uint8_t  nPuschInterOptions[FAPI_MAX_NUM_CELLS][FAPI_MAX_GROUP_NUM];
     } fapi_vendor_ext_add_remove_core_info_t;
 
     typedef struct {

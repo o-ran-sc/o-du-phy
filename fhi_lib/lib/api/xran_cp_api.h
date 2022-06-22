@@ -36,9 +36,9 @@ extern "C" {
 #include "xran_pkt_cp.h"
 #include "xran_transport.h"
 
-#define XRAN_MAX_SECTIONDB_CTX              2
+#define XRAN_MAX_SECTIONDB_CTX              4
 
-#define XRAN_MAX_NUM_EXTENSIONS     XRAN_MAX_PRBS /* Maximum number of extensions in a section [up to 1 ext section per RB]*/
+#define XRAN_MAX_NUM_EXTENSIONS     10//XRAN_MAX_PRBS /* Maximum number of extensions in a section [up to 1 ext section per RB]*/
 #define XRAN_MAX_NUM_UE             16      /* Maximum number of UEs/Lyaers */
 #define XRAN_MAX_NUM_ANT_BF         64      /* Maximum number of beamforming antenna,
                                              * could be defined as XRAN_MAX_ANTENNA_NR */
@@ -221,27 +221,31 @@ enum xran_cp_rbgsize {
 /**
  * This structure contains the information to generate the section body of C-Plane message */
 struct xran_section_info {
-    uint8_t     type;       /* type of this section  */
+    /** for U-plane */
+    struct xran_section_desc sec_desc[XRAN_NUM_OF_SYMBOL_PER_SLOT];
+    int32_t     freqOffset; /*      X         24bits */
+    uint32_t    startPrbc:9;  /*  X X X X X     9bits */
+    uint32_t    numPrbc:9;    /*  X X X X X      8bits */ /* will be converted to zero if >255 */
+    uint32_t    type:4;       /* type of this section  */
                             /* section type   bit-    */
                             /*  0 1 3 5 6 7    length */
-    uint8_t     startSymId; /*  X X X X X X    4bits */
-    uint8_t     numSymbol;  /*  X X X X        4bits */
-    uint8_t     symInc;     /*  X X X X X      1bit  */
-    uint16_t    id;         /*  X X X X X     12bits */
-    uint16_t    reMask;     /*  X X X X       12bits */
-    uint16_t    startPrbc;  /*  X X X X X     10bits */
-    uint16_t    numPrbc;    /*  X X X X X      8bits */ /* will be converted to zero if >255 */
-    uint8_t     rb;         /*  X X X X X      1bit  */
-    uint8_t     compMeth;   /*    X X X        4bits */
-    uint8_t     iqWidth;    /*    X X X        4bits */
-    uint8_t     ef;         /*    X X X X      1bit  */
-    int32_t     freqOffset; /*      X         24bits */
+    uint32_t     startSymId:4; /*  X X X X X X    4bits */
+    uint32_t     numSymbol:4;  /*  X X X X        4bits */
+    uint32_t    res:2;
     uint16_t    beamId;     /*    X X         15bits */
     uint16_t    ueId;       /*        X X     15bits */
     uint16_t    regFactor;  /*          X     16bits */
-    uint16_t    pad0;
-    /** for U-plane */
-    struct xran_section_desc sec_desc[XRAN_NUM_OF_SYMBOL_PER_SLOT];
+    uint16_t    id;         /*  X X X X X     12bits */
+    uint16_t    reMask;     /*  X X X X       12bits */
+
+    uint8_t     symInc:1;     /*  X X X X X      1bit  */
+    uint8_t     rb:1;         /*  X X X X X      1bit  */
+    uint8_t     ef:1;         /*    X X X X      1bit  */
+    uint8_t     prbElemBegin:1;      /* Flag to indicate beginning of a PRB element */
+    uint8_t     prbElemEnd:1;        /* Flag to indicate end of a PRB element */
+    uint8_t     reserved:3;
+    uint8_t     compMeth:4;   /*    X X X        4bits */
+    uint8_t     iqWidth:4;    /*    X X X        4bits */
 };
 
 
@@ -250,7 +254,7 @@ struct xran_sectionext1_info {
     uint16_t    bfwNumber;                  /**< number of bf weights in this section */
     uint8_t     bfwIqWidth;
     uint8_t     bfwCompMeth;
-    int16_t     *p_bfwIQ;                   /**< pointer to formed section extention */
+    int8_t     *p_bfwIQ;                   /**< pointer to formed section extention */
     int16_t     bfwIQ_sz;                   /**< size of buffer with section extention information */
     union {
         uint8_t     exponent;
@@ -320,6 +324,7 @@ struct xran_sectionext8_info {
 
 struct xran_sectionext9_info {
     uint8_t     technology;
+    uint8_t     reserved;
 };
 
 struct xran_sectionext10_info {
@@ -411,12 +416,13 @@ struct xran_section_ext_gen_info {
 /**
  * This structure to hold the information to generate the sections of C-Plane message */
 struct xran_section_gen_info {
-    struct xran_section_info info;  /**< The information for section */
+    struct xran_section_info *info;  /**< The information for section */
 
-    uint32_t    exDataSize;         /**< The number of Extensions or type 6/7 data */
     /** the array to store section extension */
     struct xran_section_ext_gen_info exData[XRAN_MAX_NUM_EXTENSIONS];
+    uint32_t    exDataSize;         /**< The number of Extensions or type 6/7 data */
 };
+
 
 /**
  * This structure to hold the information to generate a C-Plane message */
@@ -442,6 +448,7 @@ struct xran_section_ext_recv_info {
         struct xran_sectionext4_info    ext4;
         struct xran_sectionext5_info    ext5;
         struct xran_sectionext6_info    ext6;
+        struct xran_sectionext9_info    ext9;
         struct xran_sectionext10_info   ext10;
         struct xran_sectionext11_recv_info  ext11;
     } u;
@@ -452,7 +459,7 @@ struct xran_section_ext_recv_info {
 struct xran_section_recv_info {
     struct xran_section_info info;  /**< The information for received section */
 
-    int32_t numExts;
+    uint32_t numExts;
     /** the array to store section extension */
     struct xran_section_ext_recv_info exts[XRAN_MAX_NUM_EXTENSIONS];
 };
@@ -463,6 +470,12 @@ struct xran_cp_recv_params {
     uint8_t     dir;            /**< UL or DL */
     uint8_t     sectionType;    /**< each section must have same type with this */
     uint16_t    numSections;    /**< the number of sections received */
+    uint8_t     numSetBFW;      /**<Set of BFWs */
+    uint8_t     ext1count;      /**<Count set of extension type-1 BFWs*/
+    uint32_t    tti;            /**<micro-second*/
+    uint8_t     dssPeriod;      /**< DSS pattern period for LTE/NR */
+    uint8_t     technology_arr[XRAN_MAX_DSS_PERIODICITY];   /**< technology array represents slot is LTE(0)/NR(1) */
+    
 
     struct xran_cp_header_params hdr;
     /**< The information for C-Plane message header */
@@ -501,17 +514,22 @@ int32_t xran_get_freqoffset(int32_t freqOffset, int32_t scs);
 int32_t xran_prepare_ctrl_pkt(struct rte_mbuf *mbuf,
                         struct xran_cp_gen_params *params,
                         uint8_t CC_ID, uint8_t Ant_ID,
-                        uint8_t seq_id);
+                        uint8_t seq_id,
+                        uint16_t start_sect_id);
 
 int32_t xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                     struct xran_cp_recv_params *result,
-                    struct xran_recv_packet_info *pkt_info);
+                    struct xran_recv_packet_info *pkt_info, void* handle, uint32_t *mb_free);
 
 int32_t xran_cp_init_sectiondb(void *pHandle);
 int32_t xran_cp_free_sectiondb(void *pHandle);
 int32_t xran_cp_add_section_info(void *pHandle,
         uint8_t dir, uint8_t cc_id, uint8_t ruport_id,
         uint8_t ctx_id, struct xran_section_info *info);
+
+struct xran_section_info *
+xran_cp_get_section_info_ptr(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id);
+
 int32_t xran_cp_add_multisection_info(void *pHandle,
         uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id,
         struct xran_cp_gen_params *gen_info);
@@ -527,10 +545,7 @@ int32_t xran_cp_reset_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, ui
 int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination buffer */
                                        uint16_t  ext1_dst_len, /**< dest buffer size */
                                        int16_t  *p_bfw_iq_src, /**< source buffer of IQs */
-                                       uint16_t  rbNumber,     /**< number RBs to ext1 chain */
-                                       uint16_t  bfwNumber,    /**< number of bf weights in this set of sections */
-                                       uint8_t   bfwiqWidth,   /**< bit size of IQs */
-                                       uint8_t   bfwCompMeth); /**< compression method */
+                                       struct xran_prb_elm *p_pRbMapElm);
 struct rte_mbuf *xran_attach_cp_ext_buf(uint16_t vf_id, int8_t* p_ext_buff_start, int8_t* p_ext_buff, uint16_t ext_buff_len,
                 struct rte_mbuf_ext_shared_info * p_share_data);
 int32_t xran_cp_attach_ext_buf(struct rte_mbuf *mbuf, uint8_t *extbuf_start, uint16_t extbuf_len,

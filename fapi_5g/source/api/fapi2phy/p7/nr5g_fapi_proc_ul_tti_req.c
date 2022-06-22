@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@
  **/
 
 #include "nr5g_fapi_framework.h"
-#include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_api.h"
 #include "nr5g_fapi_fapi2phy_api.h"
 #include "nr5g_fapi_fapi2phy_p7_proc.h"
@@ -105,67 +104,30 @@ uint8_t nr5g_fapi_ul_tti_request(
     return SUCCESS;
 }
 
- /** @ingroup group_source_api_p7_fapi2phy_proc
- *
- *  @param[in]  bwp_size  Variable holding the Bandwidth part size.
- *  
- *  @return     Returns ::RBG Size.
- *
- *  @description
- *  This functions calculates and return RBG Size from Bandwidth part size provided. 
- *
-**/
-uint8_t nr5g_fapi_calc_n_rbg_size(
-    uint16_t bwp_size)
-{
-    uint8_t n_rbg_size = 0;
-    if (bwp_size >= 1 && bwp_size <= 36) {
-        n_rbg_size = 2;
-    } else if (bwp_size >= 37 && bwp_size <= 72) {
-        n_rbg_size = 4;
-    } else if (bwp_size >= 73 && bwp_size <= 144) {
-        n_rbg_size = 8;
-    } else if (bwp_size >= 145 && bwp_size <= 275) {
-        n_rbg_size = 16;
-    } else {
-        n_rbg_size = 0;
-    }
-    return n_rbg_size;
+static uint32_t get_rbg_index_mask_from_LSB(uint32_t nth_bit) {
+    #define ULSCH_RBG_INDEX_LSB 0x1u
+    return ULSCH_RBG_INDEX_LSB << nth_bit;
 }
 
  /** @ingroup group_source_api_p7_fapi2phy_proc
  *
- *  @param[in]  n_rbg_size  Variable holding the RBG Size
- *  @param[in]  p_push_pdu Pointer to FAPI PUSCH Pdu
+ *  @param[in]  rb_bitmap Pointer to FAPI DL resource block bitmap.
+ *  @param[in]  rbg_size  Size of resource block group.
  *  
- *  @return     Returns ::RBG Bitmap entry
+ *  @return     Returns IAPI nRBGIndex
  *
  *  @description
- *  This functions derives the RBG Bitmap entry for PUSCH Type-0 allocation. 
+ *  Maps rbBitmap into nRBGIndex bits for pusch.
  *
 **/
-uint32_t nr5g_fapi_calc_n_rbg_index_entry(
-    uint8_t n_rbg_size,
-    fapi_ul_pusch_pdu_t * p_pusch_pdu)
+uint32_t nr5g_fapi_calc_pusch_rbg_index(
+    const uint8_t rb_bitmap[FAPI_RB_BITMAP_SIZE],
+    uint16_t bwp_start,
+    uint16_t bwp_size
+    )
 {
-    uint8_t i, temp, num_bits = 0;
-    uint32_t n_rbg_bitmap = 0;
-    uint8_t rb_bitmap_entries, rb_bitmap;
-
-    rb_bitmap_entries = ceil(n_rbg_size / 8);
-    for (i = 0; i < rb_bitmap_entries; i++) {
-        num_bits = 0;
-        temp = 0;
-        rb_bitmap = p_pusch_pdu->rbBitmap[i];
-        while (num_bits < 8) {
-            if (rb_bitmap & (1 << num_bits)) {
-                temp |= (1 << (7 - num_bits));
-            }
-            num_bits++;
-        }
-        n_rbg_bitmap |= ((n_rbg_bitmap | temp) << (32 - (8 * (i + 1))));
-    }
-    return n_rbg_bitmap;
+    return nr5g_fapi_calc_rbg_index(
+        rb_bitmap, bwp_start, bwp_size, get_rbg_index_mask_from_LSB);
 }
 
  /** @ingroup group_source_api_p7_fapi2phy_proc
@@ -343,19 +305,24 @@ void nr5g_fapi_pusch_to_phy_ulsch_translation(
     }
     p_ul_data_chan->nTPPuschID = p_pusch_pdu->nTpPuschId;
     p_ul_data_chan->nTpPi2BPSK = p_pusch_pdu->tpPi2Bpsk;
+
+    // Resource Allocation Information
+    p_ul_data_chan->nResourceAllocType = p_pusch_pdu->resourceAlloc;
+    if(FAPI_UL_RESOURCE_ALLOC_TYPE_0 == p_pusch_pdu->resourceAlloc) {
+        // TODO HS check correctness of supporting only config1
     //Config-1 alone is supported
-    n_rbg_size = p_ul_data_chan->nRBGSize = nr5g_fapi_calc_n_rbg_size(bwp_size);
+        n_rbg_size = p_ul_data_chan->nRBGSize =
+            nr5g_fapi_calc_n_rbg_size(bwp_size);
     if (n_rbg_size > 0) {
         p_ul_data_chan->nNrOfRBGs =
             ceil((bwp_size + (bwp_start % n_rbg_size)) / n_rbg_size);
     }
-    //First entry would be sufficient as maximum no of RBG's is at max 18.
-    p_ul_data_chan->nRBGIndex[0] =
-        nr5g_fapi_calc_n_rbg_index_entry(n_rbg_size, p_pusch_pdu);
+        p_ul_data_chan->nRBGIndex = nr5g_fapi_calc_pusch_rbg_index(
+            p_pusch_pdu->rbBitmap, bwp_start, bwp_size);
+    }
     p_ul_data_chan->nRBStart = p_pusch_pdu->rbStart;
     p_ul_data_chan->nRBSize = p_pusch_pdu->rbSize;
     p_ul_data_chan->nVRBtoPRB = p_pusch_pdu->vrbToPrbMapping;
-    p_ul_data_chan->nResourceAllocType = p_pusch_pdu->resourceAlloc;
     p_ul_data_chan->nStartSymbolIndex = p_pusch_pdu->startSymbIndex;
     p_ul_data_chan->nNrOfSymbols = p_pusch_pdu->nrOfSymbols;
 

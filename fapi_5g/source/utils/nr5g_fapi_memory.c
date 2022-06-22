@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -22,14 +22,16 @@
  *
  **/
 
+#include "nr5g_fapi_memory.h"
+
 #include <rte_memcpy.h>
 #include <string.h>
 #include "nr5g_fapi_wls.h"
 
 inline uint8_t nr5g_fapi_memcpy_bound_check(
-    void *d,
+    void * const d,
     size_t x,
-    const void *s,
+    const void * const s,
     size_t n)
 {
     // Memory block size and destination/source boundary check
@@ -62,7 +64,7 @@ inline uint8_t nr5g_fapi_memcpy_bound_check(
 }
 
 inline uint8_t nr5g_fapi_memset_bound_check(
-    void *s,
+    void * const s,
     size_t x,
     int32_t c,
     size_t n)
@@ -79,9 +81,9 @@ inline uint8_t nr5g_fapi_memset_bound_check(
 }
 
 inline uint8_t nr5g_fapi_strcpy_bound_check(
-    char *d,
+    char * const d,
     size_t x,
-    const char *s,
+    const char * const s,
     size_t n)
 {
     // Memory block size and destination/source boundary check

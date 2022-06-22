@@ -58,7 +58,7 @@ The specific DDP package requires certain firmware and DPDK versions and
 Intel® Ethernet 800 Series firmware/NVM versions. Support for eCPRI DDP
 profile included starting from Columbiaville (CVL)release 2.4 or later.
 This section is for general information purposes as the binaries provided
-for this FlexRan release in github.com are built with DPDK 20.11.1 and the
+for this FlexRan release in github.com are built with DPDK 20.11.3 and the
 mix and match of binaries is not supported.
 The required DPDK version contains the support of loading the specific
 Wireless Edge DDP package.
@@ -73,8 +73,9 @@ Wireless Edge DDP package.
 
 -  DPDK version— 21.02 (or later)
 
--  For FlexRAN oran_e_maintenance_release_v1.0, corresponding support of CVL 2.4 driver pack and DPDK 21.02 is “experimental” and subject to additional 
-   testing and potential changes.
+-  For FlexRAN release oran_f_release_v1.0, corresponding support
+   of CVL 2.4 driver pack and DPDK 21.02 is “experimental” and subject
+   to additional testing and potential changes.
 
 DDP Package Setup
 =================
@@ -192,12 +193,12 @@ Network Adapters in the system:::
   82:00.3 Ethernet controller: Intel Corporation Ethernet Controller E810-C for SFP (rev 01)
 
 Use the **lspci** command to obtain the selected device serial
-number:::
+number::
 
   # lspci -vv -s 06:00.0 \| grep -i Serial
   Capabilities: [150 v1] Device Serial Number 35-11-a0-ff-ff-ca-05-68
 
-Or, fully parsed without punctuation:::
+Or, fully parsed without punctuation::
 
   # lspci -vv -s 06:00.0 \|grep Serial \|awk '{print $7}'|sed s/-//g
   3511a0ffffca0568
@@ -232,7 +233,7 @@ For kernel driver:
 ==================
 
 Example of output of successful load of Wireless Edge Package to all
-devices:::
+devices::
 
   # dmesg | grep -i "ddp \| safe"
   [606960.921404] ice 0000:18:00.0: The DDP package was successfully loaded: ICE Wireless Edge Package version 1.3.22.101
@@ -243,13 +244,20 @@ devices:::
   [606965.017082] ice 0000:51:00.1: DDP package already present on device: ICE Wireless Edge Package version 1.3.22.101
   [606965.802115] ice 0000:51:00.2: DDP package already present on device: ICE Wireless Edge Package version 1.3.22.101
   [606966.576517] ice 0000:51:00.3: DDP package already present on device: ICE Wireless Edge Package version 1.3.22.101
-
+  [606960.921404] ice 0000:18:00.0: The DDP package was successfully loaded: ICE Wireless Edge Package version 1.3.22.101
+  [606961.672999] ice 0000:18:00.1: DDP package already present on device: ICE Wireless Edge Package version 1.3.22.101
+  [606962.439067] ice 0000:18:00.2: DDP package already present on device: ICE Wireless Edge Package version 1.3.22.101
+  [606963.198305] ice 0000:18:00.3: DDP package already present on device: ICE Wireless Edge Package version 1.3.22.101
+  [606964.252076] ice 0000:51:00.0: The DDP package was successfully loaded: ICE Wireless Edge Package version 1.3.22.101
+  [606965.017082] ice 0000:51:00.1: DDP package already present on device: ICE Wireless Edge Package version 1.3.22.101
+  [606965.802115] ice 0000:51:00.2: DDP package already present on device: ICE Wireless Edge Package version 1.3.22.101
+  [606966.576517] ice 0000:51:00.3: DDP package already present on device: ICE Wireless Edge Package version 1.3.22.101
 
 If using only DPDK driver:
 ==========================
 
 Verify using DPDK's **testpmd** application to indicate the status
-And version of the loaded DDP package.
+and version of the loaded DDP package.
 
 Example of eCPRI config with dpdk-testpmd
 -----------------------------------------

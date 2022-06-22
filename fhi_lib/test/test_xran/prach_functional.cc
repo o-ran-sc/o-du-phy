@@ -33,7 +33,7 @@ const std::string module_name = "Prach_test";
 class PrachCheck : public KernelTests
 {
 private:
-    struct xran_section_gen_info *m_pSectResult = NULL;
+    struct xran_section_recv_info *m_pSectResult = NULL;  /*Not used*/
 
 protected:
     struct xran_fh_config *m_xranConf;
@@ -100,6 +100,7 @@ protected:
         m_pRUConfig = &m_xranConf->ru_conf;
         m_pPrachCPConfig = &m_xran_dev_ctx.PrachCPConfig;
         //initialize input parameters
+        m_xran_dev_ctx.dssPeriod = get_input_parameter<uint8_t>("dssperiod");
         m_xranConf->frame_conf.nNumerology = get_input_parameter<uint8_t>("Numerology");
         m_xranConf->frame_conf.nFrameDuplexType = get_input_parameter<uint8_t>("FrameDuplexType");
         m_xranConf->log_level = get_input_parameter<uint32_t>("loglevel");
@@ -156,6 +157,7 @@ protected:
         m_pSectGenInfo = new struct xran_section_gen_info[8];
         ASSERT_NE(m_pSectGenInfo, nullptr);
         m_params.sections = m_pSectGenInfo;
+        m_params.sections[0].info = new struct xran_section_info;
 
         /* allocating an mbuf for packet generatrion */
         m_pTestBuffer = (struct rte_mbuf*)rte_pktmbuf_alloc(_eth_mbuf_pool);
@@ -181,7 +183,7 @@ TEST_P(PrachCheck, PrachPacketGen)//TestCaseName   TestName
     void *pHandle = NULL;
 
     /* Preparing input data for prach config */
-    ret = xran_init_prach(m_xranConf, &m_xran_dev_ctx);
+    ret = xran_init_prach(m_xranConf, &m_xran_dev_ctx, XRAN_RAN_5GNR);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
     /* Verify the result */
@@ -209,7 +211,7 @@ TEST_P(PrachCheck, PrachPacketGen)//TestCaseName   TestName
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
     ret = generate_cpmsg_prach(&m_xran_dev_ctx, &m_params, m_pSectGenInfo, m_pTestBuffer, &m_xran_dev_ctx,
-        m_frameId, m_subframeId, m_slotId,
+        m_frameId, m_subframeId, m_slotId, 0,
         m_beamId, m_ccId, m_antId, 0, 0);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
     /* Verify the result */
@@ -228,24 +230,26 @@ TEST_P(PrachCheck, PrachPacketGen)//TestCaseName   TestName
     EXPECT_EQ(m_params.hdr.cpLength, 0);
     EXPECT_EQ(m_params.numSections, 1);
 
-    EXPECT_EQ(m_params.sections[0].info.type, XRAN_CP_SECTIONTYPE_3);
-    EXPECT_EQ(m_params.sections[0].info.startSymId, m_startSymId);
-    EXPECT_EQ(m_params.sections[0].info.iqWidth, (m_pRUConfig->iqWidth==16)?0:m_pRUConfig->iqWidth);
-    EXPECT_EQ(m_params.sections[0].info.compMeth, m_pRUConfig->compMeth);
+    EXPECT_EQ(m_params.sections[0].info->type, XRAN_CP_SECTIONTYPE_3);
+    EXPECT_EQ(m_params.sections[0].info->startSymId, m_startSymId);
+    EXPECT_EQ(m_params.sections[0].info->iqWidth, (m_pRUConfig->iqWidth==16)?0:m_pRUConfig->iqWidth);
+    EXPECT_EQ(m_params.sections[0].info->compMeth, m_pRUConfig->compMeth);
 
-    EXPECT_EQ(m_params.sections[0].info.id, m_id);
-    EXPECT_EQ(m_params.sections[0].info.rb, XRAN_RBIND_EVERY);
-    EXPECT_EQ(m_params.sections[0].info.symInc, XRAN_SYMBOLNUMBER_NOTINC);
-    EXPECT_EQ(m_params.sections[0].info.startPrbc, m_startPrbc);
-    EXPECT_EQ(m_params.sections[0].info.numPrbc, m_numPrbc);
-    EXPECT_EQ(m_params.sections[0].info.numSymbol, m_numSymbol);
-    EXPECT_EQ(m_params.sections[0].info.reMask, 0xfff);
-    EXPECT_EQ(m_params.sections[0].info.beamId, m_beamId);
-    EXPECT_EQ(m_params.sections[0].info.freqOffset, m_freqOffset);
+    EXPECT_EQ(m_params.sections[0].info->id, m_id);
+    EXPECT_EQ(m_params.sections[0].info->rb, XRAN_RBIND_EVERY);
+    EXPECT_EQ(m_params.sections[0].info->symInc, XRAN_SYMBOLNUMBER_NOTINC);
+    EXPECT_EQ(m_params.sections[0].info->startPrbc, m_startPrbc);
+    EXPECT_EQ(m_params.sections[0].info->numPrbc, m_numPrbc);
+    EXPECT_EQ(m_params.sections[0].info->numSymbol, m_numSymbol);
+    EXPECT_EQ(m_params.sections[0].info->reMask, 0xfff);
+    EXPECT_EQ(m_params.sections[0].info->beamId, m_beamId);
+    EXPECT_EQ(m_params.sections[0].info->freqOffset, m_freqOffset);
     EXPECT_EQ(m_xran_dev_ctx.prach_last_symbol[m_ccId], m_prach_last_symbol);
-    EXPECT_EQ(m_params.sections[0].info.ef, 0);
+    EXPECT_EQ(m_params.sections[0].info->ef, 0);
     EXPECT_EQ(m_params.sections[0].exDataSize, 0);
 
+    if(m_params.sections[0].info != NULL)
+        delete[] m_params.sections[0].info;
 }
 
 

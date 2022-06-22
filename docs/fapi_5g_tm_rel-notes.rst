@@ -20,6 +20,14 @@
 ORAN 5G FAPI TM Release Notes
 =============================
 
+Version FAPI TM oran_f_release_v1.0, June 2022
+----------------------------------------------
+
+* Support of oneAPI compiler
+
+* Support for additional features not properly defined in the SCF 5G FAPI 2.0 specs has been added by
+  means of vendor specific fields. (FlexRAN 22.11 compatible).
+  
 Version FAPI TM oran_e_maintenance_release_v1.0, Mar 2022
 ---------------------------------------------------------
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -25,6 +25,8 @@
 
 #ifndef _NR5G_FAPI_FAP2PHY_P5_PVT_PROC_H_
 #define _NR5G_FAPI_FAP2PHY_P5_PVT_PROC_H_
+
+#include "nr5g_mac_phy_api.h"
 
 //x is 32 bit variable, y is length in bytes
 #define GETVLFRM32B(x, y)  ((x) & ((0xFFFFFFFF) >> (32 - (y << 3))))

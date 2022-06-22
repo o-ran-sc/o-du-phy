@@ -165,7 +165,7 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
     struct xran_common_counters* pCnt = &p_xran_dev_ctx->fh_counters;
 
     long target_time;
-    long delta;
+    long delta, tm_threshold_high, tm_threshold_low;//Update tm threhsolds
     static int counter = 0;
     static long sym_acc = 0;
     static long sym_cnt = 0;
@@ -188,7 +188,19 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
         if(unlikely(p_xran_dev_ctx->offset_sec || p_xran_dev_ctx->offset_nsec))
             timing_adjust_gps_second(p_cur_time);
         delta = (p_cur_time->tv_sec * NSEC_PER_SEC + p_cur_time->tv_nsec) - target_time;
-        if(delta > 0 || (delta < 0 && abs(delta) < THRESHOLD)) {
+        tm_threshold_high = interval_ns * N_SYM_PER_SLOT * 2;//2 slots
+        tm_threshold_low = interval_ns * 2; //2 symbols
+        //add tm exception handling
+        if (unlikely(labs(delta) > tm_threshold_low)) {
+            print_dbg("poll_next_tick exceed 2 symbols threshold with delta:%ld(ns), used_tick:%ld(tick) \n", delta, used_tick);
+            pCnt->timer_missed_sym++;
+            if(unlikely(labs(delta) > tm_threshold_high)) {
+                print_dbg("poll_next_tick exceed 2 slots threshold, stop xran! delta:%ld(ns), used_tick:%ld(tick) \n", delta, used_tick);
+                //xran_if_current_state = XRAN_STOPPED;
+                pCnt->timer_missed_slot++;
+            }
+        }
+        if(delta > 0 || (delta < 0 && labs(delta) < THRESHOLD)) {
             if (debugStop &&(debugStopCount > 0) && (pCnt->tx_counter >= debugStopCount)){
                 uint64_t t1;
                 printf("STOP:[%ld.%09ld], debugStopCount %d, tx_counter %ld\n", p_cur_time->tv_sec, p_cur_time->tv_nsec, debugStopCount, pCnt->tx_counter);
@@ -229,6 +241,7 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
                 for (i=1; i < p_xran_dev_ctx->fh_init.xran_ports; i++)
                 {
                     struct xran_device_ctx * p_other_ctx = xran_dev_get_ctx_by_id(i);
+                    if(p_other_ctx)
                     xran_lib_ota_sym_idx[i] = xran_lib_ota_sym_idx[0] >> (numerlogy - xran_get_conf_numerology(p_other_ctx));
                 }
                 /* adjust to sym boundary */
@@ -248,7 +261,7 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
             if(debugStop && delta < interval_ns*10)
                 MLogTask(PID_TIME_SYSTIME_POLL, (p_last_time->tv_sec * NSEC_PER_SEC + p_last_time->tv_nsec), (p_cur_time->tv_sec * NSEC_PER_SEC + p_cur_time->tv_nsec));
 #else
-            MLogTask(PID_TIME_SYSTIME_POLL, last_tick, curr_tick);
+            MLogXRANTask(PID_TIME_SYSTIME_POLL, last_tick, curr_tick);
             last_tick = curr_tick;
 #endif
 

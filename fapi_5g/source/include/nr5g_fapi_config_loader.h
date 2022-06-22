@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -63,16 +63,20 @@ typedef struct _nr5g_fapi_config_log_cfg {
     nr5g_fapi_log_types_t level;
 } nr5g_fapi_config_log_cfg_t;
 
+typedef struct _nr5g_fapi_thread_params_t {
+    nr5g_fapi_config_worker_cfg_t thread_worker;
+    nr5g_fapi_thread_info_t thread_info;
+} nr5g_fapi_thread_params_t;
+
 typedef struct _nr5g_fapi_cfg {
     char *prgname;
-    nr5g_fapi_config_worker_cfg_t mac2phy_worker;
-    nr5g_fapi_config_worker_cfg_t phy2mac_worker;
-    nr5g_fapi_config_worker_cfg_t urllc_worker;
+    nr5g_fapi_thread_params_t mac2phy_thread_params;
+    nr5g_fapi_thread_params_t phy2mac_thread_params;
+    nr5g_fapi_thread_params_t urllc_mac2phy_thread_params;
+    nr5g_fapi_thread_params_t urllc_phy2mac_thread_params;
+    bool is_urllc_enabled;
     nr5g_fapi_config_wls_cfg_t wls;
     nr5g_fapi_config_log_cfg_t logger;
-    nr5g_fapi_thread_info_t mac2phy_thread_info;
-    nr5g_fapi_thread_info_t phy2mac_thread_info;
-    nr5g_fapi_thread_info_t urllc_thread_info;
     nr5g_fapi_config_dpdk_cft_t dpdk;
 } nr5g_fapi_cfg_t,
 *p_nr5g_fapi_cfg_t;

@@ -67,7 +67,7 @@ static int is_process_running(char *pname)
     }
 
     struct dirent *entry = NULL;
-    while (entry = readdir(dir)) {
+    while ((entry = readdir(dir))) {
         long pid = atol(entry->d_name);
         if (0 == pid)
             continue;

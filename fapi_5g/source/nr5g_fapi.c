@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -52,9 +52,14 @@ int main(
 
     nr5g_fapi_cmgr((void *)config);
     nr5g_fapi_dpdk_wait(config);
-    pthread_attr_destroy(&config->phy2mac_thread_info.thread_attr);
-    pthread_attr_destroy(&config->mac2phy_thread_info.thread_attr);
-    pthread_attr_destroy(&config->urllc_thread_info.thread_attr);
+    pthread_attr_destroy(&config->phy2mac_thread_params.thread_info.thread_attr);
+    pthread_attr_destroy(&config->mac2phy_thread_params.thread_info.thread_attr);
+    if (config->is_urllc_enabled)
+    {
+        pthread_attr_destroy(&config->urllc_phy2mac_thread_params.thread_info.thread_attr);
+        pthread_attr_destroy(&config->urllc_mac2phy_thread_params.thread_info.thread_attr);
+    }
+
     free(config);
     return 0;
 }

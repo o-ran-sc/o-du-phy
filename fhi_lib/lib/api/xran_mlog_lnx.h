@@ -32,6 +32,7 @@ extern "C"
 #define MLOG_FALSE                  ( 0 )
 
 #define MLogOpen(a, b, c, d, e)     MLOG_FALSE
+#define MLogSetup(a, b, c, d)       MLOG_FALSE
 #define MLogRestart(a)              MLOG_FALSE
 #define MLogPrint(a)                MLOG_FALSE
 #define MLogGetFileLocation()       NULL
@@ -54,6 +55,9 @@ extern "C"
 #define MLogAddPowerStats(a, b, c, d, e) MLOG_FALSE
 
 #endif /* MLOG_ENABLED */
+
+void MLogXRANTask(uint32_t taskid, uint64_t ticksstart, uint64_t ticksstop);
+uint64_t MLogXRANTick(void);
 
 #ifdef __cplusplus
 }

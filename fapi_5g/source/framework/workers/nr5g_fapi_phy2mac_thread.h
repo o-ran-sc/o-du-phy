@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@
 #ifndef _NR5G_FAPI_PHY2MAC_THREAD_H_
 #define _NR5G_FAPI_PHY2MAC_THREAD_H_
 
-#include "gnb_l1_l2_api.h"
+#include "common_mac_phy_api.h"
 
 void nr5g_fapi_phy2mac_api_recv_handler(
     bool is_urllc,

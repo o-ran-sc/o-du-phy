@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@
 #ifndef NR5G_FAPI_FAPI2PHY_API_H
 #define NR5G_FAPI_FAPI2PHY_API_H
 
-#include "gnb_l1_l2_api.h"
+#include "common_mac_phy_api.h"
 #include <nr5g_fapi_std.h>
 
 typedef struct _nr5g_fapi_fapi2phy_queue {

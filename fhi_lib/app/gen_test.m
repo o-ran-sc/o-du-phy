@@ -46,40 +46,40 @@ nNumRbsPerSymF2 = ...
 ];
 
 % total number of tests
-tests_total = 12
+tests_total = 15
 tech_all = ... % 0 - NR 1- LTE
     [ 
-      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1  
+      0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 2, 2, 2
     ]
 
 sub6_all = ...
     [ 
-      true, true, true, true, false, true, true, true, true, true, true, true
+      true, true, true, true, false, true, true, true, true, true, true, true, true, true, true
     ]
 
 mu_all = ...
     [
-      0, 0, 0, 1, 3, 1, 0, 0, 0, 0, 0, 0
+      0, 0, 0, 1, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0
     ]
 
 bw_all = ...
     [
-      5, 10, 20, 100, 100, 100, 20, 10, 5, 20, 10, 5
+      5, 10, 20, 100, 100, 100, 20, 10, 5, 20, 10, 5, 20, 10, 5
     ]
 
 ant_num_all = ...
     [
-      4, 4, 4, 4, 4, 8, 4, 4, 4, 8, 8, 8
+      4, 4, 4, 4, 4, 8, 4, 4, 4, 8, 8, 8, 4, 4, 4
     ]
 
 bfw_gen_all = ...
     [
-      false, false, false, false, false, true, false, false, false, true, true, true,
+      false, false, false, false, false, true, false, false, false, true, true, true, false, false, false
     ]
 
 trx_all = ...
     [ 
-      32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32
+      32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32
     ]
 path_to_usecase_all = ... 
     [
@@ -95,13 +95,16 @@ path_to_usecase_all = ...
       "./usecase/lte_b/mu0_20mhz/";
       "./usecase/lte_b/mu0_10mhz/";
       "./usecase/lte_b/mu0_5mhz/";      
+      "./usecase/dss/mu0_20mhz/";
+      "./usecase/dss/mu0_10mhz/";
+      "./usecase/dss/mu0_5mhz/";
     ]
 
 path_to_usecase_all = cellstr(path_to_usecase_all) 
 
 nSlots_all = ...
     [
-       20,20,20,20,20,20,20,20,20,10,10,10
+       20,20,20,20,20,20,20,20,20,10,10,10,20,20,20
     ]
 
 %select mu and bw to generate test files

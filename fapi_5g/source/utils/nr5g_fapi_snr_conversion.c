@@ -25,7 +25,7 @@
 
 #include <math.h>
 
-#include "gnb_l1_l2_api.h"
+#include "nr5g_mac_phy_api.h"
 
 uint8_t nr5g_fapi_convert_snr_iapi_to_fapi(const int16_t snr)
 {

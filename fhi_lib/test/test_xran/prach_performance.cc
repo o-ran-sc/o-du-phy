@@ -33,8 +33,8 @@ const std::string module_name = "Prach_test";
 class PrachPerf : public KernelTests
 {
 
-	private:
-    struct xran_section_gen_info *m_pSectResult = NULL;
+    // private:
+    // struct xran_section_recv_info *m_pSectResult = NULL; /*Not used*/
 
 	protected:
 		struct xran_fh_config m_xranConf;
@@ -101,6 +101,7 @@ class PrachPerf : public KernelTests
         m_xranConf.frame_conf.nFrameDuplexType = get_input_parameter<uint8_t>("FrameDuplexType");
         m_xranConf.log_level = get_input_parameter<uint32_t>("loglevel");
 
+        m_xran_dev_ctx.dssPeriod = get_input_parameter<uint8_t>("dssperiod");
         m_pPRACHConfig->nPrachConfIdx = get_input_parameter<uint8_t>("PrachConfIdx");
         m_pPRACHConfig->nPrachFreqStart = get_input_parameter<uint16_t>("PrachFreqStart");
         m_pPRACHConfig->nPrachFreqOffset = get_input_parameter<int32_t>("PrachFreqOffset");
@@ -150,6 +151,7 @@ class PrachPerf : public KernelTests
         m_pSectGenInfo = new struct xran_section_gen_info[8];
         ASSERT_NE(m_pSectGenInfo, nullptr);
         m_params.sections = m_pSectGenInfo;
+        m_params.sections[0].info = new xran_section_info;
 
         /* allocating an mbuf for packet generatrion */
         m_pTestBuffer = (struct rte_mbuf*)rte_pktmbuf_alloc(_eth_mbuf_pool);
@@ -178,7 +180,7 @@ void performance_cp(void *pHandle,struct xran_cp_gen_params *params, struct xran
     mbuf = (struct rte_mbuf*)rte_pktmbuf_alloc(_eth_mbuf_pool);
 
     generate_cpmsg_prach(pxran_lib_ctx, params, sect_geninfo, mbuf, pxran_lib_ctx,
-        frame_id, subframe_id, slot_id,
+        frame_id, subframe_id, slot_id, 0,
         beam_id, cc_id, prach_port_id, 0, seq_id);
 
     seq_id++;
@@ -192,12 +194,12 @@ TEST_P(PrachPerf, PrachPerfPacketGen)//TestCaseName   TestName
     void *pHandle = NULL;
 
     /* Preparing input data for prach config */
-	ret = xran_init_prach(&m_xranConf, &m_xran_dev_ctx);
+    ret = xran_init_prach(&m_xranConf, &m_xran_dev_ctx, XRAN_RAN_5GNR);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
 
     ret = generate_cpmsg_prach(&m_xran_dev_ctx, &m_params, m_pSectGenInfo, m_pTestBuffer, &m_xran_dev_ctx,
-        m_frameId, m_subframeId, m_slotId,
+        m_frameId, m_subframeId, m_slotId, 0,
         m_beamId, m_ccId, m_antId, 0, 0);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
@@ -206,6 +208,9 @@ TEST_P(PrachPerf, PrachPerfPacketGen)//TestCaseName   TestName
             &performance_cp, pHandle, &m_params, m_pSectGenInfo, &m_xran_dev_ctx,
         m_frameId, m_subframeId, m_slotId,
         m_beamId, m_ccId, m_antId, 0);
+        
+    if(m_params.sections[0].info)
+        delete[] m_params.sections[0].info;
 }
 
 

@@ -22,8 +22,8 @@
  *
  **/
 
+#include "nr5g_mac_phy_api.h"
 #include "nr5g_fapi_framework.h"
-#include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_api.h"
 #include "nr5g_fapi_fapi2mac_p7_proc.h"
 #include "nr5g_fapi_fapi2mac_p7_pvt_proc.h"

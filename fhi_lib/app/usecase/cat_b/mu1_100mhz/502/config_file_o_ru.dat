@@ -95,11 +95,14 @@ antPrachC13=./usecase/cat_b/mu1_100mhz/ant_5.bin  #CC3
 antPrachC14=./usecase/cat_b/mu1_100mhz/ant_6.bin  #CC3
 antPrachC15=./usecase/cat_b/mu1_100mhz/ant_7.bin  #CC3
 
-rachEanble=0 # Enable (1)| disable (0) PRACH configuration
+rachEnable=0 # Enable (1)| disable (0) PRACH configuration
 prachConfigIndex=189
 
-srsEanble=1 # Enable (1)| disable (0) SRS
-srsSym=1 # (1<<13) symbol used for SRS (def: sym 13)
+srsEnable=1 # Enable (1)| disable (0) SRS
+srsSym=4 # deprecated
+srsSlot=3           # scheduled SRS slot within TDD period
+srsNdmOffset=2      # delay offset to start NDM SRS U-Plane
+srsNdmTxDuration=4  # TX duration for NDM SRTS U-Plane (numberof of symbols)
 
 antSrsC0=./usecase/cat_b/mu1_100mhz/ant_0.bin
 antSrsC1=./usecase/cat_b/mu1_100mhz/ant_1.bin
@@ -166,9 +169,6 @@ antSrsC61=./usecase/cat_b/mu1_100mhz/ant_5.bin
 antSrsC62=./usecase/cat_b/mu1_100mhz/ant_6.bin
 antSrsC63=./usecase/cat_b/mu1_100mhz/ant_7.bin
 
-
-srsEanble=1 # Enable (1)| disable (0) SRS
-srsSym=1 # (1<<13) symbol used for SRS (def: sym 13)
 
 ###########################################################
 ##Section Settings

@@ -49,12 +49,17 @@ int32_t xran_init_seqid(void *pHandle);
 
 int32_t process_cplane(struct rte_mbuf *pkt, void* handle);
 int32_t xran_cp_create_and_send_section(void *pHandle, uint8_t ru_port_id, int dir, int tti, int cc_id, struct xran_prb_map *prbMap,
+                                        struct xran_prb_elm_proc_info_t *prbElmProcInfo,
                                         enum xran_category category,  uint8_t ctx_id);
+
 int32_t xran_ruemul_init(void *pHandle);
 int32_t xran_ruemul_release(void *pHandle);
 
+#define ONE_EXT_LEN(prbMap) (prbMap->bf_weight.ext_section_sz / prbMap->bf_weight.numSetBFWs) - sizeof(struct xran_cp_radioapp_section1)
+#define ONE_CPSEC_EXT_LEN(prbMap) (prbMap->bf_weight.ext_section_sz / prbMap->bf_weight.numSetBFWs)
+
 static __rte_always_inline uint16_t
-xran_alloc_sectionid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t slot_id)
+xran_alloc_sectionid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t subframe_id, uint8_t slot_id)
 {
     int8_t xran_port = 0;
     if((xran_port =  xran_dev_ctx_get_port_id(pHandle)) < 0 ){
@@ -73,9 +78,9 @@ xran_alloc_sectionid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, 
 
     /* if new slot has been started,
      * then initializes section id again for new start */
-    if(xran_section_id_curslot[xran_port][dir][cc_id][ant_id] != slot_id) {
+    if(xran_section_id_curslot[xran_port][dir][cc_id][ant_id] != (subframe_id * 2 + slot_id)) {
         xran_section_id[xran_port][dir][cc_id][ant_id] = 0;
-        xran_section_id_curslot[xran_port][dir][cc_id][ant_id] = slot_id;
+        xran_section_id_curslot[xran_port][dir][cc_id][ant_id] = (subframe_id * 2 + slot_id);
     }
 
     return(xran_section_id[xran_port][dir][cc_id][ant_id]++);

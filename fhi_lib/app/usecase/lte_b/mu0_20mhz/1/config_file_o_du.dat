@@ -131,28 +131,36 @@ UlBfwUe15=./usecase/lte_b/mu0_20mhz/ul_bfw_ue_7.bin   #UE7 weights for TRX anten
 
 
 ## RACH TODO: update for PRACH
-rachEanble=0 # Enable (1)| disable (0) PRACH configuration
+rachEnable=0 # Enable (1)| disable (0) PRACH configuration
 #rachOffset=43 # RB offset for prach detection (see RIU spec)
 #rachCfgIdx=14 # PRACH config index as per TS36.211 - Table 5.7.1-2 : PRACH Configuration Index
 prachConfigIndex=189
 
-srsEanble=0 # Enable (1)| disable (0) SRS 
+srsEnable=0 # Enable (1)| disable (0) SRS
 srsSym=8192 # (1<<13) symbol used for SRS (def: sym 13)
 
 ###########################################################
 ##Section Settings
 DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used 
-
+extType=1
 nPrbElemDl=2
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
 # weight base beams 
 PrbElemDl0=0,50,0,14,1,1,1,9,1
 PrbElemDl1=50,50,0,14,2,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth, extType
+ExtBfwDl0=2,25,0,0,9,1,1
+ExtBfwDl1=2,25,0,0,9,1,1
 nPrbElemUl=2
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
 # weight base beams 
 PrbElemUl0=0,50,0,14,1,1,1,9,1
 PrbElemUl1=50,50,0,14,2,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth, extType
+ExtBfwUl0=2,25,0,0,9,1,1
+ExtBfwUl1=2,25,0,0,9,1,1
 ###########################################################
 
 ## control of IQ byte order

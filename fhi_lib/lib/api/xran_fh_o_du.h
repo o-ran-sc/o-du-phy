@@ -106,9 +106,16 @@ extern "C" {
 /** Macro to calculate Slot number */
 #define XranGetSlotNum(tti, numSlotPerSfn) ((uint32_t)tti % ((uint32_t)numSlotPerSfn))
 
-#define XRAN_PORTS_NUM               (4)    /**< number of XRAN ports (aka O-RU|O-DU devices) supported */
+#define XRAN_PORTS_NUM               (8)    /**< number of XRAN ports (aka O-RU|O-DU devices) supported */
 #define XRAN_ETH_PF_LINKS_NUM        (4)    /**< number of Physical Ethernet links per one O-RU|O-DU */
+#define XRAN_MAX_PRACH_ANT_NUM       (4)    /**< number of XRAN Prach ports supported */
+
+#if defined(XRAN_O_RU_BUILD)
+    #define XRAN_N_FE_BUF_LEN            (20)   /**< Number of TTIs (slots) */
+#else
 #define XRAN_N_FE_BUF_LEN            (20)   /**< Number of TTIs (slots) */
+#endif
+
 #define XRAN_MAX_SECTOR_NR           (16)   /**< Max sectors per XRAN port */
 #define XRAN_MAX_ANTENNA_NR          (16)   /**< Max number of extended Antenna-Carriers:
                                                 a data flow for a single antenna (or spatial stream) for a single carrier in a single sector */
@@ -127,12 +134,14 @@ extern "C" {
 #define XRAN_MAX_PRBS                (275) /**< Max of PRBs per CC per antanna for 5G NR */
 #define XRAN_NUM_OF_SC_PER_RB  (12) /**< Number of subcarriers per RB */
 
-#define XRAN_MAX_SECTIONS_PER_SLOT   (24)  /**< Max number of different sections in single slot (section may be equal to RB allocation for UE) */
+#define XRAN_MAX_DSS_PERIODICITY     (15) /**< Max DSS pattern period */
+
+#define XRAN_MAX_SECTIONS_PER_SLOT   (273)  /**< Max number of different sections in single slot (section may be equal to RB allocation for UE) */
 #define XRAN_MIN_SECTIONS_PER_SLOT   (6)   /**< Min number of different sections in single slot (section may be equal to RB allocation for UE) */
 #define XRAN_MAX_SECTIONS_PER_SYM    (XRAN_MAX_SECTIONS_PER_SLOT)  /**< Max number of different sections in single slot (section may be equal to RB allocation for UE) */
 #define XRAN_MIN_SECTIONS_PER_SYM    (XRAN_MIN_SECTIONS_PER_SLOT)  /**< Min number of different sections in single slot (section may be equal to RB allocation for UE) */
 
-#define XRAN_MAX_FRAGMENT            (1)   /**< Max number of fragmentations in single symbol */
+#define XRAN_MAX_FRAGMENT            (4)   /**< Max number of fragmentations in single symbol */
 #define XRAN_MAX_SET_BFWS            (64)  /**< Assumed 64Ant, BFP 9bit with 9K jumbo frame */
 
 #define XRAN_MAX_PKT_BURST (448+4) /**< 4x14x8 symbols per ms */
@@ -161,6 +170,11 @@ extern "C" {
 #define MX_NUM_SAMPLES                       (16)/**< MAX Number of Samples for One Way delay Measurement */
 
 #define XRAN_VF_QUEUE_MAX (XRAN_MAX_ANTENNA_NR*2+XRAN_MAX_ANT_ARRAY_ELM_NR) /**< MAX number of HW queues for given VF */
+
+#define XRAN_HALF_CB_SYM            0   /**< Half of the Slot (offset +7) */
+#define XRAN_THREE_FOURTHS_CB_SYM   3   /**< 2/4 of the Slot  (offset +7) */
+#define XRAN_FULL_CB_SYM            7   /**< Full Slot  (offset +7) */
+#define XRAN_ONE_FOURTHS_CB_SYM    12   /**< 1/4 of the Slot (offset +7) */
 
 #ifdef _XRAN_DEBUG
     #define xran_log_dbg(fmt, ...)          \
@@ -421,6 +435,7 @@ struct xran_io_cfg {
     int32_t  one_vf_cu_plane;      /**< 1 - C-plane and U-plane use one VF */
     struct xran_ecpri_del_meas_cmn eowd_cmn[2];/**<ecpriowdmeasurementscommonsettingsforO-DUandO-RU*/
     struct xran_ecpri_del_meas_port eowd_port[2][XRAN_VF_MAX];  /**< ecpri owd measurements per port variables for O-DU and O-RU */
+    int32_t  bbu_offload;         /**< enable packet handling on BBU cores */
 };
 
 /** XRAN spec section 3.1.3.1.6 ecpriRtcid / ecpriPcid define */
@@ -454,19 +469,24 @@ struct xran_fh_init {
     int8_t *p_o_ru_addr;  /**<  O-RU Ethernet Mac Address */
 
     uint16_t totalBfWeights;/**< The total number of beamforming weights on RU for extensions */
+    int32_t  mlogxranenable; /**< whether or not enable mlog during runtime 0:disable 1:enable */
+    uint8_t  dlCpProcBurst; /**< When set to 1, dl cp processing will be done on single symbol. When set to 0, DL CP processing
+                                     will be spread across all allowed symbols and multiple cores to reduce burstiness */
 };
 
 struct xran_ext11_bfw_info {
         uint16_t    beamId;     /* 15bits, needs to strip MSB */
         uint8_t     *pBFWs;     /* external buffer pointer */
     };
+
 /** Beamforming waights for single stream for each PRBs  given number of Antenna elements */
 struct xran_cp_bf_weight{
     int16_t nAntElmTRx;        /**< num TRX for this allocation */
     int16_t  ext_section_sz;   /**< extType section size */
-    int8_t*  p_ext_start;      /**< pointer to start of buffer for full C-plane packet */
+    void*  p_ext_start;      /**< pointer to start of buffer for full C-plane packet */
     int8_t*  p_ext_section;    /**< pointer to form extType */
 
+    uint8_t     extType;     /* This parameter determines whether to use extType-1 or 11, 1 - use ext1 and 0 - ext11 */
     /* For ext 11 */
     uint8_t     bfwCompMeth;    /* Compression Method for BFW */
     uint8_t     bfwIqWidth;     /* Bitwidth of BFW */
@@ -486,9 +506,10 @@ struct xran_cp_bf_precoding{
 
 /** section descriptor for given number of PRBs used on U-plane packet creation */
 struct xran_section_desc {
-    uint16_t section_id; /**< section id used for this element */
-    uint16_t num_prbu;
-    uint16_t start_prbu;
+    uint32_t section_id:9; /**< section id used for this element */
+    uint32_t num_prbu:9;
+    uint32_t start_prbu:9;
+    uint32_t reserved:5;
     int16_t iq_buffer_offset;    /**< Offset in bytes for the content of IQs with in main symbol buffer */
     int16_t iq_buffer_len;       /**< Length in bytes for the content of IQs with in main symbol buffer */
 
@@ -509,9 +530,13 @@ struct xran_prb_elm {
     uint16_t ScaleFactor;  /**< scale factor for modulation compression */
     int16_t reMask;   /**< 12-bit RE Mask for modulation compression */
     int16_t BeamFormingType; /**< index based, weights based or attribute based beam forming*/
+    int16_t nSectId;    /**< section id */
+    int16_t IsNewSect;    /**< flag for new C-Plane section */
+    int16_t UP_nRBStart;    /**< start RB of RB allocation for U-Plane */
+    int16_t UP_nRBSize;    /**< start RB of RB allocation for U-Plane */
     int16_t nSecDesc[XRAN_NUM_OF_SYMBOL_PER_SLOT]; /**<  number of section descriptors per symbol */
 
-    struct xran_section_desc * p_sec_desc[XRAN_NUM_OF_SYMBOL_PER_SLOT][XRAN_MAX_FRAGMENT]; /**< section desctiptors to U-plane data given RBs */
+    struct xran_section_desc   sec_desc[XRAN_NUM_OF_SYMBOL_PER_SLOT][XRAN_MAX_FRAGMENT]; /**< section desctiptors to U-plane data given RBs */
     struct xran_cp_bf_weight   bf_weight; /**< beam forming information relevant for given RBs */
 
     union {
@@ -558,11 +583,15 @@ struct xran_prach_config
     uint16_t   timeOffset;
     int32_t    freqOffset;
     uint8_t    eAxC_offset;
+    uint8_t    nPrachConfIdxLTE;
 };
 
 /**< SRS configuration required for XRAN based FH */
 struct xran_srs_config {
-    uint16_t   symbMask;    /**< symbols used for SRS with in U/S slot [bits 0-13] */
+    uint16_t    symbMask;       /* deprecated */
+    uint16_t    slot;           /**< SRS slot within TDD period (special slot), for O-RU emulation */
+    uint8_t     ndm_offset;     /**< tti offset to delay the transmission of NDM SRS UP, for O-RU emulation */
+    uint16_t    ndm_txduration; /**< symbol duration for NDM SRS UP transmisson, for O-RU emulation */
     uint8_t    eAxC_offset; /**< starting value of eAxC for SRS packets */
 };
 
@@ -653,6 +682,8 @@ struct xran_fh_config {
     uint8_t enableCP;       /**<  enable C-plane */
     uint8_t prachEnable;    /**<  enable PRACH   */
     uint8_t srsEnable;      /**<  enable SRS (Cat B specific) */
+    uint8_t srsEnableCp;    /**<  enable SRS Cp(Cat B specific) */
+    uint8_t SrsDelaySym;   /**<  enable SRS Cp(Cat B specific) */
     uint8_t puschMaskEnable;/**< enable pusch mask> */
     uint8_t puschMaskSlot;  /**< specific which slot pusch channel masked> */
     uint8_t cp_vlan_tag;    /**<  C-plane vlan tag */
@@ -681,6 +712,11 @@ struct xran_fh_config {
 
     uint16_t max_sections_per_slot; /**< M-Plane settings for section */
     uint16_t max_sections_per_symbol; /**< M-Plane settings for section */
+    int32_t RunSlotPrbMapBySymbolEnable; /**< enable prb mapping by symbol with multisection*/
+
+    uint8_t dssEnable;  /**< enable DSS (extension-9) */
+    uint8_t dssPeriod;  /**< DSS pattern period for LTE/NR */
+    uint8_t technology[XRAN_MAX_DSS_PERIODICITY];   /**< technology array represents slot is LTE(0)/NR(1) */
 };
 
 /**
@@ -705,7 +741,10 @@ struct xran_common_counters{
     uint64_t rx_pusch_packets[XRAN_MAX_ANTENNA_NR];
     uint64_t rx_prach_packets[XRAN_MAX_ANTENNA_NR];
     uint64_t rx_srs_packets;
+    uint64_t rx_invalid_ext1_packets; /**< Counts the invalid extType-1 packets - valid for packets received from O-DU*/
 
+    uint64_t timer_missed_sym;
+    uint64_t timer_missed_slot;
 };
 
 /**
@@ -732,9 +771,9 @@ struct xran_flat_buffer
     uint32_t nNumberOfElements;  /**< The number of elements in the physical contiguous memory segment */
     uint32_t nOffsetInBytes;     /**< Offset in bytes to the start of the data in the physical contiguous
      * memory segment */
-    uint32_t nIsPhyAddr;
     uint8_t *pData;  /**< The data pointer is a virtual address */
     void *pCtrl;     /**< pointer to control section coresponding to data buffer */
+    void *pRing;            /**< pointer to ring with prepared mbufs */
 };
 
 /**
@@ -850,6 +889,31 @@ int32_t xran_bm_init (void * pHandle, uint32_t * pPoolIndex, uint32_t nNumberOfB
  *   0 - on success
  */
 int32_t xran_bm_allocate_buffer(void * pHandle, uint32_t nPoolIndex, void **ppData,  void **ppCtrl);
+
+/**
+ * @ingroup xran
+ *
+ *   Function allocates buffer used between XRAN layer and PHY. In general case it's DPDK mbuf.
+ *
+ * @param pHandle
+ *   Pointer to XRAN layer handle for given CC
+ * @param rng_name_prefix
+ *   prefix of ring name
+ * @param cc_id
+ *   Component Carrier ID
+ * @param buff_id
+ *   Buffer id for given ring
+ * @param ant_id
+ *   Antenna id for given ring
+ * @param symb_id
+ *   Symbol id for given ring
+ * @param ppRing
+ *   Pointer to pointer where to store address of internal DDPD ring
+ *
+ * @return
+ *   0 - on success
+ */
+int32_t xran_bm_allocate_ring(void * pHandle, const char *rng_name_prefix, uint16_t cc_id, uint16_t buff_id, uint16_t ant_id, uint16_t symb_id, void **ppRing);
 
 /**
  * @ingroup xran
@@ -1085,6 +1149,31 @@ int32_t xran_reg_physide_cb(void *pHandle, xran_fh_tti_callback_fn Cb, void *cbP
 /**
  * @ingroup xran
  *
+ *   Function registers callback to XRAN layer. Function support callbacks align to OTA time. TTI even, half of slot,
+ *   full slot with respect to PTP time.
+ *
+ * @param pHandle
+ *   Pointer to XRAN layer handle for given CC
+ * @param Cb
+ *   pointer to callback function
+ * @param cbParam
+ *   pointer to Callback Function parameters
+ * @param skipTtiNum
+ *   number of calls to be skipped before first call
+ * @param callback_to_phy_id
+ *   call back time identification (see enum callback_to_phy_id)
+ * @param xran_port_id
+ *   XRAN device ID
+ *
+ * @return
+ *    0 - in case of success
+ *   -1 - in case of failure
+ */
+int32_t xran_reg_physide_cb_by_dev_id(void *pHandle, xran_fh_tti_callback_fn Cb, void *cbParam, int skipTtiNum, enum callback_to_phy_id, uint8_t xran_port_id);
+
+/**
+ * @ingroup xran
+ *
  *   Function returns current TTI, Frame, Subframe, Slot Number as seen "Over air" base on PTP time
  *
  * @param nFrameIdx
@@ -1221,6 +1310,90 @@ uint8_t  *xran_add_cp_hdr_offset(uint8_t  *dst);
  *    0 - on success
  */
 int32_t xran_set_debug_stop(int32_t value, int32_t count);
+
+/**
+ * @ingroup xran
+ *
+ *   function initialize PRB map from config input
+ *
+ * @param p_PrbMapIn
+ *   Input PRBmap from config
+ * @param p_PrbMapOut
+ *   Output PRBmap
+ * @return
+ *    0 - on success
+ */
+int32_t xran_init_PrbMap_from_cfg(struct xran_prb_map* p_PrbMapIn, struct xran_prb_map* p_PrbMapOut, uint32_t mtu);
+
+/**
+ * @ingroup xran
+ *
+ *   function initialize PRB map from config input
+ *
+ * @param p_PrbMapIn
+ *   Input PRBmap from config for Rx
+ * @param p_PrbMapOut
+ *   Output PRBmap
+ * @return
+ *    0 - on success
+ */
+
+int32_t xran_init_PrbMap_from_cfg_for_rx(struct xran_prb_map* p_PrbMapIn, struct xran_prb_map* p_PrbMapOut, uint32_t mtu);
+
+int32_t xran_get_num_prb_elm(struct xran_prb_map* p_PrbMapIn, uint32_t mtu);
+
+/**
+ * @ingroup xran
+ *
+ *   function initialize PRB map from config input by symbol
+ *
+ * @param p_PrbMapIn
+ *   Input PRBmap from config
+ * @param p_PrbMapOut
+ *   Output PRBmap
+ * @return
+ *    0 - on success
+ */
+int32_t xran_init_PrbMap_by_symbol_from_cfg(struct xran_prb_map* p_PrbMapIn, struct xran_prb_map* p_PrbMapOut, uint32_t mtu, uint32_t xran_max_prb);
+
+/**
+ * @ingroup xran
+ *
+ *   Function prepares DL U-plane packets for symbol for O-RAN FH. Enques resulting packet to ring for TX at appropriate time
+ *
+ * @param pHandle
+ *    pointer to O-RU port structure
+ * @return
+ *    0 - on success
+ */
+int32_t xran_prepare_up_dl_sym(uint16_t xran_port_id, uint32_t nSlotIdx,  uint32_t nCcStart, uint32_t nCcNum, uint32_t nSymMask, uint32_t nAntStart,
+                            uint32_t nAntNum, uint32_t nSymStart, uint32_t nSymNum);
+/**
+ * @ingroup xran
+ *
+ *   Function prepares DL C-plane packets for slot for O-RAN FH. Enques resulting packet to ring for TX at appropriate time
+ *
+ * @param pHandle
+ *    pointer to O-RU port structure
+ * @return
+ *    0 - on success
+ */
+int32_t xran_prepare_cp_dl_slot(uint16_t xran_port_id, uint32_t nSlotIdx,  uint32_t nCcStart, uint32_t nCcNum, uint32_t nSymMask, uint32_t nAntStart,
+                            uint32_t nAntNum, uint32_t nSymStart, uint32_t nSymNum);
+
+/**
+ * @ingroup xran
+ *
+ *   Function prepares UL C-plane packets for slot for O-RAN FH. Enques resulting packet to ring for TX at appropriate time
+ *
+ * @param pHandle
+ *    pointer to O-RU port structure
+ * @return
+ *    0 - on success
+ */
+int32_t xran_prepare_cp_ul_slot(uint16_t xran_port_id, uint32_t nSlotIdx,  uint32_t nCcStart, uint32_t nCcNum, uint32_t nSymMask, uint32_t nAntStart,
+                            uint32_t nAntNum, uint32_t nSymStart, uint32_t nSymNum);
+
 #ifdef __cplusplus
 }
 #endif

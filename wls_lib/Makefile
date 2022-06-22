@@ -23,21 +23,42 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 ##############################################################
 #  Tools configuration
 ##############################################################
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
 CC  := icc
+    CPP := icpc
 AS := as
 AR := ar
 LD := icc
-OBJDUMP := objdump
-
-ifeq ($(SHELL),cmd.exe)
-MD := mkdir.exe -p
-CP := cp.exe -f
-RM := rm.exe -rf
+else ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+    CC  := icx
+    CPP := icx
+    AS := as
+    AR := ar
+    LD := icx
 else
+    $(error "Please define WIRELESS_SDK_TOOLCHAIN environment variable")
+endif
+
+ifeq ($(WIRELESS_SDK_TARGET_ISA),sse)
+    TARGET_PROCESSOR := -xSSE4.2
+else ifeq ($(WIRELESS_SDK_TARGET_ISA),avx2)
+    TARGET_PROCESSOR := -xCORE-AVX2
+else ifeq ($(WIRELESS_SDK_TARGET_ISA),avx512)
+    TARGET_PROCESSOR := -xCORE-AVX512
+else ifeq ($(WIRELESS_SDK_TARGET_ISA),snc)
+    TARGET_PROCESSOR := -xicelake-server
+else ifeq ($(WIRELESS_SDK_TARGET_ISA),spr)
+    TARGET_PROCESSOR := -march=sapphirerapids
+endif
+
+ifeq ($(TARGET_PROCESSOR),)
+    $(error "Please define valid WIRELESS_SDK_TARGET_ISA environment variable $(WIRELESS_SDK_TARGET_ISA)")
+endif
+
+OBJDUMP := objdump
 MD := mkdir -p
 CP := cp -f
 RM := rm -rf
-endif
 
 PROJECT_NAME := libwls
 PROJECT_TYPE := lib
@@ -49,11 +70,7 @@ ifeq ($(RTE_SDK),)
 $(error "Please define RTE_SDK environment variable")
 endif
 
-ifeq ($(MESON_BUILD),0)
-RTE_INC := $(RTE_SDK)/$(RTE_TARGET)/include
-else
-RTE_INC := $(shell PKG_CONFIG_PATH=$(RTE_SDK)/build/meson-uninstalled pkg-config --cflags-only-I libdpdk)
-endif
+RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
 
 CC_SRC = wls_lib_dpdk.c \
 	syslib.c
@@ -65,7 +82,7 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
     -fPIC \
 	-Wall \
 	-Wimplicit-function-declaration \
-	-g -O3 -wd1786 -mcmodel=large
+	-g -O3 -mcmodel=large $(TARGET_PROCESSOR)
 
 INC := -I$(RTE_INC)
 DEF :=

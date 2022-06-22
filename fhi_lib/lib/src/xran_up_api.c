@@ -35,6 +35,8 @@
 #include "xran_mlog_lnx.h"
 #include "xran_common.h"
 
+
+#if 0
 /**
  * @brief Builds eCPRI header in xRAN packet
  *
@@ -88,6 +90,7 @@ static int build_ecpri_hdr(struct rte_mbuf *mbuf,
     return 0;
 }
 
+#endif
 /**
  * @brief Builds eCPRI header in xRAN packet
  *
@@ -111,12 +114,10 @@ static inline int xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
     struct xran_ecpri_hdr *ecpri_hdr = (struct xran_ecpri_hdr *)(pChar + sizeof(struct rte_ether_hdr));
+    
     uint16_t    ecpri_payl_size = payl_size
-                                + sizeof(struct data_section_hdr)
                                 + sizeof(struct radio_app_common_hdr)
                                 + XRAN_ECPRI_HDR_SZ; //xran_get_ecpri_hdr_size();
-    if ((comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
-        ecpri_payl_size += sizeof(struct data_section_compression_hdr);
     if (NULL == ecpri_hdr)
         return 1;
 
@@ -171,23 +172,26 @@ static inline int build_application_layer(
  *
  * @param mbuf Initialized rte_mbuf packet
  * @param sec_hdr Section header structure to be set in mbuf packet
+ * @param offset Offset to create the section header
  * @return int 0 on success, non zero on failure
  */
 static inline int build_section_hdr(
     struct rte_mbuf *mbuf,
-    const struct data_section_hdr *sec_hdr)
+    const struct data_section_hdr *sec_hdr,
+    uint32_t offset)
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
-    struct data_section_hdr *section_hdr = (struct data_section_hdr *)
-        (pChar + sizeof(struct rte_ether_hdr) + sizeof (struct xran_ecpri_hdr) + sizeof(struct radio_app_common_hdr));
+    struct data_section_hdr *section_hdr = (struct data_section_hdr *)(pChar + offset);
 
     if (NULL == section_hdr)
         return 1;
 
-    memcpy(section_hdr, sec_hdr, sizeof(struct data_section_hdr));
+    memcpy(section_hdr, &sec_hdr->fields.all_bits, sizeof(struct data_section_hdr));
 
     return 0;
 }
+
+#if 0
 /**
  * @brief Function for appending IQ samples data to the mbuf.
  *
@@ -266,6 +270,7 @@ static uint16_t append_iq_samples(
 
     return iq_bytes_to_send;
 }
+#endif
 
 /**
  * @brief Builds compression header in xRAN packet
@@ -273,16 +278,17 @@ static uint16_t append_iq_samples(
  * @param mbuf Initialized rte_mbuf packet
  * @param compression_hdr Section compression header structure
  *                to be set in mbuf packet
+ * @param offset mbuf data offset to create compression header
  * @return int 0 on success, non zero on failure
  */
 static inline int build_compression_hdr(
     struct rte_mbuf *mbuf,
-    const struct data_section_compression_hdr *compr_hdr)
+    const struct data_section_compression_hdr *compr_hdr,
+    uint32_t offset)
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
-    struct data_section_compression_hdr *compression_hdr = (struct data_section_compression_hdr *)
-        (pChar + sizeof(struct rte_ether_hdr) + sizeof (struct xran_ecpri_hdr) + sizeof(struct radio_app_common_hdr)
-        + sizeof(struct data_section_hdr));
+    struct data_section_compression_hdr *compression_hdr = 
+                    (struct data_section_compression_hdr *)(pChar + offset);
 
     if (NULL == compression_hdr)
         return 1;
@@ -292,6 +298,7 @@ static inline int build_compression_hdr(
     return 0;
 }
 
+#if 0
 /**
  * @brief Appends compression parameter in xRAN packet
  *
@@ -311,7 +318,7 @@ static int append_comp_param(struct rte_mbuf *mbuf, union compression_params *ud
 
     return 0;
 }
-
+#endif
 /**
  * @brief Function for extracting all IQ samples from xRAN packet
  *        holding a single data section
@@ -458,6 +465,7 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
  * @param iq_data_offset IQ data bytes already sent.
  * @param alignment Size of IQ data alignment.
  * @param pkt_gen_params Struct with parameters used for building packet
+ * @param num_sections Number of data sections to be created
  * @return int Number of bytes that have been appended
                to the packet within all appended sections.
  */
@@ -471,41 +479,73 @@ int32_t xran_prepare_iq_symbol_portion(
                         uint8_t Ant_ID,
                         uint8_t seq_id,
                         enum xran_comp_hdr_type staticEn,
-                        uint32_t do_copy)
+                        uint32_t do_copy,
+                        uint16_t num_sections,
+                        uint16_t section_id_start,
+                        uint16_t iq_offset)
 {
-    int offset;
+    uint32_t offset=0 , ret_val=0;
+    uint16_t idx , iq_len=0;
+    const void *iq_data;
+    uint16_t iq_n_section_size; //All data_section + compression hdrs + iq
+
+    iq_n_section_size = iq_data_num_bytes + num_sections*sizeof(struct data_section_hdr);
+    
+    if ((params[0].compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
+{
+        iq_n_section_size += num_sections*sizeof(struct data_section_compression_hdr);
+    }
 
     if(xran_build_ecpri_hdr_ex(mbuf,
                            ECPRI_IQ_DATA,
-                           iq_data_num_bytes,
+                           (int)iq_n_section_size,
                            CC_ID,
                            Ant_ID,
                            seq_id,
-                           params->compr_hdr_param.ud_comp_hdr.ud_comp_meth,
+                           params[0].compr_hdr_param.ud_comp_hdr.ud_comp_meth,
                            staticEn)){
         print_err("xran_build_ecpri_hdr_ex return 0\n");
         return 0;
     }
 
-    if (build_application_layer(mbuf, &(params->app_params)) != 0){
+    if (build_application_layer(mbuf, &(params[0].app_params)) != 0){
         print_err("build_application_layer return != 0\n");
-        return 0;
-    }
-
-    if (build_section_hdr(mbuf, &(params->sec_hdr)) != 0){
-        print_err("build_section_hdr return != 0\n");
         return 0;
     }
 
     offset = sizeof(struct rte_ether_hdr)
                 + sizeof(struct xran_ecpri_hdr)
-                + sizeof(struct radio_app_common_hdr)
-                + sizeof(struct data_section_hdr);
-    if ((params->compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC)) {
-        if (build_compression_hdr(mbuf, &(params->compr_hdr_param)) !=0)
+                + sizeof(struct radio_app_common_hdr);
+    for(idx=0 ; idx < num_sections ; idx++)
+    {
+        if (build_section_hdr(mbuf, &(params[idx].sec_hdr),offset) != 0){
+        print_err("build_section_hdr return != 0\n");
+        return 0;
+    }
+        offset += sizeof(struct data_section_hdr);
+        if ((params[idx].compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC)) {
+            if (build_compression_hdr(mbuf, &(params[idx].compr_hdr_param),offset) !=0)
             return 0;
+            
         offset += sizeof(struct data_section_compression_hdr);
     }
-    return (do_copy ? append_iq_samples_ex(mbuf, offset, iq_data_start, iq_data_num_bytes, iq_buf_byte_order, do_copy) : iq_data_num_bytes);
+
+        /** IQ buffer contains space for data section/compression hdr in case of multiple sections.*/
+        iq_data = (const void *)((uint8_t *)iq_data_start 
+                                + idx*(sizeof(struct data_section_hdr) + iq_data_num_bytes/num_sections));
+        
+        if ((params[idx].compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
+            iq_data = (const void *)((uint8_t *)iq_data + idx*sizeof(struct data_section_compression_hdr));
+
+        //ret_val = (do_copy ? append_iq_samples_ex(mbuf, offset, iq_data_start, iq_data_num_bytes/num_sections, iq_buf_byte_order, do_copy) : iq_data_num_bytes/num_sections);
+        ret_val = iq_data_num_bytes/num_sections;
+        
+        if(!ret_val)
+            return ret_val;
+        
+        iq_len += ret_val;
+        offset += ret_val;
+    }
+    return iq_len;
 }
 

@@ -18,6 +18,14 @@
    
 Front Haul Interface Library Release Notes
 ==========================================
+
+Version FH oran_f_release_v1.0, June 2022
+-----------------------------------------
+
+* Update to DPDK 20.11.3
+* oneAPI compiler support
+* core optimizations for massive mimo scenarios
+
 Version FH oran_e_maintenance_release_v1.0, March 2022 
 ------------------------------------------------------
 

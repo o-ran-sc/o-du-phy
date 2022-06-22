@@ -21,7 +21,8 @@
 ulimit -c unlimited
 echo 1 > /proc/sys/kernel/core_uses_pid
 
-./build/sample-app --usecasefile ./usecase/cat_b/mu1_100mhz/3301/usecase_du.cfg --num_eth_vfs 6 \
+./build/sample-app --usecasefile ./usecase/cat_b/mu1_100mhz/3301/usecase_du.cfg --num_eth_vfs 8 \
 --vf_addr_o_xu_a "0000:51:01.0,0000:51:09.0" \
 --vf_addr_o_xu_b "0000:51:11.0,0000:51:19.0" \
---vf_addr_o_xu_c "0000:18:01.0,0000:18:09.0"
+--vf_addr_o_xu_c "0000:18:01.0,0000:18:09.0" \
+--vf_addr_o_xu_d "0000:18:01.1,0000:18:09.1"

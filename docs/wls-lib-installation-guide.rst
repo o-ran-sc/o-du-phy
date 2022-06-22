@@ -22,8 +22,8 @@ Wls Lib Installation Guide
 The wls library uses DPDK as the basis for the shared memory operations and requires that DPDK 
 be installed in the system since in the makefile it uses the RTE_SDK environment variable when
 building the library. |br|
-The current release was tested using DPDK version 20.11.1 but it doesn't preclude the 
-use of newer releases. Since the L1 binaries are built with DPDK 20.11.1 the ODULOW as a whole
+The current release was tested using DPDK version 20.11.3 but it doesn't preclude the 
+use of newer releases. Since the L1 binaries are built with DPDK 20.11.3 the ODULOW as a whole
 does has the limitation to use only this version of DPDK.
 Also the library uses the Intel Compiler that is defined as part of the ODULOW documentation.
 

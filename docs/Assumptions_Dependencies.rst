@@ -43,13 +43,15 @@ Dependencies
 ------------
 
 O-RAN library implementation depends on the Data Plane Development Kit
-(DPDK v20.11.1).
+(DPDK v20.11.3).
 
-DPDK v20.11.1 should be patched with corresponding DPDK patch provided
+DPDK v20.11.3 should be patched with corresponding DPDK patch provided
 with FlexRAN release (see *Table 1*, FlexRAN Reference Solution Software
 Release Notes)
 
-Intel® C++ Compiler v19.0.3 is used.
+Intel OneApi DPC++/C++ Compiler is used. Version 2022.0.0 or newer.
+
+Intel® C++ Compiler v19.0.3 can also be used but not verified with the f release.
 
 -  Optionally Octave v3.8.2 can be used to generate reference IQ samples (octave-3.8.2-20.el7.x86_64).
 

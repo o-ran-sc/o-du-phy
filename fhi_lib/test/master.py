@@ -35,7 +35,7 @@ import json
 from threading import Timer
 import socket
 
-timeout_sec = 60*3 #3 min max
+timeout_sec = 60*5 #5 min max
 
 nLteNumRbsPerSymF1 = [
     #  5MHz    10MHz   15MHz   20 MHz
@@ -68,60 +68,75 @@ vf_addr_o_xu=[]
 
 # values for Jenkins server
 vf_addr_o_xu_jenkins = [
-    #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c
-    ["0000:19:02.0,0000:19:0a.0", "0000:19:02.1,0000:19:0a.1", "0000:19:02.2,0000:19:0a.2" ], #O-DU
-    ["0000:af:02.0,0000:af:0a.0", "0000:af:02.1,0000:af:0a.1", "0000:af:02.2,0000:af:0a.2" ], #O-RU
+    #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c                vf_addr_o_xu_d
+    ["0000:18:01.0,0000:18:01.1", "0000:18:09.0,0000:18:09.1", "0000:18:11.0,0000:18:11.1", "0000:18:19.0,0000:18:19.1" ], #O-DU
+    ["0000:af:01.0,0000:af:01.1", "0000:af:09.0,0000:af:09.1", "0000:af:11.0,0000:af:11.1", "0000:af:19.0,0000:af:19.1" ], #O-RU
 ]
 
 vf_addr_o_xu_sc12 = [ # 2x2x25G with loopback FVL0:port0 to FVL1:port 0 FVL0:port1 to FVL1:port 1
     #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c
-    ["0000:88:02.0,0000:88:0a.0", "0000:88:02.1,0000:88:0a.1", "0000:88:02.2,0000:88:0a.2" ], #O-DU
-    ["0000:86:02.0,0000:86:0a.0", "0000:86:02.1,0000:86:0a.1", "0000:86:02.2,0000:86:0a.2" ], #O-RU
+    ["0000:88:02.0,0000:88:0a.0", "0000:88:02.1,0000:88:0a.1", "0000:88:02.2,0000:88:0a.2", "0000:88:02.3,0000:88:0a.3" ], #O-DU
+    ["0000:86:02.0,0000:86:0a.0", "0000:86:02.1,0000:86:0a.1", "0000:86:02.2,0000:86:0a.2", "0000:86:02.3,0000:86:0a.3" ], #O-RU
 ]
 
 vf_addr_o_xu_sc12_cvl = [
     #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c
-    ["0000:af:01.0,0000:af:09.0", "0000:af:11.0,0000:af:19.0", "0000:22:01.0,0000:22:09.0" ], #O-DU
-    ["0000:af:01.0,0000:af:09.0", "0000:af:11.0,0000:af:19.0", "0000:1a:01.0,0000:1a:09.0" ], #O-RU
+    ["0000:af:01.0,0000:af:09.0", "0000:af:11.0,0000:af:19.0", "0000:1b:01.0,0000:1b:09.0", "0000:1b:11.0,0000:1b:19.0" ], #O-DU
+    ["0000:af:01.0,0000:af:09.0", "0000:af:11.0,0000:af:19.0", "0000:1a:01.0,0000:1a:09.0", "0000:1a:11.0,0000:1a:19.0" ], #O-RU
 ]
 
 vf_addr_o_xu_scs1_30 = [
-    ["0000:65:01.0,0000:65:01.1,0000:65:01.2,0000:65:01.3", "0000:65:01.4,0000:65:01.5,0000:65:01.6,0000:65:01.7", "0000:65:02.0,0000:65:02.1,0000:65:02.2,0000:65:02.3" ], #O-DU
-    ["0000:65:09.0,0000:65:09.1,0000:65:09.2,0000:65:09.3", "0000:65:09.4,0000:65:09.5,0000:65:09.6,0000:65:09.7", "0000:65:0a.0,0000:65:0a.1,0000:65:0a.2,0000:65:0a.3" ], #O-RU
+    ["0000:65:01.0,0000:65:01.1,0000:65:01.2,0000:65:01.3", "0000:65:01.4,0000:65:01.5,0000:65:01.6,0000:65:01.7", "0000:65:02.0,0000:65:02.1,0000:65:02.2,0000:65:02.3", "0000:65:02.4,0000:65:02.5,0000:65:02.6,0000:65:02.7" ], #O-DU
+    ["0000:65:09.0,0000:65:09.1,0000:65:09.2,0000:65:09.3", "0000:65:09.4,0000:65:09.5,0000:65:09.6,0000:65:09.7", "0000:65:0a.0,0000:65:0a.1,0000:65:0a.2,0000:65:0a.3", "0000:65:0a.4,0000:65:0a.5,0000:65:0a.6,0000:65:0a.7" ], #O-RU
 ]
 
 vf_addr_o_xu_scs1_repo = [
-    ["0000:18:01.0,0000:18:01.1,0000:18:01.2,0000:18:01.3", "0000:18:01.4,0000:18:01.5,0000:18:01.6,0000:18:01.7", "0000:18:02.0,0000:18:02.1,0000:18:02.2,0000:18:02.3" ], #O-DU
-    ["0000:18:11.0,0000:18:11.1,0000:18:11.2,0000:18:11.3", "0000:18:11.4,0000:18:11.5,0000:18:11.6,0000:18:11.7", "0000:18:12.0,0000:18:12.1,0000:18:12.2,0000:18:12.3" ], #O-RU
+    ["0000:18:01.0,0000:18:01.1,0000:18:01.2,0000:18:01.3", "0000:18:01.4,0000:18:01.5,0000:18:01.6,0000:18:01.7", "0000:18:02.0,0000:18:02.1,0000:18:02.2,0000:18:02.3", "0000:18:02.4,0000:18:02.5,0000:18:02.6,0000:18:02.7" ], #O-DU
+    ["0000:18:11.0,0000:18:11.1,0000:18:11.2,0000:18:11.3", "0000:18:11.4,0000:18:11.5,0000:18:11.6,0000:18:11.7", "0000:18:12.0,0000:18:12.1,0000:18:12.2,0000:18:12.3", "0000:18:12.4,0000:18:12.5,0000:18:12.6,0000:18:12.7" ], #O-RU
 ]
 
 vf_addr_o_xu_icelake_scs1_1 = [
-        #vf_addr_o_xu_a                                     vf_addr_o_xu_b                                             vf_addr_o_xu_c
-    ["0000:51:01.0,0000:51:09.0", "0000:51:11.0,0000:51:19.0", "0000:18:01.0,0000:18:09.0" ], #O-DU
-    ["0000:17:01.0,0000:17:09.0", "0000:17:11.0,0000:17:19.0", "0000:65:01.0,0000:65:09.0" ], #O-RU
+        #vf_addr_o_xu_a                  vf_addr_o_xu_b               vf_addr_o_xu_c            vf_addr_o_xu_d
+    ["0000:51:01.0,0000:51:09.0", "0000:51:11.0,0000:51:19.0", "0000:18:01.0,0000:18:09.0", "0000:18:01.1,0000:18:09.1" ], #O-DU
+    ["0000:17:01.0,0000:17:09.0", "0000:17:11.0,0000:17:19.0", "0000:65:01.0,0000:65:09.0", "0000:65:01.1,0000:65:09.1" ], #O-RU
 ]
 
 vf_addr_o_xu_icx_npg_scs1_coyote4 = [
-        #vf_addr_o_xu_a                                     vf_addr_o_xu_b                                             vf_addr_o_xu_c
-    ["0000:51:01.0,0000:51:09.0", "0000:51:11.0,0000:51:19.0", "0000:54:01.0,0000:54:11.0" ], #O-DU
-    ["0000:17:01.0,0000:17:09.0", "0000:17:11.0,0000:17:19.0", "0000:65:01.0,0000:65:09.0" ], #O-RU
+        #vf_addr_o_xu_a                  vf_addr_o_xu_b              vf_addr_o_xu_c             vf_addr_o_xu_d
+    ["0000:51:01.0,0000:51:09.0", "0000:51:11.0,0000:51:19.0", "0000:51:11.1,0000:51:19.1", "0000:51:01.1,0000:51:09.1" ], #O-DU
+    ["0000:17:01.0,0000:17:09.0", "0000:17:11.0,0000:17:19.0", "0000:17:11.1,0000:17:19.1", "0000:17:01.1,0000:17:09.1" ], #O-RU
 ]
 
 vf_addr_o_xu_scs1_35 = [
-    ["0000:88:01.0,0000:88:01.1,0000:88:01.2,0000:88:01.3", "0000:88:01.4,0000:88:01.5,0000:88:01.6,0000:88:01.7", "0000:88:02.0,0000:88:02.1,0000:88:02.2,0000:88:02.3" ], #O-DU
-    ["0000:88:11.0,0000:88:11.1,0000:88:11.2,0000:88:11.3", "0000:88:11.4,0000:88:11.5,0000:88:11.6,0000:88:11.7", "0000:88:12.0,0000:88:12.1,0000:88:12.2,0000:88:12.3" ], #O-RU
+    ["0000:86:01.0,0000:86:01.1,0000:86:01.2,0000:86:01.3", "0000:86:01.4,0000:86:01.5,0000:86:01.6,0000:86:01.7", "0000:86:02.0,0000:86:02.1,0000:86:02.2,0000:86:02.3", "0000:86:02.4,0000:86:02.5,0000:86:02.6,0000:86:02.7" ], #O-DU
+    ["0000:86:11.0,0000:86:11.1,0000:86:11.2,0000:86:11.3", "0000:86:11.4,0000:86:11.5,0000:86:11.6,0000:86:11.7", "0000:86:12.0,0000:86:12.1,0000:86:12.2,0000:86:12.3", "0000:86:12.4,0000:86:12.5,0000:86:12.6,0000:86:12.7" ], #O-RU
 ]
 
 vf_addr_o_xu_csl_npg_scs1_33 = [
     #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c
-    ["0000:1a:01.0,0000:1a:01.1", "0000:1a:01.2,0000:1a:01.3", "0000:1a:01.4,0000:1a:01.5" ], #O-DU
-    ["0000:1a:11.0,0000:1a:11.1", "0000:1a:11.2,0000:1a:11.3", "0000:1a:11.4,0000:1a:11.5" ], #O-RU
+    ["0000:1a:01.0,0000:1a:01.1", "0000:1a:01.2,0000:1a:01.3", "0000:1a:01.4,0000:1a:01.5", "0000:1a:01.6,0000:1a:01.7" ], #O-DU
+    ["0000:1a:11.0,0000:1a:11.1", "0000:1a:11.2,0000:1a:11.3", "0000:1a:11.4,0000:1a:11.5", "0000:1a:11.6,0000:1a:11.7" ], #O-RU
 ]
+
+vf_addr_o_xu_skx_5gnr_sd6 = [
+    #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c             vf_addr_o_xu_d
+    ["0000:af:01.0,0000:af:09.0", "0000:af:11.0,0000:af:19.0", "0000:af:11.1,0000:af:19.1", "0000:af:01.1,0000:af:09.1"], #O-DU
+    ["0000:18:01.0,0000:18:09.0", "0000:18:11.0,0000:18:19.0", "0000:18:11.1,0000:18:19.1", "0000:18:01.1,0000:18:09.1"], #O-RU
+]
+
 
 # table of all test cases
 #                 (ran, cat, mu, bw, test case, "test case description")
 #Cat A
 NR_test_cases_A = [(0,  0,   0,  5,   0,  "NR_Sub6_Cat_A_5MHz_1_Cell_0"),
+                   (0,  0,   0,  10,  12, "NR_Sub6_Cat_A_10MHz_12_Cell_12"),
+                   (0,  0,   0,  20,  12, "NR_Sub6_Cat_A_20MHz_12_Cell_12"),
+                   (0,  0,   0,  20,  20, "NR_Sub6_Cat_A_20MHz_1_Cell_owd_req_resp"),
+                   (0,  0,   1,  100, 0,  "NR_Sub6_Cat_A_100MHz_1_Cell_0"),
+                   (0,  0,   3,  100, 7,  "NR_mmWave_Cat_A_100MHz_1_Cell_0_sc"),
+]
+
+NR_test_cases_A_ext = [(0,  0,   0,  5,   0,  "NR_Sub6_Cat_A_5MHz_1_Cell_0"),
                    (0,  0,   0,  10,  0,  "NR_Sub6_Cat_A_10MHz_1_Cell_0"),
                    (0,  0,   0,  10,  12, "NR_Sub6_Cat_A_10MHz_12_Cell_12"),
                    (0,  0,   0,  20,  0,  "NR_Sub6_Cat_A_20MHz_1_Cell_0"),
@@ -135,15 +150,48 @@ NR_test_cases_A = [(0,  0,   0,  5,   0,  "NR_Sub6_Cat_A_5MHz_1_Cell_0"),
                    (0,  0,   3,  100, 7,  "NR_mmWave_Cat_A_100MHz_1_Cell_0_sc"),
 ]
 
+j_test_cases_A   = [(0,  0,  1, 100, 204,"NR_Sub6_Cat_A_100MHz_4_O_RU_2Ant"),
+                    (0,  0,  1, 100, 404,"NR_Sub6_Cat_A_100MHz_4_O_RU_4Ant")
+]
+
+j_test_cases_A_ext  = [(0,  0,  1, 100, 201,"NR_Sub6_Cat_A_100MHz_1_O_RU_2Ant"),
+                    (0,  0,  1, 100, 202,"NR_Sub6_Cat_A_100MHz_2_O_RU_2Ant"),
+                    (0,  0,  1, 100, 203,"NR_Sub6_Cat_A_100MHz_3_O_RU_2Ant"),
+                    (0,  0,  1, 100, 204,"NR_Sub6_Cat_A_100MHz_4_O_RU_2Ant"),
+                    (0,  0,  1, 100, 401,"NR_Sub6_Cat_A_100MHz_1_O_RU_4Ant"),
+                    (0,  0,  1, 100, 402,"NR_Sub6_Cat_A_100MHz_2_O_RU_4Ant"),
+                    (0,  0,  1, 100, 403,"NR_Sub6_Cat_A_100MHz_3_O_RU_4Ant"),
+                    (0,  0,  1, 100, 404,"NR_Sub6_Cat_A_100MHz_4_O_RU_4Ant")
+]
+
+
 LTE_test_cases_A = [(1,  0,   0,  5,   0, "LTE_Cat_A_5Hz_1_Cell_0"),
                     (1,  0,   0,  10,  0, "LTE_Cat_A_10Hz_1_Cell_0"),
                     (1,  0,   0,  20,  0, "LTE_Cat_A_20Hz_1_Cell_0"),
 ]
 
+DSS_test_cases_A = [(2,  0,   0,  20,  10, "DSS_Cat_A_20MHz_FDD_1_Cell"),
+                    (2,  0,   0,  20,  11, "DSS_Cat_A_20MHz_TDD_1_Cell"),
+                    (2,  0,   0,  20,  60, "DSS_Cat_A_20MHz_FDD_6_Cell"),
+                    (2,  0,   0,  20,  61, "DSS_Cat_A_20MHz_TDD_6_Cell"),
+                    (2,  0,   0,  10,  10, "DSS_Cat_A_10MHz_FDD_1_Cell"),
+                    (2,  0,   0,  10,  11, "DSS_Cat_A_10MHz_TDD_1_Cell"),
+                    (2,  0,   0,  10,  60, "DSS_Cat_A_10MHz_FDD_6_Cell"),
+                    (2,  0,   0,  10,  61, "DSS_Cat_A_10MHz_TDD_6_Cell"),
+                    (2,  0,   0,   5,  10, "DSS_Cat_A_5MHz_FDD_1_Cell"),
+                    (2,  0,   0,   5,  11, "DSS_Cat_A_5MHz_TDD_1_Cell"),
+                    (2,  0,   0,   5,  60, "DSS_Cat_A_5MHz_FDD_6_Cell"),
+                    (2,  0,   0,   5,  61, "DSS_Cat_A_5MHz_TDD_6_Cell"),
+]
+
 #Cat B
 NR_test_cases_B  =  [(0, 1,   1,  100, 0, "NR_Sub6_Cat_B_100MHz_1_Cell_0"),
-                     (0, 1,   1,  100, 2, "NR_Sub6_Cat_B_100MHz_1_Cell_2"),
+                     (0, 1,   1,  100, 216, "NR_Sub6_Cat_B_100MHz_1_Cell_216"),
+]
+
+NR_test_cases_B_ext =  [(0, 1,   1,  100, 0, "NR_Sub6_Cat_B_100MHz_1_Cell_0"),
                      (0, 1,   1,  100, 1, "NR_Sub6_Cat_B_100MHz_1_Cell_1"),
+                     (0, 1,   1,  100, 2, "NR_Sub6_Cat_B_100MHz_1_Cell_1_ext1"),
                      (0, 1,   1,  100, 101, "NR_Sub6_Cat_B_100MHz_1_Cell_101"),
                      (0, 1,   1,  100, 102, "NR_Sub6_Cat_B_100MHz_1_Cell_102"),
                      (0, 1,   1,  100, 103, "NR_Sub6_Cat_B_100MHz_1_Cell_103"),
@@ -165,10 +213,12 @@ NR_test_cases_B  =  [(0, 1,   1,  100, 0, "NR_Sub6_Cat_B_100MHz_1_Cell_0"),
                      (0, 1,   1,  100, 214, "NR_Sub6_Cat_B_100MHz_1_Cell_214"),
                      (0, 1,   1,  100, 215, "NR_Sub6_Cat_B_100MHz_1_Cell_215"),
                      (0, 1,   1,  100, 216, "NR_Sub6_Cat_B_100MHz_1_Cell_216"),
-                     #(0, 1,   1,  100, 401, "NR_Sub6_Cat_B_100MHz_1_Cell_401") 25G not enough
 ]
 
-LTE_test_cases_B = [(1,  1,   0,   5,  0, "LTE_Cat_B_5MHz_1_Cell_0"),
+LTE_test_cases_B = [(1,  1,   0,  20,  0, "LTE_Cat_B_20MHz_1_Cell_0"),
+]
+
+LTE_test_cases_B_ext = [(1,  1,   0,   5,  0, "LTE_Cat_B_5MHz_1_Cell_0"),
                     (1,  1,   0,  10,  0, "LTE_Cat_B_10MHz_1_Cell_0"),
                     (1,  1,   0,  20,  0, "LTE_Cat_B_20MHz_1_Cell_0"),
                     (1,  1,   0,  5,   1, "LTE_Cat_B_5Hz_1_Cell_0_sc"),
@@ -177,7 +227,13 @@ LTE_test_cases_B = [(1,  1,   0,   5,  0, "LTE_Cat_B_5MHz_1_Cell_0"),
 
 ]
 
+
 V_test_cases_B = [
+                    # (0,  1,   1,  100,  301, "NR_Sub6_Cat_B_100MHz_1_Cell_301"),
+                    (0,  1,   1,  100,  602, "NR_Sub6_Cat_B_100MHz_1_Cell_602_sc"),
+]
+
+V_test_cases_B_ext = [
                     (0,  1,   1,  100,  301, "NR_Sub6_Cat_B_100MHz_1_Cell_301"),
                     (0,  1,   1,  100,  302, "NR_Sub6_Cat_B_100MHz_1_Cell_302"),
                     (0,  1,   1,  100,  303, "NR_Sub6_Cat_B_100MHz_1_Cell_303"),
@@ -187,7 +243,14 @@ V_test_cases_B = [
                     (0,  1,   1,  100,  602, "NR_Sub6_Cat_B_100MHz_1_Cell_602_sc"),
 ]
 
+
 V_test_cases_B_2xUL = [
+                  #  (0,  1,   1,  100,  311, "NR_Sub6_Cat_B_100MHz_1_Cell_311"),
+                    (0,  1,   1,  100,  612, "NR_Sub6_Cat_B_100MHz_1_Cell_612_sc"),
+
+]
+
+V_test_cases_B_2xUL_ext = [
                     (0,  1,   1,  100,  311, "NR_Sub6_Cat_B_100MHz_1_Cell_311"),
                     (0,  1,   1,  100,  312, "NR_Sub6_Cat_B_100MHz_1_Cell_312"),
                     (0,  1,   1,  100,  313, "NR_Sub6_Cat_B_100MHz_1_Cell_313"),
@@ -228,11 +291,36 @@ V_test_cases_B_3Cells_mtu_1500 = [
                     (0,  1,   1,  100,  3511, "NR_Sub6_Cat_B_100MHz_1_Cell_3511")
 ]
 
-all_test_cases = NR_test_cases_A + LTE_test_cases_A + LTE_test_cases_B + NR_test_cases_B + V_test_cases_B + V_test_cases_B_2xUL
+
+J_test_cases_B_4Cells = [
+                    (0,  1,   1,  100,  1421, "NR_Sub6_Cat_B_100MHz_1_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  4424, "NR_Sub6_Cat_B_100MHz_4_Cell_DL4UL2")
+]
+
+J_test_cases_B_4Cells_ext = [
+                    (0,  1,   1,  100,  1421, "NR_Sub6_Cat_B_100MHz_1_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  2422, "NR_Sub6_Cat_B_100MHz_2_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  3423, "NR_Sub6_Cat_B_100MHz_3_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  4424, "NR_Sub6_Cat_B_100MHz_4_Cell_DL4UL2")
+]
+
+Ext1_test_cases_B_4Cells = [
+                    (0,  1,   1,  100,  142, "NR_Sub6_Cat_B_100MHz_ext1_1_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  242, "NR_Sub6_Cat_B_100MHz_ext1_2_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  342, "NR_Sub6_Cat_B_100MHz_ext1_3_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  442, "NR_Sub6_Cat_B_100MHz_ext1_4_Cell_DL4UL2")
+]
+
+all_test_cases = []
+
+#reduced duration test cycle
+all_test_cases_short = NR_test_cases_A + LTE_test_cases_A + j_test_cases_A + LTE_test_cases_B + NR_test_cases_B + V_test_cases_B + V_test_cases_B_2xUL + J_test_cases_B_4Cells
+
+all_test_cases_long = NR_test_cases_A_ext + LTE_test_cases_A + j_test_cases_A_ext + DSS_test_cases_A  + LTE_test_cases_B_ext + NR_test_cases_B_ext + V_test_cases_B_ext + V_test_cases_B_2xUL_ext + J_test_cases_B_4Cells_ext + Ext1_test_cases_B_4Cells
 
 dic_dir      = dict({0:'DL', 1:'UL'})
 dic_xu       = dict({0:'o-du', 1:'o-ru'})
-dic_ran_tech = dict({0:'5g_nr', 1:'lte'})
+dic_ran_tech = dict({0:'5g_nr', 1:'lte', 2:'dss'})
 
 def init_logger(console_level, logfile_level):
     """Initializes console and logfile logger with given logging levels"""
@@ -254,8 +342,8 @@ def parse_args(args):
     # Parser configuration
     parser = argparse.ArgumentParser(description="Run test cases: category numerology bandwidth test_num")
 
-    parser.add_argument("--rem_o_ru_host", type=str, default="", help="remot host to run O-RU", metavar="root@10.10.10.1", dest="rem_o_ru_host")
-    parser.add_argument("--ran", type=int, default=0, help="Radio Access Tehcnology 0 (5G NR) or 1 (LTE)", metavar="ran", dest="rantech")
+    parser.add_argument("--rem_o_ru_host", type=str, default="", help="remote host to run O-RU", metavar="root@10.10.10.1", dest="rem_o_ru_host")
+    parser.add_argument("--ran", type=int, default=0, help="Radio Access Technology 0 (5G NR) , 1 (LTE) or 2 DSS (5G NR and LTE)", metavar="ran", dest="rantech")
     parser.add_argument("--cat", type=int, default=0, help="Category: 0 (A) or 1 (B)", metavar="cat", dest="category")
     parser.add_argument("--mu", type=int, default=0, help="numerology [0,1,3]", metavar="num", dest="numerology")
     parser.add_argument("--bw",  type=int, default=20, help="bandwidth [5,10,20,100]", metavar="bw", dest="bandwidth")
@@ -298,7 +386,7 @@ def get_re_map(nRB, direction):
                     #print(PrbElemContent,"RBStart: ", xRBStart, "RBSize: ",xRBSize, list(range(xRBStart, xRBStart + xRBSize)))
                     prb_map = prb_map + list(range(xRBStart*12, xRBStart*12 + xRBSize*12))
         else:
-            nPrbElm = 0;
+            nPrbElm = 0
 
     elif direction == 1:
         #UL
@@ -319,7 +407,7 @@ def get_re_map(nRB, direction):
     elif direction == 2:
         #UL
         if 'nPrbElemSrs' in globals():
-            nPrbElm = nPrbElemUl
+            nPrbElm = nPrbElemSrs
             for i in range(0, nPrbElm):
                 elm = str('PrbElemSrs'+str(i))
                 #print(elm)
@@ -336,6 +424,30 @@ def get_re_map(nRB, direction):
         prb_map = list(range(0, nRB*12))
 
     return prb_map
+
+def get_bfw_map(direction):
+    bfw_map        = []
+    bfwElemContent = []
+    if direction == 0:
+        #DL
+        if 'nPrbElemDl' in globals():
+            nPrbElm = nPrbElemDl
+            numsetBFW_total = 0
+            for i in range(0, nPrbElm):
+                elm = str('ExtBfwDl'+str(i))
+                #print(elm)
+                if elm in globals():
+                    bfwElemContent.insert(i,list(globals()[elm]))
+                    numBundPrb  = bfwElemContent[i][0]
+                    numsetBFW   = bfwElemContent[i][1]
+                    bfw_map = bfw_map + list(range(antElmTRx*numsetBFW_total, antElmTRx*numsetBFW_total + numsetBFW*antElmTRx))
+                    numsetBFW_total += numsetBFW
+        else:
+            nPrbElm = 0
+    if nPrbElm == 0 :
+        bfw_map = list(range(0, (nPrbElm-1)*numsetBFW*antElmTRx))
+
+    return bfw_map, numsetBFW_total
 
 def check_for_string_present_in_file(file_name, search_string):
     res = 1
@@ -362,7 +474,15 @@ def check_owdm_test_results(xran_path, o_xu_id):
 def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, direction):
     res = 0
     re_map = []
-    if rantech==1:
+    if rantech==2:
+        if mu == 0:
+            nDlRB = nLteNumRbsPerSymF1[mu][nRChBwOptions.get(str(nDLBandwidth))]
+            nUlRB = nLteNumRbsPerSymF1[mu][nRChBwOptions.get(str(nULBandwidth))]
+        else:
+            print("Incorrect arguments\n")
+            res = -1
+            return res
+    elif rantech==1:
         if mu == 0:
             nDlRB = nLteNumRbsPerSymF1[mu][nRChBwOptions.get(str(nDLBandwidth))]
             nUlRB = nLteNumRbsPerSymF1[mu][nRChBwOptions.get(str(nULBandwidth))]
@@ -388,20 +508,25 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
     else:
         comp = 0
 
-    if 'srsEanble' in globals():
-        srs_enb = srsEanble
+    if 'srsEnable' in globals():
+        srs_enb = srsEnable
     else:
         srs_enb = 0
 
-    if 'rachEanble' in globals():
-        rach = rachEanble
+    if 'rachEnable' in globals():
+        rach = rachEnable
     else:
         rach = 0
+
+    if 'extType' in globals():
+        ext_type = extType
+    else:
+        ext_type = 0
 
     print("O-RU {} compare results: {} [compression {}]\n".format(o_xu_id, dic_dir.get(direction), comp))
 
     #if cat == 1:
-    #    print("WARNING: Skip checking IQs and BF Weights for CAT B for now\n");
+    #    print("WARNING: Skip checking IQs and BF Weights for CAT B for now\n")
     #    return res
 
     #get slot config
@@ -492,8 +617,8 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
             print(len(tst))
             print(len(ref))
 
-            file_tst.close();
-            file_ref.close();
+            file_tst.close()
+            file_ref.close()
 
             print(numSlots)
 
@@ -614,8 +739,8 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
                 print(len(tst))
                 print(len(ref))
 
-                file_tst.close();
-                file_ref.close();
+                file_tst.close()
+                file_ref.close()
 
                 print(numSlots)
 
@@ -673,6 +798,222 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
     except GetOutOfLoops:
         return res
 
+    if ((cat == 1) and (direction == 0) and (ext_type == 1)): #Cat B, DL and Extension type = 1
+        try:
+            if (direction == 0) & (cat == 1): #DL
+                flowId = ccNum*antNum
+            if direction == 0:
+                bfw_map, numsetBFW_total = get_bfw_map(direction)
+            else:
+                raise Exception('Direction is not supported %d'.format(direction))
+
+            for i in range(0, flowId):
+                #read ref and test files
+                tst = []
+                ref = []
+                if direction == 0:
+                    # DL
+                    file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-dl_bfw_log_ue"+str(i)+".txt"
+                    file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-dl_bfw_ue"+str(i)+".txt"
+                else:
+                    raise Exception('Direction is not supported %d'.format(direction))
+
+                print("test result   :", file_tst)
+                print("test reference:", file_ref)
+                if os.path.exists(file_tst):
+                    try:
+                        file_tst = open(file_tst, 'r')
+                    except OSError:
+                        print ("Could not open/read file:", file_tst)
+                        sys.exit()
+                else:
+                    print(file_tst, "doesn't exist")
+                    res = -1
+                    return res
+                if os.path.exists(file_ref):
+                    try:
+                        file_ref = open(file_ref, 'r')
+                    except OSError:
+                        print ("Could not open/read file:", file_ref)
+                        sys.exit()
+                else:
+                    print(file_tst, "doesn't exist")
+                    res = -1
+                    return res
+
+                tst = file_tst.readlines()
+                ref = file_ref.readlines()
+
+                print(len(tst))
+                print(len(ref))
+
+                file_tst.close()
+                file_ref.close()
+
+                print(numSlots)
+
+                for slot_idx in range(0, numSlots):
+                    skip_tti = 1
+                    if nFrameDuplexType==1:
+                        #skip tti if UL slot
+                        if direction == 0:
+                            #DL
+                            for sym_idx in range(0,14):
+                                sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
+                                if(sym_dir == 0):
+                                    skip_tti = 0
+                                    break
+                            if(skip_tti == 1):
+                                continue
+                    for line_idx in bfw_map:
+                        offset = slot_idx * (nDlRB*antElmTRx) #(slot_idx*numsetBFW_total*antElmTRx) + line_idx
+                        try:
+                            line_tst = tst[offset].rstrip()
+                        except IndexError:
+                            res = -1
+                            print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, line_idx, len(tst))
+                            raise GetOutOfLoops
+                        try:
+                            line_ref = ref[offset].rstrip()
+                        except IndexError:
+                            res = -1
+                            print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, line_idx, len(ref))
+                            raise GetOutOfLoops
+
+                        if comp == 1:
+                            # discard LSB bits as BFP compression is not "bit exact"
+                            tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
+                            tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
+                            ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
+                            ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
+
+                            tst_i_act = int(line_tst.split(" ")[0])
+                            tst_q_act = int(line_tst.split(" ")[1])
+                            ref_i_act = int(line_ref.split(" ")[0])
+                            ref_q_act = int(line_ref.split(" ")[1])
+
+                            #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                            if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
+                                print("868 Actual:","bfw:[",i,"]:",offset, slot_idx, line_idx,":","tst: ", tst_i_act, " ", tst_q_act, " " , "ref: ", ref_i_act, " ", ref_q_act, " ")
+                                print("FAIL:","bfw:[",i,"]:",offset, slot_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                res = -1
+                                raise GetOutOfLoops
+                        else:
+                            #if line_idx == 0:
+                                #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
+                            if line_ref != line_tst:
+                                print("876 Actual:","bfw:[",i,"]:",offset, slot_idx, line_idx,":","tst: ", tst_i_act, " ", tst_q_act, " " , "ref: ", ref_i_act, " ", ref_q_act, " ")
+                                print("FAIL:","bfw:[",i,"]:",offset, slot_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                                res = -1
+                                raise GetOutOfLoops
+        except GetOutOfLoops:
+            res = 0 # Not treating it as a test case fail criteria for now
+            # return res
+
+        try:
+            if (direction == 0) & (cat == 1): #DL
+                flowId = ccNum*antNumUL
+            if direction == 0:
+                bfw_map, numsetBFW_total = get_bfw_map(direction)
+            else:
+                raise Exception('Direction is not supported %d'.format(direction))
+
+            for i in range(0, flowId):
+                #read ref and test files
+                tst = []
+                ref = []
+                if direction == 0:
+                    # DL
+                    file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-ul_bfw_log_ue"+str(i)+".txt"
+                    file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-ul_bfw_ue"+str(i)+".txt"
+                else:
+                    raise Exception('Direction is not supported %d'.format(direction))
+
+                print("test result   :", file_tst)
+                print("test reference:", file_ref)
+                if os.path.exists(file_tst):
+                    try:
+                        file_tst = open(file_tst, 'r')
+                    except OSError:
+                        print ("Could not open/read file:", file_tst)
+                        sys.exit()
+                else:
+                    print(file_tst, "doesn't exist")
+                    res = -1
+                    return res
+                if os.path.exists(file_ref):
+                    try:
+                        file_ref = open(file_ref, 'r')
+                    except OSError:
+                        print ("Could not open/read file:", file_ref)
+                        sys.exit()
+                else:
+                    print(file_tst, "doesn't exist")
+                    res = -1
+                    return res
+
+                tst = file_tst.readlines()
+                ref = file_ref.readlines()
+
+                print(len(tst))
+                print(len(ref))
+
+                file_tst.close()
+                file_ref.close()
+
+                print(numSlots)
+
+                for slot_idx in range(0, numSlots):
+                    skip_tti = 1
+                    if nFrameDuplexType==1:
+                        #skip tti if UL slot
+                        if direction == 0:
+                            #DL
+                            for sym_idx in range(0,14):
+                                sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
+                                if(sym_dir == 1):
+                                    skip_tti = 0
+                                    break
+                            if(skip_tti == 1):
+                                continue
+                    for line_idx in bfw_map:
+                        offset = slot_idx * (nUlRB*antElmTRx) #(slot_idx*numsetBFW_total*antElmTRx) + line_idx
+                        try:
+                            line_tst = tst[offset].rstrip()
+                        except IndexError:
+                            res = -1
+                            print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, line_idx, len(tst))
+                            raise GetOutOfLoops
+                        try:
+                            line_ref = ref[offset].rstrip()
+                        except IndexError:
+                            res = -1
+                            print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, line_idx, len(ref))
+                            raise GetOutOfLoops
+
+                        if comp == 1:
+                            # discard LSB bits as BFP compression is not "bit exact"
+                            tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
+                            tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
+                            ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
+                            ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
+
+                            #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                            if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
+                                print("FAIL:","bfw:[",i,"]:",offset, slot_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                res = -1
+                                raise GetOutOfLoops
+                        else:
+                            #if line_idx == 0:
+                                #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
+                            if line_ref != line_tst:
+                                print("FAIL:","bfw:[",i,"]:",offset, slot_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                                res = -1
+                                raise GetOutOfLoops
+        except GetOutOfLoops:
+            res = 0        # Not treating it as a test case fail criteria for now
+            # return res
+
     if (direction == 0) | (cat == 0) | (srs_enb == 0): #DL or Cat A
         #done
     return res
@@ -680,7 +1021,20 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
     print("O-RU {} compare results: {} [compression {}]\n".format(o_xu_id, 'SRS', comp))
 
     #srs
-    symbMask    = srsSym
+    PrbElemContent = []
+    if 'nPrbElemSrs' in globals():
+        for i in range(0, nPrbElemSrs):
+            elm = str('PrbElemSrs'+str(i))
+            #print(elm)
+            if (elm in globals()):
+                PrbElemContent.insert(i,list(globals()[elm]))
+                symbMask = 1 << PrbElemContent[i][2]    # start symbol
+                print(symbMask)
+                #print(PrbElemContent,"RBStart: ", xRBStart, "RBSize: ",xRBSize, list(range(xRBStart, xRBStart + xRBSize)))
+    else:
+        print("Cannot find SRS PRB map!")
+        symbMask = 0
+
     re_map = get_re_map(nUlRB, 2)
     try:
         flowId = ccNum*antElmTRx
@@ -726,14 +1080,14 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
             print(len(tst))
             print(len(ref))
 
-            file_tst.close();
-            file_ref.close();
+            file_tst.close()
+            file_ref.close()
 
             print(numSlots)
 
             for slot_idx in range(0, numSlots - (1*direction)):
                 for sym_idx in range(0, 14):
-                    if symbMask & (1 << sym_idx) and slot_idx%nTddPeriod == 3:
+                    if symbMask & (1 << sym_idx) and slot_idx%nTddPeriod == srsSlot:
                         print("SRS check sym ", slot_idx,  sym_idx)
                         if nFrameDuplexType==1:
                             #skip sym if TDD
@@ -913,7 +1267,13 @@ def make_copy_mlog(rantech, cat, mu, bw, tcase, xran_path):
 
 def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf_addr_o_xu):
 
-    if rantech == 1: #LTE
+    if rantech == 2: #LTE and #5G NR
+        if cat == 0:
+            test_config =xran_path+"/app/usecase/dss/mu{0:d}_{1:d}mhz".format(mu, bw)
+        else:
+            print("Incorrect cat argument\n")
+            return -1
+    elif rantech == 1: #LTE
         if cat == 1:
             test_config =xran_path+"/app/usecase/lte_b/mu{0:d}_{1:d}mhz".format(mu, bw)
         elif cat == 0 :
@@ -936,7 +1296,7 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
     if(tcase > 0) :
         test_config = test_config+"/"+str(tcase)
 
-    app = xran_path+"/app/build/sample-app"
+    app = [xran_path+"/app/build/sample-app", xran_path+"/app/build-oru/sample-app-ru"]
 
     logging.debug("run: %s %s", app, test_config)
     logging.debug("Started script: master.py, XRAN path %s", xran_path)
@@ -944,6 +1304,45 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
     test_cfg = []
     global oXuOwdmEnabled
     oXuOwdmEnabled = 0 #Default is owdm measurements are disabled
+    REM_O_RU_HOST=rem_o_ru_host
+
+    if(os.system('lscpu | grep -q -i AVX512IFMA') == 0):
+        cpu = 'icx'
+    else:
+        cpu = 'csx'
+
+    #O-DU
+    if REM_O_RU_HOST == "":
+
+        if (cpu == 'icx'):
+            if ((os.path.isfile(test_config+"/usecase_du_icx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_icx.cfg"))):
+                test_cfg.append(test_config+"/usecase_du_icx.cfg")
+                test_cfg.append(test_config+"/usecase_ru_icx.cfg")
+            else:
+                test_cfg.append(test_config+"/usecase_du.cfg")
+                test_cfg.append(test_config+"/usecase_ru.cfg")
+        else: #(csx_cpu)
+            if ((os.path.isfile(test_config+"/usecase_du_csx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_csx.cfg"))):
+                test_cfg.append(test_config+"/usecase_du_csx.cfg")
+                test_cfg.append(test_config+"/usecase_ru_csx.cfg")
+            else:
+                test_cfg.append(test_config+"/usecase_du.cfg")
+                test_cfg.append(test_config+"/usecase_ru.cfg")
+    else: # O-RU remote always CSX-SP
+        if (cpu == 'icx'):
+            if (os.path.isfile(test_config+"/usecase_du_icx.cfg")):
+                test_cfg.append(test_config+"/usecase_du_icx.cfg")
+            else:
+                test_cfg.append(test_config+"/usecase_du.cfg")
+            if (os.path.isfile(test_config+"/usecase_ru_csx.cfg")):
+                test_cfg.append(test_config+"/usecase_ru_csx.cfg")
+            else:
+                test_cfg.append(test_config+"/usecase_ru.cfg")
+        else: #(csx_cpu)
+            if ((os.path.isfile(test_config+"/usecase_du_csx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_csx.cfg"))):
+                test_cfg.append(test_config+"/usecase_du_csx.cfg")
+                test_cfg.append(test_config+"/usecase_ru_csx.cfg")
+            else:
     test_cfg.append(test_config+"/usecase_du.cfg")
     test_cfg.append(test_config+"/usecase_ru.cfg")
 
@@ -959,23 +1358,24 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
     timer         = []
 
     os.system('pkill -9 "sample-app"')
+    os.system('pkill -9 "sample-app-ru"')
     os.system('rm -rf ./logs')
 
     usecase_cfg = parse_usecase_cfg(rantech, cat, mu, bw, tcase, xran_path, test_cfg)
-    REM_O_RU_HOST=rem_o_ru_host
+
 
     for i in range(2):
 
         log_file_name.append("sampleapp_log_{}_{}_cat_{}_mu{}_{}mhz_tst_{}.log".format(dic_ran_tech.get(rantech), dic_xu.get(i),cat, mu, bw, tcase))
         with open(log_file_name[i], "w") as f:
-            run_cmd = [app, "--usecasefile", test_cfg[i], "--num_eth_vfs", "6", "--vf_addr_o_xu_a", vf_addr_o_xu[i][0], "--vf_addr_o_xu_b", vf_addr_o_xu[i][1],"--vf_addr_o_xu_c", vf_addr_o_xu[i][2]]
+            run_cmd = [app[i], "--usecasefile", test_cfg[i], "--num_eth_vfs", "8", "--vf_addr_o_xu_a", vf_addr_o_xu[i][0], "--vf_addr_o_xu_b", vf_addr_o_xu[i][1],"--vf_addr_o_xu_c", vf_addr_o_xu[i][2],"--vf_addr_o_xu_d", vf_addr_o_xu[i][3]]
             #, stdout=f, stderr=f
             if (verbose==1):
                 if i == 0 or REM_O_RU_HOST == "":
                 p = subprocess.Popen(run_cmd)
             else:
                     CMD = ' '.join([str(elem) for elem in run_cmd])
-                    ssh = ["ssh", "%s" % REM_O_RU_HOST, "cd " + xran_path + "/app"+"; hostname; pwd; pkill -9 sample-app; rm -rf ./logs;" + CMD]
+                    ssh = ["ssh", "%s" % REM_O_RU_HOST, "cd " + xran_path + "/app"+"; hostname; pwd; pkill -9 sample-app; rm -rf ./logs; ulimit -c unlimited; echo 1 > /proc/sys/kernel/core_uses_pid; " + CMD]
                     print(ssh)
                     print("my_cmd: ", ' '.join([str(elem) for elem in ssh]))
                     p = subprocess.Popen(ssh, shell=False)
@@ -984,7 +1384,7 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
                 p = subprocess.Popen(run_cmd, stdout=f, stderr=f)
                 else :
                     CMD = ' '.join([str(elem) for elem in run_cmd])
-                    ssh = ["ssh", "%s" % REM_O_RU_HOST, "cd " + xran_path + "/app"+"; hostname; pwd; pkill -9 sample-app; rm -rf ./logs; " + CMD]
+                    ssh = ["ssh", "%s" % REM_O_RU_HOST, "cd " + xran_path + "/app"+"; hostname; pwd; pkill -9 sample-app; rm -rf ./logs; ulimit -c unlimited; echo 1 > /proc/sys/kernel/core_uses_pid; " + CMD]
                     p = subprocess.Popen(ssh, shell=False, stdout=f, stderr=f)
                     #stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -1005,8 +1405,8 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
         p.wait()
         except (KeyboardInterrupt, SystemExit):
             for i in range(2):
-                timer[i].cancel();
-                timer[i].cancel();
+                timer[i].cancel()
+                timer[i].cancel()
             for pp, ff in processes:
                 pp.send_signal(signal.SIGINT)
                 pp.wait()
@@ -1022,8 +1422,8 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
         f.close()
 
     for i in range(2):
-        timer[i].cancel();
-        timer[i].cancel();
+        timer[i].cancel()
+        timer[i].cancel()
 
     logging.info("O-DU and O-RU are done\n")
 
@@ -1086,7 +1486,6 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
 
 def main():
     test_results = []
-    test_executed_total = 0
     run_total = 0
     test_fail_cnt = 0
     test_pass_cnt = 0
@@ -1112,6 +1511,7 @@ def main():
     options = parse_args(sys.argv[1:])
     rem_o_ru_host = options.rem_o_ru_host
 
+    all_test_cases  = all_test_cases_long
     if host_name == "sc12-xran-sub6":
         if rem_o_ru_host:
             vf_addr_o_xu = vf_addr_o_xu_sc12_cvl
@@ -1129,11 +1529,14 @@ def main():
         vf_addr_o_xu = vf_addr_o_xu_scs1_35
     elif host_name == "csl-npg-scs1-33":
         vf_addr_o_xu = vf_addr_o_xu_csl_npg_scs1_33
+    elif host_name == "skx-5gnr-sd6":
+        vf_addr_o_xu = vf_addr_o_xu_skx_5gnr_sd6
     else:
         vf_addr_o_xu = vf_addr_o_xu_jenkins
+        all_test_cases  = all_test_cases_short
 
-    print(vf_addr_o_xu[0][0],vf_addr_o_xu[0][1],vf_addr_o_xu[0][2])
-    print(vf_addr_o_xu[1][0],vf_addr_o_xu[1][1],vf_addr_o_xu[1][2])
+    print(vf_addr_o_xu[0][0],vf_addr_o_xu[0][1],vf_addr_o_xu[0][2],vf_addr_o_xu[0][3])
+    print(vf_addr_o_xu[1][0],vf_addr_o_xu[1][1],vf_addr_o_xu[1][2],vf_addr_o_xu[1][3])
 
     # Parse input arguments
     if len(sys.argv) == 1 or (len(sys.argv) == 3 and rem_o_ru_host):

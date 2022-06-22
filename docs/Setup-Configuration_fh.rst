@@ -31,25 +31,42 @@ below. Steps for running the sample application on the O-DU side and
 0-RU side are the same, except configuration file options may be
 different.
 
-.. image:: images/Setup-for-xRAN-Testing.jpg
+.. image:: images/Setup-for-O-RAN-Testing.jpg
   :width: 400
-  :alt: Figure 26. Setup for O-RAN Testing
+  :alt: Figure 27. Setup for O-RAN Testing
 
-Figure 26. Setup for O-RAN Testing
+Figure 27. Setup for O-RAN Testing
 
-.. image:: images/Setup-for-xRAN-Testing-with-PHY-and-Configuration-C3.jpg
+
+
+.. image:: images/Setup-for-O-RAN-Testing-with-PHY-and-Configuration-C3.jpg
   :width: 400
-  :alt: Figure 27. Setup for O-RAN Testing with PHY and Configuration C3
+  :alt: Figure 28. Setup for O-RAN Testing with PHY and Configuration C3
 
-Figure 27. Setup for O-RAN Testing with PHY and Configuration C3
+Figure 28. Setup for O-RAN Testing with PHY and Configuration C3
+
+
+
+.. image:: images/Setup-for-O-RAN-Testing-with-PHY-and-Configuration-C3-for-Massive-MIMO.jpg
+  :width: 400
+  :alt: Figure 29. Setup for O-RAN Testing with PHY and Configuration C3 for
+
+Figure 29. Setup for O-RAN Testing with PHY and Configuration C3 for
+Massive MIMO
+
+
 
 A.2 Prerequisites
 -----------------
-Each server in Figure 26 requires the following:
+
+Each server in *Figure 27* requires the following:
 
 -  Wolfpass server according to recommended BOM for FlexRAN such as
    Intel® Xeon® Skylake Gold 6148 FC-LGA3647 2.4 GHz 27.5 MB 150W 20
-   cores (two sockets)
+   cores (two sockets) or higher
+
+-  Wilson City or Coyote Pass server with Intel® Xeon® Icelake CPU for
+   Massive-MIMO with L1 pipeline testing
 
 -  BIOS settings:
 
@@ -164,11 +181,9 @@ ESX*, FreeBSD*, and EFI/EFI2 are located at:
 
 ..
 
-https://downloadmirror.intel.com/682037/readme_8_50.txt
-(700 series)
+https://downloadcenter.intel.com/download/24769 (700 series)
 
-https://downloadmirror.intel.com/709693/readme_3.10.txt
-(E810 series)
+https://downloadcenter.intel.com/download/29736 (E810 series)
 
 PTP Grand Master is required to be available in the network to provide
 synchronization of both O-DU and RU to GPS time.
@@ -177,9 +192,9 @@ The software package includes Linux\* CentOS\* operating system and RT
 patch according to FlexRAN Reference Solution Cloud-Native Setup
 document (refer to Table 2). Only real-time HOST is required.
 
-1. Install Intel® C++ Compiler v19.0.3
+1. Install Intel® C++ Compiler v19.0.3 or OneAPI compiler (preferred)
 
-2. Download DPDK v20.11.1
+2. Download DPDK v20.11.3
 
 3. Patch DPDK with FlexRAN BBDev patch as per given release.
 
@@ -262,7 +277,7 @@ to O-RAN Front haul::
                         ICE_WRITE_REG(hw, QINT_TQCTL(base_queue + i), val_tx);
                 }
 
-5.Build and install DPDK::
+5.Build and install the DPDK::
 
    See https://doc.dpdk.org/guides/prog_guide/build-sdk-meson.html
 
@@ -517,29 +532,29 @@ Install and Configure Sample Application
 
 To install and configure the sample application:
 
-1. Set up the environment::
+1. Set up the environment(shown for icc change for icx)::
 
     For Skylake and Cascadelake
     export GTEST_ROOT=pwd/gtest-1.7.0
-    export RTE_SDK=pwd/dpdk-20.11.1
+    export RTE_SDK=pwd/dpdk-20.11.3
     export RTE_TARGET=x86_64-native-linuxapp-icc
     export DIR_WIRELESS_SDK_ROOT=pwd/wireless_sdk
     export WIRELESS_SDK_TARGET_ISA=avx512
     export SDK_BUILD=build-${WIRELESS_SDK_TARGET_ISA}-icc
     export DIR_WIRELESS_SDK=${DIR_WIRELESS_SDK_ROOT}/${SDK_BUILD}
-    export MLOG_DIR=pwd/flexran_l1_sw/libs/mlog
-    export XRAN_DIR=pwd/flexran_xran
+    export MLOG_DIR=`pwd`/flexran_l1_sw/libs/mlog
+    export XRAN_DIR=`pwd`/flexran_xran
 
     for Icelake
-    export GTEST_ROOT=pwd/gtest-1.7.0
-    export RTE_SDK=pwd/dpdk-20.11.1
+    export GTEST_ROOT=`pwd`/gtest-1.7.0
+    export RTE_SDK=`pwd`/dpdk-20.11
     export RTE_TARGET=x86_64-native-linuxapp-icc
-    export DIR_WIRELESS_SDK_ROOT=pwd/wireless_sdk
+    export DIR_WIRELESS_SDK_ROOT=`pwd`/wireless_sdk
     export WIRELESS_SDK_TARGET_ISA=snc
     export SDK_BUILD=build-${WIRELESS_SDK_TARGET_ISA}-icc
     export DIR_WIRELESS_SDK=${DIR_WIRELESS_SDK_ROOT}/${SDK_BUILD}
-    export MLOG_DIR=pwd/flexran_l1_sw/libs/mlog
-    export XRAN_DIR=pwd/flexran_xran
+    export MLOG_DIR=`pwd`/flexran_l1_sw/libs/mlog
+    export XRAN_DIR=`pwd`/flexran_xran
 
 2. export FLEXRAN_SDK=${DIR_WIRELESS_SDK}/install Compile mlog library::
 
@@ -580,23 +595,30 @@ Install and Configure FlexRAN 5G NR L1 Application
 The 5G NR layer 1 application can be used for executing the scenario for
 mmWave with either the RU sample application or just the O-DU side. The
 current release supports the constant configuration of the slot pattern
-and RB allocation on the PHY side. 
+and RB allocation on the PHY side. The build process follows the same
+basic steps as for the sample application above and is similar to
+compiling 5G NR l1app for mmWave with Front Haul FPGA. Please follow the
+general build process in the FlexRAN 5G NR Reference Solution L1 User
+Guide (refer to *Table 2*.) (For information only as a FlexRAN binary blob
+is delivered to the community)
 
-1. O-RAN library is enabled by default l1 application:
+1. O-RAN library is enabled by default l1 application
 
 2. Get the FlexRAN L1 binary from https://github.com/intel/FlexRAN. Look for the l1/bin/nr5g/gnb/l1 folder for the
    l1app binary and the corresponding phycfg and xrancfg files.
 
 3. Configure the L1app using bin/nr5g/gnb/l1/phycfg_xran.xml and
-xrancfg_sub6.xml (or other xml if it is mmwave or massive MIMO). ::
+xrancfg_sub6.xml (or other xml if it is mmW or massive MIMO). ::
 
-   <XranConfig>
-    <version>oran_e_maintenance_release_v1.0</version>
-    <!-- numbers of O-RU connected to O-DU. All O-RUs are the same capabilities. Max O-RUs is per XRAN_PORTS_NUM i.e. 4 -->
+    <XranConfig>
+    <version>oran_f_release_v1.0</version>
+    <!-- numbers of O-RU connected to O-DU. All O-RUs are the same
+    capabilities. Max O-RUs is per XRAN_PORTS_NUM i.e. 4 -->
     <oRuNum>1</oRuNum>
-    <!--  # 10G,25G,40G,100G speed of Physical connection on O-RU -->
+    <!-- # 10G,25G,40G,100G speed of Physical connection on O-RU -->
     <oRuEthLinkSpeed>25</oRuEthLinkSpeed>
-    <!--  # 1, 2, 3 total number of links per O-RU (Fronthaul Ethernet link in IOT spec) -->
+    <!-- # 1, 2, 3 total number of links per O-RU (Fronthaul Ethernet link
+    in IOT spec) -->
     <oRuLinesNumber>1</oRuLinesNumber>
 
     <!-- O-RU 0 -->
@@ -705,8 +727,13 @@ xrancfg_sub6.xml (or other xml if it is mmwave or massive MIMO). ::
 
     <!-- core mask for XRAN Packets Worker (core where the XRAN packet processing is pinned): Core, priority, Policy [0: SCHED_FIFO 1: SCHED_RR] -->
     <xRANWorker>0x8000000000, 96, 0</xRANWorker>
+    <xRANWorker_64_127>0x0000000000, 96, 0</xRANWorker_64_127>
     <!-- XRAN: Category of O-RU 0 - Category A, 1 - Category B -->
     <Category>0</Category>
+    <!-- Slot setup processing offload to pipeline BBU cores: [0: USE XRAN CORES 1: USE BBU CORES] -->
+    <xRANOffload>0</xRANOffload>
+    <!-- XRAN MLOG: [0: DISABLE 1: ENABLE] -->
+    <xRANMLog>0</xRANMLog>
 
     <!-- XRAN: enable sleep on PMD cores -->
     <xranPmdSleep>0</xranPmdSleep>
@@ -752,6 +779,9 @@ xrancfg_sub6.xml (or other xml if it is mmwave or massive MIMO). ::
     <DynamicSectionEna>0</DynamicSectionEna>
     <!-- Enable Dynamic section allocation for UL -->
     <DynamicSectionEnaUL>0</DynamicSectionEnaUL>
+    <!-- Enable muti section for C-Plane -->
+    <DynamicMultiSectionEna>0</DynamicMultiSectionEna>
+
     <xRANSFNWrap>1</xRANSFNWrap>
     <!-- Total Number of DL PRBs per symbol (starting from RB 0) that is transmitted (used for testing. If 0, then value is used from PHY_CONFIG_API) -->
     <xRANNumDLPRBs>0</xRANNumDLPRBs>
@@ -764,11 +794,19 @@ xrancfg_sub6.xml (or other xml if it is mmwave or massive MIMO). ::
 
     <!-- XRAN: Compression mode on O-DU <-> O-RU 0 - no comp 1 - BFP -->
     <xranCompMethod>1</xranCompMethod>
+    <!-- XRAN: Uplane Compression Header type 0 - dynamic 1 - static -->
+    <xranCompHdrType>0</xranCompHdrType>   
     <!-- XRAN: iqWidth when DynamicSectionEna and BFP Compression enabled -->
-    <xraniqWidth>8</xraniqWidth>
+    <xraniqWidth>9</xraniqWidth>
     <!-- Whether Modulation Compression mode is enabled or not for DL only -->
     <xranModCompEna>0</xranModCompEna>
+    <!-- XRAN: Prach Compression mode on O-DU <-> O-RU 0 - no comp 1 - BFP -->
+    <xranPrachCompMethod>0</xranPrachCompMethod>
+    <!-- Whether Prach iqWidth when DynamicSectionEna and BFP Compression enabled -->
+    <xranPrachiqWidth>16</xranPrachiqWidth>
 
+    <oRu0MaxSectionsPerSlot>6</oRu0MaxSectionsPerSlot>
+    <oRu0MaxSectionsPerSymbol>6</oRu0MaxSectionsPerSymbol>
     <oRu0nPrbElemDl>1</oRu0nPrbElemDl>
     <!--nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType, Scalefactor, REMask -->
     <!-- weight base beams -->
@@ -817,14 +855,14 @@ xrancfg_sub6.xml (or other xml if it is mmwave or massive MIMO). ::
     </XranConfig>
 
 
-4. Modify bin/nr5g/gnb/l1/dpdk.sh (change PCIe addresses from VFs). ::
+4. Modify l1/bin/nr5g/gnb/l1/dpdk.sh (change PCIe addresses from VFs). ::
 
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:21:02.0
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:21:02.1
 
 5. Use configuration of test mac per::
 
-    /bin/nr5g/gnb.testmac/cascade_lake-sp/csxsp_mu1_100mhz_mmimo_hton_xran.cfg
+    l1//bin/nr5g/gnb.testmac/cascade_lake-sp/csxsp_mu1_100mhz_mmimo_hton_xran.cfg (info only N/A)
     phystart 4 0 40200
     <!--   mmWave mu 3 100MHz                -->
     TEST_FD, 1002, 1, fd/mu3_100mhz/2/fd_testconfig_tst2.cfg
@@ -832,27 +870,22 @@ xrancfg_sub6.xml (or other xml if it is mmwave or massive MIMO). ::
 
 6. To execute l1app with O-DU functionality according to O-RAN Fronthaul specification, enter::
 
-    [root@xran flexran] cd ./bin/nr5g/gnb/l1
+    [root@xran flexran] cd ./l1/bin/nr5g/gnb/l1
     [root@xran l1]#./l1.sh –xran
 
-where output corresponding L1 is
 
 
 
 7. To execute testmac with O-DU functionality according to O-RAN Fronthaul specification, enter::
 
-      [root@xran flexran] cd ./bin/nr5g/gnb/testmac
+      [root@xran flexran] cd ./l1/bin/nr5g/gnb/testmac
 
 
-8. To execute test case type::
+8. To execute test case type (info only as file not available)::
 
       ./l2.sh
       --testfile=./cascade_lake-sp/csxsp_mu1_100mhz_mmimo_hton_xran.cfg
 
-
-where output corresponding to Test MAC::
-
-    [root@sc12-xran-sub6 testmac]# ./l2.sh --testfile=./cascade_lake-sp/csxsp_mu1_100mhz_mmimo_hton_xran.cfg
 
 
 Configure FlexRAN 5G NR L1 Application for multiple O-RUs with multiple numerologies
@@ -883,10 +916,10 @@ Solution L1 User Guide (refer to Table 2.)
    Look for the l1/bin/nr5g/gnb/l1 folder for the
    l1app binary and the corresponding phycfg and xrancfg files.
 
-3. Configure the L1app using bin/nr5g/gnb/l1/xrancfg_sub6_mmimo.xml. 
+3. Configure the L1app using bin/nr5g/gnb/l1/xrancfg_sub6_mmimo.xml.:: 
 
-<XranConfig>
-    <version>oran_e_maintenance_release_v1.0<</version>
+    <XranConfig>
+    <version>oran_f_release_v1.0<</version>
     <!-- numbers of O-RU connected to O-DU. All O-RUs are the same capabilities. Max O-RUs is per XRAN_PORTS_NUM i.e. 4 -->
     <oRuNum>3</oRuNum>
     <!--  # 10G,25G,40G,100G speed of Physical connection on O-RU -->
@@ -1182,7 +1215,7 @@ Solution L1 User Guide (refer to Table 2.)
     <oRu2PrbElemSrs0>0,273,0,14,1,1,1,9,1,0,0</oRu2PrbElemSrs0>
     <oRu2PrbElemSrs1>0,273,0,14,1,1,1,9,1,0,0</oRu2PrbElemSrs1>
 
-</XranConfig>
+    </XranConfig>
 
 
 4. Modify ./bin/nr5g/gnb/l1/dpdk.sh (change PCIe addresses from VFs). ::
@@ -1203,6 +1236,7 @@ Solution L1 User Guide (refer to Table 2.)
 
 5. Use configuration of test mac per::
 
+      (Info only as these files not avilable)
       /bin/nr5g/gnb/testmac/icelake-sp/icxsp_mu1_100mhz_mmimo_64x64_hton_xran.cfg
       phystart 4 0 100200
       TEST_FD, 3370, 3, fd/mu1_100mhz/376/fd_testconfig_tst376.cfg,
@@ -1211,18 +1245,17 @@ Solution L1 User Guide (refer to Table 2.)
 
 6. To execute l1app with O-DU functionality according to O-RAN Fronthaul specification, enter::
 
-    [root@xran flexran] cd ./bin/nr5g/gnb/l1
+    [root@xran flexran] cd ./l1/bin/nr5g/gnb/l1
     ./l1.sh -xranmmimo
     Radio mode with XRAN - Sub6 100Mhz Massive-MIMO (CatB)
  
+
 7. To execute testmac with O-DU functionality according to O-RAN Fronthaul specification, enter::
 
-      [root@xran flexran] cd ./bin/nr5g/gnb/testmac
+      [root@xran flexran] cd ./l1/bin/nr5g/gnb/testmac
 
 8. To execute test case type::
 
+      (Info only as file not available)
       ./l2.sh --testfile=./cascade_lake-sp/csxsp_mu1_100mhz_mmimo_hton_xran.cfg
 
-where output corresponding to Test MAC::
-
-    root@icelake-scs1-1 testmac]# ./l2.sh --testfile=./icelake-sp/icxsp_mu1_100mhz_mmimo_64x64_hton_xran.cfg

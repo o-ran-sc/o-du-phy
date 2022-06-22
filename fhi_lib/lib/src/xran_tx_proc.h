@@ -49,8 +49,10 @@ struct cp_up_tx_desc {
     void *pHandle;
     uint8_t ctx_id;
     uint32_t tti;
-    int32_t cc_id;
-    int32_t ant_id;
+    int32_t start_cc;
+    int32_t cc_num;
+    int32_t start_ant;
+    int32_t ant_num;
     uint32_t frame_id;
     uint32_t subframe_id;
     uint32_t slot_id;
@@ -67,18 +69,24 @@ struct cp_up_tx_desc * xran_pkt_gen_desc_alloc(void);
 int32_t xran_pkt_gen_desc_free(struct cp_up_tx_desc *p_desc);
 uint16_t xran_getSfnSecStart(void);
 
-int32_t xran_process_tx_sym_cp_on_dispatch(void *pHandle, uint8_t ctx_id, uint32_t tti, int32_t cc_id, int32_t ant_id, uint32_t frame_id, uint32_t subframe_id,
+int32_t xran_process_tx_sym_cp_on_dispatch(void *pHandle, uint8_t ctx_id, uint32_t tti, int32_t start_cc, int32_t cc_id, int32_t start_ant, int32_t ant_id, uint32_t frame_id, uint32_t subframe_id,
     uint32_t slot_id, uint32_t sym_id);
-int32_t xran_process_tx_sym_cp_on(void *pHandle, uint8_t ctx_id, uint32_t tti, int32_t cc_id, int32_t ant_id, uint32_t frame_id, uint32_t subframe_id,
+int32_t xran_process_tx_sym_cp_on(void *pHandle, uint8_t ctx_id, uint32_t tti, int32_t start_cc,  int32_t cc_id, int32_t start_ant, int32_t ant_id, uint32_t frame_id, uint32_t subframe_id,
     uint32_t slot_id, uint32_t sym_id);
-int32_t xran_process_tx_sym_cp_on_dispatch(void *pHandle, uint8_t ctx_id, uint32_t tti, int32_t cc_id, int32_t ant_id, uint32_t frame_id, uint32_t subframe_id,
+int32_t xran_process_tx_sym_cp_on_dispatch(void *pHandle, uint8_t ctx_id, uint32_t tti, int32_t start_cc, int32_t cc_id, int32_t start_ant, int32_t ant_id, uint32_t frame_id, uint32_t subframe_id,
     uint32_t slot_id, uint32_t sym_id);
-int32_t xran_process_tx_sym_cp_on_dispatch_opt(void* pHandle, uint8_t ctx_id, uint32_t tti, int32_t num_cc, int32_t num_ant, uint32_t frame_id,
+int32_t xran_process_tx_sym_cp_on_dispatch_opt(void* pHandle, uint8_t ctx_id, uint32_t tti,  int32_t start_cc, int32_t num_cc, int32_t start_ant, int32_t num_ant, uint32_t frame_id,
     uint32_t subframe_id, uint32_t slot_id, uint32_t sym_id, enum xran_comp_hdr_type compType, enum xran_pkt_dir direction,
     uint16_t xran_port_id, PSECTION_DB_TYPE p_sec_db);
 
-int32_t xran_process_tx_sym_cp_on_opt(void* pHandle, uint8_t ctx_id, uint32_t tti, int32_t num_cc, int32_t num_ant, uint32_t frame_id, uint32_t subframe_id,
-    uint32_t slot_id, uint32_t sym_id, enum xran_comp_hdr_type compType, enum xran_pkt_dir direction, uint16_t xran_port_id, PSECTION_DB_TYPE p_sec_db);
+int32_t xran_process_tx_sym_cp_on_opt(void* pHandle, uint8_t ctx_id, uint32_t tti, int32_t start_cc, int32_t num_cc, int32_t start_ant,  int32_t num_ant, uint32_t frame_id,
+    uint32_t subframe_id, uint32_t slot_id, uint32_t sym_id, enum xran_comp_hdr_type compType, enum xran_pkt_dir direction,
+    uint16_t xran_port_id, PSECTION_DB_TYPE p_sec_db);
+
+int32_t xran_process_tx_sym_cp_on_ring(void* pHandle, uint8_t ctx_id, uint32_t tti, int32_t start_cc, int32_t num_cc, int32_t start_ant,  int32_t num_ant, uint32_t frame_id,
+    uint32_t subframe_id, uint32_t slot_id, uint32_t sym_id, enum xran_comp_hdr_type compType, enum xran_pkt_dir direction,
+    uint16_t xran_port_id, PSECTION_DB_TYPE p_sec_db);
+
 extern int rte_eth_macaddr_get(uint16_t port_id, struct rte_ether_addr* mac_addr);
 
 extern PSECTION_DB_TYPE p_sectiondb[XRAN_PORTS_NUM];

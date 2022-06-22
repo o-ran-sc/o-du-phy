@@ -23,11 +23,22 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 ##############################################################
 #  Tools configuration
 ##############################################################
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
 CC  := icc
 CPP := icpc
 AS := as
 AR := ar
 LD := icc
+else ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+    CC  := icx
+    CPP := icpx
+    AS  := as
+    AR  := llvm-ar
+    LD  := icx
+else
+    $(error "Please define WIRELESS_SDK_TOOLCHAIN environment variable")
+endif
+
 OBJDUMP := objdump
 
 ifeq ($(SHELL),cmd.exe)
@@ -40,10 +51,15 @@ CP := cp -f
 RM := rm -rf
 endif
 
+ifeq ($(ORU),1)
+	PROJECT_NAME := libxran-oru
+	BUILDDIR := build-oru
+else
 PROJECT_NAME := libxran
+	BUILDDIR := build
+endif
 PROJECT_TYPE := lib
 PROJECT_DIR  := $(XRAN_DIR)/lib
-BUILDDIR := ./build
 
 ifeq ($(XRAN_LIB_SO),)
 PROJECT_BINARY := $(BUILDDIR)/$(PROJECT_NAME).a
@@ -56,8 +72,8 @@ ifeq ($(RTE_SDK),)
 endif
 
 RTE_TARGET ?= x86_64-native-linux-icc
-
 RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
+
 API_DIR := $(PROJECT_DIR)/api
 SRC_DIR := $(PROJECT_DIR)/src
 ETH_DIR := $(PROJECT_DIR)/ethernet
@@ -78,7 +94,6 @@ CC_SRC = $(ETH_DIR)/ethdi.c \
 	$(SRC_DIR)/xran_common.c        \
 	$(SRC_DIR)/xran_ul_tables.c     \
 	$(SRC_DIR)/xran_frame_struct.c  \
-	$(SRC_DIR)/xran_app_frag.c \
 	$(SRC_DIR)/xran_dev.c \
 	$(SRC_DIR)/xran_rx_proc.c \
 	$(SRC_DIR)/xran_tx_proc.c \
@@ -112,12 +127,28 @@ CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
         -fPIC \
 	-Wall \
 	-Wimplicit-function-declaration \
-	-g -O3 -wd1786 -mcmodel=large
+	-g -O3 -mcmodel=large
 
-CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
-                -no-prec-div -fp-model fast=2 -fPIC \
-                -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
-        -Werror -Wno-unused-variable -std=c++14 -mcmodel=large
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
+CC_FLAGS += -wd1786 -restrict
+endif
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+CC_FLAGS += -march=icelake-server -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
+endif
+
+CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe \
+                  -falign-functions=16 \
+        -Werror -Wno-unused-variable -std=c++14 -mcmodel=large -fPIC
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
+CPP_FLAGS +=  -fp-model fast=2 -no-prec-div -no-prec-sqrt -fast-transcendentals -restrict
+endif
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+CPP_FLAGS +=  -fp-model fast -march=icelake-server -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
+endif
+
 
 INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
 DEF :=
@@ -128,6 +159,11 @@ else
 	DEF += -UMLOG_ENABLED
 endif
 
+ifeq ($(ORU),1)
+	DEF += -DXRAN_O_RU_BUILD
+else
+	DEF += -UXRAN_O_RU_BUILD
+endif
 
 #DEF += -DFCN_ADAPT
 #DEF += -DFCN_1_2_6_EARLIER
@@ -135,7 +171,7 @@ endif
 AS_FLAGS :=
 AR_FLAGS := rc
 
-PROJECT_OBJ_DIR := build/obj
+PROJECT_OBJ_DIR := $(BUILDDIR)/obj
 
 CC_OBJS := $(patsubst %.c,%.o,$(CC_SRC))
 CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
@@ -150,8 +186,8 @@ CPP_SNC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS_SNC))
 
 AS_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(AS_OBJS))
 #-qopt-report=5 -qopt-matmul -qopt-report-phase=all
-CPP_COMP       := -O3 -DNDEBUG  -xcore-avx512 -fPIE -restrict -fasm-blocks
-CPP_COMP_SNC   := -O3 -DNDEBUG -march=icelake-server -fPIE -restrict -fasm-blocks
+CPP_COMP       := -O3 -DNDEBUG  -xcore-avx512 -fPIE -fasm-blocks
+CPP_COMP_SNC   := -O3 -DNDEBUG -march=icelake-server -fPIE -fasm-blocks
 CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
 CPP_FLAGS_FULL := $(CPP_FLAGS) $(CPP_COMP) $(INC) $(DEF)
 CPP_FLAGS_FULL_SNC := $(CPP_FLAGS) $(CPP_COMP_SNC) $(INC) $(DEF)

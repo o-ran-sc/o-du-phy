@@ -36,7 +36,7 @@
 #include <pthread.h>
 #include <malloc.h>
 #include <immintrin.h>
-
+#include <numa.h>
 #include <rte_common.h>
 #include <rte_eal.h>
 #include <rte_errno.h>
@@ -52,6 +52,7 @@
 #include <rte_ecpri.h>
 #endif
 #include "xran_fh_o_du.h"
+#include "xran_fh_o_ru.h"
 #include "xran_main.h"
 
 #include "ethdi.h"
@@ -68,7 +69,6 @@
 #include "xran_dev.h"
 #include "xran_frame_struct.h"
 #include "xran_printf.h"
-#include "xran_app_frag.h"
 #include "xran_cp_proc.h"
 #include "xran_tx_proc.h"
 #include "xran_rx_proc.h"
@@ -77,13 +77,13 @@
 
 #include "xran_mlog_lnx.h"
 
-static xran_cc_handle_t pLibInstanceHandles[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR] = {NULL};
+static xran_cc_handle_t pLibInstanceHandles[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR] = {{NULL}};
 
 uint64_t interval_us = 1000; //the TTI interval of the cell with maximum numerology
 
-uint32_t xran_lib_ota_tti[XRAN_PORTS_NUM] = {0,0,0,0}; /**< Slot index in a second [0:(1000000/TTI-1)] */
-uint32_t xran_lib_ota_sym[XRAN_PORTS_NUM] = {0,0,0,0}; /**< Symbol index in a slot [0:13] */
-uint32_t xran_lib_ota_sym_idx[XRAN_PORTS_NUM] = {0,0,0,0}; /**< Symbol index in a second [0 : 14*(1000000/TTI)-1]
+uint32_t xran_lib_ota_tti[XRAN_PORTS_NUM] = {0,0,0,0,0,0,0,0}; /**< Slot index in a second [0:(1000000/TTI-1)] */
+uint32_t xran_lib_ota_sym[XRAN_PORTS_NUM] = {0,0,0,0,0,0,0,0}; /**< Symbol index in a slot [0:13] */
+uint32_t xran_lib_ota_sym_idx[XRAN_PORTS_NUM] = {0,0,0,0,0,0,0,0}; /**< Symbol index in a second [0 : 14*(1000000/TTI)-1]
                                                 where TTI is TTI interval in microseconds */
 
 uint16_t xran_SFN_at_Sec_Start   = 0; /**< SFN at current second start */
@@ -92,7 +92,8 @@ uint16_t xran_max_frame          = 1023; /**< value of max frame used. expected 
 static uint64_t xran_total_tick = 0, xran_used_tick = 0;
 static uint32_t xran_num_cores_used = 0;
 static uint32_t xran_core_used[64] = {0};
-static int32_t first_call = 0;
+int32_t first_call = 0;
+int32_t mlogxranenable = 0;
 
 struct cp_up_tx_desc * xran_pkt_gen_desc_alloc(void);
 int32_t xran_pkt_gen_desc_free(struct cp_up_tx_desc *p_desc);
@@ -126,6 +127,7 @@ xran_updateSfnSecStart(void)
     }
 }
 
+#if 0
 static inline int32_t
 xran_getSlotIdxSecond(uint32_t interval)
 {
@@ -133,6 +135,7 @@ xran_getSlotIdxSecond(uint32_t interval)
     int32_t slotIndxSecond = frameIdxSecond * SLOTS_PER_SYSTEMFRAME(interval);
     return slotIndxSecond;
 }
+#endif
 
 enum xran_if_state
 xran_get_if_state(void)
@@ -191,9 +194,15 @@ xran_init_srs(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_dev_
     struct xran_srs_config *p_srs = &(p_xran_dev_ctx->srs_cfg);
 
     if(p_srs){
-        p_srs->symbMask = pConf->srs_conf.symbMask;
+        p_srs->symbMask = pConf->srs_conf.symbMask;     /* deprecated */
+        p_srs->slot             = pConf->srs_conf.slot;
+        p_srs->ndm_offset       = pConf->srs_conf.ndm_offset;
+        p_srs->ndm_txduration   = pConf->srs_conf.ndm_txduration;
         p_srs->eAxC_offset = pConf->srs_conf.eAxC_offset;
-        print_dbg("SRS sym         %d\n", p_srs->symbMask );
+
+        print_dbg("SRS sym         %d\n", p_srs->slot);
+        print_dbg("SRS NDM offset  %d\n", p_srs->ndm_offset);
+        print_dbg("SRS NDM Tx      %d\n", p_srs->ndm_txduration);
         print_dbg("SRS eAxC_offset %d\n", p_srs->eAxC_offset);
     }
     return (XRAN_STATUS_SUCCESS);
@@ -203,20 +212,34 @@ int32_t
 xran_init_prach_lte(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_dev_ctx)
 {
     /* update Rach for LTE */
-    return xran_init_prach(pConf, p_xran_dev_ctx);
+    return xran_init_prach(pConf, p_xran_dev_ctx, XRAN_RAN_LTE);
 }
 
 int32_t
-xran_init_prach(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_dev_ctx)
+xran_init_prach(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_dev_ctx, enum xran_ran_tech xran_tech)
 {
     int32_t i;
     uint8_t slotNr;
     struct xran_prach_config* pPRACHConfig = &(pConf->prach_conf);
     const xRANPrachConfigTableStruct *pxRANPrachConfigTable;
     uint8_t nNumerology = pConf->frame_conf.nNumerology;
-    uint8_t nPrachConfIdx = pPRACHConfig->nPrachConfIdx;
-    struct xran_prach_cp_config *pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfig);
-
+    uint8_t nPrachConfIdx = -1;// = pPRACHConfig->nPrachConfIdx;
+    struct xran_prach_cp_config *pPrachCPConfig = NULL;
+    if(pConf->dssEnable){
+        /*Check Slot type and */
+        if(xran_tech == XRAN_RAN_5GNR){
+            pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfig);
+            nPrachConfIdx = pPRACHConfig->nPrachConfIdx;
+        }
+        else{
+            pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfigLTE);
+            nPrachConfIdx = pPRACHConfig->nPrachConfIdxLTE;
+        }
+    }
+    else{
+        pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfig);
+        nPrachConfIdx = pPRACHConfig->nPrachConfIdx;
+    }
     if (nNumerology > 2)
         pxRANPrachConfigTable = &gxranPrachDataTable_mmw[nPrachConfIdx];
     else if (pConf->frame_conf.nFrameDuplexType == 1)
@@ -230,7 +253,18 @@ xran_init_prach(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_de
     if(pConf->log_level)
         printf("xRAN open PRACH config: Numerology %u ConfIdx %u, preambleFmrt %u startsymb %u, numSymbol %u, occassionsInPrachSlot %u\n", nNumerology, nPrachConfIdx, preambleFmrt, pxRANPrachConfigTable->startingSym, pxRANPrachConfigTable->duration, pxRANPrachConfigTable->occassionsInPrachSlot);
 
+    if (preambleFmrt <= 2)
+    {
+        pPrachCPConfig->filterIdx = XRAN_FILTERINDEX_PRACH_012;         // 1 PRACH preamble format 0 1 2
+    }
+    else if (preambleFmrt == 3)
+    {
+        pPrachCPConfig->filterIdx = XRAN_FILTERINDEX_PRACH_3;         // 1 PRACH preamble format 3
+    }
+    else
+    {
     pPrachCPConfig->filterIdx = XRAN_FILTERINDEX_PRACH_ABC;         // 3, PRACH preamble format A1~3, B1~4, C0, C2
+    }
     pPrachCPConfig->startSymId = pxRANPrachConfigTable->startingSym;
     pPrachCPConfig->startPrbc = pPRACHConfig->nPrachFreqStart;
     pPrachCPConfig->numPrbc = (preambleFmrt >= FORMAT_A1)? 12 : 70;
@@ -326,7 +360,7 @@ void
 sym_ota_cb(struct rte_timer *tim, void *arg, unsigned long *used_tick)
 {
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)arg;
-    long t1 = MLogTick(), t2;
+    long t1 = MLogXRANTick(), t2;
     long t3;
 
     if(XranGetSymNum(xran_lib_ota_sym_idx[p_xran_dev_ctx->xran_port_id], XRAN_NUM_OF_SYMBOL_PER_SLOT) == 0){
@@ -350,8 +384,8 @@ sym_ota_cb(struct rte_timer *tim, void *arg, unsigned long *used_tick)
         }
     }
 
-    t2 = MLogTick();
-    MLogTask(PID_SYM_OTA_CB, t1, t2);
+    t2 = MLogXRANTick();
+    MLogXRANTask(PID_SYM_OTA_CB, t1, t2);
 }
 
 uint32_t
@@ -421,10 +455,8 @@ tti_ota_cb(struct rte_timer *tim, void *arg)
     uint32_t mlogVar[10];
     uint32_t mlogVarCnt = 0;
     uint64_t t1 = MLogTick();
-    uint64_t t3 = 0;
     uint32_t reg_tti  = 0;
     uint32_t reg_sfn  = 0;
-    uint32_t i;
 
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)arg;
     struct xran_timer_ctx *pTCtx = (struct xran_timer_ctx *)p_xran_dev_ctx->timer_ctx;
@@ -455,6 +487,20 @@ tti_ota_cb(struct rte_timer *tim, void *arg)
 
     pTCtx[(xran_lib_ota_tti[PortId] & 1) ^ 1].tti_to_process = xran_lib_ota_tti[PortId];
 
+    /** tti as seen from PHY */
+    int32_t nSfIdx = -1;
+    uint32_t nFrameIdx;
+    uint32_t nSubframeIdx;
+    uint32_t nSlotIdx;
+    uint64_t nSecond;
+    uint8_t Numerlogy = p_xran_dev_ctx->fh_cfg.frame_conf.nNumerology;
+    uint8_t nNrOfSlotInSf = 1<<Numerlogy;
+
+    xran_get_slot_idx(0, &nFrameIdx, &nSubframeIdx, &nSlotIdx, &nSecond);
+    nSfIdx = nFrameIdx*SUBFRAMES_PER_SYSTEMFRAME*nNrOfSlotInSf
+             + nSubframeIdx*nNrOfSlotInSf
+             + nSlotIdx;
+
     mlogVar[mlogVarCnt++] = 0x11111111;
     mlogVar[mlogVarCnt++] = xran_lib_ota_tti[PortId];
     mlogVar[mlogVarCnt++] = xran_lib_ota_sym_idx[PortId];
@@ -462,7 +508,9 @@ tti_ota_cb(struct rte_timer *tim, void *arg)
     mlogVar[mlogVarCnt++] = frame_id;
     mlogVar[mlogVarCnt++] = subframe_id;
     mlogVar[mlogVarCnt++] = slot_id;
-    mlogVar[mlogVarCnt++] = 0;
+    mlogVar[mlogVarCnt++] = xran_lib_ota_tti[PortId] % XRAN_N_FE_BUF_LEN;
+    mlogVar[mlogVarCnt++] = nSfIdx;
+    mlogVar[mlogVarCnt++] = nSfIdx % XRAN_N_FE_BUF_LEN;
     MLogAddVariables(mlogVarCnt, mlogVar, MLogTick());
 
 
@@ -499,26 +547,104 @@ tti_ota_cb(struct rte_timer *tim, void *arg)
         print_dbg("[%d]SFN %d sf %d slot %d\n",xran_lib_ota_tti[PortId], frame_id, subframe_id, slot_id);
         xran_lib_ota_tti[PortId] = 0;
     }
-    MLogTask(PID_TTI_CB, t1, MLogTick());
+    MLogXRANTask(PID_TTI_CB, t1, MLogTick());
 }
 
-void
-tx_cp_dl_cb(struct rte_timer *tim, void *arg)
+
+int32_t
+xran_prepare_cp_dl_slot(uint16_t xran_port_id, uint32_t nSlotIdx,  uint32_t nCcStart, uint32_t nCcNum, uint32_t nSymMask, uint32_t nAntStart,
+                            uint32_t nAntNum, uint32_t nSymStart, uint32_t nSymNum)
 {
-    long t1 = MLogTick();
+    long t1 = MLogXRANTick();
+    int32_t ret = XRAN_STATUS_SUCCESS;
     int tti, buf_id;
     uint32_t slot_id, subframe_id, frame_id;
     int cc_id;
     uint8_t ctx_id;
     uint8_t ant_id, num_eAxc, num_CCPorts;
     void *pHandle;
-    int num_list;
+    //int num_list;
+    struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx_by_id(xran_port_id);
+    if(unlikely(!p_xran_dev_ctx))
+    {
+        print_err("Null xRAN context!!\n");
+        return ret;
+    }
+    //struct xran_timer_ctx *pTCtx = (struct xran_timer_ctx *)&p_xran_dev_ctx->timer_ctx[0];
+    uint32_t interval_us_local = p_xran_dev_ctx->interval_us_local;
+    uint8_t PortId = p_xran_dev_ctx->xran_port_id;
+    pHandle     = p_xran_dev_ctx;
+
+    num_eAxc    = xran_get_num_eAxc(pHandle);
+    num_CCPorts = xran_get_num_cc(pHandle);
+
+    if(first_call && p_xran_dev_ctx->enableCP)
+    {
+        tti    = nSlotIdx ;//pTCtx[(xran_lib_ota_tti[PortId] & 1) ^ 1].tti_to_process;
+        buf_id = tti % XRAN_N_FE_BUF_LEN;
+
+        slot_id     = XranGetSlotNum(tti, SLOTNUM_PER_SUBFRAME(interval_us_local));
+        subframe_id = XranGetSubFrameNum(tti,SLOTNUM_PER_SUBFRAME(interval_us_local),  SUBFRAMES_PER_SYSTEMFRAME);
+        frame_id    = XranGetFrameNum(tti,xran_getSfnSecStart(),SUBFRAMES_PER_SYSTEMFRAME, SLOTNUM_PER_SUBFRAME(interval_us_local));
+        if (tti == 0)
+        {
+            /* Wrap around to next second */
+            frame_id = (frame_id + NUM_OF_FRAMES_PER_SECOND) & 0x3ff;
+        }
+
+        ctx_id      = tti % XRAN_MAX_SECTIONDB_CTX;
+
+        print_dbg("[%d]SFN %d sf %d slot %d\n", tti, frame_id, subframe_id, slot_id);
+#if defined(__INTEL_COMPILER)
+#pragma vector always
+#endif
+        for(ant_id = nAntStart; (ant_id < (nAntStart + nAntNum)  && ant_id < num_eAxc); ++ant_id) {
+            for(cc_id = nCcStart; (cc_id < (nCcStart + nCcNum) && cc_id < num_CCPorts); cc_id++) {
+                /* start new section information list */
+                xran_cp_reset_section_info(pHandle, XRAN_DIR_DL, cc_id, ant_id, ctx_id);
+                if(xran_fs_get_slot_type(PortId, cc_id, tti, XRAN_SLOT_TYPE_DL) == 1) {
+                    if(p_xran_dev_ctx->sFrontHaulTxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList.pBuffers) {
+                        if(p_xran_dev_ctx->sFrontHaulTxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList.pBuffers->pData) {
+                            /*num_list = */xran_cp_create_and_send_section(pHandle, ant_id, XRAN_DIR_DL, tti, cc_id,
+                                (struct xran_prb_map *)p_xran_dev_ctx->sFrontHaulTxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList.pBuffers->pData,
+                                &(p_xran_dev_ctx->prbElmProcInfo[buf_id][cc_id][ant_id]),
+                                p_xran_dev_ctx->fh_cfg.ru_conf.xranCat, ctx_id);
+                        } else {
+                               print_err("[%d]SFN %d sf %d slot %d: ant_id %d cc_id %d [pData]\n", tti, frame_id, subframe_id, slot_id, ant_id, cc_id);
+                        }
+                    } else {
+                        print_err("[%d]SFN %d sf %d slot %d: ant_id %d cc_id %d [pBuffers] \n", tti, frame_id, subframe_id, slot_id, ant_id, cc_id);
+                    }
+                } /* if(xran_fs_get_slot_type(cc_id, tti, XRAN_SLOT_TYPE_DL) == 1) */
+            } /* for(cc_id = 0; cc_id < num_CCPorts; cc_id++) */
+        } /* for(ant_id = 0; ant_id < num_eAxc; ++ant_id) */
+        MLogXRANTask(PID_CP_DL_CB, t1, MLogXRANTick());
+    }
+    return ret;
+}
+
+void
+tx_cp_dl_cb(struct rte_timer *tim, void *arg)
+{
+    long t1 = MLogXRANTick();
+    int tti, buf_id;
+    uint32_t slot_id, subframe_id, frame_id;
+    int cc_id;
+    uint8_t ctx_id;
+    uint8_t ant_id, num_eAxc, num_CCPorts;
+    void *pHandle;
+    //int num_list;
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)arg;
-    if(!p_xran_dev_ctx)
+
+    if(unlikely(!p_xran_dev_ctx))
     {
         print_err("Null xRAN context!!\n");
         return;
     }
+
+    if (p_xran_dev_ctx->fh_init.io_cfg.bbu_offload)
+        return;
+
     struct xran_timer_ctx *pTCtx = (struct xran_timer_ctx *)&p_xran_dev_ctx->timer_ctx[0];
     uint32_t interval_us_local = p_xran_dev_ctx->interval_us_local;
     uint8_t PortId = p_xran_dev_ctx->xran_port_id;
@@ -527,58 +653,222 @@ tx_cp_dl_cb(struct rte_timer *tim, void *arg)
     num_eAxc    = xran_get_num_eAxc(pHandle);
     num_CCPorts = xran_get_num_cc(pHandle);
 
-    if(first_call && p_xran_dev_ctx->enableCP) {
-
+    if(first_call && p_xran_dev_ctx->enableCP)
+    {
         tti = pTCtx[(xran_lib_ota_tti[PortId] & 1) ^ 1].tti_to_process;
         buf_id = tti % XRAN_N_FE_BUF_LEN;
 
         slot_id     = XranGetSlotNum(tti, SLOTNUM_PER_SUBFRAME(interval_us_local));
         subframe_id = XranGetSubFrameNum(tti,SLOTNUM_PER_SUBFRAME(interval_us_local),  SUBFRAMES_PER_SYSTEMFRAME);
         frame_id    = XranGetFrameNum(tti,xran_getSfnSecStart(),SUBFRAMES_PER_SYSTEMFRAME, SLOTNUM_PER_SUBFRAME(interval_us_local));
-        if (tti == 0){
+        if (tti == 0)
+        {
             /* Wrap around to next second */
             frame_id = (frame_id + NUM_OF_FRAMES_PER_SECOND) & 0x3ff;
         }
 
-        ctx_id      = XranGetSlotNum(tti, SLOTS_PER_SYSTEMFRAME(interval_us_local)) % XRAN_MAX_SECTIONDB_CTX;
+        ctx_id      = tti % XRAN_MAX_SECTIONDB_CTX;
 
         print_dbg("[%d]SFN %d sf %d slot %d\n", tti, frame_id, subframe_id, slot_id);
         for(ant_id = 0; ant_id < num_eAxc; ++ant_id) {
             for(cc_id = 0; cc_id < num_CCPorts; cc_id++ ) {
-                /* start new section information list */
+                if(0== p_xran_dev_ctx->prbElmProcInfo[buf_id][cc_id][ant_id].numSymsRemaining)
+                {/* Start of new slot - reset the section info */
                 xran_cp_reset_section_info(pHandle, XRAN_DIR_DL, cc_id, ant_id, ctx_id);
+                }
                 if(xran_fs_get_slot_type(PortId, cc_id, tti, XRAN_SLOT_TYPE_DL) == 1) {
                     if(p_xran_dev_ctx->sFrontHaulTxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList.pBuffers) {
                     if(p_xran_dev_ctx->sFrontHaulTxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList.pBuffers->pData){
-                        num_list = xran_cp_create_and_send_section(pHandle, ant_id, XRAN_DIR_DL, tti, cc_id,
+                            /*num_list = */xran_cp_create_and_send_section(pHandle, ant_id, XRAN_DIR_DL, tti, cc_id,
                             (struct xran_prb_map *)p_xran_dev_ctx->sFrontHaulTxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList.pBuffers->pData,
+                                    &(p_xran_dev_ctx->prbElmProcInfo[buf_id][cc_id][ant_id]),
                             p_xran_dev_ctx->fh_cfg.ru_conf.xranCat, ctx_id);
-                    } else {
-                            print_err("[%d]SFN %d sf %d slot %d: ant_id %d cc_id %d [pData]\n", tti, frame_id, subframe_id, slot_id, ant_id, cc_id);
                         }
-                    } else {
-                        print_err("[%d]SFN %d sf %d slot %d: ant_id %d cc_id %d [pBuffers] \n", tti, frame_id, subframe_id, slot_id, ant_id, cc_id);
+                        else
+                            print_err("[%d]SFN %d sf %d slot %d: ant_id %d cc_id %d [pData]\n", tti, frame_id, subframe_id, slot_id, ant_id, cc_id);
                     }
                 } /* if(xran_fs_get_slot_type(cc_id, tti, XRAN_SLOT_TYPE_DL) == 1) */
             } /* for(cc_id = 0; cc_id < num_CCPorts; cc_id++) */
         } /* for(ant_id = 0; ant_id < num_eAxc; ++ant_id) */
-        MLogTask(PID_CP_DL_CB, t1, MLogTick());
+        MLogXRANTask(PID_CP_DL_CB, t1, MLogXRANTick());
     }
 }
 
 void
-rx_ul_deadline_half_cb(struct rte_timer *tim, void *arg)
+rx_ul_static_srs_cb(struct rte_timer *tim, void *arg)
 {
-    long t1 = MLogTick();
+    long t1 = MLogXRANTick();
+    struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)arg;
+    xran_status_t status = 0;
+    int32_t rx_tti = 0;// = (int32_t)XranGetTtiNum(xran_lib_ota_sym_idx, XRAN_NUM_OF_SYMBOL_PER_SLOT);
+    int32_t cc_id = 0;
+    //uint32_t nFrameIdx;
+    //uint32_t nSubframeIdx;
+    //uint32_t nSlotIdx;
+    //uint64_t nSecond;
+    struct xran_timer_ctx* p_timer_ctx = NULL;
+
+    if(p_xran_dev_ctx->xran2phy_mem_ready == 0)
+        return;
+
+    p_timer_ctx = &p_xran_dev_ctx->cb_timer_ctx[p_xran_dev_ctx->timer_put++ % MAX_CB_TIMER_CTX];
+
+    if (p_xran_dev_ctx->timer_put >= MAX_CB_TIMER_CTX)
+        p_xran_dev_ctx->timer_put = 0;
+
+    rx_tti = p_timer_ctx->tti_to_process;
+
+    if(rx_tti == 0)
+       rx_tti = (xran_fs_get_max_slot_SFN(p_xran_dev_ctx->xran_port_id)-1);
+    else
+       rx_tti -= 1; /* end of RX for prev TTI as measured against current OTA time */
+
+    /* U-Plane */
+    for(cc_id = 0; cc_id < xran_get_num_cc(p_xran_dev_ctx); cc_id++) {
+
+        if(0 == p_xran_dev_ctx->enableSrsCp)
+        {
+            if(p_xran_dev_ctx->pSrsCallback[cc_id]){
+                struct xran_cb_tag *pTag = p_xran_dev_ctx->pSrsCallbackTag[cc_id];
+                if(pTag) {
+                    //pTag->cellId = cc_id;
+                    pTag->slotiId = rx_tti;
+                    pTag->symbol  = XRAN_FULL_CB_SYM; /* last 7 sym means full slot of Symb */
+                    p_xran_dev_ctx->pSrsCallback[cc_id](p_xran_dev_ctx->pSrsCallbackTag[cc_id], status);
+                }
+            }
+        }
+    }
+    MLogXRANTask(PID_UP_STATIC_SRS_DEAD_LINE_CB, t1, MLogXRANTick());
+}
+
+
+
+void
+rx_ul_deadline_one_fourths_cb(struct rte_timer *tim, void *arg)
+{
+    long t1 = MLogXRANTick();
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)arg;
     xran_status_t status;
     /* half of RX for current TTI as measured against current OTA time */
     int32_t rx_tti;
     int32_t cc_id;
-    uint32_t nFrameIdx;
-    uint32_t nSubframeIdx;
-    uint32_t nSlotIdx;
-    uint64_t nSecond;
+    //uint32_t nFrameIdx;
+    //uint32_t nSubframeIdx;
+    //uint32_t nSlotIdx;
+    //uint64_t nSecond;
+    struct xran_timer_ctx* p_timer_ctx = NULL;
+    /*xran_get_slot_idx(&nFrameIdx, &nSubframeIdx, &nSlotIdx, &nSecond);
+    rx_tti = nFrameIdx*SUBFRAMES_PER_SYSTEMFRAME*SLOTNUM_PER_SUBFRAME
+           + nSubframeIdx*SLOTNUM_PER_SUBFRAME
+           + nSlotIdx;*/
+    if(p_xran_dev_ctx->xran2phy_mem_ready == 0)
+        return;
+
+    p_timer_ctx = &p_xran_dev_ctx->cb_timer_ctx[p_xran_dev_ctx->timer_put++ % MAX_CB_TIMER_CTX];
+    if (p_xran_dev_ctx->timer_put >= MAX_CB_TIMER_CTX)
+        p_xran_dev_ctx->timer_put = 0;
+
+    rx_tti = p_timer_ctx->tti_to_process;
+
+    for(cc_id = 0; cc_id < xran_get_num_cc(p_xran_dev_ctx); cc_id++) {
+        if(p_xran_dev_ctx->rx_packet_callback_tracker[rx_tti % XRAN_N_FE_BUF_LEN][cc_id] == 0){
+            if(p_xran_dev_ctx->pCallback[cc_id]) {
+                struct xran_cb_tag *pTag = p_xran_dev_ctx->pCallbackTag[cc_id];
+                if(pTag) {
+                    //pTag->cellId = cc_id;
+                    pTag->slotiId = rx_tti;
+                    pTag->symbol  = XRAN_ONE_FOURTHS_CB_SYM;
+                    status = XRAN_STATUS_SUCCESS;
+
+                    p_xran_dev_ctx->pCallback[cc_id](p_xran_dev_ctx->pCallbackTag[cc_id], status);
+                }
+            }
+        } else {
+            p_xran_dev_ctx->rx_packet_callback_tracker[rx_tti % XRAN_N_FE_BUF_LEN][cc_id] = 0;
+        }
+    }
+
+    if(p_xran_dev_ctx->ttiCb[XRAN_CB_HALF_SLOT_RX]){
+        if(p_xran_dev_ctx->SkipTti[XRAN_CB_HALF_SLOT_RX] <= 0){
+            p_xran_dev_ctx->ttiCb[XRAN_CB_HALF_SLOT_RX](p_xran_dev_ctx->TtiCbParam[XRAN_CB_HALF_SLOT_RX]);
+        }else{
+            p_xran_dev_ctx->SkipTti[XRAN_CB_HALF_SLOT_RX]--;
+        }
+    }
+
+    MLogXRANTask(PID_UP_UL_ONE_FOURTHS_DEAD_LINE_CB, t1, MLogXRANTick());
+}
+
+void
+rx_ul_deadline_half_cb(struct rte_timer *tim, void *arg)
+{
+    long t1 = MLogXRANTick();
+    struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)arg;
+    xran_status_t status;
+    /* half of RX for current TTI as measured against current OTA time */
+    int32_t rx_tti;
+    int32_t cc_id;
+    //uint32_t nFrameIdx;
+    //uint32_t nSubframeIdx;
+    //uint32_t nSlotIdx;
+    //uint64_t nSecond;
+    struct xran_timer_ctx* p_timer_ctx = NULL;
+    /*xran_get_slot_idx(&nFrameIdx, &nSubframeIdx, &nSlotIdx, &nSecond);
+    rx_tti = nFrameIdx*SUBFRAMES_PER_SYSTEMFRAME*SLOTNUM_PER_SUBFRAME
+           + nSubframeIdx*SLOTNUM_PER_SUBFRAME
+           + nSlotIdx;*/
+    if(p_xran_dev_ctx->xran2phy_mem_ready == 0)
+        return;
+
+    p_timer_ctx = &p_xran_dev_ctx->cb_timer_ctx[p_xran_dev_ctx->timer_put++ % MAX_CB_TIMER_CTX];
+    if (p_xran_dev_ctx->timer_put >= MAX_CB_TIMER_CTX)
+        p_xran_dev_ctx->timer_put = 0;
+
+    rx_tti = p_timer_ctx->tti_to_process;
+
+    for(cc_id = 0; cc_id < xran_get_num_cc(p_xran_dev_ctx); cc_id++) {
+        if(p_xran_dev_ctx->rx_packet_callback_tracker[rx_tti % XRAN_N_FE_BUF_LEN][cc_id] == 0){
+            if(p_xran_dev_ctx->pCallback[cc_id]) {
+                struct xran_cb_tag *pTag = p_xran_dev_ctx->pCallbackTag[cc_id];
+                if(pTag) {
+                    //pTag->cellId = cc_id;
+                    pTag->slotiId = rx_tti;
+                    pTag->symbol  = XRAN_HALF_CB_SYM;
+                    status = XRAN_STATUS_SUCCESS;
+
+                    p_xran_dev_ctx->pCallback[cc_id](p_xran_dev_ctx->pCallbackTag[cc_id], status);
+                }
+            }
+        } else {
+            p_xran_dev_ctx->rx_packet_callback_tracker[rx_tti % XRAN_N_FE_BUF_LEN][cc_id] = 0;
+        }
+    }
+
+    if(p_xran_dev_ctx->ttiCb[XRAN_CB_HALF_SLOT_RX]){
+        if(p_xran_dev_ctx->SkipTti[XRAN_CB_HALF_SLOT_RX] <= 0){
+            p_xran_dev_ctx->ttiCb[XRAN_CB_HALF_SLOT_RX](p_xran_dev_ctx->TtiCbParam[XRAN_CB_HALF_SLOT_RX]);
+        }else{
+            p_xran_dev_ctx->SkipTti[XRAN_CB_HALF_SLOT_RX]--;
+        }
+    }
+
+    MLogXRANTask(PID_UP_UL_HALF_DEAD_LINE_CB, t1, MLogXRANTick());
+}
+
+void
+rx_ul_deadline_three_fourths_cb(struct rte_timer *tim, void *arg)
+{
+    long t1 = MLogXRANTick();
+    struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)arg;
+    xran_status_t status;
+    /* half of RX for current TTI as measured against current OTA time */
+    int32_t rx_tti;
+    int32_t cc_id;
+    //uint32_t nFrameIdx;
+    //uint32_t nSubframeIdx;
+    //uint32_t nSlotIdx;
+    //uint64_t nSecond;
     struct xran_timer_ctx* p_timer_ctx = NULL;
     /*xran_get_slot_idx(&nFrameIdx, &nSubframeIdx, &nSlotIdx, &nSecond);
     rx_tti = nFrameIdx*SUBFRAMES_PER_SYSTEMFRAME*SLOTNUM_PER_SUBFRAME
@@ -600,7 +890,7 @@ rx_ul_deadline_half_cb(struct rte_timer *tim, void *arg)
                 if(pTag) {
                     //pTag->cellId = cc_id;
             pTag->slotiId = rx_tti;
-            pTag->symbol  = 0; /* last 7 sym means full slot of Symb */
+                    pTag->symbol  = XRAN_THREE_FOURTHS_CB_SYM;
             status = XRAN_STATUS_SUCCESS;
 
                p_xran_dev_ctx->pCallback[cc_id](p_xran_dev_ctx->pCallbackTag[cc_id], status);
@@ -619,21 +909,21 @@ rx_ul_deadline_half_cb(struct rte_timer *tim, void *arg)
         }
     }
 
-    MLogTask(PID_UP_UL_HALF_DEAD_LINE_CB, t1, MLogTick());
+    MLogXRANTask(PID_UP_UL_THREE_FOURTHS_DEAD_LINE_CB, t1, MLogXRANTick());
 }
 
 void
 rx_ul_deadline_full_cb(struct rte_timer *tim, void *arg)
 {
-    long t1 = MLogTick();
+    long t1 = MLogXRANTick();
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)arg;
     xran_status_t status = 0;
     int32_t rx_tti = 0;// = (int32_t)XranGetTtiNum(xran_lib_ota_sym_idx, XRAN_NUM_OF_SYMBOL_PER_SLOT);
     int32_t cc_id = 0;
-    uint32_t nFrameIdx;
-    uint32_t nSubframeIdx;
-    uint32_t nSlotIdx;
-    uint64_t nSecond;
+    //uint32_t nFrameIdx;
+    //uint32_t nSubframeIdx;
+    //uint32_t nSlotIdx;
+    //uint64_t nSecond;
     struct xran_timer_ctx* p_timer_ctx = NULL;
 
     if(p_xran_dev_ctx->xran2phy_mem_ready == 0)
@@ -662,7 +952,7 @@ rx_ul_deadline_full_cb(struct rte_timer *tim, void *arg)
             if(pTag) {
                 //pTag->cellId = cc_id;
         pTag->slotiId = rx_tti;
-        pTag->symbol  = 7; /* last 7 sym means full slot of Symb */
+                pTag->symbol  = XRAN_FULL_CB_SYM; /* last 7 sym means full slot of Symb */
         status = XRAN_STATUS_SUCCESS;
             p_xran_dev_ctx->pCallback[cc_id](p_xran_dev_ctx->pCallbackTag[cc_id], status);
             }
@@ -673,19 +963,22 @@ rx_ul_deadline_full_cb(struct rte_timer *tim, void *arg)
             if(pTag) {
                 //pTag->cellId = cc_id;
             pTag->slotiId = rx_tti;
-            pTag->symbol  = 7; /* last 7 sym means full slot of Symb */
+                pTag->symbol  = XRAN_FULL_CB_SYM; /* last 7 sym means full slot of Symb */
             p_xran_dev_ctx->pPrachCallback[cc_id](p_xran_dev_ctx->pPrachCallbackTag[cc_id], status);
         }
         }
 
+        if(p_xran_dev_ctx->enableSrsCp)
+        {
         if(p_xran_dev_ctx->pSrsCallback[cc_id]){
             struct xran_cb_tag *pTag = p_xran_dev_ctx->pSrsCallbackTag[cc_id];
             if(pTag) {
                 //pTag->cellId = cc_id;
             pTag->slotiId = rx_tti;
-            pTag->symbol  = 7; /* last 7 sym means full slot of Symb */
+                    pTag->symbol  = XRAN_FULL_CB_SYM; /* last 7 sym means full slot of Symb */
             p_xran_dev_ctx->pSrsCallback[cc_id](p_xran_dev_ctx->pSrsCallbackTag[cc_id], status);
         }
+    }
     }
     }
 
@@ -698,22 +991,16 @@ rx_ul_deadline_full_cb(struct rte_timer *tim, void *arg)
         }
     }
 
-    MLogTask(PID_UP_UL_FULL_DEAD_LINE_CB, t1, MLogTick());
+    MLogXRANTask(PID_UP_UL_FULL_DEAD_LINE_CB, t1, MLogXRANTick());
 }
 
 void
 rx_ul_user_sym_cb(struct rte_timer *tim, void *arg)
 {
-    long t1 = MLogTick();
+    long t1 = MLogXRANTick();
     struct xran_device_ctx * p_dev_ctx = NULL;
     struct cb_user_per_sym_ctx *p_sym_cb_ctx = (struct cb_user_per_sym_ctx *)arg;
-    xran_status_t status = 0;
     int32_t rx_tti = 0; //(int32_t)XranGetTtiNum(xran_lib_ota_sym_idx, XRAN_NUM_OF_SYMBOL_PER_SLOT);
-    int32_t cc_id = 0;
-    uint32_t nFrameIdx;
-    uint32_t nSubframeIdx;
-    uint32_t nSlotIdx;
-    uint64_t nSecond;
     uint32_t interval, ota_sym_idx = 0;
     uint8_t nNumerology = 0;
     struct xran_timer_ctx* p_timer_ctx =  NULL;
@@ -765,105 +1052,332 @@ rx_ul_user_sym_cb(struct rte_timer *tim, void *arg)
         p_sym_cb_ctx->symCb(p_sym_cb_ctx->symCbParam, p_sym_cb_ctx->symCbTimeInfo);
     }
 
-    MLogTask(PID_UP_UL_USER_DEAD_LINE_CB, t1, MLogTick());
+    MLogXRANTask(PID_UP_UL_USER_DEAD_LINE_CB, t1, MLogXRANTick());
 }
 
-void
-tx_cp_ul_cb(struct rte_timer *tim, void *arg)
+int32_t
+xran_prepare_cp_ul_slot(uint16_t xran_port_id, uint32_t nSlotIdx,  uint32_t nCcStart, uint32_t nCcNum, uint32_t nSymMask, uint32_t nAntStart,
+                            uint32_t nAntNum, uint32_t nSymStart, uint32_t nSymNum)
 {
-    long t1 = MLogTick();
+    int32_t ret = XRAN_STATUS_SUCCESS;
+    long t1 = MLogXRANTick();
     int tti, buf_id;
-    int ret;
     uint32_t slot_id, subframe_id, frame_id;
     int32_t cc_id;
-    int ant_id, prach_port_id;
+    int ant_id, port_id;
     uint16_t occasionid;
     uint16_t beam_id;
     uint8_t num_eAxc, num_CCPorts;
     uint8_t ctx_id;
 
     void *pHandle;
-    int num_list;
+    uint32_t interval;
+    uint8_t PortId;
 
-    struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)arg;
-    if(!p_xran_dev_ctx)
+    //struct xran_timer_ctx *pTCtx;
+    struct xran_buffer_list *pBufList;
+    struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx_by_id(xran_port_id);
+    if(unlikely(!p_xran_dev_ctx))
+    {
+        print_err("Null xRAN context!!\n");
+        return ret;
+    }
+
+    if(first_call && p_xran_dev_ctx->enableCP)
+    {
+        pHandle     = p_xran_dev_ctx;
+        //pTCtx       = &p_xran_dev_ctx->timer_ctx[0];
+        interval    = p_xran_dev_ctx->interval_us_local;
+        PortId      = p_xran_dev_ctx->xran_port_id;
+        tti         = nSlotIdx; //pTCtx[(xran_lib_ota_tti[PortId] & 1) ^ 1].tti_to_process;
+
+        buf_id      = tti % XRAN_N_FE_BUF_LEN;
+        ctx_id      = tti % XRAN_MAX_SECTIONDB_CTX;
+        slot_id     = XranGetSlotNum(tti, SLOTNUM_PER_SUBFRAME(interval));
+        subframe_id = XranGetSubFrameNum(tti,SLOTNUM_PER_SUBFRAME(interval),  SUBFRAMES_PER_SYSTEMFRAME);
+        frame_id    = XranGetFrameNum(tti,xran_getSfnSecStart(),SUBFRAMES_PER_SYSTEMFRAME, SLOTNUM_PER_SUBFRAME(interval));
+
+        /* Wrap around to next second */
+        if(tti == 0)
+            frame_id = (frame_id + NUM_OF_FRAMES_PER_SECOND) & 0x3ff;
+        if(xran_get_ru_category(pHandle) == XRAN_CATEGORY_A)
+            num_eAxc = xran_get_num_eAxc(pHandle);
+        else
+            num_eAxc = xran_get_num_eAxcUl(pHandle);
+        num_CCPorts = xran_get_num_cc(pHandle);
+
+        print_dbg("[%d]SFN %d sf %d slot %d\n", tti, frame_id, subframe_id, slot_id);
+
+        /* General Uplink */
+#if defined(__INTEL_COMPILER)
+#pragma vector always
+#endif
+        for(ant_id = nAntStart; (ant_id < (nAntStart + nAntNum)  && ant_id < num_eAxc); ++ant_id) {
+            for(cc_id = nCcStart; (cc_id < (nCcStart + nCcNum) && cc_id < num_CCPorts); cc_id++) {
+                /* start new section information list */
+                xran_cp_reset_section_info(pHandle, XRAN_DIR_UL, cc_id, ant_id, ctx_id);
+                if(xran_fs_get_slot_type(PortId, cc_id, tti, XRAN_SLOT_TYPE_UL) == 1)
+                {
+                    pBufList = &(p_xran_dev_ctx->sFrontHaulRxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList); /* To shorten reference */
+                    if(pBufList->pBuffers && pBufList->pBuffers->pData)
+                    {
+                        ret = xran_cp_create_and_send_section(pHandle, ant_id, XRAN_DIR_UL, tti, cc_id,
+                                        (struct xran_prb_map *)(pBufList->pBuffers->pData), NULL,
+                                        p_xran_dev_ctx->fh_cfg.ru_conf.xranCat, ctx_id);
+                    }
+                }
+            }
+        } /* for(ant_id = 0; ant_id < num_eAxc; ++ant_id) */
+
+        /* PRACH */
+        if(p_xran_dev_ctx->enablePrach)
+        {
+            struct xran_prach_cp_config *pPrachCPConfig = NULL;
+            //check for dss enable and fill based on technology select the p_xran_dev_ctx->PrachCPConfig NR/LTE.
+            if(p_xran_dev_ctx->dssEnable){
+                int i = tti % p_xran_dev_ctx->dssPeriod;
+                if(p_xran_dev_ctx->technology[i]==1) {
+                    pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfig);
+                }
+                else{
+                    pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfigLTE);
+                }
+            }
+            else{
+                pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfig);
+            }
+            uint32_t is_prach_slot = xran_is_prach_slot(PortId, subframe_id, slot_id);
+
+            if(((frame_id % pPrachCPConfig->x) == pPrachCPConfig->y[0])
+                && (is_prach_slot==1))
+            {
+                for(ant_id = 0; ant_id < num_eAxc; ant_id++)
+                {
+                    port_id = ant_id + pPrachCPConfig->eAxC_offset;
+                    for(cc_id = 0; cc_id < num_CCPorts; cc_id++)
+                    {
+                        /* start new section information list */
+                        xran_cp_reset_section_info(pHandle, XRAN_DIR_UL, cc_id, port_id, ctx_id);
+                        for(occasionid = 0; occasionid < pPrachCPConfig->occassionsInPrachSlot; occasionid++)
+                        {
+                            struct xran_cp_gen_params params;
+                            struct xran_section_gen_info sect_geninfo[8];
+                            struct xran_section_info sectInfo[8];
+                            for(int secId=0;secId<8;secId++)
+                                sect_geninfo[secId].info = &sectInfo[secId];
+                            struct rte_mbuf *mbuf = xran_ethdi_mbuf_alloc();
+                            uint8_t seqid = xran_get_cp_seqid(pHandle, XRAN_DIR_UL, cc_id, port_id);
+
+                            beam_id = xran_get_beamid(pHandle, XRAN_DIR_UL, cc_id, port_id, slot_id);
+                            ret = generate_cpmsg_prach(pHandle, &params, sect_geninfo, mbuf, p_xran_dev_ctx,
+                                        frame_id, subframe_id, slot_id, tti,
+                                        beam_id, cc_id, port_id, occasionid, seqid);
+                            if(ret == XRAN_STATUS_SUCCESS)
+                                send_cpmsg(pHandle, mbuf, &params, sect_geninfo,
+                                        cc_id, port_id, seqid);
+                        }
+                    }
+                }
+            }
+        } /* if(p_xran_dev_ctx->enablePrach) */
+
+        /* SRS */
+        if(p_xran_dev_ctx->enableSrsCp)
+        {
+            struct xran_srs_config *pSrsCfg = &(p_xran_dev_ctx->srs_cfg);
+
+            for(ant_id = 0; ant_id < xran_get_num_ant_elm(pHandle); ant_id++)
+            {
+                port_id = ant_id + pSrsCfg->eAxC_offset;
+                for(cc_id = 0; cc_id < num_CCPorts; cc_id++)
+                {
+                    /* start new section information list */
+                    xran_cp_reset_section_info(pHandle, XRAN_DIR_UL, cc_id, port_id, ctx_id);
+                    if(xran_fs_get_slot_type(PortId, cc_id, tti, XRAN_SLOT_TYPE_SP) == 1)
+                    {
+                        pBufList = &(p_xran_dev_ctx->sFHSrsRxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList); /* To shorten reference */
+                        if(pBufList->pBuffers && pBufList->pBuffers->pData)
+                        {
+                            ret = xran_cp_create_and_send_section(pHandle, port_id, XRAN_DIR_UL, tti, cc_id,
+                                            (struct xran_prb_map *)(pBufList->pBuffers->pData), NULL,
+                                            p_xran_dev_ctx->fh_cfg.ru_conf.xranCat, ctx_id);
+                        }
+                    }
+                }
+            }
+        } /* if(p_xran_dev_ctx->enableSrs) */
+
+        MLogXRANTask(PID_CP_UL_CB, t1, MLogXRANTick());
+    } /* if(p_xran_dev_ctx->enableCP) */
+
+    return ret;
+}
+
+
+void
+tx_cp_ul_cb(struct rte_timer *tim, void *arg)
+{
+    long t1 = MLogXRANTick();
+    int tti, buf_id;
+    int ret;
+    uint32_t slot_id, subframe_id, frame_id;
+    int32_t cc_id;
+    int ant_id, port_id;
+    uint16_t occasionid = 0;
+    uint16_t beam_id;
+    uint8_t num_eAxc, num_CCPorts;
+    uint8_t ctx_id;
+
+    void *pHandle;
+    uint32_t interval;
+    uint8_t PortId;
+
+    struct xran_timer_ctx *pTCtx;
+    struct xran_buffer_list *pBufList;
+    struct xran_device_ctx *p_xran_dev_ctx;
+
+    if(unlikely(!arg))
     {
         print_err("Null xRAN context!!\n");
         return;
     }
-    struct xran_prach_cp_config *pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfig);
-    struct xran_timer_ctx *pTCtx =  &p_xran_dev_ctx->timer_ctx[0];
-    uint32_t interval = p_xran_dev_ctx->interval_us_local;
-    uint8_t PortId = p_xran_dev_ctx->xran_port_id;
 
+    p_xran_dev_ctx  = (struct xran_device_ctx *)arg;
+
+    if (p_xran_dev_ctx->fh_init.io_cfg.bbu_offload)
+        return;
+
+    /* */
+    if(first_call && p_xran_dev_ctx->enableCP)
+    {
+        pHandle     = p_xran_dev_ctx;
+        pTCtx       = &p_xran_dev_ctx->timer_ctx[0];
+        interval    = p_xran_dev_ctx->interval_us_local;
+        PortId      = p_xran_dev_ctx->xran_port_id;
     tti = pTCtx[(xran_lib_ota_tti[PortId] & 1) ^ 1].tti_to_process;
+
     buf_id = tti % XRAN_N_FE_BUF_LEN;
+        ctx_id      = tti % XRAN_MAX_SECTIONDB_CTX;
     slot_id     = XranGetSlotNum(tti, SLOTNUM_PER_SUBFRAME(interval));
     subframe_id = XranGetSubFrameNum(tti,SLOTNUM_PER_SUBFRAME(interval),  SUBFRAMES_PER_SYSTEMFRAME);
     frame_id    = XranGetFrameNum(tti,xran_getSfnSecStart(),SUBFRAMES_PER_SYSTEMFRAME, SLOTNUM_PER_SUBFRAME(interval));
-    if (tti == 0) {
-        //Wrap around to next second
-        frame_id = (frame_id + NUM_OF_FRAMES_PER_SECOND) & 0x3ff;
-    }
-    ctx_id      = XranGetSlotNum(tti, SLOTS_PER_SYSTEMFRAME(interval)) % XRAN_MAX_SECTIONDB_CTX;
 
-    pHandle = p_xran_dev_ctx;
+        /* Wrap around to next second */
+        if(tti == 0)
+            frame_id = (frame_id + NUM_OF_FRAMES_PER_SECOND) & 0x3ff;
     if(xran_get_ru_category(pHandle) == XRAN_CATEGORY_A)
         num_eAxc    = xran_get_num_eAxc(pHandle);
     else
         num_eAxc    = xran_get_num_eAxcUl(pHandle);
     num_CCPorts = xran_get_num_cc(pHandle);
 
-    if(first_call && p_xran_dev_ctx->enableCP) {
-
         print_dbg("[%d]SFN %d sf %d slot %d\n", tti, frame_id, subframe_id, slot_id);
 
-        for(ant_id = 0; ant_id < num_eAxc; ++ant_id) {
-            for(cc_id = 0; cc_id < num_CCPorts; cc_id++) {
-                if(xran_fs_get_slot_type(PortId, cc_id, tti, XRAN_SLOT_TYPE_UL) == 1
-                /*  || xran_fs_get_slot_type(cc_id, tti, XRAN_SLOT_TYPE_SP) == 1*/ ) {
+        /* General Uplink */
+        for(ant_id = 0; ant_id < num_eAxc; ant_id++)
+        {
+            for(cc_id = 0; cc_id < num_CCPorts; cc_id++)
+            {
                     /* start new section information list */
                     xran_cp_reset_section_info(pHandle, XRAN_DIR_UL, cc_id, ant_id, ctx_id);
-                    if(p_xran_dev_ctx->sFrontHaulRxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList.pBuffers){
-                        if(p_xran_dev_ctx->sFrontHaulRxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList.pBuffers->pData){
-                    num_list = xran_cp_create_and_send_section(pHandle, ant_id, XRAN_DIR_UL, tti, cc_id,
-                        (struct xran_prb_map *)p_xran_dev_ctx->sFrontHaulRxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList.pBuffers->pData,
+                if(xran_fs_get_slot_type(PortId, cc_id, tti, XRAN_SLOT_TYPE_UL) == 1)
+                {
+                    pBufList = &(p_xran_dev_ctx->sFrontHaulRxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList); /* To shorten reference */
+                    if(pBufList->pBuffers && pBufList->pBuffers->pData)
+                    {
+                        ret = xran_cp_create_and_send_section(pHandle, ant_id, XRAN_DIR_UL, tti, cc_id,
+                                        (struct xran_prb_map *)(pBufList->pBuffers->pData), NULL,
                         p_xran_dev_ctx->fh_cfg.ru_conf.xranCat, ctx_id);
                         }
                     }
                 }
-            }
-        }
+        } /* for(ant_id = 0; ant_id < num_eAxc; ++ant_id) */
 
-        if(p_xran_dev_ctx->enablePrach) {
-            uint32_t is_prach_slot = xran_is_prach_slot(PortId, subframe_id, slot_id);
-            if(((frame_id % pPrachCPConfig->x) == pPrachCPConfig->y[0]) && (is_prach_slot==1)) {   //is prach slot
-                for(ant_id = 0; ant_id < num_eAxc; ++ant_id) {
-                    for(cc_id = 0; cc_id < num_CCPorts; cc_id++) {
-                        for (occasionid = 0; occasionid < pPrachCPConfig->occassionsInPrachSlot; occasionid++) {
-                        struct xran_cp_gen_params params;
-                        struct xran_section_gen_info sect_geninfo[8];
-                        struct rte_mbuf *mbuf = xran_ethdi_mbuf_alloc();
-                        prach_port_id = ant_id + num_eAxc;
-                        /* start new section information list */
-                        xran_cp_reset_section_info(pHandle, XRAN_DIR_UL, cc_id, prach_port_id, ctx_id);
-
-                        beam_id = xran_get_beamid(pHandle, XRAN_DIR_UL, cc_id, prach_port_id, slot_id);
-                        ret = generate_cpmsg_prach(pHandle, &params, sect_geninfo, mbuf, p_xran_dev_ctx,
-                                    frame_id, subframe_id, slot_id,
-                                        beam_id, cc_id, prach_port_id, occasionid,
-                                    xran_get_cp_seqid(pHandle, XRAN_DIR_UL, cc_id, prach_port_id));
-                        if (ret == XRAN_STATUS_SUCCESS)
-                            send_cpmsg(pHandle, mbuf, &params, sect_geninfo,
-                                cc_id, prach_port_id, xran_get_cp_seqid(pHandle, XRAN_DIR_UL, cc_id, prach_port_id));
-                    }
+        /* PRACH */
+        if(p_xran_dev_ctx->enablePrach)
+        {
+            struct xran_prach_cp_config *pPrachCPConfig = NULL;
+            //check for dss enable and fill based on technology select the p_xran_dev_ctx->PrachCPConfig NR/LTE.
+            if(p_xran_dev_ctx->dssEnable){
+                int i = tti % p_xran_dev_ctx->dssPeriod;
+                if(p_xran_dev_ctx->technology[i]==1) {
+                    pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfig);
+                }
+                else{
+                    pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfigLTE);
                 }
             }
+            else{
+                pPrachCPConfig = &(p_xran_dev_ctx->PrachCPConfig);
         }
-        }
-    } /* if(p_xran_dev_ctx->enableCP) */
 
-    MLogTask(PID_CP_UL_CB, t1, MLogTick());
+            uint32_t is_prach_slot = xran_is_prach_slot(PortId, subframe_id, slot_id);
+
+            if(((frame_id % pPrachCPConfig->x) == pPrachCPConfig->y[0])
+                && (is_prach_slot==1))
+            {
+                for(ant_id = 0; ant_id < num_eAxc; ant_id++)
+                {
+                    port_id = ant_id + pPrachCPConfig->eAxC_offset;
+                    for(cc_id = 0; cc_id < num_CCPorts; cc_id++)
+                    {
+                        /* start new section information list */
+                        xran_cp_reset_section_info(pHandle, XRAN_DIR_UL, cc_id, port_id, ctx_id);
+#ifndef FCN_ADAPT
+//for FCN only send C-P for first occasion
+                        for(occasionid = 0; occasionid < pPrachCPConfig->occassionsInPrachSlot; occasionid++)
+#endif
+                        {
+                        struct xran_cp_gen_params params;
+                        struct xran_section_gen_info sect_geninfo[8];
+                            struct xran_section_info sectInfo[8];
+                            for(int secId=0;secId<8;secId++)
+                                sect_geninfo[secId].info = &sectInfo[secId];
+
+                        struct rte_mbuf *mbuf = xran_ethdi_mbuf_alloc();
+                            uint8_t seqid = xran_get_cp_seqid(pHandle, XRAN_DIR_UL, cc_id, port_id);
+
+                            beam_id = xran_get_beamid(pHandle, XRAN_DIR_UL, cc_id, port_id, slot_id);
+                        ret = generate_cpmsg_prach(pHandle, &params, sect_geninfo, mbuf, p_xran_dev_ctx,
+                                        frame_id, subframe_id, slot_id, tti,
+                                        beam_id, cc_id, port_id, occasionid, seqid);
+                        if (ret == XRAN_STATUS_SUCCESS)
+                            send_cpmsg(pHandle, mbuf, &params, sect_geninfo,
+                                        cc_id, port_id, seqid);
+                        }
+                    }
+                    }
+                }
+        } /* if(p_xran_dev_ctx->enablePrach) */
+
+        /* SRS */
+        if(p_xran_dev_ctx->enableSrsCp)
+        {
+            struct xran_srs_config *pSrsCfg = &(p_xran_dev_ctx->srs_cfg);
+
+            for(ant_id = 0; ant_id < xran_get_num_ant_elm(pHandle); ant_id++)
+            {
+                port_id = ant_id + pSrsCfg->eAxC_offset;
+                for(cc_id = 0; cc_id < num_CCPorts; cc_id++)
+                {
+                    /* start new section information list */
+                    xran_cp_reset_section_info(pHandle, XRAN_DIR_UL, cc_id, port_id, ctx_id);
+                    if(xran_fs_get_slot_type(PortId, cc_id, tti, XRAN_SLOT_TYPE_SP) == 1)
+                    {
+                        pBufList = &(p_xran_dev_ctx->sFHSrsRxPrbMapBbuIoBufCtrl[buf_id][cc_id][ant_id].sBufferList); /* To shorten reference */
+                        if(pBufList->pBuffers && pBufList->pBuffers->pData)
+                        {
+                            ret = xran_cp_create_and_send_section(pHandle, port_id, XRAN_DIR_UL, tti, cc_id,
+                                            (struct xran_prb_map *)(pBufList->pBuffers->pData), NULL,
+                                            p_xran_dev_ctx->fh_cfg.ru_conf.xranCat, ctx_id);
+            }
+        }
+        }
+            }
+        } /* if(p_xran_dev_ctx->enableSrs) */
+
+    MLogXRANTask(PID_CP_UL_CB, t1, MLogXRANTick());
+    } /* if(p_xran_dev_ctx->enableCP) */
 }
 
 void
@@ -902,19 +1416,12 @@ xran_timing_source_thread(void *args)
 {
     int res = 0;
     cpu_set_t cpuset;
-    int32_t   do_reset = 0;
-    uint64_t  t1 = 0;
-    uint64_t  delta;
-    int32_t   result1,i,j;
-
+    int32_t   result1;
     uint32_t xran_port_id = 0;
     static int owdm_init_done = 0;
-
     struct sched_param sched_param;
     struct xran_device_ctx * p_dev_ctx = (struct xran_device_ctx *) args ;
     uint64_t tWake = 0, tWakePrev = 0, tUsed = 0;
-    struct cb_elem_entry * cb_elm = NULL;
-
     struct xran_device_ctx * p_dev_ctx_run = NULL;
     /* ToS = Top of Second start +- 1.5us */
     struct timespec ts;
@@ -928,7 +1435,7 @@ xran_timing_source_thread(void *args)
     CPU_ZERO(&cpuset);
     CPU_SET(p_dev_ctx->fh_init.io_cfg.timing_core, &cpuset);
 
-    if (result1 = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset))
+    if ((result1 = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset)))
     {
         printf("pthread_setaffinity_np failed: coreId = 2, result1 = %d\n",result1);
     }
@@ -992,9 +1499,14 @@ xran_timing_source_thread(void *args)
         tWakePrev = tWake;
         tUsed = 0;
 
-        delta = poll_next_tick(interval_us*1000L/N_SYM_PER_SLOT, &tUsed);
+        int64_t delta = poll_next_tick(interval_us*1000L/N_SYM_PER_SLOT, &tUsed);
         if (XRAN_STOPPED == xran_if_current_state)
             break;
+
+        if (delta > 3E5 && tUsed > 0)//300us about 9 symbols
+        {
+            print_err("poll_next_tick too long, delta:%ld(ns), tUsed:%ld(tick)", delta, tUsed);
+        }
 
         if (likely(XRAN_RUNNING == xran_if_current_state)) {
             for(xran_port_id =  0; xran_port_id < XRAN_PORTS_NUM; xran_port_id++ ) {
@@ -1027,11 +1539,10 @@ xran_timing_source_thread(void *args)
 
 int32_t handle_ecpri_ethertype(struct rte_mbuf* pkt_q[], uint16_t xport_id, struct xran_eaxc_info *p_cid, uint16_t num)
 {
-    struct rte_mbuf* pkt, * pkt0;
+    struct rte_mbuf *pkt;
     uint16_t i;
     struct rte_ether_hdr* eth_hdr;
     struct xran_ecpri_hdr* ecpri_hdr;
-    union xran_ecpri_cmn_hdr* ecpri_cmn;
     unsigned long t1;
     int32_t ret = MBUF_FREE;
     uint32_t ret_data[MBUFS_CNT] = { MBUFS_CNT * MBUF_FREE };
@@ -1086,7 +1597,7 @@ int32_t handle_ecpri_ethertype(struct rte_mbuf* pkt_q[], uint16_t xport_id, stru
 {
         for (i = 0; i < MBUFS_CNT; i++)
 {
-            ret_data[i] == MBUF_FREE;
+            ret_data[i] = MBUF_FREE;
 }
 
         if (p_dev_ctx->fh_init.io_cfg.id == O_DU || p_dev_ctx->fh_init.io_cfg.id == O_RU)
@@ -1120,7 +1631,7 @@ int32_t handle_ecpri_ethertype(struct rte_mbuf* pkt_q[], uint16_t xport_id, stru
 
         for (i = 0; i < num_control; i++)
     {
-            t1 = MLogTick();
+            t1 = MLogXRANTick();
             if (p_dev_ctx->fh_init.io_cfg.id == O_RU)
         {
                 ret = process_cplane(pkt_control[i], (void*)p_dev_ctx);
@@ -1132,17 +1643,22 @@ int32_t handle_ecpri_ethertype(struct rte_mbuf* pkt_q[], uint16_t xport_id, stru
         {
                 print_err("O-DU recevied C-Plane message!");
         }
-            MLogTask(PID_PROCESS_CP_PKT, t1, MLogTick());
+            MLogXRANTask(PID_PROCESS_CP_PKT, t1, MLogXRANTick());
     }
 
         for (i = 0; i < num_meas; i++)
         {
-            t1 = MLogTick();
+
+            /*if(p_dev_ctx->fh_init.io_cfg.id == O_RU)
+                printf("Got delay_meas_pkt xport_id %d p_dev_ctx %08"PRIx64" %d\n", xport_id,(int64_t*)p_dev_ctx, num_meas) ;*/
+            t1 = MLogXRANTick();
+            if(xran_if_current_state != XRAN_RUNNING)
             ret = process_delay_meas(pkt_meas[i], (void*)p_dev_ctx, xport_id);
-            //                printf("Got delay_meas_pkt xport_id %d p_dev_ctx %08"PRIx64"\n", xport_id,(int64_t*)p_dev_ctx) ;
+            else
+                ret = MBUF_FREE;
             if (ret == MBUF_FREE)
                 rte_pktmbuf_free(pkt_meas[i]);
-            MLogTask(PID_PROCESS_DELAY_MEAS_PKT, t1, MLogTick());
+            MLogXRANTask(PID_PROCESS_DELAY_MEAS_PKT, t1, MLogXRANTick());
     }
             }
 
@@ -1152,12 +1668,11 @@ int32_t handle_ecpri_ethertype(struct rte_mbuf* pkt_q[], uint16_t xport_id, stru
 int32_t
 xran_packet_and_dpdk_timer_thread(void *args)
 {
-    struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
+    //struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
 
     uint64_t prev_tsc = 0;
     uint64_t cur_tsc = rte_rdtsc();
     uint64_t diff_tsc = cur_tsc - prev_tsc;
-    cpu_set_t cpuset;
     struct sched_param sched_param;
     int res = 0;
     printf("%s [CPU %2d] [PID: %6d]\n", __FUNCTION__,  rte_lcore_id(), getpid());
@@ -1212,13 +1727,9 @@ xran_init(int argc, char *argv[],
     int32_t i;
     int32_t j;
     int32_t o_xu_id = 0;
-
     struct xran_io_cfg      *p_io_cfg       = NULL;
     struct xran_device_ctx * p_xran_dev_ctx = NULL;
-
     int32_t  lcore_id = 0;
-    char filename[64];
-
     const char *version = rte_version();
 
     if (version == NULL)
@@ -1231,7 +1742,7 @@ xran_init(int argc, char *argv[],
         print_err("fh_init xran_ports= %d is wrong [%d]\n", p_xran_fh_init->xran_ports, ret);
         return ret;
     }
-
+    mlogxranenable = p_xran_fh_init->mlogxranenable;
     p_io_cfg = (struct xran_io_cfg *)&p_xran_fh_init->io_cfg;
 
     if ((ret = xran_dev_create_ctx(p_xran_fh_init->xran_ports)) < 0) {
@@ -1348,7 +1859,6 @@ int32_t
 xran_sector_get_instances (uint32_t xran_port, void * pDevHandle, uint16_t nNumInstances,
                xran_cc_handle_t * pSectorInstanceHandles)
 {
-    xran_status_t nStatus = XRAN_STATUS_FAIL;
     struct xran_device_ctx *pDev = (struct xran_device_ctx *)pDevHandle;
     XranSectorHandleInfo *pCcHandle = NULL;
     int32_t i = 0;
@@ -1396,7 +1906,7 @@ xran_5g_fronthault_config (void * pHandle,
                 xran_transport_callback_fn pCallback,
                 void *pCallbackTag)
 {
-    int j, i = 0, z, k;
+    int j, i = 0, z;
     XranSectorHandleInfo* pXranCc = NULL;
     struct xran_device_ctx * p_xran_dev_ctx = NULL;
 
@@ -1470,7 +1980,6 @@ xran_5g_fronthault_config (void * pHandle,
                 p_xran_dev_ctx->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList =   *pDstCpBuffer[z][j];
             else
                 memset(&p_xran_dev_ctx->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList, 0, sizeof(*pDstCpBuffer[z][j]));
-
         }
     }
 
@@ -1481,6 +1990,60 @@ xran_5g_fronthault_config (void * pHandle,
 
     p_xran_dev_ctx->xran2phy_mem_ready = 1;
 
+    return XRAN_STATUS_SUCCESS;
+}
+
+int32_t xran_5g_bfw_config(void * pHandle,
+                    struct xran_buffer_list *pSrcRxCpBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
+                    struct xran_buffer_list *pSrcTxCpBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
+                    xran_transport_callback_fn pCallback,
+                    void *pCallbackTag){
+    int j, i = 0, z;
+    XranSectorHandleInfo* pXranCc = NULL;
+    struct xran_device_ctx * p_xran_dev_ctx = NULL;
+
+    if(NULL == pHandle) {
+        printf("Handle is NULL!\n");
+        return XRAN_STATUS_FAIL;
+    }
+    pXranCc = (XranSectorHandleInfo*) pHandle;
+    p_xran_dev_ctx = xran_dev_get_ctx_by_id(pXranCc->nXranPort);
+    if (p_xran_dev_ctx == NULL) {
+        printf ("p_xran_dev_ctx is NULL\n");
+        return XRAN_STATUS_FAIL;
+    }
+
+    i = pXranCc->nIndex;
+
+    for(j = 0; j < XRAN_N_FE_BUF_LEN; j++) {
+        for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++){
+            /* C-plane RX - RU */
+            p_xran_dev_ctx->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].bValid = 0;
+            p_xran_dev_ctx->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].nSegGenerated = -1;
+            p_xran_dev_ctx->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].nSegToBeGen = -1;
+            p_xran_dev_ctx->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].nSegTransferred = 0;
+            p_xran_dev_ctx->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.nNumBuffers = XRAN_NUM_OF_SYMBOL_PER_SLOT;
+            p_xran_dev_ctx->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers = &p_xran_dev_ctx->sFrontHaulRxPrbMapBuffers[j][i][z][0];
+
+            if(pSrcRxCpBuffer[z][j])
+                p_xran_dev_ctx->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList =   *pSrcRxCpBuffer[z][j];
+            else
+                memset(&p_xran_dev_ctx->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList, 0, sizeof(*pSrcRxCpBuffer[z][j]));
+
+            /* C-plane TX - RU */
+            p_xran_dev_ctx->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].bValid = 0;
+            p_xran_dev_ctx->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].nSegGenerated = -1;
+            p_xran_dev_ctx->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].nSegToBeGen = -1;
+            p_xran_dev_ctx->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].nSegTransferred = 0;
+            p_xran_dev_ctx->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.nNumBuffers = XRAN_NUM_OF_SYMBOL_PER_SLOT;
+            p_xran_dev_ctx->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers = &p_xran_dev_ctx->sFrontHaulTxPrbMapBuffers[j][i][z][0];
+
+            if(pSrcTxCpBuffer[z][j])
+                p_xran_dev_ctx->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList =   *pSrcTxCpBuffer[z][j];
+            else
+                memset(&p_xran_dev_ctx->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList, 0, sizeof(*pSrcTxCpBuffer[z][j]));
+        }
+    }
     return XRAN_STATUS_SUCCESS;
 }
 
@@ -1510,12 +2073,12 @@ xran_5g_prach_req (void *  pHandle,
     i = pXranCc->nIndex;
 
     for(j = 0; j < XRAN_N_FE_BUF_LEN; j++) {
-        for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++){
+        for(z = 0; z < XRAN_MAX_PRACH_ANT_NUM; z++){
            p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrl[j][i][z].bValid = 0;
            p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrl[j][i][z].nSegGenerated = -1;
            p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrl[j][i][z].nSegToBeGen = -1;
            p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrl[j][i][z].nSegTransferred = 0;
-           p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.nNumBuffers = XRAN_MAX_ANTENNA_NR; // ant number.
+            p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.nNumBuffers = XRAN_MAX_PRACH_ANT_NUM; // ant number.
            p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers = &p_xran_dev_ctx->sFHPrachRxBuffers[j][i][z][0];
            if(pDstBuffer[z][j])
                p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList =   *pDstBuffer[z][j];
@@ -1525,7 +2088,6 @@ xran_5g_prach_req (void *  pHandle,
             p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrlDecomp[j][i][z].sBufferList.pBuffers = &p_xran_dev_ctx->sFHPrachRxBuffersDecomp[j][i][z][0];
             if(pDstBufferDecomp[z][j])
                 p_xran_dev_ctx->sFHPrachRxBbuIoBufCtrlDecomp[j][i][z].sBufferList =   *pDstBufferDecomp[z][j];
-                
         }
     }
 
@@ -1655,7 +2217,6 @@ int32_t
 xran_pkt_gen_process_ring(struct rte_ring *r)
 {
     assert(r);
-    int32_t     retval = 0;
     struct rte_mbuf *mbufs[16];
     int i;
     uint32_t remaining;
@@ -1664,17 +2225,20 @@ xran_pkt_gen_process_ring(struct rte_ring *r)
     const uint16_t dequeued = rte_ring_dequeue_burst(r, (void **)mbufs,
         RTE_DIM(mbufs), &remaining);
 
+
     if (!dequeued)
         return 0;
 
-    t1 = MLogTick();
+    t1 = MLogXRANTick();
     for (i = 0; i < dequeued; ++i) {
         struct cp_up_tx_desc * p_tx_desc =  (struct cp_up_tx_desc *)rte_pktmbuf_mtod(mbufs[i],  struct cp_up_tx_desc *);
-        retval = xran_process_tx_sym_cp_on_opt(p_tx_desc->pHandle,
+        xran_process_tx_sym_cp_on_opt(p_tx_desc->pHandle,
                                         p_tx_desc->ctx_id,
                                         p_tx_desc->tti,
-                                        p_tx_desc->cc_id,
-                                        p_tx_desc->ant_id,
+                                        p_tx_desc->start_cc,
+                                        p_tx_desc->cc_num,
+                                        p_tx_desc->start_ant,
+                                        p_tx_desc->ant_num,
                                         p_tx_desc->frame_id,
                                         p_tx_desc->subframe_id,
                                         p_tx_desc->slot_id,
@@ -1686,7 +2250,7 @@ xran_pkt_gen_process_ring(struct rte_ring *r)
 
         xran_pkt_gen_desc_free(p_tx_desc);
         if (XRAN_STOPPED == xran_if_current_state){
-            MLogTask(PID_PROCESS_TX_SYM, t1, MLogTick());
+            MLogXRANTask(PID_PROCESS_TX_SYM, t1, MLogXRANTick());
             return -1;
         }
     }
@@ -1694,7 +2258,7 @@ xran_pkt_gen_process_ring(struct rte_ring *r)
     if(p_io_cfg->io_sleep)
        nanosleep(&sleeptime,NULL);
 
-    MLogTask(PID_PROCESS_TX_SYM, t1, MLogTick());
+    MLogXRANTask(PID_PROCESS_TX_SYM, t1, MLogXRANTick());
 
     return remaining;
 }
@@ -1720,6 +2284,20 @@ xran_dl_pkt_ring_processing_func(void* args)
     return 0;
 }
 
+int32_t xran_fh_rx_and_up_tx_processing(void *port_mask)
+{
+    int32_t ret_val=0;
+
+    ret_val = ring_processing_func((void *)0);
+    if(ret_val != 0)
+       return ret_val;
+
+    ret_val = xran_dl_pkt_ring_processing_func(port_mask);
+    if(ret_val != 0)
+       return ret_val;
+
+    return 0;
+}
 /** Function to peforms serves of DPDK times */
 int32_t
 xran_processing_timer_only_func(void* args)
@@ -1762,9 +2340,7 @@ int32_t
 ring_processing_func_per_port(void* args)
 {
     struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
-    int16_t retPoll = 0;
     int32_t i;
-    uint64_t t1, t2;
     uint16_t port_id = (uint16_t)((uint64_t)args & 0xFFFF);
     queueid_t qi;
 
@@ -1794,13 +2370,14 @@ xran_spawn_workers(void)
     uint32_t worker_num_cores = 0;
     uint32_t icx_cpu = 0;
     int32_t core_map[2*sizeof(uint64_t)*8];
-    uint32_t xran_port_mask = 0;
+    uint64_t xran_port_mask = 0;
 
     struct xran_ethdi_ctx  *eth_ctx   = xran_ethdi_get_ctx();
     struct xran_device_ctx *p_dev     = NULL;
     struct xran_fh_init    *fh_init   = NULL;
     struct xran_fh_config  *fh_cfg    = NULL;
     struct xran_worker_th_ctx* pThCtx = NULL;
+    void *worker_ports=NULL;
 
     p_dev =  xran_dev_get_ctx_by_id(0);
     if(p_dev == NULL) {
@@ -1849,7 +2426,7 @@ xran_spawn_workers(void)
     printf("O-RU eAxC %d\n", fh_cfg->neAxc);
 
     for (i = 0; i < fh_init->xran_ports; i++){
-        xran_port_mask |= 1<<i;
+        xran_port_mask |= 1L<<i;
     }
 
     for (i = 0; i < fh_init->xran_ports; i++) {
@@ -1943,7 +2520,7 @@ xran_spawn_workers(void)
                 print_err("unsupported configuration Cat %d numports %d total_num_cores = %d\n", fh_cfg->ru_conf.xranCat, fh_init->xran_ports, total_num_cores);
                 return XRAN_STATUS_FAIL;
         }
-    } else if (fh_cfg->ru_conf.xranCat == XRAN_CATEGORY_B && fh_init->xran_ports == 1) {
+    } else if ((fh_cfg->ru_conf.xranCat == XRAN_CATEGORY_B && fh_init->xran_ports == 1)  || fh_init->io_cfg.bbu_offload) {
         switch(total_num_cores) {
             case 1: /** only timing core */
                 print_err("unsupported configuration Cat %d numports %d total_num_cores = %d\n", fh_cfg->ru_conf.xranCat, fh_init->xran_ports, total_num_cores);
@@ -1954,6 +2531,9 @@ xran_spawn_workers(void)
                 eth_ctx->time_wrk_cfg.arg   = NULL;
                 eth_ctx->time_wrk_cfg.state = 1;
 
+                if (p_dev->fh_init.io_cfg.bbu_offload)
+                    p_dev->tx_sym_gen_func = xran_process_tx_sym_cp_on_ring;
+                else
                 p_dev->tx_sym_gen_func = xran_process_tx_sym_cp_on_opt;
 
                 pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
@@ -1971,7 +2551,7 @@ xran_spawn_workers(void)
                 eth_ctx->pkt_wrk_cfg[0].arg   = pThCtx;
             break;
             case 3:
-                if(icx_cpu) {
+                if(1) {
                     /* timing core */
                     eth_ctx->time_wrk_cfg.f     = xran_eth_trx_tasks;
                     eth_ctx->time_wrk_cfg.arg   = NULL;
@@ -2025,7 +2605,7 @@ xran_spawn_workers(void)
                 }
             break;
             case 4:
-                if(icx_cpu) {
+                if(1) {
                     /* timing core */
                     eth_ctx->time_wrk_cfg.f     = xran_eth_trx_tasks;
                     eth_ctx->time_wrk_cfg.arg   = NULL;
@@ -2058,7 +2638,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_cp_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(((1<<1) | (1<<2) |(1<<0)) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)(((1L<<1) | (1L<<2) |(1L<<0)) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2073,7 +2653,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)((1<<0) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)((1L<<0) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2094,7 +2674,7 @@ xran_spawn_workers(void)
                 }
                 break;
             case 5:
-                if(icx_cpu) {
+                if(1) {
                     /* timing core */
                     eth_ctx->time_wrk_cfg.f     = xran_eth_rx_tasks;
                     eth_ctx->time_wrk_cfg.arg   = NULL;
@@ -2127,7 +2707,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_cp_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(((1<<1) | (1<<2) |(1<<0)) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)(((1L<<1) | (1L<<2) |(1L<<0)) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2142,7 +2722,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)((1<<0) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)((1L<<0) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2157,7 +2737,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)((1<<0) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)((1L<<0) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2227,7 +2807,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_cp_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(((1<<1) | (1<<2) |(1<<0)) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)(((1L<<1) | (1L<<2) |(1L<<0)) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2242,7 +2822,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)((1<<0) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)((1L<<0) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2257,7 +2837,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)((1<<0) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)((1L<<0) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2366,9 +2946,54 @@ xran_spawn_workers(void)
     } else if (fh_cfg->ru_conf.xranCat == XRAN_CATEGORY_B && fh_init->xran_ports > 1) {
         switch(total_num_cores) {
             case 1:
+            print_err("unsupported configuration Cat %d numports %d total_num_cores = %d\n", fh_cfg->ru_conf.xranCat, fh_init->xran_ports, total_num_cores);
+            return XRAN_STATUS_FAIL;
+            break;
+
             case 2:
+            if(fh_init->xran_ports == 2)
+                worker_ports = (void *)((1L<<0 | 1L<<1) & xran_port_mask);
+            else if(fh_init->xran_ports == 3)
+                worker_ports = (void *)((1L<<0 | 1L<<1 | 1L<<2) & xran_port_mask);
+            else if(fh_init->xran_ports == 4)
+                worker_ports = (void *)((1L<<0 | 1L<<1 | 1L<<2 | 1L<<3) & xran_port_mask);
+            else
+            {
                 print_err("unsupported configuration Cat %d numports %d total_num_cores = %d\n", fh_cfg->ru_conf.xranCat, fh_init->xran_ports, total_num_cores);
                 return XRAN_STATUS_FAIL;
+            }
+
+            eth_ctx->time_wrk_cfg.f     = xran_eth_trx_tasks;
+            eth_ctx->time_wrk_cfg.arg   = NULL;
+            eth_ctx->time_wrk_cfg.state = 1;
+
+            /* p_dev->tx_sym_gen_func = xran_process_tx_sym_cp_on_opt; */
+
+            pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+            if(pThCtx == NULL){
+                print_err("pThCtx allocation error\n");
+                return XRAN_STATUS_FAIL;
+            }
+            memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+            pThCtx->worker_id    = 0;
+            pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+            snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_rx_bbdev", core_map[pThCtx->worker_id]);
+            pThCtx->task_func = xran_fh_rx_and_up_tx_processing;
+            pThCtx->task_arg  = worker_ports;
+            eth_ctx->pkt_wrk_cfg[0].f     = xran_generic_worker_thread;
+            eth_ctx->pkt_wrk_cfg[0].arg   = pThCtx;
+
+            for (i = 1; i < fh_init->xran_ports; i++) {
+                struct xran_device_ctx * p_dev_update =  xran_dev_get_ctx_by_id(i);
+                if(p_dev_update == NULL) {
+                    print_err("p_dev_update\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL] = pThCtx->worker_id;
+                p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_UL] = pThCtx->worker_id;
+                printf("p:%d XRAN_JOB_TYPE_CP_DL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL]);
+                printf("p:%d XRAN_JOB_TYPE_CP_UL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_UL]);
+            }
             break;
             case 3:
                 if(icx_cpu) {
@@ -2419,13 +3044,70 @@ xran_spawn_workers(void)
                     pThCtx->task_arg  = (void*)xran_port_mask;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
-                } else {
+            }
+            else /* csx cpu */
+            {
+                if(fh_init->xran_ports == 3)
+                    worker_ports = (void *)(1L<<2 & xran_port_mask);
+                else if(fh_init->xran_ports == 4)
+                    worker_ports = (void *)((1L<<2 | 1L<<3) & xran_port_mask);
+                else{
                     print_err("unsupported configuration Cat %d numports %d total_num_cores = %d\n", fh_cfg->ru_conf.xranCat, fh_init->xran_ports, total_num_cores);
                     return XRAN_STATUS_FAIL;
                 }
+                /* timing core */
+                eth_ctx->time_wrk_cfg.f     = xran_eth_trx_tasks;
+                eth_ctx->time_wrk_cfg.arg   = NULL;
+                eth_ctx->time_wrk_cfg.state = 1;
+
+                /* workers */
+                /** 0 **/
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id      = 0;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_rx_bbdev", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = xran_dl_pkt_ring_processing_func;
+                pThCtx->task_arg  = (void *)((1L<<0|1L<<1) & xran_port_mask);
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                for (i = 1; i < fh_init->xran_ports; i++) {
+                    struct xran_device_ctx * p_dev_update =  xran_dev_get_ctx_by_id(i);
+                    if(p_dev_update == NULL) {
+                        print_err("p_dev_update\n");
+                        return XRAN_STATUS_FAIL;
+                    }
+                    p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL] = pThCtx->worker_id;
+                    p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_UL] = pThCtx->worker_id;
+                    printf("p:%d XRAN_JOB_TYPE_CP_DL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL]);
+                    printf("p:%d XRAN_JOB_TYPE_CP_UL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_UL]);
+                }
+
+                /** 1 - CP GEN **/
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id      = 1;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_cp_gen", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = xran_fh_rx_and_up_tx_processing;
+                pThCtx->task_arg  = worker_ports;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+            }
+
             break;
+
             case 4:
-                if(icx_cpu) {
+                if(1) {
                     /* timing core */
                     eth_ctx->time_wrk_cfg.f     = xran_eth_trx_tasks;
                     eth_ctx->time_wrk_cfg.arg   = NULL;
@@ -2458,7 +3140,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_cp_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(((1<<1) | (1<<2)) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)(((1L<<1) | (1L<<2)) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2473,7 +3155,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)((1<<0) & xran_port_mask);
+                    pThCtx->task_arg  = (void*)((1L<<0) & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2488,7 +3170,8 @@ xran_spawn_workers(void)
                         printf("p:%d XRAN_JOB_TYPE_CP_DL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL]);
                         printf("p:%d XRAN_JOB_TYPE_CP_UL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_UL]);
                     }
-                } else {
+                }
+                else {
                     print_err("unsupported configuration Cat %d numports %d total_num_cores = %d\n", fh_cfg->ru_conf.xranCat, fh_init->xran_ports, total_num_cores);
                     return XRAN_STATUS_FAIL;
                 }
@@ -2526,7 +3209,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_cp_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(1<<0);
+                    pThCtx->task_arg  = (void*)((1<<0)  & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2541,7 +3224,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_up_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(1<<1);
+                    pThCtx->task_arg  = (void*)((1<<1)  & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2556,9 +3239,23 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_up_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(1<<2);
+                    pThCtx->task_arg  = (void*)((1<<2)  & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+
+                    if(eth_ctx->io_cfg.id == O_DU && 0 == fh_init->dlCpProcBurst) {
+                        for (i = 1; i < fh_init->xran_ports; i++) {
+                            struct xran_device_ctx * p_dev_update =  xran_dev_get_ctx_by_id(i);
+                            if(p_dev_update == NULL) {
+                                print_err("p_dev_update\n");
+                                return XRAN_STATUS_FAIL;
+                            }
+                            p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL] = i+1;
+                            printf("p:%d XRAN_JOB_TYPE_CP_DL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL]);
+                        }
+                    }
+
             break;
             case 6:
                 if(eth_ctx->io_cfg.id == O_DU){
@@ -2609,7 +3306,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(1<<0);
+                    pThCtx->task_arg  = (void*)((1<<0)  & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2624,7 +3321,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(1<<1);
+                    pThCtx->task_arg  = (void*)((1<<1)  & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
 
@@ -2639,7 +3336,7 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = xran_dl_pkt_ring_processing_func;
-                    pThCtx->task_arg  = (void*)(1<<2);
+                    pThCtx->task_arg  = (void*)((1<<2)  & xran_port_mask);
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
                 } else {
@@ -2721,11 +3418,250 @@ xran_spawn_workers(void)
                     pThCtx->worker_core_id = core_map[pThCtx->worker_id];
                     snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_eth_tx", core_map[pThCtx->worker_id]);
                     pThCtx->task_func = process_dpdk_io_tx;
-                    pThCtx->task_arg  = (void*)2;
+                    pThCtx->task_arg  = NULL;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
                     eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
                 }
             break;
+            case 7:
+            /*** O_RU specific config */
+            if((fh_init->xran_ports == 4) && (eth_ctx->io_cfg.id == O_RU))
+            {
+                /*** O_RU specific config */
+                /* timing core */
+                eth_ctx->time_wrk_cfg.f     = NULL;
+                eth_ctx->time_wrk_cfg.arg   = NULL;
+                eth_ctx->time_wrk_cfg.state = 1;
+
+                /* workers */
+                /** 0  Eth RX */
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id = 0;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_eth_rx", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = process_dpdk_io_rx;
+                pThCtx->task_arg  = NULL;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                /** 1  FH RX and BBDEV */
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id = 1;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_rx_p0", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = ring_processing_func_per_port;
+                pThCtx->task_arg  = (void*)0;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                /** 2  FH RX and BBDEV */
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id = 2;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_rx_p1", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = ring_processing_func_per_port;
+                pThCtx->task_arg  = (void*)1;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                /** 3  FH RX and BBDEV */
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id = 3;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_rx_p2", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = ring_processing_func_per_port;
+                    pThCtx->task_arg  = (void*)2;
+                    eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                    eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                /** 4  FH RX and BBDEV */
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id = 4;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_rx_p3", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = ring_processing_func_per_port;
+                pThCtx->task_arg  = (void*)3;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                /**  FH TX and BBDEV */
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id = 5;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_eth_tx", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = process_dpdk_io_tx;
+                pThCtx->task_arg  = NULL;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+            } /* -- if xran->ports == 4 -- */
+            else if(eth_ctx->io_cfg.id == O_DU){
+                if(fh_init->xran_ports == 3)
+                    worker_ports = (void *)((1<<2) & xran_port_mask);
+                else if(fh_init->xran_ports == 4)
+                    worker_ports = (void *)((1<<3) & xran_port_mask);
+                /* timing core */
+                eth_ctx->time_wrk_cfg.f     = xran_eth_trx_tasks;
+                eth_ctx->time_wrk_cfg.arg   = NULL;
+                eth_ctx->time_wrk_cfg.state = 1;
+
+                /* workers */
+                /** 0 **/
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id      = 0;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_rx_bbdev", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = ring_processing_func;
+                pThCtx->task_arg  = NULL;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                for (i = 2; i < fh_init->xran_ports; i++) {
+                    struct xran_device_ctx * p_dev_update =  xran_dev_get_ctx_by_id(i);
+                    if(p_dev_update == NULL) {
+                        print_err("p_dev_update\n");
+                        return XRAN_STATUS_FAIL;
+                    }
+                    p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_UL] = pThCtx->worker_id;
+                    printf("p:%d XRAN_JOB_TYPE_CP_UL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_UL]);
+                }
+
+                /** 1 - CP GEN **/
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id      = 1;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_cp_gen", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = xran_processing_timer_only_func;
+                pThCtx->task_arg  = NULL;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                /** 2 UP GEN **/
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id    = 2;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = xran_dl_pkt_ring_processing_func;
+                pThCtx->task_arg  = (void*)((1<<0) & xran_port_mask);
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                for (i = (fh_init->xran_ports-1); i < fh_init->xran_ports; i++) {
+                    struct xran_device_ctx * p_dev_update =  xran_dev_get_ctx_by_id(i);
+                    if(p_dev_update == NULL) {
+                        print_err("p_dev_update\n");
+                        return XRAN_STATUS_FAIL;
+                    }
+                    p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL] = pThCtx->worker_id;
+                    printf("p:%d XRAN_JOB_TYPE_CP_DL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL]);
+                }
+
+                /** 3 UP GEN **/
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id    = 3;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = xran_dl_pkt_ring_processing_func;
+                pThCtx->task_arg  = (void*)((1<<1) & xran_port_mask);
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                for (i = (fh_init->xran_ports - 2); i < (fh_init->xran_ports - 1); i++) {
+                    struct xran_device_ctx * p_dev_update =  xran_dev_get_ctx_by_id(i);
+                    if(p_dev_update == NULL) {
+                        print_err("p_dev_update\n");
+                        return XRAN_STATUS_FAIL;
+                    }
+                    p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL] = pThCtx->worker_id;
+                    printf("p:%d XRAN_JOB_TYPE_CP_DL worker id %d\n", i,  p_dev_update->job2wrk_id[XRAN_JOB_TYPE_CP_DL]);
+                }
+
+                /** 4 UP GEN **/
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id    = 4;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = xran_dl_pkt_ring_processing_func;
+                pThCtx->task_arg  = (void*)((1<<2) & xran_port_mask);
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+
+                /** 5 UP GEN **/
+                pThCtx = (struct xran_worker_th_ctx*) _mm_malloc(sizeof(struct xran_worker_th_ctx), 64);
+                if(pThCtx == NULL){
+                    print_err("pThCtx allocation error\n");
+                    return XRAN_STATUS_FAIL;
+                }
+                memset(pThCtx, 0, sizeof(struct xran_worker_th_ctx));
+                pThCtx->worker_id    = 5;
+                pThCtx->worker_core_id = core_map[pThCtx->worker_id];
+                snprintf(pThCtx->worker_name, RTE_DIM(pThCtx->worker_name), "%s-%d", "fh_tx_gen", core_map[pThCtx->worker_id]);
+                pThCtx->task_func = xran_dl_pkt_ring_processing_func;
+                pThCtx->task_arg  = worker_ports;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].f     = xran_generic_worker_thread;
+                eth_ctx->pkt_wrk_cfg[pThCtx->worker_id].arg   = pThCtx;
+            }
+            else{
+                print_err("unsupported configuration Cat %d numports %d total_num_cores = %d\n", fh_cfg->ru_conf.xranCat, fh_init->xran_ports, total_num_cores);
+                return XRAN_STATUS_FAIL;
+                }
+            break;
+
             default:
                 print_err("unsupported configuration Cat %d numports %d total_num_cores = %d\n", fh_cfg->ru_conf.xranCat, fh_init->xran_ports, total_num_cores);
                 return XRAN_STATUS_FAIL;
@@ -2777,7 +3713,6 @@ xran_open(void *pHandle, struct xran_fh_config* pConf)
     int32_t ret = XRAN_STATUS_SUCCESS;
     int32_t i;
     uint8_t nNumerology = 0;
-    int32_t  lcore_id = 0;
     struct xran_device_ctx  *p_xran_dev_ctx = NULL;
     struct xran_fh_config   *pFhCfg  = NULL;
     struct xran_fh_init     *fh_init = NULL;
@@ -2788,7 +3723,7 @@ xran_open(void *pHandle, struct xran_fh_config* pConf)
      if(pConf->dpdk_port < XRAN_PORTS_NUM) {
         p_xran_dev_ctx  = xran_dev_get_ctx_by_id(pConf->dpdk_port);
     } else {
-        print_err("@0x%08p [ru %d ] pConf->dpdk_port > XRAN_PORTS_NUM\n", pConf,  pConf->dpdk_port);
+        print_err("@0x%p [ru %d ] pConf->dpdk_port > XRAN_PORTS_NUM\n", pConf,  pConf->dpdk_port);
         return XRAN_STATUS_FAIL;
     }
 
@@ -2813,9 +3748,17 @@ xran_open(void *pHandle, struct xran_fh_config* pConf)
     p_xran_dev_ctx->enableCP    = pConf->enableCP;
     p_xran_dev_ctx->enablePrach = pConf->prachEnable;
     p_xran_dev_ctx->enableSrs   = pConf->srsEnable;
+    p_xran_dev_ctx->enableSrsCp   = pConf->srsEnableCp;
+    p_xran_dev_ctx->nSrsDelaySym   = pConf->SrsDelaySym;
     p_xran_dev_ctx->puschMaskEnable = pConf->puschMaskEnable;
     p_xran_dev_ctx->puschMaskSlot = pConf->puschMaskSlot;
     p_xran_dev_ctx->DynamicSectionEna = pConf->DynamicSectionEna;
+    p_xran_dev_ctx->RunSlotPrbMapBySymbolEnable = pConf->RunSlotPrbMapBySymbolEnable;
+    p_xran_dev_ctx->dssEnable = pConf->dssEnable;
+    p_xran_dev_ctx->dssPeriod = pConf->dssPeriod;
+    for(i=0; i<pConf->dssPeriod; i++) {
+        p_xran_dev_ctx->technology[i] = pConf->technology[i];
+    }
 
     if(pConf->GPS_Alpha || pConf->GPS_Beta ){
         offset_sec = pConf->GPS_Beta / 100;    /* resolution of beta is 10ms */
@@ -2848,14 +3791,22 @@ xran_open(void *pHandle, struct xran_fh_config* pConf)
     }
 
     /* setup PRACH configuration for C-Plane */
+    if(pConf->dssEnable){
+        if((ret  = xran_init_prach(pConf, p_xran_dev_ctx, XRAN_RAN_5GNR))< 0)
+            return ret;
+        if((ret  =  xran_init_prach_lte(pConf, p_xran_dev_ctx))< 0)
+            return ret;
+    }
+    else{
     if(pConf->ru_conf.xranTech == XRAN_RAN_5GNR) {
-        if((ret  = xran_init_prach(pConf, p_xran_dev_ctx))< 0){
+            if((ret  = xran_init_prach(pConf, p_xran_dev_ctx, XRAN_RAN_5GNR))< 0){
             return ret;
         }
     } else if (pConf->ru_conf.xranTech == XRAN_RAN_LTE) {
         if((ret  =  xran_init_prach_lte(pConf, p_xran_dev_ctx))< 0){
             return ret;
         }
+    }
     }
 
     if((ret  = xran_init_srs(pConf, p_xran_dev_ctx))< 0){
@@ -2927,6 +3878,9 @@ xran_open(void *pHandle, struct xran_fh_config* pConf)
             p_xran_dev_ctx->tx_sym_gen_func = xran_process_tx_sym_cp_on_dispatch_opt;
     }
 
+    if (p_xran_dev_ctx->fh_init.io_cfg.bbu_offload)
+        p_xran_dev_ctx->tx_sym_gen_func = xran_process_tx_sym_cp_on_ring;
+    printf("bbu_offload %d\n", p_xran_dev_ctx->fh_init.io_cfg.bbu_offload);
     if(pConf->dpdk_port == 0) {
         /* create all thread on open of port 0 */
         xran_num_cores_used = 0;
@@ -2976,8 +3930,14 @@ xran_start(void *pHandle)
     /* ToS = Top of Second start +- 1.5us */
     struct timespec ts;
     char buff[100];
-
+    int i;
     struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
+    struct xran_prb_map * prbMap0 = (struct xran_prb_map *) p_xran_dev_ctx->sFrontHaulRxPrbMapBbuIoBufCtrl[0][0][0].sBufferList.pBuffers->pData;
+    for(i = 0; i < XRAN_MAX_SECTIONS_PER_SLOT && i < prbMap0->nPrbElm; i++)
+    {
+        p_xran_dev_ctx->numSetBFWs_arr[i] = prbMap0->prbMap[i].bf_weight.numSetBFWs;
+    }
+
     if(xran_get_if_state() == XRAN_RUNNING) {
         print_err("Already STARTED!!");
         return (-1);
@@ -3079,3 +4039,351 @@ xran_set_debug_stop(int32_t value, int32_t count)
 {
     return timing_set_debug_stop(value, count);
     }
+
+
+int32_t xran_get_num_prb_elm(struct xran_prb_map* p_PrbMapIn, uint32_t mtu)
+{
+    int32_t i,j = 0;
+    int16_t iqwidth = p_PrbMapIn->prbMap[0].iqWidth;
+    struct xran_prb_elm *p_prb_elm_src;
+    int32_t nRBremain;
+    // int32_t eth_xran_up_headers_sz = sizeof(struct eth_xran_up_pkt_hdr);
+    // int32_t nmaxRB = (mtu - eth_xran_up_headers_sz - RTE_PKTMBUF_HEADROOM)/XRAN_PAYLOAD_1_RB_SZ(iqwidth);
+    int32_t eth_xran_up_headers_sz = sizeof(struct eth_xran_up_pkt_hdr) - sizeof(struct data_section_hdr);
+    int32_t nmaxRB = (mtu - eth_xran_up_headers_sz - RTE_PKTMBUF_HEADROOM)/(XRAN_PAYLOAD_1_RB_SZ(iqwidth)+sizeof(struct data_section_hdr));
+    uint32_t nRBSize=0;
+
+    if (mtu==9600)
+        nmaxRB--;   //for some reason when mtu is 9600, only 195 RB can be sent, not 196
+
+    for (i = 0;i < p_PrbMapIn->nPrbElm; i++)
+    {
+        p_prb_elm_src = &p_PrbMapIn->prbMap[i];
+        if (p_prb_elm_src->nRBSize <= nmaxRB)    //no fragmentation needed
+        {
+            j++;
+        }
+        else
+        {
+            nRBremain = p_prb_elm_src->nRBSize - nmaxRB;
+            j++;
+            while (nRBremain > 0)
+            {
+                nRBSize = RTE_MIN(nmaxRB, nRBremain);
+                nRBremain -= nRBSize;
+                j++;
+            }
+        }
+    }
+
+    return j;
+}
+
+
+int32_t xran_init_PrbMap_from_cfg(struct xran_prb_map* p_PrbMapIn, struct xran_prb_map* p_PrbMapOut, uint32_t mtu)
+{
+    int32_t i,j = 0;
+    int16_t iqwidth = p_PrbMapIn->prbMap[0].iqWidth;
+    struct xran_prb_elm *p_prb_elm_src, *p_prb_elm_dst;
+    int32_t nRBStart_tmp, nRBremain;
+    // int32_t eth_xran_up_headers_sz = sizeof(struct eth_xran_up_pkt_hdr);
+    // int32_t nmaxRB = (mtu - eth_xran_up_headers_sz - RTE_PKTMBUF_HEADROOM)/XRAN_PAYLOAD_1_RB_SZ(iqwidth);
+    int32_t eth_xran_up_headers_sz = sizeof(struct eth_xran_up_pkt_hdr) - sizeof(struct data_section_hdr);
+    int32_t nmaxRB = (mtu - eth_xran_up_headers_sz - RTE_PKTMBUF_HEADROOM)/(XRAN_PAYLOAD_1_RB_SZ(iqwidth)+sizeof(struct data_section_hdr));
+
+    if (mtu==9600)
+        nmaxRB--;   //for some reason when mtu is 9600, only 195 RB can be sent, not 196
+
+    memcpy(p_PrbMapOut, p_PrbMapIn, sizeof(struct xran_prb_map));
+    for (i = 0;i < p_PrbMapIn->nPrbElm; i++)
+    {
+        p_prb_elm_src = &p_PrbMapIn->prbMap[i];
+        p_prb_elm_dst = &p_PrbMapOut->prbMap[j];
+        memcpy(p_prb_elm_dst, p_prb_elm_src, sizeof(struct xran_prb_elm));
+
+        // int32_t nStartSymb, nEndSymb, numSymb, nRBStart, nRBEnd, nRBSize;
+        // nStartSymb = p_prb_elm_src->nStartSymb;
+        // nEndSymb = nStartSymb + p_prb_elm_src->numSymb;
+        if (p_prb_elm_src->nRBSize <= nmaxRB)    //no fragmentation needed
+        {
+            p_prb_elm_dst->IsNewSect = 1;
+            p_prb_elm_dst->UP_nRBSize = p_prb_elm_src->nRBSize;
+            p_prb_elm_dst->UP_nRBStart = p_prb_elm_src->nRBStart;
+            p_prb_elm_dst->nSectId = i;
+            j++;
+        }
+        else
+        {
+            nRBStart_tmp = p_prb_elm_src->nRBStart + nmaxRB;
+            nRBremain = p_prb_elm_src->nRBSize - nmaxRB;
+            p_prb_elm_dst->IsNewSect = 1;
+            p_prb_elm_dst->UP_nRBSize = nmaxRB;
+            p_prb_elm_dst->UP_nRBStart = p_prb_elm_src->nRBStart;
+            p_prb_elm_dst->nSectId = i;
+            j++;
+            while (nRBremain > 0)
+            {
+                p_prb_elm_dst = &p_PrbMapOut->prbMap[j];
+                memcpy(p_prb_elm_dst, p_prb_elm_src, sizeof(struct xran_prb_elm));
+                p_prb_elm_dst->IsNewSect = 0;
+                p_prb_elm_dst->UP_nRBSize = RTE_MIN(nmaxRB, nRBremain);
+                p_prb_elm_dst->UP_nRBStart = nRBStart_tmp;
+                nRBremain -= p_prb_elm_dst->UP_nRBSize;
+                nRBStart_tmp += p_prb_elm_dst->UP_nRBSize;
+                p_prb_elm_dst->nSectId = i;
+                j++;
+            }
+        }
+    }
+
+    p_PrbMapOut->nPrbElm = j;
+    return 0;
+}
+
+
+int32_t xran_init_PrbMap_from_cfg_for_rx(struct xran_prb_map* p_PrbMapIn, struct xran_prb_map* p_PrbMapOut, uint32_t mtu)
+{
+    int32_t i,j = 0;
+    int16_t iqwidth = p_PrbMapIn->prbMap[0].iqWidth;
+    struct xran_prb_elm *p_prb_elm_src, *p_prb_elm_dst;
+    int32_t nRBStart_tmp, nRBremain;
+    // int32_t eth_xran_up_headers_sz = sizeof(struct eth_xran_up_pkt_hdr);
+    // int32_t nmaxRB = (mtu - eth_xran_up_headers_sz - RTE_PKTMBUF_HEADROOM)/XRAN_PAYLOAD_1_RB_SZ(iqwidth);
+    int32_t eth_xran_up_headers_sz = sizeof(struct eth_xran_up_pkt_hdr) - sizeof(struct data_section_hdr);
+    int32_t nmaxRB = (mtu - eth_xran_up_headers_sz - RTE_PKTMBUF_HEADROOM)/(XRAN_PAYLOAD_1_RB_SZ(iqwidth)+sizeof(struct data_section_hdr));
+
+    if (mtu==9600)
+        nmaxRB--;   //for some reason when mtu is 9600, only 195 RB can be sent, not 196
+    nmaxRB *= XRAN_MAX_FRAGMENT; 
+
+    memcpy(p_PrbMapOut, p_PrbMapIn, sizeof(struct xran_prb_map));
+    for (i = 0;i < p_PrbMapIn->nPrbElm; i++)
+    {
+        p_prb_elm_src = &p_PrbMapIn->prbMap[i];
+        p_prb_elm_dst = &p_PrbMapOut->prbMap[j];
+        memcpy(p_prb_elm_dst, p_prb_elm_src, sizeof(struct xran_prb_elm));
+
+        if (p_prb_elm_src->nRBSize <= nmaxRB)    //no fragmentation needed
+        {
+            p_prb_elm_dst->IsNewSect = 1;
+            p_prb_elm_dst->UP_nRBSize = p_prb_elm_src->nRBSize;
+            p_prb_elm_dst->UP_nRBStart = p_prb_elm_src->nRBStart;
+            p_prb_elm_dst->nSectId = j;
+            j++;
+        }
+        else
+        {
+            nRBStart_tmp = p_prb_elm_src->nRBStart + nmaxRB;
+            nRBremain = p_prb_elm_src->nRBSize - nmaxRB;
+            p_prb_elm_dst->IsNewSect = 1;
+            p_prb_elm_dst->nRBSize = nmaxRB;
+            p_prb_elm_dst->UP_nRBSize = nmaxRB;
+            p_prb_elm_dst->UP_nRBStart = p_prb_elm_src->nRBStart;
+            p_prb_elm_dst->nSectId = j;
+            j++;
+            while (nRBremain > 0)
+            {
+                p_prb_elm_dst = &p_PrbMapOut->prbMap[j];
+                memcpy(p_prb_elm_dst, p_prb_elm_src, sizeof(struct xran_prb_elm));
+                p_prb_elm_dst->IsNewSect = 1;
+                p_prb_elm_dst->nRBSize = RTE_MIN(nmaxRB, nRBremain);
+                p_prb_elm_dst->nRBStart = nRBStart_tmp;
+                p_prb_elm_dst->UP_nRBSize = RTE_MIN(nmaxRB, nRBremain);
+                p_prb_elm_dst->UP_nRBStart = nRBStart_tmp;
+                nRBremain -= p_prb_elm_dst->UP_nRBSize;
+                nRBStart_tmp += p_prb_elm_dst->UP_nRBSize;
+                p_prb_elm_dst->nSectId = j;
+                j++;
+            }
+        }
+    }
+
+    p_PrbMapOut->nPrbElm = j;
+    return 0;
+}
+
+
+int32_t xran_init_PrbMap_by_symbol_from_cfg(struct xran_prb_map* p_PrbMapIn, struct xran_prb_map* p_PrbMapOut, uint32_t mtu, uint32_t xran_max_prb)
+{
+    int32_t i = 0, j = 0, nPrbElm = 0;
+    int16_t iqwidth = p_PrbMapIn->prbMap[0].iqWidth;
+    struct xran_prb_elm *p_prb_elm_src, *p_prb_elm_dst;
+    struct xran_prb_elm prbMapTemp[XRAN_NUM_OF_SYMBOL_PER_SLOT];
+    int32_t nRBStart_tmp, nRBremain, nStartSymb, nEndSymb, nRBStart, nRBEnd, nRBSize;
+    // int32_t eth_xran_up_headers_sz = sizeof(struct eth_xran_up_pkt_hdr);
+    // int32_t nmaxRB = (mtu - eth_xran_up_headers_sz - RTE_PKTMBUF_HEADROOM)/XRAN_PAYLOAD_1_RB_SZ(iqwidth);
+    int32_t eth_xran_up_headers_sz = sizeof(struct eth_xran_up_pkt_hdr) - sizeof(struct data_section_hdr);
+    int32_t nmaxRB = (mtu - eth_xran_up_headers_sz - RTE_PKTMBUF_HEADROOM)/(XRAN_PAYLOAD_1_RB_SZ(iqwidth)+sizeof(struct data_section_hdr));
+    if (mtu==9600)
+        nmaxRB--;   //for some reason when mtu is 9600, only 195 RB can be sent, not 196
+
+
+    memcpy(p_PrbMapOut, p_PrbMapIn, sizeof(struct xran_prb_map));
+    for(i = 0; i < XRAN_NUM_OF_SYMBOL_PER_SLOT; i++)
+    {
+        p_prb_elm_dst = &prbMapTemp[i];
+        // nRBStart = 273;
+        nRBStart = xran_max_prb;
+        nRBEnd = 0;
+
+        for(j = 0; j < p_PrbMapIn->nPrbElm; j++)
+        {
+            p_prb_elm_src = &(p_PrbMapIn->prbMap[j]);
+            nStartSymb = p_prb_elm_src->nStartSymb;
+            nEndSymb = nStartSymb + p_prb_elm_src->numSymb;
+
+            if((i >=  nStartSymb) && (i < nEndSymb))
+            {
+                if(nRBStart > p_prb_elm_src->nRBStart)
+                {
+                    nRBStart = p_prb_elm_src->nRBStart;
+                }
+                if(nRBEnd < (p_prb_elm_src->nRBStart + p_prb_elm_src->nRBSize))
+                {
+                    nRBEnd = (p_prb_elm_src->nRBStart + p_prb_elm_src->nRBSize);
+                }
+
+                p_prb_elm_dst->nBeamIndex = p_prb_elm_src->nBeamIndex;
+                p_prb_elm_dst->bf_weight_update = p_prb_elm_src->bf_weight_update;
+                p_prb_elm_dst->compMethod = p_prb_elm_src->compMethod;
+                p_prb_elm_dst->iqWidth = p_prb_elm_src->iqWidth;
+                p_prb_elm_dst->ScaleFactor = p_prb_elm_src->ScaleFactor;
+                p_prb_elm_dst->reMask = p_prb_elm_src->reMask;
+                p_prb_elm_dst->BeamFormingType = p_prb_elm_src->BeamFormingType;
+            }
+        }
+
+        if(nRBEnd < nRBStart)
+        {
+            p_prb_elm_dst->nRBStart = 0;
+            p_prb_elm_dst->nRBSize = 0;
+            p_prb_elm_dst->nStartSymb = i;
+            p_prb_elm_dst->numSymb = 1;
+        }
+        else
+        {
+            p_prb_elm_dst->nRBStart = nRBStart;
+            p_prb_elm_dst->nRBSize = nRBEnd - nRBStart;
+            p_prb_elm_dst->nStartSymb = i;
+            p_prb_elm_dst->numSymb = 1;
+        }
+    }
+
+    for(i = 0; i < XRAN_NUM_OF_SYMBOL_PER_SLOT; i++)
+    {
+        if((prbMapTemp[i].nRBSize != 0))
+        {
+            nRBStart = prbMapTemp[i].nRBStart;
+            nRBSize = prbMapTemp[i].nRBSize;
+            prbMapTemp[nPrbElm].nRBStart = prbMapTemp[i].nRBStart;
+            prbMapTemp[nPrbElm].nRBSize = prbMapTemp[i].nRBSize;
+            prbMapTemp[nPrbElm].nStartSymb = prbMapTemp[i].nStartSymb;
+            prbMapTemp[nPrbElm].nBeamIndex = prbMapTemp[i].nBeamIndex;
+            prbMapTemp[nPrbElm].bf_weight_update = prbMapTemp[i].bf_weight_update;
+            prbMapTemp[nPrbElm].compMethod = prbMapTemp[i].compMethod;
+            prbMapTemp[nPrbElm].iqWidth = prbMapTemp[i].iqWidth;
+            prbMapTemp[nPrbElm].ScaleFactor = prbMapTemp[i].ScaleFactor;
+            prbMapTemp[nPrbElm].reMask = prbMapTemp[i].reMask;
+            prbMapTemp[nPrbElm].BeamFormingType = prbMapTemp[i].BeamFormingType;
+            i++;
+            break;
+        }
+    }
+
+    for(; i < XRAN_NUM_OF_SYMBOL_PER_SLOT; i++)
+    {
+        if((nRBStart == prbMapTemp[i].nRBStart) && (nRBSize == prbMapTemp[i].nRBSize))
+        {
+                prbMapTemp[nPrbElm].numSymb++;
+        }
+        else
+        {
+            nPrbElm++;
+            prbMapTemp[nPrbElm].nStartSymb = prbMapTemp[i].nStartSymb;
+            prbMapTemp[nPrbElm].nRBStart = prbMapTemp[i].nRBStart;
+            prbMapTemp[nPrbElm].nRBSize = prbMapTemp[i].nRBSize;
+            prbMapTemp[nPrbElm].nBeamIndex = prbMapTemp[i].nBeamIndex;
+            prbMapTemp[nPrbElm].bf_weight_update = prbMapTemp[i].bf_weight_update;
+            prbMapTemp[nPrbElm].compMethod = prbMapTemp[i].compMethod;
+            prbMapTemp[nPrbElm].iqWidth = prbMapTemp[i].iqWidth;
+            prbMapTemp[nPrbElm].ScaleFactor = prbMapTemp[i].ScaleFactor;
+            prbMapTemp[nPrbElm].reMask = prbMapTemp[i].reMask;
+            prbMapTemp[nPrbElm].BeamFormingType = prbMapTemp[i].BeamFormingType;
+
+            nRBStart = prbMapTemp[i].nRBStart;
+            nRBSize = prbMapTemp[i].nRBSize;
+        }
+    }
+
+    for(i = 0; i < nPrbElm; i++)
+    {
+        if(prbMapTemp[i].nRBSize == 0)
+            prbMapTemp[i].nRBSize = 1;
+    }
+
+    if(prbMapTemp[nPrbElm].nRBSize != 0)
+        nPrbElm++;
+
+
+    j = 0;
+
+    for (i = 0;i < nPrbElm; i++)
+    {
+        p_prb_elm_src = &prbMapTemp[i];
+        p_prb_elm_dst = &p_PrbMapOut->prbMap[j];
+        memcpy(p_prb_elm_dst, p_prb_elm_src, sizeof(struct xran_prb_elm));
+        if (p_prb_elm_src->nRBSize <= nmaxRB)    //no fragmentation needed
+        {
+            p_prb_elm_dst->IsNewSect = 1;
+            p_prb_elm_dst->UP_nRBSize = p_prb_elm_src->nRBSize;
+            p_prb_elm_dst->UP_nRBStart = p_prb_elm_src->nRBStart;
+            p_prb_elm_dst->nSectId = i;
+            j++;
+        }
+        else
+        {
+            nRBStart_tmp = p_prb_elm_src->nRBStart + nmaxRB;
+            nRBremain = p_prb_elm_src->nRBSize - nmaxRB;
+            p_prb_elm_dst->IsNewSect = 1;
+            p_prb_elm_dst->UP_nRBSize = nmaxRB;
+            p_prb_elm_dst->UP_nRBStart = p_prb_elm_src->nRBStart;
+            p_prb_elm_dst->nSectId = i;
+            j++;
+            while (nRBremain > 0)
+            {
+                p_prb_elm_dst = &p_PrbMapOut->prbMap[j];
+                memcpy(p_prb_elm_dst, p_prb_elm_src, sizeof(struct xran_prb_elm));
+                p_prb_elm_dst->IsNewSect = 0;
+                p_prb_elm_dst->UP_nRBSize = RTE_MIN(nmaxRB, nRBremain);
+                p_prb_elm_dst->UP_nRBStart = nRBStart_tmp;
+                nRBremain -= p_prb_elm_dst->UP_nRBSize;
+                nRBStart_tmp += p_prb_elm_dst->UP_nRBSize;
+                p_prb_elm_dst->nSectId = i;
+                j++;
+            }
+        }
+    }
+
+    p_PrbMapOut->nPrbElm = j;
+
+    return 0;
+}
+
+inline void MLogXRANTask(uint32_t taskid, uint64_t ticksstart, uint64_t ticksstop)
+{
+    if (mlogxranenable)
+    {
+        MLogTask(taskid, ticksstart, ticksstop);
+    }
+    return;
+}
+
+inline uint64_t MLogXRANTick(void)
+{
+    if (mlogxranenable)
+        return MLogTick();
+    else
+        return 0;
+}
+
+

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -22,9 +22,9 @@
  *
  **/
 
+#include "nr5g_mac_phy_api.h"
 #include <stdio.h>
 #include "nr5g_fapi_internal.h"
-#include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_wls.h"
 #include "nr5g_fapi_fapi2phy_api.h"
 #include "nr5g_fapi_fapi2phy_wls.h"

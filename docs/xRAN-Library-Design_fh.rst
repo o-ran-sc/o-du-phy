@@ -25,7 +25,7 @@ O-RAN Library Design
 
 The O-RAN Library consists of multiple modules where different
 functionality is encapsulated. The complete list of all \*.c and \*.h
-files as well as Makefile for O-RAN (aka FHI Lib) release is:
+files, as well as Makefile for O-RAN (aka FHI Lib)f release is:
 
 ├── app
 
@@ -35,7 +35,21 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │   ├── Makefile
 
+│   ├── ifft_in.txt
+
+│   ├── run_o_du.sh
+
+│   ├── run_o_ru.sh
+
 │   ├── src
+
+│   │   ├── app_bbu_main.c
+
+│   │   ├── app_bbu_pool.c
+
+│   │   ├── app_bbu_pool.h
+
+│   │   ├── app_dl_bbu_pool_tasks.c
 
 │   │   ├── app_io_fh_xran.c
 
@@ -44,6 +58,12 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 │   │   ├── app_profile_xran.c
 
 │   │   ├── app_profile_xran.h
+
+│   │   ├── app_ul_bbu_pool_tasks.c
+
+│   │   ├── aux_line.c
+
+│   │   ├── aux_line.h
 
 │   │   ├── common.c
 
@@ -55,6 +75,10 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │   │   ├── debug.h
 
+│   │   ├── ebbu_pool_cfg.c
+
+│   │   ├── ebbu_pool_cfg.h
+
 │   │   ├── sample-app.c
 
 │   │   └── xran_mlog_task_id.h
@@ -64,6 +88,8 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 │       ├── cat_a
 
 │       ├── cat_b
+
+│       ├── dss
 
 │       ├── lte_a
 
@@ -81,7 +107,11 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │   │   ├── xran_cp_api.h
 
+│   │   ├── xran_ecpri_owd_measurements.h
+
 │   │   ├── xran_fh_o_du.h
+
+│   │   ├── xran_fh_o_ru.h
 
 │   │   ├── xran_lib_mlog_tasks_id.h
 
@@ -115,10 +145,6 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │   └── src
 
-│       ├── xran_app_frag.c
-
-│       ├── xran_app_frag.h
-
 │       ├── xran_bfp_byte_packing_utils.hpp
 
 │       ├── xran_bfp_cplane8.cpp
@@ -127,7 +153,7 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │       ├── xran_bfp_cplane16.cpp
 
-       ├── xran_bfp_cplane16_snc.cpp
+│       ├── xran_bfp_cplane16_snc.cpp
 
 │       ├── xran_bfp_cplane32.cpp
 
@@ -136,8 +162,6 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 │       ├── xran_bfp_cplane64.cpp
 
 │       ├── xran_bfp_cplane64_snc.cpp
-
-│       ├── xran_bfp_cplane8.cpp
 
 │       ├── xran_bfp_ref.cpp
 
@@ -172,8 +196,6 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 │       ├── xran_dev.c
 
 │       ├── xran_dev.h
-
-│       ├── xran_ecpri_owd_measurements.h
 
 │       ├── xran_frame_struct.c
 
@@ -213,10 +235,6 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
 
 │       └── xran_up_api.c
 
-├── Licenses.txt
-
-├── readme.md
-
 └── test
 
     ├── common
@@ -241,17 +259,19 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
     
     └── test_xran
     
+        ├── c_plane_tests.cc    
+    
         ├── chain_tests.cc
         
         ├── compander_functional.cc
         
         ├── conf.json
-        
-        ├── c_plane_tests.cc
-        
+       
         ├── init_sys_functional.cc
         
         ├── Makefile
+        
+        ├── mod_compression_unit_test.cc
         
         ├── prach_functional.cc
         
@@ -260,35 +280,37 @@ files as well as Makefile for O-RAN (aka FHI Lib) release is:
         ├── unittests.cc
         
         └── u_plane_functional.cc
+        
+        ├── u_plane_performance.cc
 
 
 General Introduction
 --------------------
 
-The O-RAN Library functionality is broken down into two main sections:
+The O-RAN FHI Library functionality is broken down into two main sections:
 
 -  O-RAN specific packet handling (src)
 
--  Ethernet and supporting functionality (Ethernet)
+-  Ethernet and supporting functionality (ethernet)
 
-External functions and structures are available via set of header files
-in the API folder.
+External functions and structures are available via a set of header
+files in the API folder.
 
 This library depends on DPDK primitives to perform Ethernet networking
-in userspace, including initialization and control of Ethernet ports.
+in user space, including initialization and control of Ethernet ports.
 Ethernet ports are expected to be SRIOV virtual functions (VF) but also
-can be physical functions (PF) as well.
+can be physical functions (PF) as well
 
 This library is expected to be included in the project via
 xran_fh_o_du.h, statically compiled and linked with the L1 application
 as well as DPDK libraries. The O-RAN packet processing-specific
 functionality is encapsulated into this library and not exposed to the
-rest of the 5G NR pipeline. 
+rest of the 5G NR pipeline.
 
-This way, O-RAN specific changes are decoupled from the 5G NR L1
-pipeline. As a result, the design and implementation of the 5G L1
-pipeline code and O-RAN library can be done in parallel, provided the
-defined interface is not modified.
+This way, O-RAN specific changes are decoupled from the L1 pipeline. As a
+result, the design and implementation of the 5G L1 pipeline code and
+O-RAN FHI library can be done in parallel, provided the defined interface is
+not modified.
 
 Ethernet consists of two modules:
 
@@ -328,8 +350,9 @@ Figure 25. Illustration of O-RAN Sublayers
 
 A detailed description of functions and input/output arguments, as well
 as key data structures, can be found in the Doxygen file for the FlexRAN
-5G NR release. In this document supplemental information is provided
-with respect to the overall design and implementation assumptions.
+5G NR release, Refer to Table 2. In this document, supplemental
+information is provided for the overall design and implementation
+assumptions.(Available only outside of the Community Version)
 
 Initialization and Close
 ------------------------
@@ -351,24 +374,24 @@ of half of the slot of symbols (7 symbols) and Full slot of symbols
 14 symbols).
 
 5.Call xran_open() to initialize PRACH configuration, initialize DPDK,
-and launch O-RAN timing thread.
+and launch xRAN timing thread,
 
 6.Call xran_start() to start processing O-RAN packets for DL and UL.
 
 After this is complete 5G L1 runs with O-RAN Front haul interface. During
 run time for every TTI event, the corresponding call back is called. For
 packet reception on UL direction, the corresponding call back is called.
-OTA time information such as frame id, subframe id and slot id can be
+OTA time information such as frame id, subframe id, and slot id can be
 obtained as result synchronization of the L1 pipeline to GPS time is
 performed.
 
 To stop and close the interface, perform this sequence of steps:
 
-7.Call xran_stop() to stop the processing of DL and UL.
+1.Call xran_stop() to stop the processing of DL and UL
 
-8.Call xran_close() to remove usage of O-RAN resources.
+2.Call xran_close() to remove usage of xRAN resources
 
-9.Call xran_mm_destroy() to destroy memory management subsystem.
+3.Call xran_mm_destroy() to destroy memory management subsystem
 
 After this session is complete, a restart of the full L1 application is
 required. The current version of the library does not support multiple
@@ -382,7 +405,7 @@ The sample application gives an example of a test configuration used for LTE and
 folder /app/usecase/ contains set of examples for different Radio Access technology  (LTE|5G NR), different category  (A|B)
 and list of numerologies (0,1,3) and list of bandwidths (5,10,20,100Mhz).
 
-Some configuration options are not used in the current release and are reserved
+Note: Some configuration options are not used in the f release and are reserved
 for future use.
 
 The following options are available: 
@@ -417,9 +440,9 @@ The following options are available:
 
 **From an implementation perspective:**
 
-xran_init() performs init of the O-RAN library and interface according to
-struct xran_fh_init information as per the start of application
-configuration.:
+The xran_init() performs init of the O-RAN FHI library and interface
+according to struct xran_fh_init information as per the start of
+application configuration:
 
 -  Init DPDK with corresponding networking ports and core assignment
 
@@ -427,13 +450,13 @@ configuration.:
 
 -  Init DPDK timers and DPDK rings for internal packet processing
 
--  Instantiate ORAN FH thread doing
+-  Instantiates ORAH FH thread doing
 
    -  Timing processing (xran_timing_source_thread())
 
    -  ETH PMD (process_dpdk_io())
 
-   -  IO O-RAN-PHY exchange (ring_processing_func())
+   -  IO XRAN-PHY exchange (ring_processing_func())
 
 **xran_open()** performs additional configuration as per run scenario:
 
@@ -455,11 +478,11 @@ Data Exchange
 ~~~~~~~~~~~~~
 
 Exchange of IQ samples, as well as C-plane specific information, is
-performed using a set of buffers allocated by O-RAN library from DPDK
+performed using a set of buffers allocated by xRAN library from DPDK
 memory and shared with the l1 application. Buffers are allocated as a
-standard mbuf structure and DPDK pools are used to manage the allocation
-and free resources. Shared buffers are allocated at the init stage and
-are expected to be reused within 80 TTIs (10 ms).
+standard mbuf structure, and DPDK pools are used to manage the
+allocation and free resources. Shared buffers are allocated at the init
+stage and are expected to be reused within 80 TTIs (10 ms).
 
 The O-RAN protocol requires U-plane IQ data to be transferred in network
 byte order, and the L1 application handles IQ sample data in CPU byte
@@ -582,10 +605,10 @@ to allocate memory map of PRBs for each TTI.::
    };
 
 
-For the Bronze release C-plane sections are expected to be provided by L1
-pipeline. If 100% of RBs always allocated single element of RB map
+C-plane sections are expected to be provided by the L1
+pipeline. If 100% of the RBs are used they are always allocated as a single element RB map, that
 is expected to be allocated across all symbols. Dynamic RB allocation is
-performed base on C-plane configuration.
+performed based on C-plane configuration.
 
 The O-RAN library will require that the content of the PRB map should be
 sorted in increasing order of PRB first and then symbols.
@@ -612,7 +635,7 @@ destroy the memory management subsystem.
 From an implementation perspective, the O-RAN library uses a standard
 mbuf primitive and allocates a pool of buffers for each sector. This
 function is performed using rte_pktmbuf_pool_create(),
-rte_pktmbuf_alloc(), rte_pktmbuf_append() to allocate one buffer per
+rte_pktmbuf_alloc(), and rte_pktmbuf_append() to allocate one buffer per
 symbol for the mmWave case. More information on mbuf and DPDK pools can
 be found in the DPDK documentation.
 
@@ -784,8 +807,10 @@ and define structures shared between l1 and O-RAN lib as shown: ::
 
    };
 
-Doxygen file and xran_fh_o_du.h provide more details on the definition
-and usage of these structures.
+The Doxygen file and xran_fh_o_du.h provides more details on the
+definition and usage of these structures. Refer to *Table 2*, for
+FlexRAN 5G NR Reference Solution RefPHY (Doxygen).(Not available in
+the community version).
 
 O-RAN Specific Functionality
 ----------------------------
@@ -825,8 +850,8 @@ and called directly.::
 
    xran_compression.h – interface to compression/decompression functions
 
-Doxygen files provide detailed information on functions and structures
-available.
+Source code comments can provide more details on functions and
+structures available.
 
 .. _c-plane-1:
 
@@ -837,33 +862,36 @@ Implementation of the C-plane set of functions is defined in
 xran_cp_api.c and is used to prepare the content of C-plane packets
 according to the given configuration. Users can enable/disable
 generation of C-plane messages using enableCP field in struct
-xran_fh_init structure during init of ORAN front haul. The time of
-generation of C-plane message for DL and UL is done “Slot-based,” and
-timing can be controlled using O-DU settings according to Table 4.
+xran_fh_init structure during the initialization of O-RAN front haul.
+The time of generation of C-plane message for DL and UL is done
+“Slot-based,” and timing can be controlled using O-DU settings according
+to *Table 4*.
 
 The C-plane module contains:
 
 -  initialization of C-plane database to keep track of allocation of
    resources
 
--  code to prepare C-plane packet for TX (O-DU)
+-  Code to prepare C-plane packet for TX (O-DU)
    -  eCPRI header
    -  append radio application header
    -  append control section header
    -  append control section
 
--  parser of C-plane packet for RX (O-RU emulation)
+-  Parser of C-plane packet for RX (O-RU emulation)
 
 -  parses and checks Section 1 and Section 3 packet content
 
 Sending and receiving packets is performed using O-RAN ethdi sublayer
 functions.
 
+More information on function arguments and parameters can be found in
+the comments for the corresponding source code. 
+
 Creating a C-Plane Packet
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-API and Data Structures
-'''''''''''''''''''''''
+1. API and Data Structures
 
 A C-Plane message can be composed using the following API:::
 
@@ -905,12 +933,12 @@ example given below:::
 dir is the direction of the C-Plane message to be generated. Available
 parameters are defined as XRAN_DIR_UL and XRAN_DIR_DL.
 
-sectionType is the section type for C-Plane message to generate, as O-RAN
-specification defines all sections in a C-Plane message shall have the
-same section type. If different section types are required, they shall
-be sent with separate C-Plane messages. Available types of sections are
-defined as XRAN_CP_SECTIONTYPE_x. Please refer to the Table 5-2 Section
-Types in chapter 5.4 of ORAN specification.
+sectionType is the section type for C-Plane message to generate, as
+O-RAN specification defines all sections in a C-Plane message shall have
+the same section type. If different section types are required, they
+shall be sent with separate C-Plane messages. Available types of
+sections are defined as XRAN_CP_SECTIONTYPE_x. Refer to *Table* 2,
+*O-RAN Specification*, Table 5-2 Section Types.
 
 numSections is the total number of sections to generate, i.e., the
 number of the array in sections (struct xran_section_gen_info).
@@ -919,7 +947,10 @@ hdr is the structure to hold the information to generate the radio
 application and section header in the C-Plane message. It is defined as
 the structure of xran_cp_header_params. Not all parameters in this
 structure are used for the generation, and the required parameters are
-slightly different by the type of section, as described in Table 10.
+slightly different by the type of section, as described in Table 10 and
+References in the remarks column are corresponding Chapter numbers in
+the O-RAN *FrontHaul Working Group Control, User, and Synchronization
+Plane Specification* in *Table 2*.
 
 Table 10. struct xran_cp_header_params – Common Radio Application Header
 
@@ -1005,7 +1036,7 @@ Table 11. struct xran_cp_header_params – Section Specific Parameters
 |          || are      |          |         |   |   |   |   |          |
 |          || defined  |          |         |   |   |   |   |          |
 |          || as       |          |         |   |   |   |   |          |
-|          || O-RAN\   |          |         |   |   |   |   |          |
+|          || X-RAN\   |          |         |   |   |   |   |          |
 |          | _COMP     |          |         |   |   |   |   |          |
 |          || METHOD_x\|          |         |   |   |   |   |          |
 |          || xxx      |          |         |   |   |   |   |          |
@@ -1039,7 +1070,13 @@ Table 11. struct xran_cp_header_params – Section Specific Parameters
 |          || Length.  |          |         |   |   |   |   |          |
 +----------+-----------+----------+---------+---+---+---+---+----------+
 
-**Only sections types 1 and 3 are supported in the current release.**
+**Note:**
+
+1.Only sections types 1 and 3 are supported in the current release.
+
+2.References in the remarks column are corresponding Chapter numbers in
+the *O-RAN Fronthaul Working Group Control, User, and
+Synchronization Plane Specification* in *Table 2*.
 
 Sections are the pointer to the array of structure which has the
 parameters for section(s) and it is defined as below:::
@@ -1065,8 +1102,7 @@ parameters for section(s) and it is defined as below:::
 info is the structure to hold the information to generate section and it
 is defined as the structure of xran_section_info. Like
 xran_cp_header_params, all parameters are not required to generate
-section and Table 12 describes which |br|
-parameters are required for each
+section and *Table 12* describes which parameters are required for each
 section.
 
 Table 12. Parameters for Sections
@@ -1096,7 +1132,7 @@ Table 12. Parameters for Sections
 |       || de\  |       |       |       |       |       |       |
 |       | fined |       |       |       |       |       |       |
 |       || as   |       |       |       |       |       |       |
-|       || O-RA\|       |       |       |       |       |       |
+|       || X-RA\|       |       |       |       |       |       |
 |       | N\    |       |       |       |       |       |       |
 |       || _RBI\|       |       |       |       |       |       |
 |       | ND\   |       |       |       |       |       |       |
@@ -1233,12 +1269,18 @@ Table 12. Parameters for Sections
 |       | ease. |       |       |       |       |       |       |
 +-------+-------+-------+-------+-------+-------+-------+-------+
 
-**Only sections types 1 and 3 are supported in the current release.**
+Note:
 
-**The xran_section_info has more parameters – type, startSymId, iqWidth,
+1.Only sections types 1 and 3 are supported in the current release.
+
+2.References in the remarks column are corresponding Chapter numbers in
+the *O-RAN FrontHaul Working Group Control, User, and
+Synchronization Plane Specification* in *Table 2*.
+
+Note: xran_section_info has more parameters – type, startSymId, iqWidth,
 compMeth. These are the same parameters as those of radio application
 or section header but need to be copied into this structure again for
-the section data base.**
+the section data base.
 
 exDataSize and exData are used to add section extensions for the
 section.
@@ -1284,9 +1326,11 @@ by the type of section extensions like below.::
    };
 
 For section extension type 1, the structure of xran_sectionext1_info is
-used. Please note that the O-RAN library will use bfwIQ (beamforming
-weight) as-is, i.e., O-RAN library will not perform the compression, so
-the user should provide proper data to bfwIQ.::
+used.
+
+Note: The O-RAN library will use beamforming weight (bfwIQ) as-is, i.e.,
+O-RAN library will not perform the compression, so the user should provide
+proper data to bfwIQ.::
 
    struct xran_sectionext2_info {
 
@@ -1314,6 +1358,35 @@ the user should provide proper data to bfwIQ.::
 
 For section extension type 2, the structure of xran_sectionext2_info is
 used. Each parameter will be packed as specified bit width.::
+
+   struct xran_sectionext3_info {
+
+      uint8_t codebookIdx;
+
+      uint8_t layerId;
+
+      uint8_t numLayers;
+
+      uint8_t txScheme;
+
+      uint16_t crsReMask;
+
+      uint8_t crsShift;
+
+      uint8_t crsSymNum;
+
+      uint16_t numAntPort;
+
+      uint16_t beamIdAP1;
+
+      uint16_t beamIdAP2;
+
+      uint16_t beamIdAP3;
+
+   };
+
+For section extension type 3, the structure of xran_sectionext3_info is
+used.::
 
    struct xran_sectionext4_info {
 
@@ -1345,8 +1418,9 @@ used.::
    };
 
 For section extension type 5, the structure of xran_sectionext5_info is
-used. Please note that current implementation supports maximum two sets
-of additional parameters.::
+used.
+
+Note: Current implementation supports maximum two sets of additional parameters.::
 
    struct xran_sectionext6_info {
 
@@ -1360,8 +1434,8 @@ of additional parameters.::
 
    };
 
-   For section extension type 6, the structure of xran_sectionext6_info is
-   used.
+For section extension type 6, the structure of xran_sectionext6_info is
+used.::
 
    struct xran_sectionext10_info {
 
@@ -1414,10 +1488,10 @@ app_init_xran_iq_content() from sample-app.c.
 Detail Procedures in API
 ''''''''''''''''''''''''
 
-xran_prepare_ctrl_pkt() has several procedures to compose a C-Plane
+The xran_prepare_ctrl_pkt() has several procedures to compose a C-Plane
 packet.
 
-1. Append transport header
+1. Append transport header:
 
 -  Reserve eCPRI header space in the packet buffer
 
@@ -1443,9 +1517,7 @@ packet.
 
 2. Append radio application header:
 
--  xran_append_radioapp_header() checks the type of section through
-   params->sectionType and determines proper function to append
-   remaining header components.
+-  The xran_append_radioapp_header() checks the type of section through params->sectionType and determines proper function to append remaining header components.
 
 -  Only section type 1 and 3 are supported, returns
    XRAN_STATUS_INVALID_PARAM for other types.
@@ -1454,25 +1526,21 @@ packet.
    header and size to calculate the total length in the transport
    header.
 
-For section type 1, xran_prepare_section1_hdr() and sizeof(struct
-xran_cp_radioapp_section1_header)
+-  For section type 1, xran_prepare_section1_hdr() and sizeof(struct xran_cp_radioapp_section1_header)
 
-For section type 3, xran_prepare_section3_hdr() and sizeof(struct
-xran_cp_radioapp_section3_header)
+-  For section type 3, xran_prepare_section3_hdr() and sizeof(struct xran_cp_radioapp_section3_header)
 
--  Reserves the space of common radio application header and composes
-   header by xran_prepare_radioapp_common_header().
+-  Reserves the space of common radio application header and composes header by xran_prepare_radioapp_common_header().
 
--  The header is stored in network byte order.
+   The header is stored in network byte order.
 
 -  Appends remaining header components by the selected function above
 
--  The header is stored in network byte order
+   The header is stored in network byte order
 
-3. Append section header and section
+3. Append section header and section:
 
--  xran_append_control_section() determines proper size and function to
-   append section header and contents.
+-  The xran_append_control_section() determines proper size and function to append section header and contents.
 
 -  For section type 1, xran_prepare_section1() and sizeof(struct
    xran_cp_radioapp_section1)
@@ -1492,12 +1560,9 @@ xran_cp_radioapp_section3_header)
 
 -  Appends section extensions if it is set (ef=1)
 
--  xran_append_section_extensions() adds all configured extensions by
-   its type.
+-  The xran_append_section_extensions() adds all configured extensions by its type.
 
--  xran_prepare_sectionext_x() (x = 1,2,4,5) will be called by the
-   type from xran_append_section_extensions() and these functions
-   will create extension field.
+-  The xran_prepare_sectionext_x() (x = 1,2,4,5) will be called by the type from and these functions will create extension field.
 
 Example Usage of API
 ''''''''''''''''''''
@@ -1747,7 +1812,7 @@ APIs to reset the storage for a new slot are:
 
 The structure of xran_section_info is used to store/retrieve
 information. This is the same structure used to generate a C-Plane
-message. Please refer to Section 5.4.2.1.1 for more details.
+message. Refer to Section *1, API and Data Structures* for more details.
 
 The storage for section information is declared as a multi-dimensional
 array and declared as a local static variable to limit direct access.
@@ -1756,15 +1821,11 @@ the number of stored section information items (cur_index) and the array
 of the information (list), as shown below.
 
 /*
-
 \* This structure to store the section information of C-Plane
-
 \* in order to generate and parse corresponding U-Plane \*/
 
 struct xran_sectioninfo_db {
-
-uint32_t cur_index; /* Current index to store for this eAXC \*/
-
+uint32_t cur_index; /* Current index to store for this eAXC*/\
 struct xran_section_info list[XRAN_MAX_NUM_SECTIONS]; /* The array of
 section information \*/
 
@@ -1783,7 +1844,7 @@ needed.
 
 Note. Since the context index is not managed by the library and APIs are
 expecting it from the caller as a parameter, the caller shall
-consider a proper way to manage it to avoid corruption. The
+consider a proper method to manage it to avoid corruption. The
 current reference implementation uses a slot and subframe index to
 calculate the context index.
 
@@ -1792,52 +1853,50 @@ calculate the context index.
 
 There are references to show the usage of APIs as below.
 
--  Initialization and release:
+-  Initialization and release::
 
--  xran_cp_init_sectiondb(): xran_open() in lib/src/xran_main.c
+     xran_cp_init_sectiondb(): xran_open() in lib/src/xran_main.c
 
--  xran_cp_free_sectiondb(): xran_close() in lib/src/xran_main.c
+     xran_cp_free_sectiondb(): xran_close() in lib/src/xran_main.c
 
--  Store section information:
+-  Store section information::
 
--  xran_cp_add_section_info(): send_cpmsg_dlul() and
-   send_cpmsg_prach()in lib/src/xran_main.c
+     xran_cp_add_section_info(): send_cpmsg_dlul() and
+     send_cpmsg_prach()in lib/src/xran_main.c
 
--  Retrieve section information:
+-  Retrieve section information::
 
--  xran_cp_iterate_section_info(): xran_process_tx_sym() in
-   lib/src/xran_main.c
+     xran_cp_iterate_section_info(): xran_process_tx_sym() in
+     lib/src/xran_main.c
 
--  xran_cp_getsize_section_info(): xran_process_tx_sym() in
-   lib/src/xran_main.c
+     xran_cp_getsize_section_info(): xran_process_tx_sym() in
+     lib/src/xran_main.c
 
--  Reset the storage for a new slot:
+-  Reset the storage for a new slot::
 
--  xran_cp_reset_section_info(): tx_cp_dl_cb() and tx_cp_ul_cb() in
-   lib/src/xran_main.c
+     xran_cp_reset_section_info(): tx_cp_dl_cb() and tx_cp_ul_cb() in
+     lib/src/xran_main.c
 
 **Function for RU emulation and Debug**
 '''''''''''''''''''''''''''''''''''''''
 
 xran_parse_cp_pkt() is a function which can be utilized for RU emulation
-or debug. It is defined below:
+or debug. It is defined below::
 
-int xran_parse_cp_pkt(struct rte_mbuf \*mbuf,
-
-struct xran_cp_gen_params \*result,
-
-struct xran_recv_packet_info \*pkt_info);
+  int xran_parse_cp_pkt(struct rte_mbuf \*mbuf,
+    struct xran_cp_recv_params \*result,
+    struct xran_recv_packet_info \*pkt_info);
 
 It parses a received C-Plane packet and retrieves the information from
 its headers and sections.
 
 The retrieved information is stored in the structures:
 
-struct xran_cp_gen_params: section information from received C-Plane
+struct xran_cp_recv_params: section information from received C-Plane
 packet
 
-struct xran_recv_packet_info: transport layer header information (eCPRI
-header)
+struct xran_recv_packet_info: transport layer header information
+(eCPRI header)
 
 These functions can be utilized to debug or RU emulation purposes.
 
@@ -1850,11 +1909,13 @@ Single Section is the default mode of O-RAN packet creation. It assumes
 that there is only one section per packet, and all IQ samples are
 attached to it. Compression is not supported.
 
-A message is built in mbuf space given as a parameter. The library
+A message is built in the mbuf space given as a parameter. The library
 builds eCPRI header filling structure fields by taking the IQ sample
 size and populating a particular packet length and sequence number.
 
-With compression, supported IQ bit widths are 8,9,10,12,14.
+With block floating point compression, supported IQ bit widths are
+8,9,10,12,14. With modulation compression, supported IQ bit widths are
+defined according to modulation order as in section A.5 of O-RAN spec..
 
 Implementation of a U-plane set of functions is defined in xran_up_api.c
 and is used to prepare U-plane packet content according to the given
@@ -1876,7 +1937,10 @@ The following list of functions is implemented for U-plane:
 
 The time of generation of a U-plane message for DL and UL is
 “symbol-based” and can be controlled using O-DU settings (O-RU),
-according to Table 4.
+according to *Table 4*.
+
+For more information on function arguments and parameters refer to
+corresponding source cod*\ e.
 
 Supporting Code
 ---------------
@@ -1892,52 +1956,57 @@ The sense of time for the O-RAN protocol is obtained from system time,
 where the system timer is synchronized to GPS time via PTP protocol
 using the Linux PHP package. On the software side, a simple polling loop
 is utilized to get time up to nanosecond precision and particular packet
-processing jobs are scheduled via the DPDK timer.
+processing jobs are scheduled via the DPDK timer.:::
 
-long poll_next_tick(int interval)
+  long poll_next_tick(int interval)
 
-{
+  {
 
-struct timespec start_time;
+    struct timespec start_time;
 
-struct timespec cur_time;
+    struct timespec cur_time;
 
-long target_time;
+    long target_time;
 
-long delta;
+    long delta;
 
-clock_gettime(CLOCK_REALTIME, &start_time);
+    clock_gettime(CLOCK_REALTIME, &start_time);
 
-target_time = (start_time.tv_sec \* NSEC_PER_SEC + start_time.tv_nsec +
-interval \* NSEC_PER_USEC) / (interval \* NSEC_PER_USEC) \* interval;
+    target_time = (start_time.tv_sec \* NSEC_PER_SEC + start_time.tv_nsec +
+    interval \* NSEC_PER_USEC) / (interval \* NSEC_PER_USEC) \* interval;
 
-while(1)
+    while(1)
 
-{
+    {
 
-clock_gettime(CLOCK_REALTIME, &cur_time);
+        clock_gettime(CLOCK_REALTIME, &cur_time);
 
-delta = (cur_time.tv_sec \* NSEC_PER_SEC + cur_time.tv_nsec) -
-target_time \* NSEC_PER_USEC;
+        delta = (cur_time.tv_sec \* NSEC_PER_SEC + cur_time.tv_nsec) -
+        target_time \* NSEC_PER_USEC;
 
-if(delta > 0 \|\| (delta < 0 && abs(delta) < THRESHOLD))
+        if(delta > 0 \|\| (delta < 0 && abs(delta) < THRESHOLD))
 
-{
+        {
 
-break;
+          break;
 
-}
+        }
 
-}
+    }
 
-return delta;
+    return delta;
 
-}
+  }
 
 Polling is used to achieve the required precision of symbol time. For
 example, in the mmWave scenario, the symbol time is 125µs/14=~8.9µs.
 Small deterministic tasks can be executed within the polling interval
 provided. It’s smaller than the symbol interval time.
+
+Current O-RAN library supports multiple O-RU of multiple numerologies,
+thus the sense of timing is based on the O-RU with highest numerology
+(smallest symbol time). It is required to configure the O-RU0 with
+highest numerology in the O-RAN configuration.
 
 DPDK Timers
 ~~~~~~~~~~~
@@ -1967,8 +2036,10 @@ Standard port configuration is used as per reference example from DPDK.
 Jumbo Frames are used by default. Mbufs size is extended to support 9600
 bytes packets.
 
-Mac address and VLAN tag are expected to be configured by Infrastructure
-software. See Appendix A.4.
+Configurable MTU size is supported starting from E release.
+
+MAC address and VLAN tag are expected to be configured by Infrastructure
+software. Refer to *A.4, Install and Configure Sample Application*.
 
 From an implementation perspective, modules provide functions to handle:
 
@@ -1978,63 +2049,68 @@ From an implementation perspective, modules provide functions to handle:
 
 -  Send and Receive mbuf.
 
-O-RAN Ethdi
-~~~~~~~~~~~
+xRAN Ethdi
+~~~~~~~~~~
 
 Ethdi provides functionality to work with the content of an Ethernet
-packet and dispatch processing to/from the O-RAN layer. Ethdi
+packet and dispatch processing to/from the xRAN layer. Ethdi
 instantiates a main PMD driver thread and dispatches packets between the
 ring and RX/TX using rte_eth_rx_burst() and rte_eth_tx_burst() DPDK
 functions.
 
 For received packets, it maintains a set of handlers for ethertype
-handlers and O-RAN layer register one O-RAN ethtype |br|
+handlers and xRAN layer register one O-RAN ethtype |br|
 0xAEFE, resulting in
-packets with this ethertype being routed to the O-RAN processing
+packets with this ethertype being routed to the xRAN processing
 function. This function checks the message type of the eCPRI header and
 dispatches packet to either C-plane processing or U-plane processing.
 
-Initialization of memory pools, allocation and freeing of mbuf for
+Initialization of memory pools, allocation, and freeing of the mbuf for
 Ethernet packets occur in this layer.
 
 
 O-RAN One Way Delay Measurements
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The support for the eCPRI one- way delay measurements which are specified by
-the O-RAN to be used with the Measured Transport support per Section 2.3.3.3
-of the O-RAN-WG4.CUS.0-v4.00 specification and section 3.2.4.6 of the eCPRI_v2.0
-specification is implemented in the file xran_delay_measurement.c. Structure
-definitions used by the owd measurement functions are  in the file xran_fh_o_du.h
-for common data and port specific variables and parameters.
+The support for the eCPRI one- way delay measurements which are
+specified by the O-RAN to be used with the Measured Transport support
+per Section 2.3.3.3 of the O-RAN-WG4.CUS.0-v4.00 specification and
+section 3.2.4.6 of the eCPRI_v2.0 specification is implemented in the
+file xran_delay_measurement.c. Structure definitions used by the owd
+measurement functions are in the file xran_fh_o_du.h for common data and
+port specific variables and parameters.
 
-The implementation of this feature has been done under the assumption that the requestor
-is the O-DU and the recipient is the O-RU. All of the action_types  per the eCPRI 2.0 have
-been implemented. In the current version the timestamps are obtained using the linux
-function clock_gettime using CLOCK_REALTIME as the clock_id argument.
+The implementation of this feature has been done under the assumption
+that the requestor is the O-DU and the recipient is the O-RU. All of the
+action_types per the eCPRI 2.0 have been implemented. In the current
+version the timestamps are obtained using the linux function
+clock_gettime using CLOCK_REALTIME as the clock_id argument.
 
-The implementation supports both the O-RU and the O-DU side in order to do the unit test
-in loopback mode.
+The implementation supports both the O-RU and the O-DU side in order to
+do the unit test in loopback mode.
 
-The one-delay measurements are enabled at configuration time and run right after the
-xran_start() function is executed. The total number of consecutive measurements per port
-should be a power of 2 and in order to minimize the system startup it is advisable that
-the number is 16 or below. 
+The one-delay measurements are enabled at configuration time and run
+right after the xran_start() function is executed. The total number of
+consecutive measurements per port should be a power of 2 and in order to
+minimize the system startup it is advisable that the number is 16 or
+below.
 
 The following functions can be found in the xran_delay_measurement.c:
 
-xran_ecpri_one_way_delay_measurement_transmitter() which is invoked from the
-process_dpdk_io()function if the one-way delay measurements are enabled. This is
-the main function for the owd transmitter.
+xran_ecpri_one_way_delay_measurement_transmitter() which is invoked from
+the process_dpdk_io() function if the one-way delay measurements are
+enabled. This is the main function for the owd transmitter.
 
-xran_generate_delay_meas() is a general function used by the transmitter to send the appropriate
-messages based on actionType and filling up all the details for the ethernet and ecpri layers.
+xran_generate_delay_meas() is a general function used by the transmitter
+to send the appropriate messages based on actionType and filling up all
+the details for the ethernet and ecpri layers.
 
-Process_delay_meas() this function is invoked from the handle_ecpri_ethertype() function when
-the ecpri message type is ECPRI_DELAY_MEASUREMENT. This is the main owd receiver function.
+Process_delay_meas() this function is invoked from the
+handle_ecpri_ethertype() function when the ecpri message type is
+ECPRI_DELAY_MEASUREMENT. This is the main owd receiver function.
 
-From the Process_delay_meas() and depending on the message received we can execute one
-of the following functions
+From the Process_delay_meas() and depending on the message received we
+can execute one of the following functions
 
 xran_process_delmeas_request() If we received a request message.
 

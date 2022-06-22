@@ -4,3 +4,4 @@ linkcheck_ignore = [
     'http://127.0.0.1.*',
     'https://gerrit.o-ran-sc.org.*'
 ]
+language = 'en'

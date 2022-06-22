@@ -141,16 +141,20 @@ if [ ${VM_DETECT} == 'HOST' ]; then
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:02.0
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:02.1
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:02.2
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:02.3
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:0a.0
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:0a.1
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:0a.2
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:19:0a.3
 
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:02.0
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:02.1
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:02.2
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:02.3
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:0a.0
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:0a.1
     $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:0a.2
+    $RTE_SDK/usertools/dpdk-devbind.py --bind=vfio-pci 0000:af:0a.3
 
 else
     #VM

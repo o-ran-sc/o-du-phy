@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@
 #include "nr5g_fapi_fapi2mac_wls.h"
 #include "nr5g_fapi_fapi2phy_wls.h"
 #include "nr5g_fapi_fapi2phy_api.h"
-#include "gnb_l1_l2_api.h"
 #include "rte_memzone.h"
 #include "nr5g_fapi_memory.h"
 
@@ -86,9 +85,10 @@ uint8_t nr5g_fapi_dpdk_wait(
         }
     }
 #else
-    pthread_join(p_cfg->mac2phy_thread_info.thread_id, NULL);
-    pthread_join(p_cfg->phy2mac_thread_info.thread_id, NULL);
-    pthread_join(p_cfg->urllc_thread_info.thread_id, NULL);
+    pthread_join(p_cfg->mac2phy_thread_params.thread_info.thread_id, NULL);
+    pthread_join(p_cfg->phy2mac_thread_params.thread_info.thread_id, NULL);
+    pthread_join(p_cfg->urllc_phy2mac_thread_params.thread_info.thread_id, NULL);
+    pthread_join(p_cfg->urllc_mac2phy_thread_params.thread_info.thread_id, NULL);
 #endif
     return SUCCESS;
 }
@@ -129,12 +129,86 @@ nr5g_fapi_ul_slot_info_t *nr5g_fapi_get_ul_slot_info(
     return NULL;
 }
 
+uint8_t nr5g_fapi_prepare_thread(
+    nr5g_fapi_thread_params_t* thread_params,
+    char* thread_name,
+    void* thread_fun(void*))
+{
+    struct sched_param param;
+    pthread_attr_t* p_thread_attr = &thread_params->thread_info.thread_attr;
+    pthread_attr_init(p_thread_attr);
+    if (!pthread_attr_getschedparam(p_thread_attr, &param)) {
+        param.sched_priority = thread_params->thread_worker.thread_priority;
+        pthread_attr_setschedparam(p_thread_attr, &param);
+        pthread_attr_setschedpolicy(p_thread_attr, SCHED_FIFO);
+    }
+
+    if (0 != pthread_create(&thread_params->thread_info.thread_id,
+            p_thread_attr, thread_fun, (void *)
+            nr5g_fapi_get_nr5g_fapi_phy_ctx())) {
+        printf("Error: Unable to create threads\n");
+        if (p_thread_attr)
+            pthread_attr_destroy(p_thread_attr);
+        return FAILURE;
+    }
+    pthread_setname_np(thread_params->thread_info.thread_id,
+                       thread_name);
+
+    return SUCCESS;
+}
+
+uint8_t nr5g_fapi_initialise_sempahore(
+    nr5g_fapi_urllc_thread_params_t* urllc_thread_params)
+{
+    memset(&urllc_thread_params->urllc_sem_process, 0, sizeof(sem_t));
+    memset(&urllc_thread_params->urllc_sem_done, 0, sizeof(sem_t));
+     
+    pthread_mutex_init(&urllc_thread_params->lock, NULL);
+    urllc_thread_params->p_urllc_list_elem = NULL;
+    if (0 != sem_init(&urllc_thread_params->urllc_sem_process, 0, 0)) {
+        printf("Error: Unable to init urllc_sem_process semaphore\n");
+        return FAILURE;
+    }
+    if (0 != sem_init(&urllc_thread_params->urllc_sem_done, 0, 1)) {
+        printf("Error: Unable to init urllc_sem_done semaphore\n");
+        return FAILURE;
+    }
+
+    return SUCCESS;
+}
+
+void nr5g_fapi_init_thread(uint8_t worker_core_id)
+{
+    cpu_set_t cpuset;
+    pthread_t thread = pthread_self();
+
+    CPU_ZERO(&cpuset);
+    CPU_SET(worker_core_id, &cpuset);
+    pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+
+    usleep(1000);  
+}
+
+void nr5g_fapi_urllc_thread_callback(
+    void *p_list_elem,
+    nr5g_fapi_urllc_thread_params_t* urllc_params)
+{
+    if (nr5g_fapi_get_nr5g_fapi_phy_ctx()->is_urllc_enabled){
+        sem_wait(&urllc_params->urllc_sem_done);
+        pthread_mutex_lock(&urllc_params->lock);
+        urllc_params->p_urllc_list_elem = p_list_elem;
+        pthread_mutex_unlock(&urllc_params->lock);
+        sem_post(&urllc_params->urllc_sem_process);
+    }
+    else {
+        NR5G_FAPI_LOG(ERROR_LOG, ("[URLLC] Threads are not running"));
+    }
+}
+
 uint8_t nr5g_fapi_framework_init(
     p_nr5g_fapi_cfg_t p_cfg)
 {
     p_nr5g_fapi_phy_ctx_t p_phy_ctx = nr5g_fapi_get_nr5g_fapi_phy_ctx();
-    pthread_attr_t *p_mac2phy_attr, *p_phy2mac_attr, *p_urllc_attr;
-    struct sched_param param;
 
     nr5g_fapi_set_log_level(p_cfg->logger.level);
     // Set up WLS
@@ -144,79 +218,63 @@ uint8_t nr5g_fapi_framework_init(
     }
     NR5G_FAPI_LOG(INFO_LOG, ("[FAPI_INT] WLS init Successful"));
 
-    p_phy_ctx->phy2mac_worker_core_id = p_cfg->phy2mac_worker.core_id;
-    p_phy_ctx->mac2phy_worker_core_id = p_cfg->mac2phy_worker.core_id;
-    p_phy_ctx->urllc_worker_core_id = p_cfg->urllc_worker.core_id;
+    p_phy_ctx->phy2mac_worker_core_id = p_cfg->phy2mac_thread_params.thread_worker.core_id;
+    p_phy_ctx->mac2phy_worker_core_id = p_cfg->mac2phy_thread_params.thread_worker.core_id;
+    p_phy_ctx->urllc_phy2mac_worker_core_id = p_cfg->urllc_phy2mac_thread_params.thread_worker.core_id;
+    p_phy_ctx->urllc_mac2phy_worker_core_id = p_cfg->urllc_mac2phy_thread_params.thread_worker.core_id;
+    p_phy_ctx->is_urllc_enabled = p_cfg->is_urllc_enabled;
 
-    memset(&p_phy_ctx->urllc_sem_process, 0, sizeof(sem_t));
-    memset(&p_phy_ctx->urllc_sem_done, 0, sizeof(sem_t));
-    if (0 != sem_init(&p_phy_ctx->urllc_sem_process, 0, 0)) {
-        printf("Error: Unable to init urllc semaphore\n");
-        return FAILURE;
-    }
-    if (0 != sem_init(&p_phy_ctx->urllc_sem_done, 0, 1)) {
-        printf("Error: Unable to init urllc_sem_done semaphore\n");
+    if (nr5g_fapi_prepare_thread(&p_cfg->phy2mac_thread_params,
+                                 "nr5g_fapi_phy2mac_thread",
+                                 nr5g_fapi_phy2mac_thread_func) == FAILURE) {
         return FAILURE;
     }
 
-    p_phy2mac_attr = &p_cfg->phy2mac_thread_info.thread_attr;
-    pthread_attr_init(p_phy2mac_attr);
-    if (!pthread_attr_getschedparam(p_phy2mac_attr, &param)) {
-        param.sched_priority = p_cfg->phy2mac_worker.thread_priority;
-        pthread_attr_setschedparam(p_phy2mac_attr, &param);
-        pthread_attr_setschedpolicy(p_phy2mac_attr, SCHED_FIFO);
-    }
 
-    if (0 != pthread_create(&p_cfg->phy2mac_thread_info.thread_id,
-            p_phy2mac_attr, nr5g_fapi_phy2mac_thread_func, (void *)
-            p_phy_ctx)) {
-        printf("Error: Unable to create threads\n");
-        if (p_phy2mac_attr)
-            pthread_attr_destroy(p_phy2mac_attr);
+    if (nr5g_fapi_prepare_thread(&p_cfg->mac2phy_thread_params,
+                                 "nr5g_fapi_mac2phy_thread",
+                                 nr5g_fapi_mac2phy_thread_func) == FAILURE) {
         return FAILURE;
     }
-    pthread_setname_np(p_cfg->phy2mac_thread_info.thread_id,
-        "nr5g_fapi_phy2mac_thread");
 
-    p_mac2phy_attr = &p_cfg->mac2phy_thread_info.thread_attr;
-    pthread_attr_init(p_mac2phy_attr);
-    if (!pthread_attr_getschedparam(p_mac2phy_attr, &param)) {
-        param.sched_priority = p_cfg->mac2phy_worker.thread_priority;
-        pthread_attr_setschedparam(p_mac2phy_attr, &param);
-        pthread_attr_setschedpolicy(p_mac2phy_attr, SCHED_FIFO);
+    if (p_cfg->is_urllc_enabled)
+    {
+        if (nr5g_fapi_initialise_sempahore(&p_phy_ctx->urllc_phy2mac_params) == FAILURE) {
+            return FAILURE;
     }
 
-    if (0 != pthread_create(&p_cfg->mac2phy_thread_info.thread_id,
-            p_mac2phy_attr, nr5g_fapi_mac2phy_thread_func, (void *)
-            p_phy_ctx)) {
-        printf("Error: Unable to create threads\n");
-        if (p_mac2phy_attr)
-            pthread_attr_destroy(p_mac2phy_attr);
+        if (nr5g_fapi_initialise_sempahore(&p_phy_ctx->urllc_mac2phy_params) == FAILURE) {
         return FAILURE;
     }
-    pthread_setname_np(p_cfg->mac2phy_thread_info.thread_id,
-        "nr5g_fapi_mac2phy_thread");
 
-    p_urllc_attr = &p_cfg->urllc_thread_info.thread_attr;
-    pthread_attr_init(p_urllc_attr);
-    if (!pthread_attr_getschedparam(p_urllc_attr, &param)) {
-        param.sched_priority = p_cfg->urllc_worker.thread_sched_policy;
-        pthread_attr_setschedparam(p_urllc_attr, &param);
-        pthread_attr_setschedpolicy(p_urllc_attr, SCHED_FIFO);
+        if (nr5g_fapi_prepare_thread(&p_cfg->urllc_mac2phy_thread_params,
+                                     "nr5g_fapi_urllc_mac2phy_thread",
+                                     nr5g_fapi_urllc_mac2phy_thread_func) == FAILURE) {
+            return FAILURE;
     }
 
-    if (0 != pthread_create(&p_cfg->urllc_thread_info.thread_id,
-            p_urllc_attr, nr5g_fapi_urllc_thread_func, (void *)
-            p_phy_ctx)) {
-        printf("Error: Unable to create threads\n");
-        if (p_urllc_attr)
-            pthread_attr_destroy(p_urllc_attr);
-        sem_destroy(&p_phy_ctx->urllc_sem_process);
-        sem_destroy(&p_phy_ctx->urllc_sem_done);
+
+        if (nr5g_fapi_prepare_thread(&p_cfg->urllc_phy2mac_thread_params,
+                                     "nr5g_fapi_urllc_phy2mac_thread",
+                                     nr5g_fapi_urllc_phy2mac_thread_func) == FAILURE) {
         return FAILURE;
     }
-    pthread_setname_np(p_cfg->urllc_thread_info.thread_id,
-        "nr5g_fapi_urllc_thread");
 
+    }
     return SUCCESS;
+}
+
+void nr5g_fapi_clean(
+    p_nr5g_fapi_phy_instance_t p_phy_instance)
+{
+    p_phy_instance->phy_config.n_nr_of_rx_ant = 0;
+    p_phy_instance->phy_config.phy_cell_id = 0;
+    p_phy_instance->phy_config.sub_c_common = 0;
+    p_phy_instance->phy_config.use_vendor_EpreXSSB = 0;
+    p_phy_instance->shutdown_test_type = 0; 
+    p_phy_instance->phy_id = 0;
+    p_phy_instance->state = FAPI_STATE_IDLE ;
+    
+    memset(p_phy_instance->ul_slot_info, 0, sizeof(nr5g_fapi_ul_slot_info_t));
+    wls_fapi_free_send_free_list_urllc();
 }

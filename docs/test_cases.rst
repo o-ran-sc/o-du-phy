@@ -24,10 +24,10 @@ Test Cases
     :depth: 3
     :local:
 
-This section describes the downlink, uplink and full duplex bit exact test cases that are present as part of the E Maintenance Release |br|
+This section describes the downlink, uplink and full duplex bit exact test cases that are present as part of the F Release |br|
 release. All the test config files, IQ samples and reference Inputs are placed under the FlexRAN/testcase folder. These test config files are used for testmac.
 
-There are 3 kinds of tests: dl, ul, and fd. The following test cases are part of the E Maintenance Release and reside in the github repo mentioned earlier in this document.
+There are 3 kinds of tests: dl, ul, and fd. The following test cases are part of the F Release and reside in the github repo mentioned earlier in this document.
 
 The following DL, UL and PRACH test cases are used for validation.
 

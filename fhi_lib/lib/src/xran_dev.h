@@ -72,7 +72,7 @@ struct xran_timer_ctx {
     uint64_t    current_second;
 };
 
-#define XRAN_MAX_POOLS_PER_SECTOR_NR 8 /**< 2x(TX_OUT, RX_IN, PRACH_IN, SRS_IN) with C-plane */
+#define XRAN_MAX_POOLS_PER_SECTOR_NR 10 /**< 2x(TX_OUT, RX_IN, PRACH_IN, SRS_IN, BFW_BUF) with C-plane */
 
 typedef struct sectorHandleInfo
 {
@@ -91,7 +91,7 @@ typedef struct sectorHandleInfo
 }XranSectorHandleInfo, *PXranSectorHandleInfo;
 
 typedef void (*XranSymCallbackFn)(struct rte_timer *tim, void* arg, void *p_dev_ctx);
-typedef int32_t (*tx_sym_gen_fn)(void* pHandle, uint8_t ctx_id, uint32_t tti, int32_t num_cc, int32_t num_ant, uint32_t frame_id,
+typedef int32_t (*tx_sym_gen_fn)(void* pHandle, uint8_t ctx_id, uint32_t tti, int32_t start_cc, int32_t num_cc, int32_t start_ant,  int32_t num_ant, uint32_t frame_id,
     uint32_t subframe_id, uint32_t slot_id, uint32_t sym_id, enum xran_comp_hdr_type compType, enum xran_pkt_dir direction,
     uint16_t xran_port_id, PSECTION_DB_TYPE p_sec_db);
 
@@ -134,6 +134,8 @@ typedef struct {
 
 #define XRAN_IQ_FLOW_MAX 512 /**< Maximum flow IQ flows per XRAN port */
 
+#define XRAN_MAX_MEM_IF_RING_SIZE 8*32
+
 struct mbuf_table {
 	uint16_t len;
 	struct rte_mbuf *m_table[MBUF_TABLE_SIZE];
@@ -173,6 +175,17 @@ struct xran_shared_data_srs_t {
     struct rte_mbuf_ext_shared_info sh_data[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
 };
 
+
+/** Structure to hold the information for tracking the prb element processing across symbols.
+ *  C-Plane processing for every slot is spread equally across symbols that fall within allowed window.
+ *  This structure is used to keep track of processing that is done.
+ */
+struct xran_prb_elm_proc_info_t {
+    uint16_t  nPrbElmPerSym;    /**< Number of prb elements to be processed per symbol */
+    uint16_t  nPrbElmProcessed; /**< Holds the number of PrbElms Processed in a given symbol time by xran. */
+    uint8_t   numSymsRemaining; /**< Number of symbols for DL CP transmission remaining in this slot */
+};
+
 struct __rte_cache_aligned xran_device_ctx
 {
     uint8_t sector_id;
@@ -181,16 +194,20 @@ struct __rte_cache_aligned xran_device_ctx
     struct xran_fh_init          fh_init;
     struct xran_fh_config        fh_cfg;
     struct xran_prach_cp_config  PrachCPConfig;
+    struct xran_prach_cp_config  PrachCPConfigLTE;
 
     uint32_t enablePrach;
     uint32_t enableCP;
 
     int32_t DynamicSectionEna;
+    int32_t RunSlotPrbMapBySymbolEnable;
     int64_t offset_sec;
     int64_t offset_nsec;    //offset to GPS time calcuated based on alpha and beta
     uint32_t interval_us_local;
 
     uint32_t enableSrs;
+    uint16_t enableSrsCp;
+    uint16_t nSrsDelaySym;
     uint8_t puschMaskEnable;
     uint8_t puschMaskSlot;
     struct xran_srs_config srs_cfg; /** configuration of SRS */
@@ -205,6 +222,9 @@ struct __rte_cache_aligned xran_device_ctx
     BbuIoBufCtrlStruct sFHSrsRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
     BbuIoBufCtrlStruct sFHSrsRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
 
+    BbuIoBufCtrlStruct sFHCpRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+    BbuIoBufCtrlStruct sFHCpTxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+
     /* buffers lists */
     struct xran_flat_buffer sFrontHaulTxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFrontHaulTxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
@@ -216,6 +236,8 @@ struct __rte_cache_aligned xran_device_ctx
     struct xran_flat_buffer sFHSrsRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFHSrsRxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
 
+    // struct xran_flat_buffer sFHCpRxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+
     xran_transport_callback_fn pCallback[XRAN_MAX_SECTOR_NR];
     void *pCallbackTag[XRAN_MAX_SECTOR_NR];
 
@@ -226,6 +248,8 @@ struct __rte_cache_aligned xran_device_ctx
     void *pSrsCallbackTag[XRAN_MAX_SECTOR_NR];
 
     LIST_HEAD(sym_cb_elem_list, cb_elem_entry) sym_cb_list_head[XRAN_NUM_OF_SYMBOL_PER_SLOT];
+
+    uint8_t numSetBFWs_arr[XRAN_MAX_SECTIONS_PER_SLOT];
 
     int32_t sym_up; /**< when we start sym 0 of up with respect to OTA time as measured in symbols */
     int32_t sym_up_ul;
@@ -250,8 +274,8 @@ struct __rte_cache_aligned xran_device_ctx
 
     struct xran_common_counters fh_counters;
 
-    xran_ethdi_mbuf_send_fn send_cpmbuf2ring;   /**< callback to send mbufs of C-Plane packets to the ring */
-    xran_ethdi_mbuf_send_fn send_upmbuf2ring;   /**< callback to send mbufs of U-Plane packets to the ring */
+    xran_ethdi_mbuf_send_fn send_cpmbuf2ring;   /**< callback to send mbufs of C-Plane packets to the VF ring */
+    xran_ethdi_mbuf_send_fn send_upmbuf2ring;   /**< callback to send mbufs of U-Plane packets to the VF ring */
 
     struct xran_timer_ctx timer_ctx[MAX_NUM_OF_XRAN_CTX];
     struct xran_timer_ctx cb_timer_ctx[MAX_CB_TIMER_CTX];
@@ -283,6 +307,19 @@ struct __rte_cache_aligned xran_device_ctx
 
     struct rte_flow *p_iq_flow[XRAN_IQ_FLOW_MAX];
     uint32_t iq_flow_cnt;  /**< number of IQ flows configured */
+
+    uint8_t ndm_srs_scheduled;      /* set if SRS has been scheduled */
+    uint8_t ndm_srs_schedperiod;    /* SRS slot within TDD period */
+    uint32_t ndm_srs_txtti;         /* first slot for transmit SRS within TDD period */
+    uint32_t ndm_srs_tti;           /* original SRS slot */
+    uint8_t numSymsForDlCP; /**< number of symbols for DL CP transmission */
+    struct xran_prb_elm_proc_info_t prbElmProcInfo[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+
+    uint8_t dssEnable;      /**< enable DSS (extension-9) */
+    uint8_t dssPeriod;      /**< DSS pattern period for LTE/NR */
+    uint8_t technology[XRAN_MAX_DSS_PERIODICITY];   /**< technology array represents slot is LTE(0)/NR(1) */
+    /* Keeps track of how many sections are processed while parsing C-plan packet */
+    uint8_t sectiondb_elm[XRAN_MAX_SECTIONDB_CTX][XRAN_DIR_MAX][XRAN_COMPONENT_CARRIERS_MAX][XRAN_MAX_ANTENNA_NR * 2 + XRAN_MAX_ANT_ARRAY_ELM_NR];
 };
 
 struct xran_eaxcid_config *xran_get_conf_eAxC(void *pHandle);

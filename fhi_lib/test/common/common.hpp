@@ -1,19 +1,6 @@
 /*******************************************************************************
  *
- * Copyright (c) 2020 Intel.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
+ * <COPYRIGHT_TAG>
  *
  *******************************************************************************/
 
@@ -241,6 +228,29 @@ protected:
     {
         parallelization_factor = factor;
     }
+
+    /*!
+        \brief Run the given function and return the mean run time and stddev.
+        \param [in] function Function to benchmark.
+        \param [in] args Function's arguments.
+        \return std::pair where the first element is mean and the second one is standard deviation.
+    */
+    template <typename F, typename ... Args>
+    std::pair<double, double> run_benchmark(F function, Args ... args)
+    {
+        std::vector<long> results((unsigned long) BenchmarkParameters::repetition);
+
+        for(unsigned int outer_loop = 0; outer_loop < BenchmarkParameters::repetition; outer_loop++) {
+            const auto start_time =  __rdtsc();
+            for (unsigned int inner_loop = 0; inner_loop < BenchmarkParameters::loop; inner_loop++) {
+                    function(args ...);
+            }
+            const auto end_time = __rdtsc();
+            results.push_back(end_time - start_time);
+        }
+
+        return calculate_statistics(results);
+    };
 
     /*!
         \brief Run performance test case for a given function.
@@ -589,36 +599,13 @@ private:
 };
 
 /*!
-    \brief Run the given function and return the mean run time and stddev.
-    \param [in] function Function to benchmark.
-    \param [in] args Function's arguments.
-    \return std::pair where the first element is mean and the second one is standard deviation.
-*/
-template <typename F, typename ... Args>
-std::pair<double, double> run_benchmark(F function, Args ... args)
-{
-    std::vector<long> results((unsigned long) BenchmarkParameters::repetition);
-
-    for(unsigned int outer_loop = 0; outer_loop < BenchmarkParameters::repetition; outer_loop++) {
-        const auto start_time =  __rdtsc();
-        for (unsigned int inner_loop = 0; inner_loop < BenchmarkParameters::loop; inner_loop++) {
-                function(args ...);
-        }
-        const auto end_time = __rdtsc();
-        results.push_back(end_time - start_time);
-    }
-
-    return calculate_statistics(results);
-};
-
-/*!
     \brief Assert elements of two arrays. It calls ASSERT_EQ for each element of the array.
     \param [in] reference Array with reference values.
     \param [in] actual Array with the actual output.
     \param [in] size Size of the array.
 */
 template <typename T>
-void assert_array_eq(const T* reference, const T* actual, const int size)
+inline void assert_array_eq(const T* reference, const T* actual, const int size)
 {
     for(int index = 0; index < size ; index++)
     {
@@ -635,7 +622,7 @@ void assert_array_eq(const T* reference, const T* actual, const int size)
     \param [in] precision Precision fo the comparision used by ASSERT_NEAR.
 */
 template <typename T>
-void assert_array_near(const T* reference, const T* actual, const int size, const double precision)
+inline void assert_array_near(const T* reference, const T* actual, const int size, const double precision)
 {
     for(int index = 0; index < size ; index++)
     {
@@ -645,7 +632,7 @@ void assert_array_near(const T* reference, const T* actual, const int size, cons
 }
 
 template <>
-void assert_array_near<complex_float>(const complex_float* reference, const complex_float* actual, const int size, const double precision)
+inline void assert_array_near<complex_float>(const complex_float* reference, const complex_float* actual, const int size, const double precision)
 {
     for(int index = 0; index < size ; index++)
     {
@@ -664,7 +651,7 @@ void assert_array_near<complex_float>(const complex_float* reference, const comp
     \param [in] precision Precision for the comparison used by ASSERT_GT.
 */
 template<typename T>
-void assert_avg_greater_complex(const T* reference, const T* actual, const int size, const double precision)
+inline void assert_avg_greater_complex(const T* reference, const T* actual, const int size, const double precision)
 {
     float mseDB, MSE;
     double avgMSEDB = 0.0;
@@ -714,7 +701,7 @@ void assert_avg_greater_complex(const T* reference, const T* actual, const int s
     \return Pointer to the allocated memory.
 */
 template <typename T>
-T* aligned_malloc(const int size, const unsigned alignment)
+inline T* aligned_malloc(const int size, const unsigned alignment)
 {
 #ifdef _BBLIB_DPDK_
     return (T*) rte_malloc(NULL, sizeof(T) * size, alignment);
@@ -736,7 +723,7 @@ T* aligned_malloc(const int size, const unsigned alignment)
     \param [in] ptr Pointer to the allocated memory.
 */
 template <typename T>
-void aligned_free(T* ptr)
+inline void aligned_free(T* ptr)
 {
 #ifdef _BBLIB_DPDK_
     rte_free((void*)ptr);
@@ -763,7 +750,7 @@ void aligned_free(T* ptr)
     \return Pointer to the allocated memory with random data.
 */
 template <typename T, typename U>
-T* generate_random_numbers(const long size, const unsigned alignment, U& distribution)
+inline T* generate_random_numbers(const long size, const unsigned alignment, U& distribution)
 {
     auto array = (T*) aligned_malloc<char>(size * sizeof(T), alignment);
 
@@ -788,7 +775,7 @@ T* generate_random_numbers(const long size, const unsigned alignment, U& distrib
     \return Pointer to the allocated memory with random data.
 */
 template <typename T>
-T* generate_random_data(const long size, const unsigned alignment)
+inline T* generate_random_data(const long size, const unsigned alignment)
 {
     std::uniform_int_distribution<> random(0, 255);
 
@@ -810,7 +797,7 @@ T* generate_random_data(const long size, const unsigned alignment)
     \return Pointer to the allocated memory with random data.
 */
 template <typename T>
-T* generate_random_int_numbers(const long size, const unsigned alignment, const T lo_range,
+inline T* generate_random_int_numbers(const long size, const unsigned alignment, const T lo_range,
                                const T up_range)
 {
     std::uniform_int_distribution<T> random(lo_range, up_range);
@@ -833,7 +820,7 @@ T* generate_random_int_numbers(const long size, const unsigned alignment, const 
     \return Pointer to the allocated memory with random data.
 */
 template <typename T>
-T* generate_random_real_numbers(const long size, const unsigned alignment, const T lo_range,
+inline T* generate_random_real_numbers(const long size, const unsigned alignment, const T lo_range,
                                 const T up_range)
 {
     std::uniform_real_distribution<T> distribution(lo_range, up_range);

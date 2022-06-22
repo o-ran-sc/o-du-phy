@@ -53,7 +53,7 @@
 #include "ethdi.h"
 #include "xran_printf.h"
 
-static struct xran_device_ctx *g_xran_dev_ctx[XRAN_PORTS_NUM] = {NULL, NULL, NULL, NULL};
+static struct xran_device_ctx *g_xran_dev_ctx[XRAN_PORTS_NUM] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
 
 int32_t
 xran_dev_create_ctx(uint32_t xran_ports_num)
@@ -102,7 +102,7 @@ struct xran_device_ctx *xran_dev_get_ctx_by_id(uint32_t xran_port_id)
         return g_xran_dev_ctx[xran_port_id];
 }
 
-static struct xran_fh_config *xran_lib_get_ctx_fhcfg(void *pHandle)
+static inline struct xran_fh_config *xran_lib_get_ctx_fhcfg(void *pHandle)
 {
     struct xran_device_ctx * p_dev_ctx = (struct xran_device_ctx*)pHandle;
     return (&(p_dev_ctx->fh_cfg));
@@ -415,7 +415,7 @@ xran_init_vf_rxq_to_pcid_mapping(void *pHandle)
 int32_t
 xran_init_vfs_mapping(void *pHandle)
 {
-    int ctx, dir, cc, ant, i;
+    int dir, cc, ant, i;
     struct xran_device_ctx* p_dev = NULL;
     uint8_t xran_port_id = 0;
     uint16_t vf_id    = 0;
@@ -452,7 +452,7 @@ xran_init_vfs_mapping(void *pHandle)
     for(dir=0; dir < 2; dir++){
         for(cc=0; cc < xran_get_num_cc(p_dev); cc++){
             for(ant=0; ant < xran_get_num_eAxc(p_dev)*2 + xran_get_num_ant_elm(p_dev); ant++){
-                if(total_vf_cnt = 2 && eth_ctx->io_cfg.one_vf_cu_plane){
+                if((total_vf_cnt == 2) && eth_ctx->io_cfg.one_vf_cu_plane){
                     if(ant & 1) { /* split ant half and half on VFs */
                         vf_id  = vf_id_all[XRAN_UP_VF+1];
                         xran_set_map_ecpriPcid_to_vf(p_dev, dir, cc, ant, vf_id);

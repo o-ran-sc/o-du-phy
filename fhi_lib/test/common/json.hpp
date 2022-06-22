@@ -7840,9 +7840,9 @@ class basic_json
                 // include at least decoding support for them even without such
                 // support. An example of a small decoder for half-precision
                 // floating-point numbers in the C language is shown in Fig. 3.
-                const int half = (v.at(current_idx + 1) << 8) + v.at(current_idx + 2);
-                const int exp = (half >> 10) & 0x1f;
-                const int mant = half & 0x3ff;
+                const int int16_t = (v.at(current_idx + 1) << 8) + v.at(current_idx + 2);
+                const int exp = (int16_t >> 10) & 0x1f;
+                const int mant = int16_t & 0x3ff;
                 double val;
                 if (exp == 0)
                 {
@@ -7858,7 +7858,7 @@ class basic_json
                           ? std::numeric_limits<double>::infinity()
                           : std::numeric_limits<double>::quiet_NaN();
                 }
-                return (half & 0x8000) != 0 ? -val : val;
+                return (int16_t & 0x8000) != 0 ? -val : val;
             }
 
             case 0xfa: // Single-Precision Float (four-byte IEEE 754)

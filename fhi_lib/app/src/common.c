@@ -95,12 +95,7 @@ int16_t nCpSizeF2[2][4][2] =
         {{68, 36}, {136, 72}, {272, 144}, {544, 288}}, // Numerology 3 (120KHz)
 };
 
-uint32_t gMaxSlotNum;
-uint32_t gNumDLCtx;
-uint32_t gNumULCtx;
-uint32_t gDLResetAdvance;
-uint32_t gDLProcAdvance;
-uint32_t gULProcAdvance;
+uint32_t gLocMaxSlotNum;
 
 static uint16_t g_NumSlotTDDLoop[XRAN_MAX_SECTOR_NR] = { XRAN_NUM_OF_SLOT_IN_TDD_LOOP };
 static uint16_t g_NumDLSymSp[XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {0};
@@ -339,11 +334,11 @@ uint32_t app_xran_cal_nrarfcn(uint32_t nCenterFreq)
 int32_t app_xran_slot_limit(int32_t nSfIdx)
 {
     while (nSfIdx < 0) {
-        nSfIdx += gMaxSlotNum;
+        nSfIdx += gLocMaxSlotNum;
     }
 
-    while (nSfIdx >= gMaxSlotNum) {
-        nSfIdx -= gMaxSlotNum;
+    while (nSfIdx >= gLocMaxSlotNum) {
+        nSfIdx -= gLocMaxSlotNum;
     }
 
     return nSfIdx;

@@ -732,8 +732,8 @@ TEST_P(BfpCheck, AVX512_sweep_xranlib)
     expandedData.dataExpanded = &loc_dataExpandedIn[0];
     BlockFloatCompander::ExpandedData expandedDataRes;
     expandedDataRes.dataExpanded = &loc_dataExpandedRes[0];
-    for (int iq_w_id = 0; iq_w_id < sizeof(iqWidth)/sizeof(iqWidth[0]); iq_w_id ++){
-        for (int tc = 0; tc < sizeof(numRBs)/sizeof(numRBs[0]); tc ++){
+    for (unsigned int iq_w_id = 0; iq_w_id < sizeof(iqWidth)/sizeof(iqWidth[0]); iq_w_id ++){
+        for (unsigned int tc = 0; tc < sizeof(numRBs)/sizeof(numRBs[0]); tc ++){
 
             //printf("[%d]numRBs %d [%d] iqWidth %d\n",tc, numRBs[tc], iq_w_id, iqWidth[iq_w_id]);
             // Generate random test data for compression kernel
@@ -819,8 +819,8 @@ TEST_P(BfpCheck, AVXSNC_sweep_xranlib)
     expandedData.dataExpanded = &loc_dataExpandedIn[0];
     BlockFloatCompander::ExpandedData expandedDataRes;
     expandedDataRes.dataExpanded = &loc_dataExpandedRes[0];
-    for (int iq_w_id = 0; iq_w_id < sizeof(iqWidth)/sizeof(iqWidth[0]); iq_w_id ++){
-        for (int tc = 0; tc < sizeof(numRBs)/sizeof(numRBs[0]); tc ++){
+    for (unsigned int iq_w_id = 0; iq_w_id < sizeof(iqWidth)/sizeof(iqWidth[0]); iq_w_id ++){
+        for (unsigned int tc = 0; tc < sizeof(numRBs)/sizeof(numRBs[0]); tc ++){
 
             //printf("[%d]numRBs %d [%d] iqWidth %d\n",tc, numRBs[tc], iq_w_id, iqWidth[iq_w_id]);
             // Generate random test data for compression kernel
@@ -903,8 +903,8 @@ TEST_P(BfpCheck, AVX512_cp_sweep_xranlib)
     BlockFloatCompander::ExpandedData expandedDataRes;
     expandedDataRes.dataExpanded = &loc_dataExpandedRes[0];
 
-    for (int iq_w_id = 0; iq_w_id < sizeof(iqWidth)/sizeof(iqWidth[0]); iq_w_id ++){
-        for (int tc = 0; tc < sizeof(antElm)/sizeof(antElm[0]); tc ++){
+    for (unsigned int iq_w_id = 0; iq_w_id < sizeof(iqWidth)/sizeof(iqWidth[0]); iq_w_id ++){
+        for (unsigned int tc = 0; tc < sizeof(antElm)/sizeof(antElm[0]); tc ++){
 
             numDataElements = 2*antElm[tc];
 
@@ -992,8 +992,8 @@ TEST_P(BfpCheck, AVXSNC_cp_sweep_xranlib)
     if(_may_i_use_cpu_feature(_FEATURE_AVX512IFMA52) == 0)
         return;
 
-    for (int iq_w_id = 0; iq_w_id < sizeof(iqWidth)/sizeof(iqWidth[0]); iq_w_id ++){
-        for (int tc = 0; tc < sizeof(antElm)/sizeof(antElm[0]); tc ++){
+    for (unsigned int iq_w_id = 0; iq_w_id < sizeof(iqWidth)/sizeof(iqWidth[0]); iq_w_id ++){
+        for (unsigned int tc = 0; tc < sizeof(antElm)/sizeof(antElm[0]); tc ++){
 
             numDataElements = 2*antElm[tc];
 

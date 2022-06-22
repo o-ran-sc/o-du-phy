@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@
  *
  **/
 
+#include "nr5g_mac_phy_api.h"
 #include "nr5g_fapi_framework.h"
-#include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_api.h"
 #include "nr5g_fapi_fapi2mac_p7_proc.h"
 #include "nr5g_fapi_fapi2mac_p7_pvt_proc.h"
@@ -213,15 +213,14 @@ uint8_t nr5g_fapi_rx_data_indication_to_fapi_translation(
 
         p_fapi_pdu_ind_info->handle = p_pusch_info->handle;
         p_fapi_pdu_ind_info->rnti = p_rx_ulsch_pdu_data->nRNTI;
-        p_fapi_pdu_ind_info->harqId = p_pusch_info->harq_process_id;
+        // upper nibble of pdu_length is passed in upper nibble in harqId (which only takes up to 4 bits)
+        // this way, pdu_length has 20-bits (up to 1048576)
+        p_fapi_pdu_ind_info->harqId = ((p_rx_ulsch_pdu_data->nPduLen & 0x000F0000) >> 12) | (p_pusch_info->harq_process_id & 0x0F);
         p_fapi_pdu_ind_info->ul_cqi = p_pusch_info->ul_cqi;
         p_fapi_pdu_ind_info->timingAdvance = p_pusch_info->timing_advance;
         p_fapi_pdu_ind_info->rssi = 880;
-        p_fapi_pdu_ind_info->pdu_length = p_rx_ulsch_pdu_data->nPduLen;
-        if (p_fapi_pdu_ind_info->pdu_length > 0)
-        {
+        p_fapi_pdu_ind_info->pdu_length = 0xFFFF & p_rx_ulsch_pdu_data->nPduLen;
         p_fapi_pdu_ind_info->pduData = (void *)p_rx_ulsch_pdu_data->pPayload;
-        }
 
         p_stats->fapi_stats.fapi_rx_data_ind_pdus++;
     }

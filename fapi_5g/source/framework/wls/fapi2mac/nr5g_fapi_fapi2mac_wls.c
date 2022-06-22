@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -24,12 +24,26 @@
 #include "nr5g_fapi_std.h"
 #include "nr5g_fapi_common_types.h"
 #include "nr5g_fapi_wls.h"
-#include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_wls.h"
 #include "nr5g_fapi_log.h"
-#include "nr5g_fapi_urllc_thread.h"
+#include "nr5g_fapi_framework.h"
 
 static p_fapi_api_queue_elem_t p_fapi2mac_buffers;
+
+uint64_t *nr5g_fapi_fapi2mac_wls_get(
+    uint32_t * const msg_size,
+    uint16_t * const msg_type,
+    uint16_t * const flags);
+
+uint8_t nr5g_fapi_fapi2mac_wls_put(
+    const p_fapi_api_queue_elem_t p_msg,
+    uint32_t msg_size,
+    uint16_t msg_type,
+    uint16_t flags);
+
+uint8_t nr5g_fapi_fapi2mac_wls_send(
+    const p_fapi_api_queue_elem_t p_list_elem,
+    bool is_urllc);
 
 //------------------------------------------------------------------------------
 /** @ingroup nr5g_fapi_source_framework_wls_fapi2mac_group
@@ -172,7 +186,7 @@ void nr5g_fapi_fapi2mac_wls_free_buffer(
  *  @return  0 if SUCCESS
  *
  *  @description
- *  This function is called at WLS init and waits in an infinite for L1 to respond back with some information
+ *  This function is called at WLS init and waits infinitely for L1 to respond back with some information
  *  needed by the L2
  *
 **/
@@ -193,8 +207,8 @@ uint8_t nr5g_fapi_fapi2mac_wls_ready(
  *  @return  Number of blocks of APIs received
  *
  *  @description
- *  This functions waits in a infinite loop for L1 to send a list of APIs to MAC. This is called
- *  during runtime when L2 sends a API to L1 and then waits for response back.
+ *  This functions waits in an infinite loop for L1 to send a list of APIs to MAC. This is called
+ *  during runtime when L2 sends API to L1 and then waits for a response back.
  *
 **/
 //------------------------------------------------------------------------------
@@ -239,9 +253,9 @@ static inline uint8_t is_msg_present(
 **/
 //------------------------------------------------------------------------------
 uint64_t *nr5g_fapi_fapi2mac_wls_get(
-    uint32_t * msg_size,
-    uint16_t * msg_type,
-    uint16_t * flags)
+    uint32_t * const msg_size,
+    uint16_t * const msg_type,
+    uint16_t * const flags)
 {
     uint64_t *data = NULL;
     WLS_HANDLE h_wls;
@@ -271,7 +285,7 @@ uint64_t *nr5g_fapi_fapi2mac_wls_get(
 **/
 //------------------------------------------------------------------------------
 inline uint8_t nr5g_fapi_fapi2mac_wls_put(
-    p_fapi_api_queue_elem_t p_msg,
+    const p_fapi_api_queue_elem_t p_msg,
     uint32_t msg_size,
     uint16_t msg_type,
     uint16_t flags)
@@ -301,7 +315,7 @@ inline uint8_t nr5g_fapi_fapi2mac_wls_put(
 **/
 //------------------------------------------------------------------------------
 uint8_t nr5g_fapi_fapi2mac_wls_send(
-    p_fapi_api_queue_elem_t p_list_elem,
+    const p_fapi_api_queue_elem_t p_list_elem,
     bool is_urllc)
 {
     uint8_t ret = SUCCESS;
@@ -452,7 +466,8 @@ p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_wls_recv(
     } while (num_elms && is_msg_present(flags));
 
     if (p_urllc_qelm_list) {
-        nr5g_fapi_urllc_thread_callback(NR5G_FAPI_URLLC_MSG_DIR_MAC2PHY, (void *) p_urllc_qelm_list);
+        nr5g_fapi_urllc_thread_callback((void *) p_urllc_qelm_list,
+               &nr5g_fapi_get_nr5g_fapi_phy_ctx()->urllc_mac2phy_params);
     }
 
     tick_total_wls_get_per_tti_dl += __rdtsc() - start_tick;

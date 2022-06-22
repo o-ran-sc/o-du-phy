@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -21,13 +21,14 @@
  * @defgroup nr5g_fapi_source_framework_wls_fapi2phy_group
  **/
 
+#include "nr5g_mac_phy_api.h"
 #include "nr5g_fapi_std.h"
 #include "nr5g_fapi_common_types.h"
 #include "nr5g_fapi_internal.h"
 #include "nr5g_fapi_wls.h"
 #include "nr5g_fapi_fapi2phy_wls.h"
 #include "nr5g_fapi_log.h"
-#include "nr5g_fapi_urllc_thread.h"
+#include "nr5g_fapi_framework.h"
 
 static uint32_t g_to_free_send_list_cnt[TO_FREE_SIZE] = { 0 };
 static uint64_t g_to_free_send_list[TO_FREE_SIZE][TOTAL_FREE_BLOCKS] = { {0L} };
@@ -36,6 +37,21 @@ static uint64_t g_to_free_recv_list[TO_FREE_SIZE][TOTAL_FREE_BLOCKS] = { {0L} };
 
 static uint32_t g_to_free_send_list_cnt_urllc[TO_FREE_SIZE_URLLC] = { 0 };
 static uint64_t g_to_free_send_list_urllc[TO_FREE_SIZE_URLLC][TOTAL_FREE_BLOCKS] = { {0L} };
+
+static uint32_t g_free_recv_idx = 0;
+static uint32_t g_free_send_idx = 0;
+static uint32_t g_free_send_idx_urllc = 0;
+
+uint64_t *nr5g_fapi_fapi2phy_wls_get(
+    uint32_t * const msg_size,
+    uint16_t * const msg_type,
+    uint16_t * const flags);
+
+uint8_t nr5g_fapi_fapi2phy_wls_put(
+    uint64_t p_msg,
+    uint32_t msg_size,
+    uint16_t msg_type,
+    uint16_t flags);
 
 //------------------------------------------------------------------------------
 /** @ingroup nr5g_fapi_source_framework_wls_fapi2phy_group
@@ -96,9 +112,9 @@ static inline WLS_HANDLE nr5g_fapi_fapi2phy_wls_instance(
 **/
 //----------------------------------------------------------------------------------
 inline uint64_t *nr5g_fapi_fapi2phy_wls_get(
-    uint32_t * msg_size,
-    uint16_t * msg_type,
-    uint16_t * flags)
+    uint32_t * const msg_size,
+    uint16_t * const msg_type,
+    uint16_t * const flags)
 {
     uint64_t *data = NULL;
     WLS_HANDLE h_wls;
@@ -185,6 +201,21 @@ static inline uint8_t is_msg_present(
     return (!((flags & WLS_TF_FIN) || (flags == 0)));
 }
 
+void nr5g_fapi_transfer_to_free_recv_list (
+    PMAC2PHY_QUEUE_EL p_qelm_list
+    /*uint32_t* free_recv_idx*/)
+{
+    wls_fapi_add_recv_apis_to_free(p_qelm_list, g_free_recv_idx);
+    (g_free_recv_idx)++;
+    if ((g_free_recv_idx) >= TO_FREE_SIZE) {
+        (g_free_recv_idx) = 0;
+    }
+    // Free few TTIs Later
+    wls_fapi_free_recv_free_list(g_free_recv_idx);
+
+    wls_fapi_add_blocks_to_ul();
+}
+
 //----------------------------------------------------------------------------------
 /** @ingroup nr5g_fapi_source_framework_wls_fapi2phy_group
  *
@@ -206,7 +237,6 @@ PMAC2PHY_QUEUE_EL nr5g_fapi_fapi2phy_wls_recv(
     uint32_t msg_size = 0;
     uint32_t num_elms = 0;
     uint64_t *p_msg = NULL;
-    static uint32_t g_free_recv_idx = 0;
     PMAC2PHY_QUEUE_EL p_qelm_list = NULL, p_urllc_qelm_list = NULL;
     PMAC2PHY_QUEUE_EL p_qelm = NULL;
     PMAC2PHY_QUEUE_EL p_tail_qelm = NULL, p_urllc_tail_qelm = NULL;
@@ -254,28 +284,13 @@ PMAC2PHY_QUEUE_EL nr5g_fapi_fapi2phy_wls_recv(
     } while (num_elms && is_msg_present(flags));
 
     if (p_urllc_qelm_list) {
-        wls_fapi_add_recv_apis_to_free(p_urllc_qelm_list, g_free_recv_idx);
-        g_free_recv_idx++;
-        if (g_free_recv_idx >= TO_FREE_SIZE) {
-            g_free_recv_idx = 0;
-        }
-        // Free 10 TTIs Later
-        wls_fapi_free_recv_free_list(g_free_recv_idx);
-
-        wls_fapi_add_blocks_to_ul();
-        nr5g_fapi_urllc_thread_callback(NR5G_FAPI_URLLC_MSG_DIR_PHY2MAC, (void *) p_urllc_qelm_list);
+        nr5g_fapi_transfer_to_free_recv_list (p_urllc_qelm_list);
+        nr5g_fapi_urllc_thread_callback((void *) p_urllc_qelm_list, 
+                    &nr5g_fapi_get_nr5g_fapi_phy_ctx()->urllc_phy2mac_params);
     }
 
     if (p_qelm_list) {
-        wls_fapi_add_recv_apis_to_free(p_qelm_list, g_free_recv_idx);
-        g_free_recv_idx++;
-        if (g_free_recv_idx >= TO_FREE_SIZE) {
-            g_free_recv_idx = 0;
-        }
-        // Free 10 TTIs Later
-        wls_fapi_free_recv_free_list(g_free_recv_idx);
-
-        wls_fapi_add_blocks_to_ul();
+        nr5g_fapi_transfer_to_free_recv_list (p_qelm_list);
     }
     tick_total_wls_get_per_tti_ul += __rdtsc() - start_tick;
 
@@ -410,8 +425,6 @@ uint8_t nr5g_fapi_fapi2phy_wls_send(
     uint16_t flags_urllc = (is_urllc ? WLS_TF_URLLC : 0);
     uint8_t ret = SUCCESS;
     int n_zbc_blocks = 0, is_zbc = 0, count = 0;
-    static uint32_t g_free_send_idx = 0;
-    static uint32_t g_free_send_idx_urllc = 0;
 
     p_curr_msg = (PMAC2PHY_QUEUE_EL) data;
     is_urllc ? wls_fapi_add_send_apis_to_free_urllc(p_curr_msg, g_free_send_idx_urllc)
@@ -526,8 +539,8 @@ uint8_t nr5g_fapi_fapi2phy_wls_send(
         }
 
         // Free some TTIs Later
-        is_urllc ? wls_fapi_free_send_free_list_urllc(g_free_send_idx_urllc)
-                 : wls_fapi_free_send_free_list(g_free_send_idx);
+        is_urllc ? wls_fapi_free_send_free_list_urllc()
+                 : wls_fapi_free_send_free_list();
     }
 
     if (pthread_mutex_unlock((pthread_mutex_t *) &
@@ -751,32 +764,31 @@ void wls_fapi_add_send_apis_to_free(
  *                  free array
 **/
 //------------------------------------------------------------------------------
-void wls_fapi_free_send_free_list(
-    uint32_t idx)
+void wls_fapi_free_send_free_list()
 {
     PMAC2PHY_QUEUE_EL pNextMsg = NULL;
     L1L2MessageHdr *p_msg_header = NULL;
     int count = 0, loc = 0;
 
-    if (idx >= TO_FREE_SIZE) {
-        NR5G_FAPI_LOG(ERROR_LOG, ("%s: list index: %d\n", __func__, idx));
+    if (g_free_send_idx >= TO_FREE_SIZE) {
+        NR5G_FAPI_LOG(ERROR_LOG, ("%s: list index: %d\n", __func__, g_free_send_idx));
         return;
     }
 
-    pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list[idx][count];
+    pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list[g_free_send_idx][count];
     while (pNextMsg) {
         p_msg_header = (PL1L2MessageHdr) (pNextMsg + 1);
         loc = get_stats_location(p_msg_header->nMessageType);
         wls_fapi_free_buffer(pNextMsg, loc);
-        g_to_free_send_list[idx][count++] = 0L;
-        if (g_to_free_send_list[idx][count])
-            pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list[idx][count];
+        g_to_free_send_list[g_free_send_idx][count++] = 0L;
+        if (g_to_free_send_list[g_free_send_idx][count])
+            pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list[g_free_send_idx][count];
         else
             pNextMsg = 0L;
     }
 
     NR5G_FAPI_LOG(DEBUG_LOG, ("Free %d\n", count));
-    g_to_free_send_list_cnt[idx] = 0;
+    g_to_free_send_list_cnt[g_free_send_idx] = 0;
 
     return;
 }
@@ -832,32 +844,31 @@ void wls_fapi_add_send_apis_to_free_urllc(
  *                  free array. Used by urllc thread.
 **/
 //------------------------------------------------------------------------------
-void wls_fapi_free_send_free_list_urllc(
-    uint32_t idx)
+void wls_fapi_free_send_free_list_urllc()
 {
     PMAC2PHY_QUEUE_EL pNextMsg = NULL;
     L1L2MessageHdr *p_msg_header = NULL;
     int count = 0, loc = 0;
 
-    if (idx >= TO_FREE_SIZE_URLLC) {
-        NR5G_FAPI_LOG(ERROR_LOG, ("%s: list index: %d\n", __func__, idx));
+    if (g_free_send_idx_urllc >= TO_FREE_SIZE_URLLC) {
+        NR5G_FAPI_LOG(ERROR_LOG, ("%s: list index: %d\n", __func__, g_free_send_idx_urllc));
         return;
     }
 
-    pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list_urllc[idx][count];
+    pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list_urllc[g_free_send_idx_urllc][count];
     while (pNextMsg) {
         p_msg_header = (PL1L2MessageHdr) (pNextMsg + 1);
         loc = get_stats_location(p_msg_header->nMessageType);
         wls_fapi_free_buffer(pNextMsg, loc);
-        g_to_free_send_list_urllc[idx][count++] = 0L;
-        if (g_to_free_send_list_urllc[idx][count])
-            pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list_urllc[idx][count];
+        g_to_free_send_list_urllc[g_free_send_idx_urllc][count++] = 0L;
+        if (g_to_free_send_list_urllc[g_free_send_idx_urllc][count])
+            pNextMsg = (PMAC2PHY_QUEUE_EL) g_to_free_send_list_urllc[g_free_send_idx_urllc][count];
         else
             pNextMsg = 0L;
     }
 
     NR5G_FAPI_LOG(DEBUG_LOG, ("Free %d\n", count));
-    g_to_free_send_list_cnt_urllc[idx] = 0;
+    g_to_free_send_list_cnt_urllc[g_free_send_idx_urllc] = 0;
 
     return;
 }

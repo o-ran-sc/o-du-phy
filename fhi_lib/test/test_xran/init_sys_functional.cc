@@ -66,6 +66,12 @@ void xran_fh_rx_callback(void *pCallbackTag, xran_status_t status)
     return;
 }
 
+void xran_fh_bfw_callback(void *pCallbackTag, xran_status_t status)
+{
+    rte_pause();
+    return;
+}
+
 void xran_fh_srs_callback(void *pCallbackTag, xran_status_t status)
 {
     rte_pause();
@@ -86,7 +92,7 @@ protected:
     void SetUp() override
     {
         xranlib->Init(0);
-        xranlib->Open(0, nullptr, nullptr, (void *)xran_fh_rx_callback, (void *)xran_fh_rx_prach_callback, (void *)xran_fh_srs_callback);
+        xranlib->Open(0, nullptr, nullptr, (void *)xran_fh_rx_callback, (void *)xran_fh_bfw_callback, (void *)xran_fh_rx_prach_callback, (void *)xran_fh_srs_callback);
     }
 
     /* It's called after an execution of the each test case.*/
@@ -104,6 +110,8 @@ public:
     BbuIoBufCtrlStruct sFrontHaulRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     BbuIoBufCtrlStruct sFHPrachRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
 
+    BbuIoBufCtrlStruct sFHCpRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+    BbuIoBufCtrlStruct sFHCpTxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     /* buffers lists */
     struct xran_flat_buffer sFrontHaulTxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFrontHaulTxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
@@ -256,19 +264,19 @@ TEST_P(Init_Sys_Check, Test_xran_reg_physide_cb)
     int16_t ret = 0;
     ret = xran_reg_physide_cb(xranlib->get_xranhandle(), physide_dl_tti_call_back, NULL, 10, XRAN_CB_TTI);
     ASSERT_EQ(0,ret);
-    ASSERT_EQ(physide_dl_tti_call_back, p_xran_dev_ctx->ttiCb[XRAN_CB_TTI]);
+    ASSERT_EQ((long long)physide_dl_tti_call_back, (long long)p_xran_dev_ctx->ttiCb[XRAN_CB_TTI]);
     ASSERT_EQ(NULL, p_xran_dev_ctx->TtiCbParam[XRAN_CB_TTI]);
     ASSERT_EQ(10, p_xran_dev_ctx->SkipTti[XRAN_CB_TTI]);
 
     ret = xran_reg_physide_cb(xranlib->get_xranhandle(), physide_ul_half_slot_call_back, NULL, 10, XRAN_CB_HALF_SLOT_RX);
     ASSERT_EQ(0,ret);
-    ASSERT_EQ(physide_ul_half_slot_call_back, p_xran_dev_ctx->ttiCb[XRAN_CB_HALF_SLOT_RX]);
-    ASSERT_EQ(NULL, p_xran_dev_ctx->TtiCbParam[XRAN_CB_HALF_SLOT_RX]);
+    ASSERT_EQ((long long)physide_ul_half_slot_call_back, (long long)p_xran_dev_ctx->ttiCb[XRAN_CB_HALF_SLOT_RX]);
+    ASSERT_EQ((long long)NULL, (long long)p_xran_dev_ctx->TtiCbParam[XRAN_CB_HALF_SLOT_RX]);
     ASSERT_EQ(10, p_xran_dev_ctx->SkipTti[XRAN_CB_HALF_SLOT_RX]);
 
     ret = xran_reg_physide_cb(xranlib->get_xranhandle(), physide_ul_full_slot_call_back, NULL, 10, XRAN_CB_FULL_SLOT_RX);
     ASSERT_EQ(0,ret);
-    ASSERT_EQ(physide_ul_full_slot_call_back, p_xran_dev_ctx->ttiCb[XRAN_CB_FULL_SLOT_RX]);
+    ASSERT_EQ((long long)physide_ul_full_slot_call_back,(long long) p_xran_dev_ctx->ttiCb[XRAN_CB_FULL_SLOT_RX]);
     ASSERT_EQ(NULL, p_xran_dev_ctx->TtiCbParam[XRAN_CB_FULL_SLOT_RX]);
     ASSERT_EQ(10, p_xran_dev_ctx->SkipTti[XRAN_CB_FULL_SLOT_RX]);
 

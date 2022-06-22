@@ -1,19 +1,6 @@
 /*******************************************************************************
  *
- * Copyright (c) 2020 Intel.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
+ * <COPYRIGHT_TAG>
  *
  *******************************************************************************/
 #include <rte_config.h>
@@ -42,9 +29,40 @@ static int parse_input_parameter(std::string executable, std::string option)
 
 xranLibWraper *xranlib;
 
+void
+ut_version_print(void)
+{
+    char            sysversion[100];
+    char           *compilation_date = (char *)__DATE__;
+    char           *compilation_time = (char *)__TIME__;
+    char            compiler[100];
+
+    //snprintf(sysversion, 99, "Version: %s", VERSIONX);
+
+#if defined(__clang__)
+    snprintf(compiler, 99, "family clang: %s", __clang_version__);
+#elif defined(__ICC) || defined(__INTEL_COMPILER)
+    snprintf(compiler, 99, "family icc: version %d", __INTEL_COMPILER);
+#elif defined(__INTEL_LLVM_COMPILER)
+    snprintf(compiler, 99, "family icx: version %d", __INTEL_LLVM_COMPILER);
+#elif defined(__GNUC__) || defined(__GNUG__)
+    snprintf(compiler, 99, "family gcc: version %d.%d.%d", __GNUC__, __GNUC_MINOR__,__GNUC_PATCHLEVEL__);
+#endif
+
+    printf("\n\n");
+    printf("===========================================================================================================\n");
+    printf("UNITTESTS VERSION\n");
+    printf("===========================================================================================================\n");
+
+    //printf("%s\n", sysversion);
+    printf("build-date: %s\n", compilation_date);
+    printf("build-time: %s\n", compilation_time);
+    printf("build-with: %s\n", compiler);
+}
+
 int main(int argc, char** argv) {
     int all_test_ret = 0;
-
+    ut_version_print();
     /* Enable xml output by default */
     ::testing::GTEST_FLAG(output) = "xml:test_results.xml";
 
@@ -109,7 +127,7 @@ int main(int argc, char** argv) {
 
     if(xranlib != nullptr) {
         delete xranlib;
-        xranlib == nullptr;
+        xranlib = nullptr;
         }
 
     return all_test_ret;

@@ -73,8 +73,8 @@ enum xran_entities_id
 };
 
 static char *const entity_names[] = {
-    "ORAN O-DU sim app",
-    "ORAN O-RU sim app"
+    (char *)"ORAN O-DU sim app",
+    (char *)"ORAN O-RU sim app"
 };
 
 typedef int (*PROCESS_CB)(void * arg);

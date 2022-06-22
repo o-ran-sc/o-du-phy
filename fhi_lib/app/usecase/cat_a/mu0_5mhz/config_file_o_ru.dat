@@ -74,7 +74,7 @@ antC14=./usecase/cat_a/mu0_5mhz/ant_14.bin #CC3
 antC15=./usecase/cat_a/mu0_5mhz/ant_15.bin #CC3
 
 ## RACH TODO: update for PRACH
-rachEanble=0 # Enable (1)| disable (0) PRACH configuration
+rachEnable=0 # Enable (1)| disable (0) PRACH configuration
 #rachOffset=43 # RB offset for prach detection (see RIU spec)
 #prachConfigIndex=1 # PRACH config index as per TS36.211 - Table 5.7.1-2 : PRACH Configuration Index
 antPrachC0=./usecase/cat_a/mu0_10mhz/ant_0.bin

@@ -122,10 +122,10 @@ antPrachC13=./usecase/cat_b/mu1_100mhz/ant_5.bin  #CC3
 antPrachC14=./usecase/cat_b/mu1_100mhz/ant_6.bin  #CC3
 antPrachC15=./usecase/cat_b/mu1_100mhz/ant_7.bin  #CC3
 
-rachEanble=0 # Enable (1)| disable (0) PRACH configuration
+rachEnable=0 # Enable (1)| disable (0) PRACH configuration
 prachConfigIndex=189
 
-srsEanble=0 # Enable (1)| disable (0) SRS
+srsEnable=0 # Enable (1)| disable (0) SRS
 srsSym=8192 # (1<<13) symbol used for SRS (def: sym 13)
 
 antSrsC0=./usecase/cat_b/mu1_100mhz/ant_0.bin

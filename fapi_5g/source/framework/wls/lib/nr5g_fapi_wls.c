@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -76,30 +76,6 @@ inline uint8_t nr5g_fapi_fapi2phy_wls_ready(
     return retval;
 }
 
-//----------------------------------------------------------------------------------
-/** @ingroup nr5g_fapi_source_framework_wls_fapi2phy_group
- *
- *  @param void
- *
- *  @return  0 if SUCCESS
- *
- *  @description
- *  This function is called at WLS init and waits in an infinite for L1 to respond back with some information
- *  needed by the L2
- *
-**/
-//----------------------------------------------------------------------------------
-inline uint8_t nr5g_fapi_fapi2mac_wls_ready(
-    )
-{
-    int retval = 0;
-    p_nr5g_fapi_wls_context_t p_wls = nr5g_fapi_wls_context();
-
-    retval = WLS_Ready1(p_wls->h_wls[NR5G_FAPI2MAC_WLS_INST]);
-
-    return retval;
-}
-
 //------------------------------------------------------------------------------
 /** @ingroup nr5g_fapi_source_framework_wls_lib_group
  *
@@ -118,7 +94,7 @@ void nr5g_fapi_wls_show_data(
     uint32_t size)
 {
     uint8_t *d = ptr;
-    int i;
+    uint32_t i;
 
     for (i = 0; i < size; i++) {
         if (!(i & 0xf))

@@ -154,7 +154,6 @@ int xran_build_ecpri_hdr(struct rte_mbuf *mbuf,
   uint32_t payloadlen;
   struct xran_ecpri_hdr *tmp;
 
-
     tmp = (struct xran_ecpri_hdr *)rte_pktmbuf_append(mbuf, sizeof(struct xran_ecpri_hdr));
     if(unlikely(tmp == NULL)) {
         print_err("Fail to allocate the space for eCPRI hedaer!");

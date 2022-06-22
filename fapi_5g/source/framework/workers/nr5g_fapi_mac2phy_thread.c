@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -38,8 +38,6 @@
 void *nr5g_fapi_mac2phy_thread_func(
     void *config)
 {
-    cpu_set_t cpuset;
-    pthread_t thread;
     p_fapi_api_queue_elem_t p_msg_list = NULL;
     p_nr5g_fapi_phy_ctx_t p_phy_ctx = (p_nr5g_fapi_phy_ctx_t) config;
     uint64_t start_tick;
@@ -48,12 +46,8 @@ void *nr5g_fapi_mac2phy_thread_func(
             "Core: %d\n", __func__, pthread_self(),
             p_phy_ctx->mac2phy_worker_core_id));
 
-    thread = p_phy_ctx->mac2phy_tid = pthread_self();
-    CPU_ZERO(&cpuset);
-    CPU_SET(p_phy_ctx->mac2phy_worker_core_id, &cpuset);
-    pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    nr5g_fapi_init_thread(p_phy_ctx->mac2phy_worker_core_id);
 
-    usleep(1000);
     while (!p_phy_ctx->process_exit) {
         p_msg_list = nr5g_fapi_fapi2mac_wls_recv();
         if (p_msg_list)
@@ -279,6 +273,14 @@ void nr5g_fapi_mac2phy_api_processing_handler(
                 break;
 
                 /*  P5 Message Processing */
+
+            case FAPI_PARAM_REQUEST:
+                {
+                    nr5g_fapi_param_response(p_phy_instance);
+                }
+
+                break;
+
             case FAPI_CONFIG_REQUEST:
                 {
                     nr5g_fapi_config_request(is_urllc, p_phy_instance,

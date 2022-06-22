@@ -401,11 +401,11 @@ struct xran_cp_radioapp_section_ext8 {
  *      The structure does not need the conversion of byte order.
  */
 struct xran_cp_radioapp_section_ext9 {
+    uint8_t     reserved;
+    uint8_t     technology;         /**< 5.4.7.9.1 technology (interface name) */
+    uint8_t     extLen;             /**< 5.4.6.3 extension length, in 32bits words */
     uint8_t     extType:7;          /**< 5.4.6.1 extension type */
     uint8_t     ef:1;               /**< 5.4.6.2 extension flag */
-    uint8_t     extLen;             /**< 5.4.6.3 extension length, in 32bits words */
-    uint8_t     technology;         /**< 5.4.7.9.1 technology (interface name) */
-    uint8_t     reserved;
     } __attribute__((__packed__));
 
 /**
@@ -457,11 +457,11 @@ union xran_cp_radioapp_section_ext11 {
         uint8_t     numBundPrb;         /**< 5.4.7.11.3 Number of bundled PRBs per beamforming weights */
         uint8_t     bfwCompMeth:4;      /**< 5.4.7.11.1 Beamforming weight Compression method (5.4.7.1.1) */
         uint8_t     bfwIqWidth:4;       /**< 5.4.7.11.1 Beamforming weight IQ bit width (5.4.7.1.1) */
-    } all_bits;
+    } __attribute__((__packed__)) all_bits;
     struct{
         uint32_t    data_field1;
         uint16_t    data_field2;
-    }data_field;
+    } __attribute__((__packed__)) data_field;
     /*
      *   bfwCompParam               5.4.7.11.2 beamforming weight compression parameter for PRB bundle
      *   beamId                     beam ID for PRB bundle (15bits)

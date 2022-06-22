@@ -101,7 +101,7 @@ antPrachC13=./usecase/cat_a/mu1_100mhz/ant_13.bin #CC3
 antPrachC14=./usecase/cat_a/mu1_100mhz/ant_14.bin #CC3
 antPrachC15=./usecase/cat_a/mu1_100mhz/ant_15.bin #CC3
 
-rachEanble=1 # Enable (1)| disable (0) PRACH configuration
+rachEnable=1 # Enable (1)| disable (0) PRACH configuration
 prachConfigIndex=147 # PRACH config index as per TS36.211 - Table 5.7.1-2 : PRACH Configuration Index
 
 ###########################################################

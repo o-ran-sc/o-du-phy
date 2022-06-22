@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -253,6 +253,7 @@ extern "C" {
 #define FAPI_MAX_NUM_TLVS_START                             3   // Based on Timer Mode requirement.
 #define FAPI_MAX_NUM_TLVS_SHUTDOWN                          1   // Based on Timer Mode requirement.
 #define FAPI_MAX_UCI_BIT_BYTE_LEN                           256
+#define FAPI_RB_BITMAP_SIZE                                 36  // Based on 5G FAPI Table 3-38
 
     enum ul_tti_pdu_type_e {
         FAPI_PRACH_PDU_TYPE = 0,
@@ -268,6 +269,16 @@ extern "C" {
         FAPI_CSIRS_PDU_TYPE,
         FAPI_PBCH_PDU_TYPE,
         FAPI_DL_TTI_PDU_TYPE_MAX
+    };
+
+    enum dl_resource_alloc_type_e { // Based on 5G FAPI Table 3-38
+        FAPI_DL_RESOURCE_ALLOC_TYPE_0 = 0,
+        FAPI_DL_RESOURCE_ALLOC_TYPE_1 = 1
+    };
+
+    enum ul_resource_alloc_type_e { // Based on 5G FAPI Table 3-38
+        FAPI_UL_RESOURCE_ALLOC_TYPE_0 = 0,
+        FAPI_UL_RESOURCE_ALLOC_TYPE_1 = 1
     };
 
 //------------------------------------------------------------------------------------------------------------
@@ -724,7 +735,7 @@ extern "C" {
         uint16_t dmrsPorts;
         uint16_t rbStart;
         uint16_t rbSize;
-        uint8_t rbBitmap[36];
+        uint8_t rbBitmap[FAPI_RB_BITMAP_SIZE];
         uint8_t vrbToPrbMapping;
         uint8_t startSymbIndex;
         uint8_t nrOfSymbols;
@@ -923,7 +934,7 @@ extern "C" {
         uint16_t dmrsPorts;
         uint16_t nTpPuschId;
         uint16_t tpPi2Bpsk;
-        uint8_t rbBitmap[36];
+        uint8_t rbBitmap[FAPI_RB_BITMAP_SIZE];
         uint16_t rbStart;
         uint16_t rbSize;
         uint8_t vrbToPrbMapping;

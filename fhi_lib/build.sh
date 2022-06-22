@@ -27,6 +27,7 @@ XRAN_FH_TEST_DIR=$XRAN_DIR/test/test_xran
 LIBXRANSO=0
 MLOG=0
 COMMAND_LINE=
+SAMPLEAPP=0
 
 echo Number of commandline arguments: $#
 while [[ $# -ne 0 ]]
@@ -40,6 +41,12 @@ case $key in
     ;;
     MLOG)
     MLOG=1
+    ;;
+    FWK)
+    FWK=1
+    ;;
+    SAMPLEAPP)
+    SAMPLEAPP=1
     ;;
     xclean)
     COMMAND_LINE+=$key
@@ -65,16 +72,52 @@ else
 	MLOG=1
 fi
 
-echo 'Building xRAN Library'
-echo "LIBXRANSO = ${LIBXRANSO}"
-echo "MLOG      = ${MLOG}"
+if [ -z "$DIR_WIRELESS_FW" ]
+then
+	echo 'DIR_WIRELESS_FW folder is not set. Disable FWK (DIR_WIRELESS_FW='$DIR_WIRELESS_FW')'
+	FWK=0
+else
+	echo 'DIR_WIRELESS_FW folder is set. Enable FWK (DIR_WIRELESS_FW='$DIR_WIRELESS_FW')'
+	FWK=1
+fi
+
+ORU=1
+echo 'Building xRAN Library for O-RU'
+echo "LIBXRANSO    = ${LIBXRANSO}"
+echo "MLOG         = ${MLOG}"
+echo "FWK          = ${FWK}"
+echo "ORU          = ${ORU}"
 
 cd $XRAN_FH_LIB_DIR
-make $COMMAND_LINE MLOG=${MLOG} LIBXRANSO=${LIBXRANSO} #DEBUG=1 VERBOSE=1
+make $COMMAND_LINE MLOG=${MLOG} LIBXRANSO=${LIBXRANSO} ORU=${ORU}
 
-echo 'Building xRAN Test Application'
+if [ "$SAMPLEAPP" -eq "1" ]
+then
+		echo 'Building xRAN O-RU Test Application'
+		cd $XRAN_FH_APP_DIR
+		make $COMMAND_LINE MLOG=${MLOG} FWK=${FWK} ORU=${ORU}
+else
+		echo 'Not building xRAN Test Application...'
+fi
+
+ORU=0
+echo 'Building xRAN Library for O-DU'
+echo "LIBXRANSO = ${LIBXRANSO}"
+echo "MLOG      = ${MLOG}"
+echo "FWK          = ${FWK}"
+echo "ORU          = ${ORU}"
+
+cd $XRAN_FH_LIB_DIR
+make $COMMAND_LINE MLOG=${MLOG} LIBXRANSO=${LIBXRANSO} ORU=${ORU}
+
+if [ "$SAMPLEAPP" -eq "1" ]
+then
+		echo 'Building xRAN O-DU Test Application'
 cd $XRAN_FH_APP_DIR
-make $COMMAND_LINE MLOG=${MLOG} #DEBUG=1 VERBOSE=1
+		make $COMMAND_LINE MLOG=${MLOG} FWK=${FWK} ORU=${ORU}
+else
+		echo 'Not building xRAN Test Application...'
+fi
 
 if [ -z ${GTEST_ROOT+x} ];
 then

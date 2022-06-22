@@ -39,7 +39,8 @@ extern "C" {
 
 /* definitions PUT/GET Flags */
 #define WLS_TF_SCATTER_GATHER  (1 << 15)
-#define WLS_TF_URLLC           (1 << 10)
+#define WLS_TF_URLLC           (1 << 11)
+#define WLS_TF_LTE             (1 << 10)
 #define WLS_TF_SYN             (1 << 9)
 #define WLS_TF_FIN             (1 << 8)
 #define WLS_FLAGS_MASK         (0xFF00)

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -28,7 +28,6 @@
 #include "nr5g_fapi_std.h"
 #include "nr5g_fapi_common_types.h"
 #include "wls_lib.h"
-#include "gnb_l1_l2_api.h"
 
 typedef void *WLS_HANDLE;
 
@@ -93,11 +92,11 @@ typedef struct _nr5g_fapi_wls_context {
 
 extern nr5g_fapi_wls_context_t g_wls_ctx;
 
-inline p_nr5g_fapi_wls_context_t nr5g_fapi_wls_context(
+p_nr5g_fapi_wls_context_t nr5g_fapi_wls_context(
     );
-inline uint8_t nr5g_fapi_fapi2phy_wls_ready(
+uint8_t nr5g_fapi_fapi2phy_wls_ready(
     );
-inline uint8_t nr5g_fapi_fapi2mac_wls_ready(
+uint8_t nr5g_fapi_fapi2mac_wls_ready(
     );
 uint8_t nr5g_fapi_wls_init(
     );

@@ -83,8 +83,11 @@
 #define KEY_FILE_ULBFWUE    "UlBfwUe"
 
 #define KEY_FILE_O_XU_CFG   "oXuCfgFile"
+#define KEY_FILE_O_XU_BBU_CFG   "oXuBbuCfgFile"
 #define KEY_O_XU_PCIE_BUS   "PciBusAddoXu"
 #define KEY_O_XU_REM_MAC    "oXuRem"
+#define KEY_DL_CP_BURST     "dlCpProcBurst"
+#define KEY_XRAN_MLOG_DIS   "xranMlogDisable"
 
 #define KEY_FILE_ULSRS      "antSrsC"
 
@@ -113,13 +116,17 @@
 #define KEY_FILE_SLOT_TX     "SlotNumTx"
 #define KEY_FILE_SLOT_RX     "SlotNumRx"
 
-#define KEY_PRACH_ENABLE   "rachEanble"
-#define KEY_SRS_ENABLE     "srsEanble"
+#define KEY_PRACH_ENABLE   "rachEnable"
+#define KEY_SRS_ENABLE     "srsEnable"
 #define KEY_PUSCH_MASK_ENABLE "puschMaskEnable"
 #define KEY_PUSCH_MASK_SLOT "puschMaskSlot"
 
 #define KEY_PRACH_CFGIDX   "prachConfigIndex"
+#define KEY_PRACH_CFGIDX_LTE   "prachConfigIndexLTE"
 #define KEY_SRS_SYM_IDX    "srsSym"
+#define KEY_SRS_SLOT        "srsSlot"
+#define KEY_SRS_NDM_OFFSET  "srsNdmOffset"
+#define KEY_SRS_NDM_TXDUR   "srsNdmTxDuration"
 
 #define KEY_MAX_FRAME_ID   "maxFrameId"
 
@@ -160,6 +167,7 @@
 #define KEY_DEBUG_STOP_CNT "debugStopCount"
 #define KEY_BBDEV_MODE     "bbdevMode"
 #define KEY_DYNA_SEC_ENA   "DynamicSectionEna"
+#define EXT_TYPE           "extType"
 #define KEY_ALPHA          "Gps_Alpha"
 #define KEY_BETA           "Gps_Beta"
 
@@ -178,7 +186,11 @@
 #define KEY_PRBELEM_SRS        "PrbElemSrs"
 #define KEY_MAX_SEC_SYM        "max_sections_per_symbol"
 #define KEY_MAX_SEC_SLOT       "max_sections_per_slot"
+#define KEY_PRBMAP_BY_SYMB     "RunSlotPrbMapBySymbolEna"
 
+#define KEY_DSS_ENABLE       "dssEnable"
+#define KEY_DSS_PERIOD       "dssPeriod"
+#define KEY_TECHNOLOGY       "technology"
 typedef int (*fillConfigStruct_fn)(void* cbPram, const char *key, const char *value);
 
 struct slot_cfg_to_pars {
@@ -192,10 +204,10 @@ struct slot_cfg_to_pars {
  *
  * @todo Initialize missing parameters.
  */
-static void init_config(RuntimeConfig* config)
-{
-    memset(config , 0, sizeof(RuntimeConfig));
-}
+//static void init_config(RuntimeConfig* config)
+//{
+//    memset(config , 0, sizeof(RuntimeConfig));
+//}
 
 static int32_t
 parseFileViaCb (char *filename, fillConfigStruct_fn cbFn, void* cbParm);
@@ -213,7 +225,6 @@ static void trim(char* input)
 
 static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *value)
 {
-    int32_t parse_res = 0;
     static uint32_t section_idx_dl  = 0;
     static uint32_t section_idx_ul  = 0;
     static uint32_t section_idx_srs = 0;
@@ -470,6 +481,18 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
     } else if (strcmp(key, KEY_SRS_ENABLE) == 0) {
         config->enableSrs = atoi(value);
         printf("Srs enable: %d\n",config->enableSrs);
+    } else if (strcmp(key, KEY_SRS_SYM_IDX) == 0) {
+        config->srsSymMask = atoi(value);
+        printf("Srs symbol [0-13]: %d\n",config->srsSymMask);
+    } else if (strcmp(key, KEY_SRS_SLOT) == 0) {
+        config->srsSlot = atoi(value);
+        printf("Srs slot: %d\n",config->srsSlot);
+    } else if (strcmp(key, KEY_SRS_NDM_OFFSET) == 0) {
+        config->srsNdmOffset = atoi(value);
+        printf("Srs NDM Offset: %d\n",config->srsNdmOffset);
+    } else if (strcmp(key, KEY_SRS_NDM_TXDUR) == 0) {
+        config->srsNdmTxDuration = atoi(value);
+        printf("Srs NDM TX duration: %d\n",config->srsNdmTxDuration);
     } else if (strcmp(key, KEY_PUSCH_MASK_ENABLE) == 0) {
         config->puschMaskEnable = atoi(value);
         printf("PUSCH mask enable: %d\n",config->puschMaskEnable);
@@ -479,9 +502,9 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
     } else if (strcmp(key, KEY_PRACH_CFGIDX) == 0) {
         config->prachConfigIndex = atoi(value);
         printf("Prach config index: %d\n",config->prachConfigIndex);
-    } else if (strcmp(key, KEY_SRS_SYM_IDX) == 0) {
-        config->srsSymMask = atoi(value);
-        printf("Srs symbol [0-13]: %d\n",config->srsSymMask);
+    } else if (strcmp(key, KEY_PRACH_CFGIDX_LTE) == 0) {
+        config->prachConfigIndexLTE = atoi(value);
+        printf("Prach config index LTE for DSS: %d\n",config->prachConfigIndexLTE);
     } else if (strncmp(key, KEY_FILE_PRACH_AxC, strlen(KEY_FILE_PRACH_AxC)) == 0) {
         unsigned int ant_num = 0;
         sscanf(key,"antPrachC%02u",&ant_num);
@@ -564,6 +587,9 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
     } else if (strcmp(key, KEY_DYNA_SEC_ENA) == 0) {
         config->DynamicSectionEna = atoi(value);
         printf("DynamicSectionEna: %d\n",config->DynamicSectionEna);
+    } else if (strcmp(key, EXT_TYPE) == 0) {
+        config->extType = atoi(value);
+        printf("ExtType: %d\n",config->extType);
     } else if (strcmp(key, KEY_ALPHA) == 0) {
         config->GPS_Alpha = atoi(value);
         printf("GPS_Alpha: %d\n",config->GPS_Alpha);
@@ -618,16 +644,17 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
         }
         else{
             struct xran_prb_elm *pPrbElem = &config->p_PrbMapUl->prbMap[section_idx_ul];
-            sscanf(value, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
+            sscanf(value, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
                 (uint8_t*)&pPrbElem->bf_weight.numBundPrb,
                 (uint8_t*)&pPrbElem->bf_weight.numSetBFWs,
                 (uint8_t*)&pPrbElem->bf_weight.RAD,
                 (uint8_t*)&pPrbElem->bf_weight.disableBFWs,
                 (uint8_t*)&pPrbElem->bf_weight.bfwIqWidth,
-                (uint8_t*)&pPrbElem->bf_weight.bfwCompMeth);
+                (uint8_t*)&pPrbElem->bf_weight.bfwCompMeth,
+                (uint8_t*)&pPrbElem->bf_weight.extType);
             printf(KEY_EXTBFW_UL"%d: ", section_idx_ul);
-            printf("numBundPrb %d, numSetBFW %d, RAD %d, disableBFW %d, bfwIqWidth %d, bfwCompMeth %d\n",
-                pPrbElem->bf_weight.numBundPrb, pPrbElem->bf_weight.numSetBFWs, pPrbElem->bf_weight.RAD, pPrbElem->bf_weight.disableBFWs, pPrbElem->bf_weight.bfwIqWidth, pPrbElem->bf_weight.bfwCompMeth);
+            printf("numBundPrb %d, numSetBFW %d, RAD %d, disableBFW %d, bfwIqWidth %d, bfwCompMeth %d, extType %d\n",
+                pPrbElem->bf_weight.numBundPrb, pPrbElem->bf_weight.numSetBFWs, pPrbElem->bf_weight.RAD, pPrbElem->bf_weight.disableBFWs, pPrbElem->bf_weight.bfwIqWidth, pPrbElem->bf_weight.bfwCompMeth, pPrbElem->bf_weight.extType);
         }
     }else if (strcmp(key, KEY_NPRBELEM_DL ) == 0) {
         config->p_PrbMapDl->nPrbElm = atoi(value);
@@ -667,16 +694,17 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
         }
         else{
             struct xran_prb_elm *pPrbElem = &config->p_PrbMapDl->prbMap[section_idx_dl];
-            sscanf(value, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
+            sscanf(value, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
                 (uint8_t*)&pPrbElem->bf_weight.numBundPrb,
                 (uint8_t*)&pPrbElem->bf_weight.numSetBFWs,
                 (uint8_t*)&pPrbElem->bf_weight.RAD,
                 (uint8_t*)&pPrbElem->bf_weight.disableBFWs,
                 (uint8_t*)&pPrbElem->bf_weight.bfwIqWidth,
-                (uint8_t*)&pPrbElem->bf_weight.bfwCompMeth);
+                (uint8_t*)&pPrbElem->bf_weight.bfwCompMeth,
+                (uint8_t*)&pPrbElem->bf_weight.extType);
             printf(KEY_EXTBFW_DL"%d: ", section_idx_dl);
-            printf("numBundPrb %d, numSetBFW %d, RAD %d, disableBFW %d, bfwIqWidth %d, bfwCompMeth %d\n",
-                pPrbElem->bf_weight.numBundPrb, pPrbElem->bf_weight.numSetBFWs, pPrbElem->bf_weight.RAD, pPrbElem->bf_weight.disableBFWs, pPrbElem->bf_weight.bfwIqWidth, pPrbElem->bf_weight.bfwCompMeth);
+            printf("numBundPrb %d, numSetBFW %d, RAD %d, disableBFW %d, bfwIqWidth %d, bfwCompMeth %d, extType %d\n",
+                pPrbElem->bf_weight.numBundPrb, pPrbElem->bf_weight.numSetBFWs, pPrbElem->bf_weight.RAD, pPrbElem->bf_weight.disableBFWs, pPrbElem->bf_weight.bfwIqWidth, pPrbElem->bf_weight.bfwCompMeth, pPrbElem->bf_weight.extType);
         }
     } else if (strcmp(key, KEY_NPRBELEM_SRS ) == 0) {
         config->p_PrbMapSrs->nPrbElm = atoi(value);
@@ -706,18 +734,48 @@ static int fillConfigStruct(RuntimeConfig *config, const char *key, const char *
             printf("nRBStart %d,nRBSize %d,nStartSymb %d,numSymb %d,nBeamIndex %d, bf_weight_update %d compMethod %d, iqWidth %d BeamFormingType %d\n",
                 pPrbElem->nRBStart,pPrbElem->nRBSize,pPrbElem->nStartSymb,pPrbElem->numSymb,pPrbElem->nBeamIndex, pPrbElem->bf_weight_update, pPrbElem->compMethod, pPrbElem->iqWidth, pPrbElem->BeamFormingType);
         }
+    } else if (strcmp(key, KEY_PRBMAP_BY_SYMB ) == 0) {
+        config->RunSlotPrbMapBySymbolEnable = atoi(value);
+        printf("RunSlotPrbMapBySymbolEnable: %d\n",config->RunSlotPrbMapBySymbolEnable);
+    } else if (strcmp(key, KEY_DSS_ENABLE ) == 0) {
+        config->dssEnable =  atoi(value);
+        printf("dssEnable: %d\n",config->dssEnable);
+    } else if (strcmp(key, KEY_DSS_PERIOD ) == 0) {
+        config->dssPeriod =  atoi(value);
+        printf("dssPeriod: %d\n",config->dssPeriod);
+    } else if (strcmp(key, KEY_TECHNOLOGY ) == 0) {
+        int i = 0;
+        sscanf(value, "%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx,%02hhx",
+                                                    (uint8_t *)&config->technology[0],
+                                                    (uint8_t *)&config->technology[1],
+                                                    (uint8_t *)&config->technology[2],
+                                                    (uint8_t *)&config->technology[3],
+                                                    (uint8_t *)&config->technology[4],
+                                                    (uint8_t *)&config->technology[5],
+                                                    (uint8_t *)&config->technology[6],
+                                                    (uint8_t *)&config->technology[7],
+                                                    (uint8_t *)&config->technology[8],
+                                                    (uint8_t *)&config->technology[9],
+                                                    (uint8_t *)&config->technology[10],
+                                                    (uint8_t *)&config->technology[11],
+                                                    (uint8_t *)&config->technology[12],
+                                                    (uint8_t *)&config->technology[13],
+                                                    (uint8_t *)&config->technology[14]);
+        printf("technology:");
+        for( i=0; i<config->dssPeriod; i++) {
+           printf("%d ",config->technology[i]);
+        }
+        printf("\n");
     }else {
         printf("Unsupported configuration key [%s]\n", key);
         return -1;
     }
-
     return 0;
 }
 
 static int
 fillUsecaseStruct(UsecaseConfig *config, const char *key, const char *value)
 {
-    int32_t parse_res = 0;
     if (strcmp(key, KEY_APP_MODE) == 0){
         config->appMode = atoi(value);
         printf("appMode %d \n", config->appMode);
@@ -772,6 +830,9 @@ fillUsecaseStruct(UsecaseConfig *config, const char *key, const char *value)
             strncpy(&config->o_xu_cfg_file[o_xu_id][0], value, strlen(value));
             printf("oXuCfgFile%d: %s\n",o_xu_id, config->o_xu_cfg_file[o_xu_id]);
         }
+    } else if (strncmp(key, KEY_FILE_O_XU_BBU_CFG, strlen(KEY_FILE_O_XU_BBU_CFG)) == 0) {
+        strncpy(&config->o_xu_bbu_cfg_file[0], value, strlen(value));
+        printf("oXuBbuCfgFile: %s\n", config->o_xu_bbu_cfg_file);
     } else if (strncmp(key, KEY_OWDM_INIT_EN, strlen(KEY_OWDM_INIT_EN)) == 0) {
         config->owdmInitEn = atoi(value);
         printf("owdmInitEn %d\n", config->owdmInitEn);
@@ -836,6 +897,13 @@ fillUsecaseStruct(UsecaseConfig *config, const char *key, const char *value)
                 config->remote_o_xu_addr[xu_num][vf_num].addr_bytes[4],
                 config->remote_o_xu_addr[xu_num][vf_num].addr_bytes[5]);
         }
+    }
+    else if (strncmp(key, KEY_DL_CP_BURST, strlen(KEY_DL_CP_BURST)) == 0) {
+        config->dlCpProcBurst = atoi(value);
+        printf("dlCpProcBurst %d\n", config->dlCpProcBurst);
+    } else if (strncmp(key, KEY_XRAN_MLOG_DIS, strlen(KEY_XRAN_MLOG_DIS)) == 0) {
+        config->mlogxrandisable = atoi(value);
+        printf("xranMlogDisable %d\n", config->mlogxrandisable);
     } else {
         printf("Unsupported configuration key [%s]\n", key);
         return -1;
@@ -908,16 +976,17 @@ fillSlotStructAsCb(void* cbParam, const char *key, const char *value)
             printf("section_idx %d of bfw exceeds nPrbElemUl\n",section_idx);
         }else{
             struct xran_prb_elm *pPrbElem = &config->p_SlotPrbMap[direction][slot_idx]->prbMap[section_idx];
-            sscanf(value, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
+            sscanf(value, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
                 (uint8_t*)&pPrbElem->bf_weight.numBundPrb,
                 (uint8_t*)&pPrbElem->bf_weight.numSetBFWs,
                 (uint8_t*)&pPrbElem->bf_weight.RAD,
                 (uint8_t*)&pPrbElem->bf_weight.disableBFWs,
                 (uint8_t*)&pPrbElem->bf_weight.bfwIqWidth,
-                (uint8_t*)&pPrbElem->bf_weight.bfwCompMeth);
+                (uint8_t*)&pPrbElem->bf_weight.bfwCompMeth,
+                (uint8_t*)&pPrbElem->bf_weight.extType);
             printf(KEY_EXTBFW_UL"%d: ", section_idx);
-            printf("numBundPrb %d, numSetBFW %d, RAD %d, disableBFW %d, bfwIqWidth %d, bfwCompMeth %d\n",
-                pPrbElem->bf_weight.numBundPrb, pPrbElem->bf_weight.numSetBFWs, pPrbElem->bf_weight.RAD, pPrbElem->bf_weight.disableBFWs, pPrbElem->bf_weight.bfwIqWidth, pPrbElem->bf_weight.bfwCompMeth);
+            printf("numBundPrb %d, numSetBFW %d, RAD %d, disableBFW %d, bfwIqWidth %d, bfwCompMeth %d, extType %d\n",
+                pPrbElem->bf_weight.numBundPrb, pPrbElem->bf_weight.numSetBFWs, pPrbElem->bf_weight.RAD, pPrbElem->bf_weight.disableBFWs, pPrbElem->bf_weight.bfwIqWidth, pPrbElem->bf_weight.bfwCompMeth, pPrbElem->bf_weight.extType);
         }
     }else if (strcmp(key, KEY_NPRBELEM_DL ) == 0) {
         config->p_SlotPrbMap[direction][slot_idx]->nPrbElm = atoi(value);
@@ -973,16 +1042,17 @@ fillSlotStructAsCb(void* cbParam, const char *key, const char *value)
         }
         else{
             struct xran_prb_elm *pPrbElem = &config->p_SlotPrbMap[direction][slot_idx]->prbMap[section_idx];
-            sscanf(value, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
+            sscanf(value, "%hhu,%hhu,%hhu,%hhu,%hhu,%hhu,%hhu",
                 (uint8_t*)&pPrbElem->bf_weight.numBundPrb,
                 (uint8_t*)&pPrbElem->bf_weight.numSetBFWs,
                 (uint8_t*)&pPrbElem->bf_weight.RAD,
                 (uint8_t*)&pPrbElem->bf_weight.disableBFWs,
                 (uint8_t*)&pPrbElem->bf_weight.bfwIqWidth,
-                (uint8_t*)&pPrbElem->bf_weight.bfwCompMeth);
+                (uint8_t*)&pPrbElem->bf_weight.bfwCompMeth,
+                (uint8_t*)&pPrbElem->bf_weight.extType);
             printf(KEY_EXTBFW_DL"%d: ",section_idx);
-            printf("numBundPrb %d, numSetBFW %d, RAD %d, disableBFW %d, bfwIqWidth %d, bfwCompMeth %d\n",
-                pPrbElem->bf_weight.numBundPrb, pPrbElem->bf_weight.numSetBFWs, pPrbElem->bf_weight.RAD, pPrbElem->bf_weight.disableBFWs, pPrbElem->bf_weight.bfwIqWidth, pPrbElem->bf_weight.bfwCompMeth);
+            printf("numBundPrb %d, numSetBFW %d, RAD %d, disableBFW %d, bfwIqWidth %d, bfwCompMeth %d, extType %d\n",
+                pPrbElem->bf_weight.numBundPrb, pPrbElem->bf_weight.numSetBFWs, pPrbElem->bf_weight.RAD, pPrbElem->bf_weight.disableBFWs, pPrbElem->bf_weight.bfwIqWidth, pPrbElem->bf_weight.bfwCompMeth, pPrbElem->bf_weight.extType);
         }
     } else {
         printf("Unsupported configuration key [%s]\n", key);
@@ -995,7 +1065,8 @@ fillSlotStructAsCb(void* cbParam, const char *key, const char *value)
 struct xran_prb_map*
 config_malloc_prb_map(void)
 {
-    uint32_t size = sizeof(struct xran_prb_map)  + (XRAN_MAX_SECTIONS_PER_SLOT -1) * sizeof(struct xran_prb_elm);
+    //uint32_t size = sizeof(struct xran_prb_map)  + (XRAN_MAX_SECTIONS_PER_SLOT -1) * sizeof(struct xran_prb_elm);
+    uint32_t size = sizeof(struct xran_prb_map)  + (8) * sizeof(struct xran_prb_elm);
     void *ret = NULL;
 
     ret = malloc(size);
@@ -1011,7 +1082,7 @@ config_malloc_prb_map(void)
 int32_t
 config_init(RuntimeConfig *p_o_xu_cfg)
 {
-    int32_t i, j, k, z;
+    int32_t i, j;
     memset(p_o_xu_cfg, 0, sizeof(RuntimeConfig));
 
     p_o_xu_cfg->p_PrbMapDl  = config_malloc_prb_map();
@@ -1024,6 +1095,7 @@ config_init(RuntimeConfig *p_o_xu_cfg)
         }
     }
 
+#if 0
     for (i = 0; i < XRAN_DIR_MAX; i++) {
         for (j = 0; j < XRAN_N_FE_BUF_LEN; j++) {
             for (k = 0; k < XRAN_MAX_SECTOR_NR; k++) {
@@ -1034,13 +1106,32 @@ config_init(RuntimeConfig *p_o_xu_cfg)
             }
         }
     }
+#endif
 
     return 0;
 }
 
 
+int32_t
+config_init2(RuntimeConfig *p_o_xu_cfg)
+{
+    int32_t i, j, k, z;
+    for (i = 0; i < XRAN_DIR_MAX; i++) {
+        for (j = 0; j < XRAN_N_FE_BUF_LEN; j++) {
+            for (k = 0; k < p_o_xu_cfg->numCC; k++) {
+                for (z = 0; z < p_o_xu_cfg->numAxc; z++) {
+                    p_o_xu_cfg->p_RunSlotPrbMap[i][j][k][z] = config_malloc_prb_map();
+                    p_o_xu_cfg->p_RunSrsSlotPrbMap[i][j][k][z] = config_malloc_prb_map();
+                }
+            }
+        }
+    }
+
+    return 0;
+}
+
 int
-parseConfigFile(char *filename, RuntimeConfig *config)
+parseConfigFile(const char *filename, RuntimeConfig *config)
 {
     char inputLine[MAX_LINE_SIZE] = {0};
     int inputLen = 0;
@@ -1069,8 +1160,6 @@ parseConfigFile(char *filename, RuntimeConfig *config)
             }
         }
 
-        if (inputLine[strlen(inputLine)-1] == '\n')
-            inputLine[strlen(inputLine)-1] == '\0';
 
         lineNum++;
         inputLen = strlen(inputLine);
@@ -1120,14 +1209,12 @@ parseConfigFile(char *filename, RuntimeConfig *config)
 }
 
 int32_t
-parseSlotConfigFile(char *dir, RuntimeConfig *config)
+parseSlotConfigFile(const char *dir, RuntimeConfig *config)
 {
     int32_t ret     = 0;
     char filename[512];
     size_t len;
     int32_t slot_idx = 0;
-    int32_t cc_idx = 0;
-    int32_t ant_idx = 0;
     int32_t direction = 0;
     struct slot_cfg_to_pars slot_cfg_param;
 
@@ -1197,8 +1284,6 @@ parseFileViaCb (char *filename, fillConfigStruct_fn cbFn, void* cbParm)
             }
         }
 
-        if (inputLine[strlen(inputLine)-1] == '\n')
-            inputLine[strlen(inputLine)-1] == '\0';
 
         lineNum++;
         inputLen = strlen(inputLine);
@@ -1253,7 +1338,7 @@ parseFileViaCb (char *filename, fillConfigStruct_fn cbFn, void* cbParm)
     return 0;
 }
 
-int parseUsecaseFile(char *filename, UsecaseConfig *usecase_cfg)
+int parseUsecaseFile(const char *filename, UsecaseConfig *usecase_cfg)
 {
     char inputLine[MAX_LINE_SIZE] = {0};
     int inputLen = 0;
@@ -1280,8 +1365,6 @@ int parseUsecaseFile(char *filename, UsecaseConfig *usecase_cfg)
             }
         }
 
-        if (inputLine[strlen(inputLine)-1] == '\n')
-            inputLine[strlen(inputLine)-1] == '\0';
 
         lineNum++;
         inputLen = strlen(inputLine);

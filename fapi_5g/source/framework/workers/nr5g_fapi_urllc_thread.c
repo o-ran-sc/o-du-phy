@@ -32,12 +32,19 @@ void nr5g_fapi_urllc_thread_callback(
     void *p_list_elem)
 {
     p_nr5g_fapi_phy_ctx_t p_phy_ctx = nr5g_fapi_get_nr5g_fapi_phy_ctx();
+    if(0u != p_phy_ctx->urllc_tid)
+    {
     sem_wait(&p_phy_ctx->urllc_sem_done);
     pthread_mutex_lock(&lock);
     p_urllc_list_elem = p_list_elem;
     urllc_msg_dir = msg_dir;
     pthread_mutex_unlock(&lock);
     sem_post(&p_phy_ctx->urllc_sem_process);
+}
+    else
+    {
+            NR5G_FAPI_LOG(ERROR_LOG, ("[URLLC] Thread is not running"));
+    }
 }
 
 void *nr5g_fapi_urllc_thread_func(
@@ -66,18 +73,22 @@ void *nr5g_fapi_urllc_thread_func(
         {
             switch (urllc_msg_dir) {
                 case NR5G_FAPI_URLLC_MSG_DIR_MAC2PHY:
-                    nr5g_fapi_mac2phy_api_recv_handler(true, config, (p_fapi_api_queue_elem_t) p_urllc_list_elem);
+                    nr5g_fapi_mac2phy_api_recv_handler(true, config, 
+                                (p_fapi_api_queue_elem_t) p_urllc_list_elem);
                     start_tick = __rdtsc();
-                    NR5G_FAPI_LOG(TRACE_LOG, ("[MAC2PHY] Send to PHY urllc.."));
+                    NR5G_FAPI_LOG(TRACE_LOG, 
+                                          ("[MAC2PHY] Send to PHY urllc.."));
                     nr5g_fapi_fapi2phy_send_api_list(true);
                     tick_total_wls_send_per_tti_dl += __rdtsc() - start_tick;
                     break;
                 case NR5G_FAPI_URLLC_MSG_DIR_PHY2MAC:
-                    nr5g_fapi_phy2mac_api_recv_handler(true, config, (PMAC2PHY_QUEUE_EL) p_urllc_list_elem);
+                    nr5g_fapi_phy2mac_api_recv_handler(true, config,
+                                    (PMAC2PHY_QUEUE_EL) p_urllc_list_elem);
                     nr5g_fapi_fapi2mac_send_api_list(true);
                     break;
                 default:
-                    NR5G_FAPI_LOG(ERROR_LOG, ("[URLLC]: Invalid URLLC message direction.\n"));
+                    NR5G_FAPI_LOG(ERROR_LOG, 
+                            ("[URLLC]: Invalid URLLC message direction.\n"));
                     break;
             }
 

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -38,8 +38,6 @@ uint8_t nr5g_fapi_fapi2mac_wls_send(
 p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_wls_recv(
     );
 
-uint8_t nr5g_fapi_fapi2mac_wls_ready(
-    );
 uint32_t nr5g_fapi_fapi2mac_wls_wait(
     );
 

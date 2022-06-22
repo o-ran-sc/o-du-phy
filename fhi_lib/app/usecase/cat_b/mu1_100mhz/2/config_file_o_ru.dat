@@ -21,7 +21,7 @@
 instanceId=1 # 0,1,2,... in case more than 1 application started on the same system
 appMode=1 # O-DU(0) | O-RU(1)
 xranMode=1 # Category A  (0) (precoder in O-DU) | Category B (1) (precoder in O-RU)
-ccNum=2 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 4)
+ccNum=1 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 4)
 antNum=8 # Number of Antennas per CC (default: 4) or number of Digital streams for Category B 
 antNumUL=4 # Cat B: UL Number of Antennas per CC (default: 8) or number of UL Digital streams for Category B 
 antElmTRx=32 #number of Antenna Elements for Cat B default 32T32R
@@ -64,19 +64,19 @@ Gps_Beta=0
 
 ioCore=15
 ioWorker=0x800000000
-ioSleep=1
+
 
 # Eth 0
-duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
-ruMac0=00:11:22:33:44:55 # O-RU VF for O-RU app
-duMac1=00:11:22:33:44:66 # asigned MAC of O-DU VF
-ruMac1=00:11:22:33:44:55 # O-RU VF for O-RU app
+#duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
+#ruMac0=00:11:22:33:44:55 # O-RU VF for O-RU app
+#duMac1=00:11:22:33:44:66 # asigned MAC of O-DU VF
+#ruMac1=00:11:22:33:44:55 # O-RU VF for O-RU app
 
 # Eth 1
-duMac2=00:11:22:33:44:77 # asigned MAC of O-DU VF
-ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
-duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
-ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
+#duMac2=00:11:22:33:44:77 # asigned MAC of O-DU VF
+#ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
+#duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
+#ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
 numSlots=20 #number of slots per IQ files
 antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0
@@ -113,11 +113,14 @@ antPrachC13=./usecase/cat_b/mu1_100mhz/ant_5.bin  #CC3
 antPrachC14=./usecase/cat_b/mu1_100mhz/ant_6.bin  #CC3
 antPrachC15=./usecase/cat_b/mu1_100mhz/ant_7.bin  #CC3
 
-rachEanble=0 # Enable (1)| disable (0) PRACH configuration
+rachEnable=0 # Enable (1)| disable (0) PRACH configuration
 prachConfigIndex=189
 
-srsEanble=0 # Enable (1)| disable (0) SRS 
-srsSym=8192 # (1<<13) symbol used for SRS (def: sym 13)
+srsEnable=0 # Enable (1)| disable (0) SRS
+srsSym=4 # deprecated
+srsSlot=3           # scheduled SRS slot within TDD period
+srsNdmOffset=3      # delay offset to start NDM SRS U-Plane
+srsNdmTxDuration=4  # TX duration for NDM SRTS U-Plane (numberof of symbols)
 
 antSrsC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   
 antSrsC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   
@@ -188,7 +191,7 @@ antSrsC63=./usecase/cat_b/mu1_100mhz/ant_7.bin
 ###########################################################
 ##Section Settings
 DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used 
-
+extType=1
 nPrbElemDl=4
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
 # weight base beams 
@@ -196,12 +199,35 @@ PrbElemDl0=0,48,0,14,1,1,1,9,1
 PrbElemDl1=48,48,0,14,2,1,1,9,1
 PrbElemDl2=96,48,0,14,3,1,1,9,1
 PrbElemDl3=144,48,0,14,4,1,1,9,1
+PrbElemDl4=144,36,0,14,5,1,1,9,1
+PrbElemDl5=180,36,0,14,6,1,1,9,1
+PrbElemDl6=216,36,0,14,7,1,1,9,1
+PrbElemDl7=252,21,0,14,8,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth, extType
+ExtBfwDl0=2,24,0,0,9,1,1
+ExtBfwDl1=2,24,0,0,9,1,1
+ExtBfwDl2=2,24,0,0,9,1,1
+ExtBfwDl3=2,24,0,0,9,1,1
 
 nPrbElemUl=2
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
 # weight base beams 
 PrbElemUl0=0,48,0,14,1,1,1,9,1
 PrbElemUl1=48,48,0,14,2,1,1,9,1
+PrbElemUl2=72,36,0,14,3,1,1,9,1
+PrbElemUl3=108,36,0,14,4,1,1,9,1
+PrbElemUl4=144,36,0,14,5,1,1,9,1
+PrbElemUl5=180,36,0,14,6,1,1,9,1
+PrbElemUl6=216,36,0,14,7,1,1,9,1
+PrbElemUl7=252,21,0,14,8,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth, extType
+ExtBfwUl0=2,24,0,0,9,1,1
+ExtBfwUl1=2,24,0,0,9,1,1
+nPrbElemSrs=1
+PrbElemSrs0=0,273,13,1,0,0,1,9,0
+
 ###########################################################
 
 ## control of IQ byte order

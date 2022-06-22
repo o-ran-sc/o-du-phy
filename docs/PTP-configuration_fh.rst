@@ -59,9 +59,9 @@ clock, called Physical Hardware Clock (PHC), to read current time just a
 moment before the packet is sent to minimalize the delays added by the
 Kernel processing the packet. Not every NIC supports that feature. To
 confirm that currently attached NIC support Hardware Timestamps, use
-ethtool with the command::
+ethtool with the command:
 
-    ethtool -T eth0
+ethtool -T eth0
 
 Where the eth0 is the potential PHC port. The output from the command
 should say that there is Hardware Timestamps support.
@@ -98,9 +98,10 @@ To set up PTP for Linux*:
 
    # make && make install
 
-22. Modify configs/default.cfg to control frequency of Sync interval to 0.0625 s. ::
+3. Modify configs/default.cfg to control frequency of Sync interval to
+0.0625 s. ::
 
-        logSyncInterval -4
+    logSyncInterval -4
 
 ptp4l 
 =====
@@ -123,12 +124,12 @@ The output below shows what the output on non-master node should look
 like when synchronization is started. This means that PHC on this
 machine is synchronized to the master PHC. ::
 
-    ptp4l[1434165.358]: port 1: INITIALIZING to LISTENING on INIT_COMPLETE
-    ptp4l[1434165.358]: port 0: INITIALIZING to LISTENING on INIT_COMPLETE
+        ptp4l[1434165.358]: port 1: INITIALIZING to LISTENING on INIT_COMPLETE
+        ptp4l[1434165.358]: port 0: INITIALIZING to LISTENING on INIT_COMPLETE
         ptp4l[1434166.384]: port 1: new foreign master fcaf6a.fffe.029708-1
         ptp4l[1434170.352]: selected best master clock fcaf6a.fffe.029708
-    ptp4l[1434170.352]: updating UTC offset to 37
-    ptp4l[1434170.352]: port 1: LISTENING to UNCALIBRATED on RS_SLAVE
+        ptp4l[1434170.352]: updating UTC offset to 37
+        ptp4l[1434170.352]: port 1: LISTENING to UNCALIBRATED on RS_SLAVE
         ptp4l[1434171.763]: master offset -5873 s0 freq -18397 path delay 2778
         ptp4l[1434172.763]: master offset -6088 s2 freq -18612 path delay 2778
         ptp4l[1434172.763]: port 1: UNCALIBRATED to SLAVE on MASTER_CLOCK_SELECTED
@@ -192,11 +193,11 @@ below can be used to instantiate this scenario. The difference is that
 on the O-DU side, the Fronthaul port can be used as the source of PTP as
 well as for U-plane and C-plane traffic.
 
-1. Follow the steps in Appendix *B.1.1,* *PTP for Linux\* Requirements*
-to install PTP on the O-RU server.
+1. Follow the steps in Appendix *B.1.1, PTP for Linux\* Requirements* to
+install PTP on the O-RU server.
 
-2.Copy configs/default.cfg to configs/default_slave.cfg and modify the
-Copied file as below::
+2. Copy configs/default.cfg to configs/default_slave.cfg and modify the
+copied file as below::
 
     diff --git a/configs/default.cfg b/configs/default.cfg
     old mode 100644
@@ -331,32 +332,32 @@ Example of output::
 Example of output::
 
    ./ptp4l -f ./configs/default.cfg -2 -i enp175s0f1 -m
-   ptp4l[3903857.249]: selected /dev/ptp3 as PTP clock
-   ptp4l[3903857.266]: port 1: INITIALIZING to LISTENING on INIT_COMPLETE
-   ptp4l[3903857.267]: port 0: INITIALIZING to LISTENING on INIT_COMPLETE
+    ptp4l[3903857.249]: selected /dev/ptp3 as PTP clock
+    ptp4l[3903857.266]: port 1: INITIALIZING to LISTENING on INIT_COMPLETE
+    ptp4l[3903857.267]: port 0: INITIALIZING to LISTENING on INIT_COMPLETE
     ptp4l[3903863.734]: port 1: LISTENING to MASTER on ANNOUNCE_RECEIPT_TIMEOUT_EXPIRES
     ptp4l[3903863.734]: selected local clock 3cfdfe.fffe.bd005d as best master
     ptp4l[3903863.734]: assuming the grand master role
    
-7. Synchronize local NIC PTP master clock to local NIC PTP slave clock. ::
+7.Synchronize local NIC PTP master clock to local NIC PTP slave clock. ::
 
    ./phc2sys -c enp175s0f1 -s enp25s0f0 -w -m -R 8
 
 Example of output::
 
-   ./phc2sys -c enp175s0f1 -s enp25s0f0 -w -m -R 8
+    ./phc2sys -c enp175s0f1 -s enp25s0f0 -w -m -R 8
     phc2sys[3904600.332]: enp175s0f1 phc offset      2042 s0 freq   -2445 delay   4525
     phc2sys[3904600.458]: enp175s0f1 phc offset      2070 s2 freq   -2223 delay   4506
-   phc2sys[3904600.584]: enp175s0f1 phc offset 2125 s2 freq -98 delay 4505
-   phc2sys[3904600.710]: enp175s0f1 phc offset 1847 s2 freq +262 delay 4518
-   phc2sys[3904600.836]: enp175s0f1 phc offset 1500 s2 freq +469 delay 4515
-   phc2sys[3904600.961]: enp175s0f1 phc offset 1146 s2 freq +565 delay 4547
-   phc2sys[3904601.086]: enp175s0f1 phc offset 877 s2 freq +640 delay 4542
-   phc2sys[3904601.212]: enp175s0f1 phc offset 517 s2 freq +543 delay 4517
-   phc2sys[3904601.337]: enp175s0f1 phc offset 189 s2 freq +370 delay 4510
-   phc2sys[3904601.462]: enp175s0f1 phc offset -125 s2 freq +113 delay 4554
-   phc2sys[3904601.587]: enp175s0f1 phc offset -412 s2 freq -212 delay 4513
-   phc2sys[3904601.712]: enp175s0f1 phc offset -693 s2 freq -617 delay 4519
+    phc2sys[3904600.584]: enp175s0f1 phc offset 2125 s2 freq -98 delay 4505
+    phc2sys[3904600.710]: enp175s0f1 phc offset 1847 s2 freq +262 delay 4518
+    phc2sys[3904600.836]: enp175s0f1 phc offset 1500 s2 freq +469 delay 4515
+    phc2sys[3904600.961]: enp175s0f1 phc offset 1146 s2 freq +565 delay 4547
+    phc2sys[3904601.086]: enp175s0f1 phc offset 877 s2 freq +640 delay 4542
+    phc2sys[3904601.212]: enp175s0f1 phc offset 517 s2 freq +543 delay 4517
+    phc2sys[3904601.337]: enp175s0f1 phc offset 189 s2 freq +370 delay 4510
+    phc2sys[3904601.462]: enp175s0f1 phc offset -125 s2 freq +113 delay 4554
+    phc2sys[3904601.587]: enp175s0f1 phc offset -412 s2 freq -212 delay 4513
+    phc2sys[3904601.712]: enp175s0f1 phc offset -693 s2 freq -617 delay 4519
     phc2sys[3904601.837]: enp175s0f1 phc offset      -878 s2 freq   -1009 delay   4515
     phc2sys[3904601.962]: enp175s0f1 phc offset      -965 s2 freq   -1360 delay   4518
     phc2sys[3904602.088]: enp175s0f1 phc offset     -1048 s2 freq   -1732 delay   4510
@@ -394,7 +395,7 @@ Example of output::
     ptp4l[809108.055]: rms 401 max 502 freq +912 +/- 659
 
 10. Synchronize local clock on O-DU for sample application or l1
-Application. ::
+application. ::
 
     ./phc2sys -s enp181s0f0 -w -m -R 8
 

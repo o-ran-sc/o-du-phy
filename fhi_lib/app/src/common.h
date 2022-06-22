@@ -28,7 +28,7 @@
 #include <rte_common.h>
 #include <rte_mbuf.h>
 
-#define VERSIONX                "oran_e_maintenance_release_v1.0"
+#define VERSIONX                "oran_f_release_v1.0"
 
 #define APP_O_DU  0
 #define APP_O_RU  1
@@ -80,9 +80,10 @@ struct o_xu_buffers {
 
     int iq_srs_buffer_size_ul;
 
+    int numSlots;  /**< number of slots in IQ vector */
+
     int16_t *p_tx_play_buffer[MAX_ANT_CARRIER_SUPPORTED];
     int32_t tx_play_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-    int32_t tx_play_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
     int16_t *p_tx_prach_play_buffer[MAX_ANT_CARRIER_SUPPORTED];
     int32_t tx_prach_play_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
@@ -94,15 +95,12 @@ struct o_xu_buffers {
 
     int16_t *p_rx_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
     int32_t rx_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-    int32_t rx_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
     int16_t *p_prach_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
     int32_t prach_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-    int32_t prach_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 
     int16_t *p_srs_log_buffer[MAX_ANT_CARRIER_SUPPORTED_CAT_B];
     int32_t srs_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED_CAT_B];
-    int32_t srs_log_buffer_position[MAX_ANT_CARRIER_SUPPORTED_CAT_B];
 
     int16_t *p_tx_buffer[MAX_ANT_CARRIER_SUPPORTED];
     int32_t tx_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
@@ -112,12 +110,16 @@ struct o_xu_buffers {
 /* beamforming weights for UL (O-DU) */
     int16_t *p_tx_dl_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
     int32_t tx_dl_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-    int32_t tx_dl_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+
+    int16_t *p_tx_dl_bfw_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_dl_bfw_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
 
 /* beamforming weights for UL (O-DU) */
     int16_t *p_tx_ul_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
     int32_t tx_ul_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
-    int32_t tx_ul_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+
+    int16_t *p_tx_ul_bfw_log_buffer[MAX_ANT_CARRIER_SUPPORTED];
+    int32_t tx_ul_bfw_log_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
 
 /* beamforming weights for UL (O-RU) */
     int16_t *p_rx_dl_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];

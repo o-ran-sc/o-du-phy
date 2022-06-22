@@ -22,12 +22,24 @@
 ##############################################################
 #  Tools configuration
 ##############################################################
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
 CC  := icc
 CXX := icpc
 CPP := icpc
 AS := as
 AR := ar
 LD := icc
+else ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+    CC  := icx
+    CXX := icpx
+    CPP := icpx
+    AS  := as
+    AR  := llvm-ar
+    LD  := icx
+else
+    $(error "Please define WIRELESS_SDK_TOOLCHAIN environment variable")
+endif
+
 OBJDUMP := objdump
 
 ifeq ($(SHELL),cmd.exe)
@@ -39,6 +51,25 @@ MD := mkdir -p
 CP := cp -f
 RM := rm -rf
 endif
+TARGET_PROCESSOR =
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+	ifeq ($(WIRELESS_SDK_TARGET_ISA),sse)
+		TARGET_PROCESSOR := -xSSE4.2
+	else ifeq ($(WIRELESS_SDK_TARGET_ISA),avx2)
+		TARGET_PROCESSOR := -xCORE-AVX2
+	else ifeq ($(WIRELESS_SDK_TARGET_ISA),avx512)
+		TARGET_PROCESSOR := -xCORE-AVX512
+	else ifeq ($(WIRELESS_SDK_TARGET_ISA),snc)
+		TARGET_PROCESSOR := -xicelake-server
+	else ifeq ($(WIRELESS_SDK_TARGET_ISA),spr)
+		TARGET_PROCESSOR := -march=sapphirerapids
+	endif
+
+	ifeq ($(TARGET_PROCESSOR),)
+		$(error "Please define valid WIRELESS_SDK_TARGET_ISA environment variable $(WIRELESS_SDK_TARGET_ISA)")
+	endif
+endif
 
 ifeq ($(RTE_SDK),)
     $(error "Please define RTE_SDK environment variable")
@@ -48,11 +79,8 @@ ifeq ($(MLOG_DIR),)
     MLOG_DIR=$(XRAN_DIR)/../mlog
 endif
 
-RTE_TARGET ?= x86_64-native-linuxapp-icc
-
 RTE_LIBS = $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --static --libs libdpdk)
 RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
-
 
 # Where to find user code.
 COMMON_TEST_DIR = $(XRAN_DIR)/test/common
@@ -63,10 +91,13 @@ USER_API = $(XRAN_DIR)/lib/api
 # Flags passed to the preprocessor.
 # Set Google Test's header directory as a system directory, such that
 # the compiler doesn't generate warnings in Google Test headers.
-CPPFLAGS += -isystem $(GTEST_ROOT)/include
+CPPFLAGS += -isystem $(GTEST_ROOT)/include -Wno-unused-variable
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -std=c++14 -Wall -Wextra -pthread -mcmodel=large -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I $(COMMON_TEST_DIR) -I$(RTE_INC)
+CXXFLAGS += -g -std=c++14 -pthread  -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe  -mcmodel=large -Wno-unused-variable -fPIC \
+    -falign-functions=16 $(TARGET_PROCESSOR) -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I $(COMMON_TEST_DIR) -I$(RTE_INC)
+
+
 
 # All tests produced by this Makefile.  Remember to add new tests you
 # created to the list.
@@ -83,9 +114,21 @@ CFLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations \
 	-g \
 	-Wall \
 	-Wimplicit-function-declaration  \
-	-wd1786 \
 	-mcmodel=large \
+	-Wno-unused-variable \
+	-Wno-unused-parameter \
+	$(TARGET_PROCESSOR) \
 	-I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I$(RTE_INC)
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
+CXXFLAGS += -Wall -Wextra
+CFLAGS += -wd1786 -restrict
+endif
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+CFLAGS += -mintrinsic-promote -Wno-intrinsic-promote -Wno-error -Wno-unused-but-set-variable
+endif
+
 
 C_SRC = \
 	$(USER_ETH)/ethdi.c \
@@ -98,7 +141,6 @@ C_SRC = \
 	$(USER_DIR)/xran_common.c \
 	$(USER_DIR)/xran_ul_tables.c \
 	$(USER_DIR)/xran_frame_struct.c \
-	$(USER_DIR)/xran_app_frag.c \
 	$(USER_DIR)/xran_dev.c \
 	$(USER_DIR)/xran_rx_proc.c	\
 	$(USER_DIR)/xran_tx_proc.c	\
@@ -150,8 +192,18 @@ CPP_SNC_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC_SNC))
 CPPFLAGS += -I$(USER_DIR) -I$(USER_API)
 
 #-qopt-report=5 -qopt-matmul -qopt-report-phase=all
-CPP_COMP := -O3 -DNDEBUG  -xcore-avx512 -fPIE -restrict -fasm-blocks
-CPP_COMP_SNC := -O3 -DNDEBUG -march=icelake-server -fPIE -restrict -fasm-blocks
+CPP_COMP := -O3 -DNDEBUG  -xcore-avx512 -fPIE -fasm-blocks
+CPP_COMP_SNC := -O3 -DNDEBUG -march=icelake-server -fPIE -fasm-blocks
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
+CPP_COMP += -fp-model fast=2 -no-prec-div -no-prec-sqrt -fast-transcendentals -restrict
+CPP_COMP_SNC += -fp-model fast=2 -no-prec-div -no-prec-sqrt -fast-transcendentals -restrict
+endif
+
+ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
+CPP_COMP += -fp-model fast -mintrinsic-promote -Wno-intrinsic-promote -Wno-error -Wno-unused-variable
+CPP_COMP_SNC += -fp-model fast -mintrinsic-promote -Wno-intrinsic-promote -Wno-error -Wno-unused-variable
+endif
 
 CPP_COMP := $(CPP_COMP)
 CPP_COMP_SNC := $(CPP_COMP_SNC)
@@ -250,4 +302,4 @@ $(C_OBJS) :
 
 $(TESTS) : $(CC_OBJS) $(CPP_OBJS) $(CPP_SNC_OBJS) $(C_OBJS) $(GTEST_ROOT)/libgtest.a
 	@echo "[LD] $@"
-	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -L$(MLOG_DIR)/bin -Wl, $(RTE_LIBS) -lpthread -lnuma $^ -o $@
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -L$(MLOG_DIR)/bin -Wl, $(RTE_LIBS) -lpthread -lnuma -Wl,-lstdc++ $^ -o $@

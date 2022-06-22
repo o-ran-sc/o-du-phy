@@ -117,6 +117,11 @@ void utcp_fh_rx_callback(void *pCallbackTag, xran_status_t status)
     return;
 }
 
+void utcp_fh_bfw_callback(void *pCallbackTag, xran_status_t status)
+{
+    return;
+}
+
 void utcp_fh_srs_callback(void *pCallbackTag, xran_status_t status)
 {
     return;
@@ -234,7 +239,7 @@ TEST_P(TestChain, CPlaneDLPerf)
 {
     xranlib->Init(0, &m_xranConf);
     xranlib->Open(0, send_mbuf_cp_perf, send_mbuf_up,
-            (void *)utcp_fh_rx_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
+            (void *)utcp_fh_rx_callback, (void *)utcp_fh_bfw_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
 
     performance("C", module_name, xran_ut_tx_cp_dl);
 
@@ -247,7 +252,7 @@ TEST_P(TestChain, CPlaneULPerf)
 {
     xranlib->Init(0, &m_xranConf);
     xranlib->Open(0, send_mbuf_cp_perf, send_mbuf_up,
-            (void *)utcp_fh_rx_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
+            (void *)utcp_fh_rx_callback, (void *)utcp_fh_bfw_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
 
     performance("C", module_name, xran_ut_tx_cp_ul);
 
@@ -268,7 +273,7 @@ TEST_P(TestChain, UPlaneDLPerf)
     /* need to disable CP to make U-Plane work without CP */
     xranlib->apply_cpenable(false);
     xranlib->Open(0, send_mbuf_cp_perf, send_mbuf_up,
-            (void *)utcp_fh_rx_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
+            (void *)utcp_fh_rx_callback, (void *)utcp_fh_bfw_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
 
     performance("C", module_name, xran_ut_tx_up_dl);
 
@@ -292,7 +297,7 @@ TEST_P(TestChain, APlaneDLPerf)
     /* Enable CP by force to make UP work by CP's section information */
     xranlib->apply_cpenable(true);
     xranlib->Open(0, send_mbuf_cp_perf, send_mbuf_up,
-            (void *)utcp_fh_rx_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
+            (void *)utcp_fh_rx_callback, (void *)utcp_fh_bfw_callback, (void *)utcp_fh_rx_prach_callback, (void *)utcp_fh_srs_callback);
 
     performance("C", module_name, xran_ut_tx_cpup_dl);
 

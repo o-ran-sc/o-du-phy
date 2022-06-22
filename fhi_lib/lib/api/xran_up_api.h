@@ -91,7 +91,7 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
     uint8_t *compMeth,
     uint8_t *iqWidth);
 
-inline int xran_prepare_iq_symbol_portion(
+int xran_prepare_iq_symbol_portion(
                         struct rte_mbuf *mbuf,
                         const void *iq_data_start,
                         const enum xran_input_byte_order iq_buf_byte_order,
@@ -101,7 +101,10 @@ inline int xran_prepare_iq_symbol_portion(
                         uint8_t Ant_ID,
                         uint8_t seq_id,
                         enum xran_comp_hdr_type staticEn,
-                        uint32_t do_copy);
+                        uint32_t do_copy,
+                        uint16_t num_sections,
+                        uint16_t section_id_start,
+                        uint16_t iq_offset);
 
 #ifdef __cplusplus
 }

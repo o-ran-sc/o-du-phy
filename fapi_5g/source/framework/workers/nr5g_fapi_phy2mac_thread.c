@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -37,8 +37,6 @@
 void *nr5g_fapi_phy2mac_thread_func(
     void *config)
 {
-    cpu_set_t cpuset;
-    pthread_t thread;
     PMAC2PHY_QUEUE_EL p_msg_list = NULL;
     p_nr5g_fapi_phy_ctx_t p_phy_ctx = (p_nr5g_fapi_phy_ctx_t) config;
 
@@ -46,14 +44,10 @@ void *nr5g_fapi_phy2mac_thread_func(
             "Core: %d\n", __func__, pthread_self(),
             p_phy_ctx->phy2mac_worker_core_id));
 
-    thread = p_phy_ctx->phy2mac_tid = pthread_self();
-    CPU_ZERO(&cpuset);
-    CPU_SET(p_phy_ctx->phy2mac_worker_core_id, &cpuset);
-    pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+    nr5g_fapi_init_thread(p_phy_ctx->phy2mac_worker_core_id);
 
     nr5g_fapi_fapi2mac_init_api_list();
 
-    usleep(1000);
     while (!p_phy_ctx->process_exit) {
         p_msg_list = nr5g_fapi_fapi2phy_wls_recv();
         if (p_msg_list)
@@ -99,14 +93,14 @@ void nr5g_fapi_phy2mac_api_recv_handler(
             case MSG_TYPE_PHY_DL_IQ_SAMPLES:
                 {
                     nr5g_fapi_dl_iq_samples_response((p_nr5g_fapi_phy_ctx_t)
-                        config, (PADD_REMOVE_BBU_CORES) p_msg_header);
+                        config, (PADD_REMOVE_BBU_CORES_NR5G) p_msg_header);
                 }
                 break;
 
             case MSG_TYPE_PHY_UL_IQ_SAMPLES:
                 {
                     nr5g_fapi_ul_iq_samples_response((p_nr5g_fapi_phy_ctx_t)
-                        config, (PADD_REMOVE_BBU_CORES) p_msg_header);
+                        config, (PADD_REMOVE_BBU_CORES_NR5G) p_msg_header);
                 }
                 break;
 #endif

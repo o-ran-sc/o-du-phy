@@ -1,5 +1,5 @@
 /******************************************************************************
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@
  *
  **/
 
+#include "nr5g_mac_phy_api.h"
 #include "nr5g_fapi_framework.h"
-#include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_api.h"
 #include "nr5g_fapi_fapi2phy_api.h"
 #include "nr5g_fapi_fapi2phy_p5_proc.h"
@@ -173,11 +173,13 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
             /***** Carrier Config *****/
             case FAPI_DL_BANDWIDTH_TAG:
                 p_ia_config_req->nDLBandwidth =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_DL_FREQUENCY_TAG:
-                p_ia_config_req->nDLAbsFrePointA = tlvs[i++].value;
+                p_ia_config_req->nDLAbsFrePointA = tlvs[i].value;
+                ++i;
                 break;
 
                 /* FAPI_DL_K0_TAG - NA */
@@ -185,16 +187,19 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
 
             case FAPI_NUM_TX_ANT_TAG:
                 p_ia_config_req->nNrOfTxAnt =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_UPLINK_BANDWIDTH_TAG:
                 p_ia_config_req->nULBandwidth =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_UPLINK_FREQUENCY_TAG:
-                p_ia_config_req->nULAbsFrePointA = tlvs[i++].value;
+                p_ia_config_req->nULAbsFrePointA = tlvs[i].value;
+                ++i;
                 break;
 
                 /* FAPI_UL_K0_TAG - NA */
@@ -203,7 +208,8 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
             case FAPI_NUM_RX_ANT_TAG:
                 p_phy_instance->phy_config.n_nr_of_rx_ant =
                     p_ia_config_req->nNrOfRxAnt =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                        GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
                 /* FAPI_FREQUENCY_SHIFT_7P5_KHZ_TAG - NA */
@@ -212,12 +218,14 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
             case FAPI_PHY_CELL_ID_TAG:
                 p_phy_instance->phy_config.phy_cell_id =
                     p_ia_config_req->nPhyCellId =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                        GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_FRAME_DUPLEX_TYPE_TAG:
                 p_ia_config_req->nFrameDuplexType =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             /***** SSB Config *****/
@@ -238,64 +246,76 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
                 p_ia_config_req->nSubcCommon =
                     p_ia_config_req->nSSBSubcSpacing =
                     p_phy_instance->phy_config.sub_c_common =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                        GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             /***** PRACH Config *****/
             case FAPI_PRACH_SUBC_SPACING_TAG:
                 p_ia_config_req->nPrachSubcSpacing =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_RESTRICTED_SET_CONFIG_TAG:
                 p_ia_config_req->nPrachRestrictSet =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_NUM_PRACH_FD_OCCASIONS_TAG:
                 p_ia_config_req->nPrachFdm =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_PRACH_CONFIG_INDEX_TAG:
                 p_ia_config_req->nPrachConfIdx =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_PRACH_ROOT_SEQUENCE_INDEX_TAG:
                 p_ia_config_req->nPrachRootSeqIdx =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_K1_TAG:
                 p_ia_config_req->nPrachFreqStart =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_PRACH_ZERO_CORR_CONF_TAG:
                 p_ia_config_req->nPrachZeroCorrConf =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_SSB_PER_RACH_TAG:
                 p_ia_config_req->nPrachSsbRach =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
             /***** SSB Table *****/
             case FAPI_SSB_OFFSET_POINT_A_TAG:
                 p_ia_config_req->nSSBPrbOffset =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length) / (pow(2,
-                        p_ia_config_req->nSubcCommon));
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length) /
+                        (pow(2, p_ia_config_req->nSubcCommon));
+                ++i;
                 break;
 
             case FAPI_SSB_PERIOD_TAG:
                 p_ia_config_req->nSSBPeriod =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_SSB_SUBCARRIER_OFFSET_TAG:
                 p_ia_config_req->nSSBSubcOffset =
-                    (tlvs[i].value >> tlvs[i++].tl.length);
+                    (tlvs[i].value >> tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_MIB_TAG:
@@ -307,20 +327,23 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
 
             case FAPI_DMRS_TYPE_A_POS_TAG:
                 p_ia_config_req->nDMRSTypeAPos =
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                ++i;
                 break;
 
             case FAPI_SSB_MASK_TAG:
                 if (n_ssb_mask_idx < 2) {
                     p_ia_config_req->nSSBMask[n_ssb_mask_idx++] =
-                        tlvs[i++].value;
+                        tlvs[i].value;
+                    ++i;
                 }
                 break;
 
             case FAPI_BEAM_ID_TAG:
-                if (n_beamid_idx < MAX_NUM_ANT) {
+                if (n_beamid_idx < MAX_NUM_ANT_NR5G) {
                     p_ia_config_req->nBeamId[n_beamid_idx++] =
-                        GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                        GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
+                    ++i;
                 }
                 break;
 
@@ -331,16 +354,17 @@ uint8_t nr5g_fapi_config_req_to_phy_translation(
             case FAPI_TDD_PERIOD_TAG:
                 p_ia_config_req->nTddPeriod =
                     nr5g_fapi_calc_phy_tdd_period((uint8_t)
-                    GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length),
+                    GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length),
                     p_ia_config_req->nSubcCommon);
+                ++i;
                 break;
 
             case FAPI_SLOT_CONFIG_TAG:
                 for (j = 0; j < p_ia_config_req->nTddPeriod; j++) {
                     p_sslot_Config = &p_ia_config_req->sSlotConfig[j];
-                    for (k = 0; k < MAX_NUM_OF_SYMBOL_PER_SLOT; k++) {
+                    for (k = 0; k < MAX_NUM_OF_SYMBOL_PER_SLOT; k++, i++) {
                         p_sslot_Config->nSymbolType[k] =
-                            GETVLFRM32B(tlvs[i].value, tlvs[i++].tl.length);
+                            GETVLFRM32B(tlvs[i].value, tlvs[i].tl.length);
                     }
                 }
                 break;

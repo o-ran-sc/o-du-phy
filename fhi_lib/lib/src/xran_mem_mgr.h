@@ -39,7 +39,6 @@ extern "C" {
 
 #include "xran_fh_o_du.h"
 
-
 #ifdef __cplusplus
 }
 #endif

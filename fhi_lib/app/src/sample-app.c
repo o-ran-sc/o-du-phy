@@ -54,6 +54,9 @@
 #include "xran_mlog_task_id.h"
 #include "app_io_fh_xran.h"
 #include "app_profile_xran.h"
+#ifdef FWK_ENABLED
+#include "app_bbu_pool.h"
+#endif
 #include "xran_ecpri_owd_measurements.h"
 
 #define MAX_BBU_POOL_CORE_MASK  (4)
@@ -78,16 +81,14 @@ struct app_sym_cb_ctx {
 
 static enum app_state state;
 static uint64_t  ticks_per_usec;
-static volatile uint64_t timer_last_irq_tick = 0;
-static uint64_t tsc_resolution_hz = 0;
 
 UsecaseConfig* p_usecaseConfiguration = {NULL};
-RuntimeConfig* p_startupConfiguration[XRAN_PORTS_NUM] = {NULL,NULL,NULL,NULL};
+RuntimeConfig* p_startupConfiguration[XRAN_PORTS_NUM] = {NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL};
 
 struct app_sym_cb_ctx cb_sym_ctx[XRAN_CB_SYM_MAX];
 
-long old_rx_counter[XRAN_PORTS_NUM] = {0,0,0,0};
-long old_tx_counter[XRAN_PORTS_NUM] = {0,0,0,0};
+long old_rx_counter[XRAN_PORTS_NUM] = {0,0,0,0,0,0,0,0};
+long old_tx_counter[XRAN_PORTS_NUM] = {0,0,0,0,0,0,0,0};
 
 static void
 app_print_menu()
@@ -167,11 +168,19 @@ app_version_print(void)
     char            sysversion[100];
     char           *compilation_date = __DATE__;
     char           *compilation_time = __TIME__;
-
-    uint32_t          nLen;
+    char            compiler[100];
 
     snprintf(sysversion, 99, "Version: %s", VERSIONX);
-    nLen = strlen(sysversion);
+
+#if defined(__clang__)
+    snprintf(compiler, 99, "family clang: %s", __clang_version__);
+#elif defined(__ICC) || defined(__INTEL_COMPILER)
+    snprintf(compiler, 99, "family icc: version %d", __INTEL_COMPILER);
+#elif defined(__INTEL_LLVM_COMPILER)
+    snprintf(compiler, 99, "family icx: version %d", __INTEL_LLVM_COMPILER);
+#elif defined(__GNUC__) || defined(__GNUG__)
+    snprintf(compiler, 99, "family gcc: version %d.%d.%d", __GNUC__, __GNUC_MINOR__,__GNUC_PATCHLEVEL__);
+#endif
 
     printf("\n\n");
     printf("===========================================================================================================\n");
@@ -181,6 +190,7 @@ app_version_print(void)
     printf("%s\n", sysversion);
     printf("build-date: %s\n", compilation_date);
     printf("build-time: %s\n", compilation_time);
+    printf("build-with: %s\n", compiler);
 }
 
 static void
@@ -223,15 +233,13 @@ app_help(void)
 static int32_t
 app_parse_cmdline_args(int argc, char ** argv, struct sample_app_params* params)
 {
-    int32_t ret = 0;
     int32_t c = 0;
     int32_t vf_cnt = 0;
-    int32_t *pInt;
     int32_t cnt = 0;
     size_t optlen = 0;
     char *saveptr = NULL;
     char *token = NULL;
-    int32_t port = 4;
+    int32_t port = 8;
 
     static struct option long_options[] = {
         {"cfgfile", required_argument, 0, 'z'},
@@ -241,6 +249,10 @@ app_parse_cmdline_args(int argc, char ** argv, struct sample_app_params* params)
         {"vf_addr_o_xu_b", required_argument, 0, 'b'},
         {"vf_addr_o_xu_c", required_argument, 0, 'c'},
         {"vf_addr_o_xu_d", required_argument, 0, 'd'},
+        {"vf_addr_o_xu_e", required_argument, 0, 'e'},
+        {"vf_addr_o_xu_f", required_argument, 0, 'F'},
+        {"vf_addr_o_xu_g", required_argument, 0, 'g'},
+        {"vf_addr_o_xu_h", required_argument, 0, 'H'},
         {"help", no_argument, 0, 'h'},
         {0, 0, 0, 0}
     };
@@ -251,14 +263,13 @@ app_parse_cmdline_args(int argc, char ** argv, struct sample_app_params* params)
         //int this_option_optind = optind ? optind : 1;
         int option_index = 0;
 
-        c = getopt_long(argc, argv, "a:b:c:d:f:h:p:u:v", long_options, &option_index);
+        c = getopt_long(argc, argv, "a:b:c:d:e:f:F:g:h:H:p:u:v", long_options, &option_index);
 
         if (c == -1)
             break;
 
         cnt += 1;
-        pInt = NULL;
-        port = 4;
+        port = 8;
 
         switch (c) {
             case 'f':
@@ -282,6 +293,14 @@ app_parse_cmdline_args(int argc, char ** argv, struct sample_app_params* params)
             case 'c':
                 port -= 1;
             case 'd':
+                port -= 1;
+            case 'e':
+                port -= 1;
+            case 'F':
+                port -= 1;
+            case 'g':
+                port -= 1;
+            case 'H':
                 port -= 1;
                 vf_cnt = 0;
                 optlen = strlen(optarg) + 1;
@@ -360,6 +379,7 @@ app_parse_all_cfgs(struct sample_app_params* p_args, UsecaseConfig* p_use_cfg,  
     int32_t vf_num  = 0;
     int32_t o_xu_id = 0;
     char filename[512];
+    char bbu_filename[512];
     char *dir;
     size_t len;
 
@@ -370,17 +390,7 @@ app_parse_all_cfgs(struct sample_app_params* p_args, UsecaseConfig* p_use_cfg,  
         exit(-1);
     }
 
-    if (p_o_xu_cfg) {
-        int32_t i;
-        RuntimeConfig* p_o_xu_cfg_loc = p_o_xu_cfg;
-        for (i = 0; i < XRAN_PORTS_NUM; i++) {
-            config_init(p_o_xu_cfg_loc);
-            p_o_xu_cfg_loc++;
-    }
-    } else {
-        printf("p_o_xu_cfg error.\n");
-        exit(-1);
-    }
+    p_use_cfg->dlCpProcBurst = 1;
 
     if (p_args) {
         if (p_args->usecase_file) { /* use case for multiple O-RUs */
@@ -390,7 +400,7 @@ app_parse_all_cfgs(struct sample_app_params* p_args, UsecaseConfig* p_use_cfg,  
                 printf("app_parse_all_cfgs: Name of p_args->usecase_file, %s is too long.  Maximum is 511 characters!!\n", p_args->usecase_file);
                 return -1;
             } else {
-                strncpy(filename, p_args->usecase_file, len);
+                strncpy(filename, p_args->usecase_file, RTE_MIN (512,len));
             }
             if (parseUsecaseFile(filename, p_use_cfg) != 0) {
                 printf("Use case config file error.\n");
@@ -401,13 +411,57 @@ app_parse_all_cfgs(struct sample_app_params* p_args, UsecaseConfig* p_use_cfg,  
                 return -1;
             }
 
+            if (p_o_xu_cfg) {
+                int32_t i;
+                RuntimeConfig* p_o_xu_cfg_loc = p_o_xu_cfg;
+                for (i = 0; i < p_use_cfg->oXuNum; i++) {
+                    config_init(p_o_xu_cfg_loc);
+                    p_o_xu_cfg_loc++;
+                }
+            } else {
+                printf("p_o_xu_cfg error.\n");
+                exit(-1);
+            }
             /* use cmdline pcie address */
             for (o_xu_id = 0; o_xu_id < p_use_cfg->oXuNum && o_xu_id < XRAN_PORTS_NUM; o_xu_id++) {
                 for (vf_num = 0; vf_num <  XRAN_VF_MAX && p_args->num_vfs ; vf_num++) {
-                    strncpy(&p_use_cfg->o_xu_pcie_bus_addr[o_xu_id][vf_num][0], &p_args->vf_pcie_addr[o_xu_id][vf_num][0], strlen(&p_args->vf_pcie_addr[o_xu_id][vf_num][0]));
+                    strncpy(&p_use_cfg->o_xu_pcie_bus_addr[o_xu_id][vf_num][0], &p_args->vf_pcie_addr[o_xu_id][vf_num][0], RTE_MIN (512,strlen(&p_args->vf_pcie_addr[o_xu_id][vf_num][0])));
                 }
             }
+
+
             dir = dirname(p_args->usecase_file);
+            if(strlen(p_use_cfg->o_xu_bbu_cfg_file)){
+                memset(bbu_filename, 0, sizeof(bbu_filename));
+                printf("dir (%s)\n",dir);
+                len = strlen(dir) + 1;
+                if (len > 511){
+                    printf("app_parse_all_cfgs: Name of directory, %s, xu_id = %d is too long.  Maximum is 511 characters!!\n", dir, o_xu_id);
+                    return -1;
+                } else {
+                    strncpy(bbu_filename, dir, RTE_MIN(512,len));
+                }
+                strncat(bbu_filename, "/", 1);
+                len +=1;
+                len = (sizeof(bbu_filename)) - len;
+                if (len > strlen(p_use_cfg->o_xu_bbu_cfg_file)) {
+                    strncat(bbu_filename, p_use_cfg->o_xu_bbu_cfg_file, RTE_MIN (len, strlen(p_use_cfg->o_xu_bbu_cfg_file)));
+                } else {
+                    printf("File name error\n");
+                    return -1;
+                }
+                strncpy(p_use_cfg->o_xu_bbu_cfg_file, bbu_filename, RTE_MIN (512, strlen(bbu_filename)));
+                printf("bbu_cfg_file (%s)\n",p_use_cfg->o_xu_bbu_cfg_file);
+#ifdef FWK_ENABLED
+                p_use_cfg->bbu_offload = 1;
+#else
+                p_use_cfg->bbu_offload = 0;
+#endif
+            } else {
+                printf("bbu_cfg_file is not provided\n");
+                p_use_cfg->bbu_offload = 0;
+            }
+
             for (o_xu_id = 0; o_xu_id < p_use_cfg->oXuNum && o_xu_id < XRAN_PORTS_NUM; o_xu_id++) {
                 memset(filename, 0, sizeof(filename));
                 printf("dir (%s)\n",dir);
@@ -416,7 +470,7 @@ app_parse_all_cfgs(struct sample_app_params* p_args, UsecaseConfig* p_use_cfg,  
                     printf("app_parse_all_cfgs: Name of directory, %s, xu_id = %d is too long.  Maximum is 511 characters!!\n", dir, o_xu_id);
         return -1;
                 } else {
-                    strncpy(filename, dir, len);
+                    strncpy(filename, dir, RTE_MIN (512,len));
     }
                 strncat(filename, "/", 1);
                 len +=1;
@@ -435,6 +489,7 @@ app_parse_all_cfgs(struct sample_app_params* p_args, UsecaseConfig* p_use_cfg,  
                     return -1;
                 }
                 p_o_xu_cfg->o_xu_id = o_xu_id;
+                config_init2(p_o_xu_cfg);
                 if (p_o_xu_cfg->SlotNum_fileEnabled) {
                     if (parseSlotConfigFile(dir, p_o_xu_cfg) != 0) {
                         printf("parseSlotConfigFiles\n");
@@ -445,6 +500,7 @@ app_parse_all_cfgs(struct sample_app_params* p_args, UsecaseConfig* p_use_cfg,  
                         return -1;
                     }
                 }
+
                 p_o_xu_cfg++;
             }
         } else {
@@ -473,6 +529,8 @@ app_setup_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, str
         p_iq = p_o_xu_cfg->p_buff;
         printf("IQ files size is %d slots\n", p_o_xu_cfg->numSlots);
 
+        //printf("numSlots=%u\n", p_o_xu_cfg->numSlots);
+        //getchar();
         p_iq->iq_playback_buffer_size_dl = (p_o_xu_cfg->numSlots * N_SYM_PER_SLOT * N_SC_PER_PRB *
                                     app_xran_get_num_rbs(p_o_xu_cfg->xranTech, p_o_xu_cfg->mu_number,
                                     p_o_xu_cfg->nDLBandwidth, p_o_xu_cfg->nDLAbsFrePointA) *4L);
@@ -482,13 +540,13 @@ app_setup_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, str
                                     p_o_xu_cfg->nULBandwidth, p_o_xu_cfg->nULAbsFrePointA) *4L);
 
 
-    /* 10 * [14*32*273*2*2] = 4892160 bytes */
+        /* 10 * [273*32*2*2] = 349440 bytes */
         p_iq->iq_bfw_buffer_size_dl = (p_o_xu_cfg->numSlots * N_SYM_PER_SLOT *  p_o_xu_cfg->antElmTRx *
                                     app_xran_get_num_rbs(p_o_xu_cfg->xranTech, p_o_xu_cfg->mu_number,
                                     p_o_xu_cfg->nDLBandwidth, p_o_xu_cfg->nDLAbsFrePointA) *4L);
 
-    /* 10 * [14*32*273*2*2] = 4892160 bytes */
-        p_iq->iq_bfw_buffer_size_ul = (p_o_xu_cfg->numSlots * N_SYM_PER_SLOT *
+        /* 10 * [273*32*2*2] = 349440 bytes */
+        p_iq->iq_bfw_buffer_size_ul = (p_o_xu_cfg->numSlots * N_SYM_PER_SLOT * p_o_xu_cfg->antElmTRx *
                                     app_xran_get_num_rbs(p_o_xu_cfg->xranTech, p_o_xu_cfg->mu_number,
                                     p_o_xu_cfg->nULBandwidth, p_o_xu_cfg->nULAbsFrePointA) *4L);
 
@@ -497,6 +555,8 @@ app_setup_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, str
                                     app_xran_get_num_rbs(p_o_xu_cfg->xranTech, p_o_xu_cfg->mu_number,
                                     p_o_xu_cfg->nULBandwidth, p_o_xu_cfg->nULAbsFrePointA)*4L);
 
+        p_iq->numSlots = p_o_xu_cfg->numSlots;
+
         for (i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(p_o_xu_cfg->numCC * p_o_xu_cfg->numAxc); i++) {
             p_iq->p_tx_play_buffer[i]    = (int16_t*)malloc(p_iq->iq_playback_buffer_size_dl);
             p_iq->tx_play_buffer_size[i] = (int32_t)p_iq->iq_playback_buffer_size_dl;
@@ -504,12 +564,12 @@ app_setup_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, str
             if (p_iq->p_tx_play_buffer[i] == NULL)
             exit(-1);
 
+
             p_iq->tx_play_buffer_size[i] = sys_load_file_to_buff(p_o_xu_cfg->ant_file[i],
                             "DL IFFT IN IQ Samples in binary format",
                                 (uint8_t*)p_iq->p_tx_play_buffer[i],
                                 p_iq->tx_play_buffer_size[i],
                             1);
-            p_iq->tx_play_buffer_position[i] = 0;
     }
 
         if (p_o_xu_cfg->appMode == APP_O_DU && p_o_xu_cfg->xranCat == XRAN_CATEGORY_B) {
@@ -526,7 +586,6 @@ app_setup_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, str
                                     (uint8_t*) p_iq->p_tx_dl_bfw_buffer[i],
                                     p_iq->tx_dl_bfw_buffer_size[i],
                                 1);
-                p_iq->tx_dl_bfw_buffer_position[i] = 0;
         }
     }
 
@@ -544,7 +603,6 @@ app_setup_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, str
                                     (uint8_t*) p_iq->p_tx_ul_bfw_buffer[i],
                                     p_iq->tx_ul_bfw_buffer_size[i],
                                 1);
-                p_iq->tx_ul_bfw_buffer_position[i] = 0;
         }
     }
 
@@ -598,8 +656,6 @@ app_setup_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, str
             if (p_iq->p_rx_log_buffer[i] == NULL)
             exit(-1);
 
-            p_iq->rx_log_buffer_position[i] = 0;
-
             memset(p_iq->p_rx_log_buffer[i], 0, p_iq->rx_log_buffer_size[i]);
     }
 
@@ -613,7 +669,6 @@ app_setup_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, str
             exit(-1);
 
             memset(p_iq->p_prach_log_buffer[i], 0, p_iq->prach_log_buffer_size[i]);
-            p_iq->prach_log_buffer_position[i] = 0;
     }
 
     /* log of SRS */
@@ -629,7 +684,33 @@ app_setup_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, str
                  exit(-1);
 
                 memset(p_iq->p_srs_log_buffer[i], 0, p_iq->iq_srs_buffer_size_ul);
-                p_iq->srs_log_buffer_position[i] = 0;
+            }
+        }
+
+        /* log of BFWs */
+        if (p_o_xu_cfg->appMode == APP_O_RU && p_o_xu_cfg->xranCat == XRAN_CATEGORY_B) {
+            for (i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(p_o_xu_cfg->numCC * p_o_xu_cfg->numAxc); i++) {
+
+                p_iq->p_tx_dl_bfw_log_buffer[i]    = (int16_t*)malloc(p_iq->iq_bfw_buffer_size_dl);
+                p_iq->tx_dl_bfw_log_buffer_size[i] = (int32_t)p_iq->iq_bfw_buffer_size_dl;
+
+                if (p_iq->p_tx_dl_bfw_log_buffer[i] == NULL)
+                    exit(-1);
+
+                memset(p_iq->p_tx_dl_bfw_log_buffer[i], 0, p_iq->iq_bfw_buffer_size_dl);
+            }
+        }
+
+        if (p_o_xu_cfg->appMode == APP_O_RU && p_o_xu_cfg->xranCat == XRAN_CATEGORY_B) {
+            for (i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(p_o_xu_cfg->numCC * p_o_xu_cfg->numAxc); i++) {
+
+                p_iq->p_tx_ul_bfw_log_buffer[i]    = (int16_t*)malloc(p_iq->iq_bfw_buffer_size_ul);
+                p_iq->tx_ul_bfw_log_buffer_size[i] = (int32_t)p_iq->iq_bfw_buffer_size_ul;
+
+                if (p_iq->p_tx_ul_bfw_log_buffer[i] == NULL)
+                    exit(-1);
+
+                memset(p_iq->p_tx_ul_bfw_log_buffer[i], 0, p_iq->iq_bfw_buffer_size_ul);
     }
     }
 
@@ -946,6 +1027,39 @@ app_dump_o_xu_buffers(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg)
                             (uint8_t*) p_iq->p_rx_log_buffer[i],
                             p_iq->rx_log_buffer_size[i]/sizeof(short),
                             sizeof(short));
+
+        if (p_o_xu_cfg->appMode == APP_O_RU && p_o_xu_cfg->xranCat == XRAN_CATEGORY_B) {
+            snprintf(filename, sizeof(filename),"./logs/%s%d-dl_bfw_log_ue%d.txt",((p_o_xu_cfg->appMode == APP_O_DU) ? "o-du" : "o-ru"), p_o_xu_cfg->o_xu_id,  i);
+            sys_save_buf_to_file_txt(filename,
+                                "DL Beamformig weights IQ Samples in human readable format",
+                                (uint8_t*) p_iq->p_tx_dl_bfw_log_buffer[i],
+                                p_iq->tx_dl_bfw_log_buffer_size[i],
+                                1);
+
+            snprintf(filename, sizeof(filename),"./logs/%s%d-dl_bfw_log_ue%d.bin",((p_o_xu_cfg->appMode == APP_O_DU) ? "o-du" : "o-ru"),p_o_xu_cfg->o_xu_id, i);
+            sys_save_buf_to_file(filename,
+                                "DL Beamformig weightsIQ Samples in binary format",
+                                (uint8_t*) p_iq->p_tx_dl_bfw_log_buffer[i],
+                                p_iq->tx_dl_bfw_log_buffer_size[i]/sizeof(short),
+                                sizeof(short));
+
+        }
+        if (p_o_xu_cfg->appMode == APP_O_RU && p_o_xu_cfg->xranCat == XRAN_CATEGORY_B) {
+            snprintf(filename, sizeof(filename),"./logs/%s%d-ul_bfw_log_ue%d.txt",((p_o_xu_cfg->appMode == APP_O_DU) ? "o-du" : "o-ru"), p_o_xu_cfg->o_xu_id,  i);
+            sys_save_buf_to_file_txt(filename,
+                                "DL Beamformig weights IQ Samples in human readable format",
+                                (uint8_t*) p_iq->p_tx_ul_bfw_log_buffer[i],
+                                p_iq->tx_ul_bfw_log_buffer_size[i],
+                                1);
+
+            snprintf(filename, sizeof(filename),"./logs/%s%d-ul_bfw_log_ue%d.bin",((p_o_xu_cfg->appMode == APP_O_DU) ? "o-du" : "o-ru"),p_o_xu_cfg->o_xu_id, i);
+            sys_save_buf_to_file(filename,
+                                "DL Beamformig weightsIQ Samples in binary format",
+                                (uint8_t*) p_iq->p_tx_ul_bfw_log_buffer[i],
+                                p_iq->tx_ul_bfw_log_buffer_size[i]/sizeof(short),
+                                sizeof(short));
+        }
+
     }
 
     if (p_o_xu_cfg->appMode == APP_O_DU && p_o_xu_cfg->enableSrs) {
@@ -1040,7 +1154,7 @@ app_set_main_core(UsecaseConfig* p_usecase)
     else
         return -1;
 
-    if (result = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset))
+    if ((result = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset)))
     {
         printf("pthread_setaffinity_np failed: coreId = 2, result = %d\n",result);
     }
@@ -1083,22 +1197,19 @@ app_alloc_all_cfgs(void)
 
 int main(int argc, char *argv[])
 {
-    int i;
-    int j, len;
     int32_t o_xu_id = 0;
-    int  lcore_id = 0;
     char filename[256];
     int32_t xret = 0;
     struct stat st = {0};
     uint32_t filenameLength = strlen(argv[1]);
     enum xran_if_state xran_curr_if_state = XRAN_INIT;
     struct sample_app_params arg_params;
-
+    uint64_t nActiveCoreMask[MAX_BBU_POOL_CORE_MASK] = {0};
     uint64_t nTotalTime;
     uint64_t nUsedTime;
     uint32_t nCoresUsed;
     uint32_t nCoreUsedNum[64];
-    float nUsedPercent;
+    //float nUsedPercent;
 
     app_version_print();
     app_timer_set_tsc_freq_from_clock();
@@ -1127,7 +1238,38 @@ int main(int argc, char *argv[])
         printf("app_parse_all_cfgs failed %d\n", xret);
         exit(-1);
     }
+#ifdef FWK_ENABLED
+    if(p_usecaseConfiguration->bbu_offload) {
+        if(p_startupConfiguration[0]->appMode == APP_O_DU) {
+            if ((xret = app_bbu_init(argc, argv, p_usecaseConfiguration->o_xu_bbu_cfg_file, p_usecaseConfiguration, p_startupConfiguration,
+                                        nActiveCoreMask)) < 0) {
+                printf("app_bbu_init failed %d\n", xret);
+            }
 
+            uint32_t i;
+            uint64_t nMask = 1;
+            /* use only 1 worker for BBU offload */
+            for (i = 0; i < 64; i++)
+            {
+                if(p_usecaseConfiguration->io_core < 64) {
+                    if (nMask & p_usecaseConfiguration->io_worker) {
+                        p_usecaseConfiguration->io_worker = nMask;
+                        p_usecaseConfiguration->io_worker_64_127 = 0;
+                        break;
+                    }
+                }
+                if(p_usecaseConfiguration->io_core  >= 64) {
+                    if (nMask & p_usecaseConfiguration->io_worker_64_127) {
+                        p_usecaseConfiguration->io_worker_64_127 = nMask;
+                        p_usecaseConfiguration->io_worker = 0;
+                        break;
+                    }
+                }
+                nMask = nMask << 1;
+            }
+        }
+    }
+#endif
     if ((xret = app_set_main_core(p_usecaseConfiguration)) < 0) {
         printf("app_set_main_core failed %d\n", xret);
         exit(-1);
@@ -1137,7 +1279,6 @@ int main(int argc, char *argv[])
 
     /* one init for all O-XU */
     app_io_xran_fh_init_init(p_usecaseConfiguration, p_startupConfiguration[0], &app_io_xran_fh_init);
-
     xret =  xran_init(argc, argv, &app_io_xran_fh_init, argv[0], &app_io_xran_handle);
     if (xret != XRAN_STATUS_SUCCESS) {
         printf("xran_init failed %d\n", xret);
@@ -1150,6 +1291,40 @@ int main(int argc, char *argv[])
     if (stat("./logs", &st) == -1) {
         mkdir("./logs", 0777);
     }
+
+    snprintf(filename, sizeof(filename),"mlog-%s", p_usecaseConfiguration->appMode == 0 ? "o-du" : "o-ru");
+
+    /* Init mlog */
+    unsigned int mlogSubframes = 128;
+    unsigned int mlogCores = 32;
+    unsigned int mlogSize = 10000;
+
+    // Open Mlog Buffers and initalize variables
+    MLogOpen(mlogSubframes, mlogCores, mlogSize, 0, filename);
+    MLogSetMask(0);
+
+    puts("----------------------------------------");
+    printf("MLog Info: virt=0x%p size=%d\n", MLogGetFileLocation(), MLogGetFileSize());
+    puts("----------------------------------------");
+
+
+    uint32_t totalCC =  0;
+
+    if(((1 << app_io_xran_fh_init.io_cfg.timing_core) | app_io_xran_fh_init.io_cfg.pkt_proc_core) & nActiveCoreMask[0])
+        rte_panic("[0 - 63] BBU and IO cores conflict\n");
+    if(app_io_xran_fh_init.io_cfg.pkt_proc_core_64_127 & nActiveCoreMask[1])
+        rte_panic("[64-127] BBU and IO cores conflict\n");
+
+    nActiveCoreMask[0] |= ((1 << app_io_xran_fh_init.io_cfg.timing_core) | app_io_xran_fh_init.io_cfg.pkt_proc_core);
+    nActiveCoreMask[1] |= app_io_xran_fh_init.io_cfg.pkt_proc_core_64_127;
+
+    MLogSetup(nActiveCoreMask[0], nActiveCoreMask[1], nActiveCoreMask[2], nActiveCoreMask[3]);
+
+    for (o_xu_id = 0; o_xu_id <  p_usecaseConfiguration->oXuNum;  o_xu_id++) {
+        RuntimeConfig* p_o_xu_cfg = p_startupConfiguration[o_xu_id];
+        totalCC += p_o_xu_cfg->numCC;
+    }
+    MLogAddTestCase(nActiveCoreMask, totalCC);
 
     /** process all the O-RU|O-DU for use case */
     for (o_xu_id = 0; o_xu_id <  p_usecaseConfiguration->oXuNum;  o_xu_id++) {
@@ -1182,16 +1357,28 @@ int main(int argc, char *argv[])
         printf("xran_open failed %d\n", xret);
         exit(-1);
     }
-
-        if (app_io_xran_interface(o_xu_id, p_startupConfiguration[o_xu_id], p_usecaseConfiguration) != 0)
+        if (app_io_xran_interface(o_xu_id, p_startupConfiguration[o_xu_id], p_usecaseConfiguration, &app_io_xran_fh_init) != 0)
             exit(-1);
 
         app_io_xran_iq_content_init(o_xu_id, p_startupConfiguration[o_xu_id]);
-
+#ifdef FWK_ENABLED
+        if(p_o_xu_cfg->appMode == APP_O_DU && p_usecaseConfiguration->bbu_offload) {
+            if ((xret = xran_reg_physide_cb(app_io_xran_handle, app_bbu_dl_tti_call_back, NULL, 10, XRAN_CB_TTI)) != XRAN_STATUS_SUCCESS) {
+                printf("xran_reg_physide_cb failed %d\n", xret);
+                exit(-1);
+            }
+        } else {
+            if ((xret = xran_reg_physide_cb(app_io_xran_handle, app_io_xran_dl_tti_call_back, NULL, 10, XRAN_CB_TTI)) != XRAN_STATUS_SUCCESS) {
+                printf("xran_reg_physide_cb failed %d\n", xret);
+                exit(-1);
+            }
+        }
+#else
         if ((xret = xran_reg_physide_cb(app_io_xran_handle, app_io_xran_dl_tti_call_back, NULL, 10, XRAN_CB_TTI)) != XRAN_STATUS_SUCCESS) {
             printf("xran_reg_physide_cb failed %d\n", xret);
             exit(-1);
         }
+#endif
         if ((xret = xran_reg_physide_cb(app_io_xran_handle, app_io_xran_ul_half_slot_call_back, NULL, 10, XRAN_CB_HALF_SLOT_RX)) != XRAN_STATUS_SUCCESS) {
             printf("xran_reg_physide_cb failed %d\n", xret);
             exit(-1);
@@ -1235,27 +1422,7 @@ int main(int argc, char *argv[])
 #endif
     }
 
-    snprintf(filename, sizeof(filename),"mlog-%s", p_usecaseConfiguration->appMode == 0 ? "o-du" : "o-ru");
 
-    /* MLogOpen(0, 32, 0, 0xFFFFFFFF, filename);*/
-
-    MLogOpen(128, 7, 20000, 0, filename);
-    MLogSetMask(0);
-
-    puts("----------------------------------------");
-    printf("MLog Info: virt=0x%016lx size=%d\n", MLogGetFileLocation(), MLogGetFileSize());
-    puts("----------------------------------------");
-
-    uint64_t nActiveCoreMask[MAX_BBU_POOL_CORE_MASK] = {0};
-    uint32_t totalCC =  0;
-    nActiveCoreMask[0] = ((1 << app_io_xran_fh_init.io_cfg.timing_core) | app_io_xran_fh_init.io_cfg.pkt_proc_core);
-    nActiveCoreMask[1] = app_io_xran_fh_init.io_cfg.pkt_proc_core_64_127;
-
-    for (o_xu_id = 0; o_xu_id <  p_usecaseConfiguration->oXuNum;  o_xu_id++) {
-        RuntimeConfig* p_o_xu_cfg = p_startupConfiguration[o_xu_id];
-        totalCC += p_o_xu_cfg->numCC;
-    }
-    MLogAddTestCase(nActiveCoreMask, totalCC);
 
     fcntl(0, F_SETFL, fcntl(0, F_GETFL) | O_NONBLOCK);
 
@@ -1275,10 +1442,10 @@ int main(int argc, char *argv[])
             for (o_xu_id = 0; o_xu_id <  p_usecaseConfiguration->oXuNum;  o_xu_id++) {
                 if (o_xu_id == 0) {
                     xran_get_time_stats(&nTotalTime, &nUsedTime, &nCoresUsed, nCoreUsedNum, 1);
-                    nUsedPercent = 0.0;
-                    if (nTotalTime) {
-            nUsedPercent = ((float)nUsedTime * 100.0) / (float)nTotalTime;
-                    }
+                    //nUsedPercent = 0.0;
+                    //if (nTotalTime) {
+                    //    nUsedPercent = ((float)nUsedTime * 100.0) / (float)nTotalTime;
+                    //}
                     mlog_times.core_total_time += nTotalTime;
                     mlog_times.core_used_time += nUsedTime;
 
@@ -1294,7 +1461,7 @@ int main(int argc, char *argv[])
                     printf("\n");
 #endif
                 }
-                printf("[%s%d][rx %7ld pps %7ld kbps %7ld][tx %7ld pps %7ld kbps %7ld] [on_time %ld early %ld late %ld corrupt %ld pkt_dupl %ld Total %ld]\n",
+                printf("[%s%d][rx %7ld pps %7ld kbps %7ld][tx %7ld pps %7ld kbps %7ld] [on_time %ld early %ld late %ld corrupt %ld pkt_dupl %ld Invalid_Ext1_packets %ld Total %ld]\n",
                     ((p_usecaseConfiguration->appMode == APP_O_DU) ? "o-du" : "o-ru"),
                     o_xu_id,
                     x_counters[o_xu_id].rx_counter,
@@ -1308,6 +1475,7 @@ int main(int argc, char *argv[])
                     x_counters[o_xu_id].Rx_late,
                     x_counters[o_xu_id].Rx_corrupt,
                     x_counters[o_xu_id].Rx_pkt_dupl,
+                    x_counters[o_xu_id].rx_invalid_ext1_packets,
                     x_counters[o_xu_id].Total_msgs_rcvd);
 
                 if (x_counters[o_xu_id].rx_counter > old_rx_counter[o_xu_id])
@@ -1383,19 +1551,25 @@ int main(int argc, char *argv[])
             }
         }
 
-
+    MLogSetMask(0x0);
     puts("Closing l1 app... Ending all threads...");
 
     xran_close(app_io_xran_handle);
-    if(is_mlog_on) {
-        app_profile_xran_print_mlog_stats(arg_params.usecase_file);
-        rte_pause();
+#ifdef FWK_ENABLED
+    if(p_startupConfiguration[0]->appMode == APP_O_DU && p_usecaseConfiguration->bbu_offload) {
+        app_bbu_close();
         }
+#endif
     app_io_xran_if_stop();
 
     puts("Dump IQs...");
     for (o_xu_id = 0; o_xu_id <  p_usecaseConfiguration->oXuNum;  o_xu_id++) {
         app_dump_o_xu_buffers(p_usecaseConfiguration,  p_startupConfiguration[o_xu_id]);
+    }
+
+    if(is_mlog_on) {
+        app_profile_xran_print_mlog_stats(arg_params.usecase_file);
+        rte_pause();
     }
 
     app_io_xran_if_free();

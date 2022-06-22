@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -24,6 +24,55 @@ char *fgets_s(
     char *string,
     size_t len,
     FILE * fp);
+
+void nr5g_fapi_get_worker_info(
+    struct rte_cfgfile *cfg_file,
+    unsigned int num_cpus,
+    nr5g_fapi_thread_params_t * thread_params,
+    const char* worker_name)
+{
+    const char *entry;
+
+    entry = rte_cfgfile_get_entry(cfg_file, worker_name, "core_id");
+    if (entry) {
+        thread_params->thread_worker.core_id = (uint8_t) atoi(entry);
+        if (thread_params->thread_worker.core_id >= (uint8_t) num_cpus) {
+            printf("Core Id is not in the range 0 to %d: configured: %d\n",
+                num_cpus, thread_params->thread_worker.core_id);
+            exit(-1);
+        }
+    }
+
+    entry =
+        rte_cfgfile_get_entry(cfg_file, worker_name,
+        "thread_sched_policy");
+    if (entry) {
+        thread_params->thread_worker.thread_sched_policy = (uint8_t) atoi(entry);
+        if (thread_params->thread_worker.thread_sched_policy != SCHED_FIFO &&
+            thread_params->thread_worker.thread_sched_policy != SCHED_RR) {
+            printf("Thread Policy valid range is Schedule Policy [1: SCHED_FIFO"
+                " 2: SCHED_RR]: configured: %d\n",
+                thread_params->thread_worker.thread_sched_policy);
+            exit(-1);
+        }
+    }
+
+    int min_prio =
+        sched_get_priority_min(thread_params->thread_worker.thread_sched_policy);
+    int max_prio =
+        sched_get_priority_max(thread_params->thread_worker.thread_sched_policy);
+    entry =
+        rte_cfgfile_get_entry(cfg_file, worker_name, "thread_priority");
+    if (entry) {
+        thread_params->thread_worker.thread_priority = (uint8_t) atoi(entry);
+        if (thread_params->thread_worker.thread_priority < min_prio &&
+            thread_params->thread_worker.thread_priority > max_prio) {
+            printf("Thread priority valid range is %d to %d: configured: %d\n",
+                min_prio, max_prio, thread_params->thread_worker.thread_priority);
+            exit(-1);
+        }
+    }
+}
 
 p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
     char *prgname,
@@ -69,116 +118,20 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
     }
     pclose(fp);
     num_cpus = atoi(max_core);
-    entry = rte_cfgfile_get_entry(cfg_file, "MAC2PHY_WORKER", "core_id");
-    if (entry) {
-        cfg->mac2phy_worker.core_id = (uint8_t) atoi(entry);
-        if (cfg->mac2phy_worker.core_id >= (uint8_t) num_cpus) {
-            printf("Core Id is not in the range 0 to %d: configured: %d\n",
-                num_cpus, cfg->mac2phy_worker.core_id);
-            exit(-1);
-        }
+
+    cfg->is_urllc_enabled = TRUE;
+    entry = rte_cfgfile_get_entry(cfg_file, "URLLC", "is_enabled");
+    if (entry)
+    {
+        cfg->is_urllc_enabled = (bool)atoi(entry);
+        if (!cfg->is_urllc_enabled)
+            printf("URLLC disabled\n");
     }
 
-    entry =
-        rte_cfgfile_get_entry(cfg_file, "MAC2PHY_WORKER",
-        "thread_sched_policy");
-    if (entry) {
-        cfg->mac2phy_worker.thread_sched_policy = (uint8_t) atoi(entry);
-        if (cfg->mac2phy_worker.thread_sched_policy != SCHED_FIFO &&
-            cfg->mac2phy_worker.thread_sched_policy != SCHED_RR) {
-            printf("Thread Policy valid range is Schedule Policy [1: SCHED_FIFO"
-                " 2: SCHED_RR]: configured: %d\n",
-                cfg->mac2phy_worker.thread_sched_policy);
-            exit(-1);
-        }
-    }
-
-    int min_prio =
-        sched_get_priority_min(cfg->mac2phy_worker.thread_sched_policy);
-    int max_prio =
-        sched_get_priority_max(cfg->mac2phy_worker.thread_sched_policy);
-    entry =
-        rte_cfgfile_get_entry(cfg_file, "MAC2PHY_WORKER", "thread_priority");
-    if (entry) {
-        cfg->mac2phy_worker.thread_priority = (uint8_t) atoi(entry);
-        if (cfg->mac2phy_worker.thread_priority < min_prio &&
-            cfg->mac2phy_worker.thread_priority > max_prio) {
-            printf("Thread priority valid range is %d to %d: configured: %d\n",
-                min_prio, max_prio, cfg->mac2phy_worker.thread_priority);
-            exit(-1);
-        }
-    }
-
-    entry = rte_cfgfile_get_entry(cfg_file, "PHY2MAC_WORKER", "core_id");
-    if (entry) {
-        cfg->phy2mac_worker.core_id = (uint8_t) atoi(entry);
-        if (cfg->phy2mac_worker.core_id >= (uint8_t) num_cpus) {
-            printf("Core Id is not in the range 0 to %d configured: %d\n",
-                num_cpus, cfg->phy2mac_worker.core_id);
-            exit(-1);
-        }
-    }
-
-    entry =
-        rte_cfgfile_get_entry(cfg_file, "PHY2MAC_WORKER",
-        "thread_sched_policy");
-    if (entry) {
-        cfg->phy2mac_worker.thread_sched_policy = (uint8_t) atoi(entry);
-        if (cfg->phy2mac_worker.thread_sched_policy != SCHED_FIFO &&
-            cfg->phy2mac_worker.thread_sched_policy != SCHED_RR) {
-            printf("Thread Policy valid range is Schedule Policy [1: SCHED_FIFO"
-                " 2: SCHED_RR] configured: %d\n",
-                cfg->phy2mac_worker.thread_sched_policy);
-            exit(-1);
-        }
-    }
-
-    entry =
-        rte_cfgfile_get_entry(cfg_file, "PHY2MAC_WORKER", "thread_priority");
-    if (entry) {
-        cfg->phy2mac_worker.thread_priority = (uint8_t) atoi(entry);
-        if (cfg->phy2mac_worker.thread_priority < min_prio &&
-            cfg->phy2mac_worker.thread_priority > max_prio) {
-            printf("Thread priority valid range is %d to %d configured: %d\n",
-                min_prio, max_prio, cfg->phy2mac_worker.thread_priority);
-            exit(-1);
-        }
-    }
-
-    entry = rte_cfgfile_get_entry(cfg_file, "URLLC_WORKER", "core_id");
-    if (entry) {
-        cfg->urllc_worker.core_id = (uint8_t) atoi(entry);
-        if (cfg->urllc_worker.core_id >= (uint8_t) num_cpus) {
-            printf("Core Id is not in the range 0 to %d configured: %d\n",
-                num_cpus, cfg->urllc_worker.core_id);
-            exit(-1);
-        }
-    }
-
-    entry =
-        rte_cfgfile_get_entry(cfg_file, "URLLC_WORKER", "thread_sched_policy");
-    if (entry) {
-        cfg->urllc_worker.thread_sched_policy = (uint8_t) atoi(entry);
-        if (cfg->urllc_worker.thread_sched_policy != SCHED_FIFO &&
-            cfg->urllc_worker.thread_sched_policy != SCHED_RR) {
-            printf("Thread Policy valid range is Schedule Policy [1: SCHED_FIFO"
-                " 2: SCHED_RR] configured: %d\n",
-                cfg->urllc_worker.thread_sched_policy);
-            exit(-1);
-        }
-    }
-
-    entry =
-        rte_cfgfile_get_entry(cfg_file, "URLLC_WORKER", "thread_priority");
-    if (entry) {
-        cfg->urllc_worker.thread_priority = (uint8_t) atoi(entry);
-        if (cfg->urllc_worker.thread_priority < min_prio &&
-            cfg->urllc_worker.thread_priority > max_prio) {
-            printf("Thread priority valid range is %d to %d configured: %d\n",
-                min_prio, max_prio, cfg->urllc_worker.thread_priority);
-            exit(-1);
-        }
-    }
+    nr5g_fapi_get_worker_info(cfg_file, num_cpus, &cfg->mac2phy_thread_params, "MAC2PHY_WORKER");
+    nr5g_fapi_get_worker_info(cfg_file, num_cpus, &cfg->phy2mac_thread_params, "PHY2MAC_WORKER");
+    nr5g_fapi_get_worker_info(cfg_file, num_cpus, &cfg->urllc_mac2phy_thread_params, "MAC2PHY_URLLC_WORKER");
+    nr5g_fapi_get_worker_info(cfg_file, num_cpus, &cfg->urllc_phy2mac_thread_params, "PHY2MAC_URLLC_WORKER");
 
     entry = rte_cfgfile_get_entry(cfg_file, "WLS_CFG", "device_name");
     if (entry) {

@@ -15,6 +15,12 @@
 WLS Library Release Notes
 =========================
 
+Version WLS oran_f_release_v1.0, June 2022
+------------------------------------------
+
+* Support for oneAPI compiler
+* Added flag in WLS_Put for LTE support
+
 Version WLS oran_e_maintenance_release_v1.0, Mar 2022
 -----------------------------------------------------
 

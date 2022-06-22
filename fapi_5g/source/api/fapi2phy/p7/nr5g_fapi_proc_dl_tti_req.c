@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@
  **/
 #include <rte_memcpy.h>
 #include "nr5g_fapi_framework.h"
-#include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_dpdk.h"
 #include "nr5g_fapi_fapi2mac_api.h"
 #include "nr5g_fapi_fapi2phy_api.h"
@@ -398,6 +397,32 @@ void nr5g_fapi_fill_dci_pdu(
     p_stats->iapi_stats.iapi_dl_tti_pdcch_pdus++;
 }
 
+static uint32_t get_rbg_index_mask_from_MSB(uint32_t nth_bit) {
+    #define DLSCH_RBG_INDEX_MSB 0x80000000u
+    return DLSCH_RBG_INDEX_MSB >> nth_bit;
+}
+
+/** @ingroup group_source_api_p7_fapi2phy_proc
+ *
+ *  @param[in]  rb_bitmap Pointer to FAPI DL resource block bitmap.
+ *  @param[in]  rbg_size  Size of resource block group.
+ *
+ *  @return     Returns IAPI nRBGIndex
+ *
+ *  @description
+ *  Maps rbBitmap into nRBGIndex bits for pdsch.
+ *
+**/
+uint32_t nr5g_fapi_calc_pdsch_rbg_index(
+    const uint8_t rb_bitmap[FAPI_RB_BITMAP_SIZE],
+    uint16_t bwp_start,
+    uint16_t bwp_size
+    )
+{
+    return nr5g_fapi_calc_rbg_index(
+        rb_bitmap, bwp_start, bwp_size, get_rbg_index_mask_from_MSB);
+}
+
 /** @ingroup group_nr5g_test_config
  *
  *  @param[in]    p_pdsch_pdu
@@ -414,14 +439,15 @@ void nr5g_fapi_fill_pdsch_pdu(
     fapi_dl_pdsch_pdu_t * p_pdsch_pdu,
     PDLSCHPDUStruct p_dlsch_pdu)
 {
-    uint8_t idx, port_index = 0;
+    uint8_t resource_alloc_type, idx, port_index = 0u;
     nr5g_fapi_stats_t *p_stats;
+    uint16_t bwp_start, bwp_size;
 
     p_stats = &p_phy_instance->stats;
     p_stats->fapi_stats.fapi_dl_tti_pdsch_pdus++;
 
-    p_dlsch_pdu->nBWPSize = p_pdsch_pdu->bwpSize;
-    p_dlsch_pdu->nBWPStart = p_pdsch_pdu->bwpStart;
+    bwp_size = p_dlsch_pdu->nBWPSize = p_pdsch_pdu->bwpSize;
+    bwp_start = p_dlsch_pdu->nBWPStart = p_pdsch_pdu->bwpStart;
     p_dlsch_pdu->nSubcSpacing = p_pdsch_pdu->subCarrierSpacing;
     p_dlsch_pdu->nCpType = p_pdsch_pdu->cyclicPrefix;
     p_dlsch_pdu->nRNTI = p_pdsch_pdu->rnti;
@@ -456,13 +482,14 @@ void nr5g_fapi_fill_pdsch_pdu(
     }
 
     // Resource Allocation Information
-    if (FAILURE == NR5G_FAPI_MEMCPY(p_dlsch_pdu->nRBGIndex,
-            sizeof(uint32_t) * MAX_DL_RBG_BIT_NUM,
-            p_pdsch_pdu->rbBitmap, sizeof(uint32_t) * MAX_DL_RBG_BIT_NUM)) {
-        NR5G_FAPI_LOG(ERROR_LOG, ("PDSCH: RNTI: %d Pdu Index: %d -- RB Bitmap"
-                "cpy error.", p_pdsch_pdu->rnti, p_pdsch_pdu->pdu_index));
-    }
+    resource_alloc_type =
     p_dlsch_pdu->nResourceAllocType = p_pdsch_pdu->resourceAlloc;
+    if(FAPI_DL_RESOURCE_ALLOC_TYPE_0 == resource_alloc_type) {
+        p_dlsch_pdu->nRBGSize = nr5g_fapi_calc_n_rbg_size(bwp_size);
+        p_dlsch_pdu->nRBGIndex = nr5g_fapi_calc_pdsch_rbg_index(
+            p_pdsch_pdu->rbBitmap, bwp_start, bwp_size);
+    }
+
     p_dlsch_pdu->nRBStart = p_pdsch_pdu->rbStart;
     p_dlsch_pdu->nRBSize = p_pdsch_pdu->rbSize;
     p_dlsch_pdu->nPMI = (p_pdsch_pdu->preCodingAndBeamforming.numPrgs > 0)
@@ -643,7 +670,8 @@ uint16_t nr5g_fapi_calculate_nEpreRatioOfDmrsToSSB(
 **/
 uint16_t nr5g_fapi_calculate_nEpreRatioOfPDSCHToSSB(uint8_t power_control_offset)
 {
-    static const uint8_t MAPPING_SIZE = 24;
+    #define MAPPING_SIZE 24U
+
     static const uint16_t power_control_offset_to_epre_ratio[MAPPING_SIZE] = {
     //      0      1      2      3      4      5      6      7
             1,     1,     1,  1000,  2000,  3000,  4000,  5000,

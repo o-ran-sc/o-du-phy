@@ -43,6 +43,7 @@ const std::string module_name = "U-Plane";
     {
         enum xran_pkt_dir direction =  XRAN_DIR_DL;
         uint16_t section_id = 7;
+        uint16_t num_sections = 1;
         enum xran_input_byte_order iq_buf_byte_order = XRAN_CPU_LE_BYTE_ORDER;
         uint8_t frame_id = 99;
         uint8_t subframe_id  = 9;
@@ -58,9 +59,8 @@ const std::string module_name = "U-Plane";
         enum xran_comp_hdr_type staticEn = XRAN_COMP_HDR_TYPE_DYNAMIC;
         uint8_t iqWidth =  16;
 
-        int32_t prep_bytes;
 		
-        prep_bytes = prepare_symbol_ex(direction,
+        prepare_symbol_ex(direction,
                                 section_id,
                                 test_buffer,
                                 (uint8_t *)iq_offset,
@@ -77,7 +77,9 @@ const std::string module_name = "U-Plane";
                                 RU_Port_ID,
                                 seq_id,
                                 do_copy,
-                                staticEn);
+                                staticEn,
+                                num_sections,
+                                0);
 		
 		/*union xran_cp_radioapp_section_ext11 *ext11 = NULL;
 		struct xran_sectionext11_info *params = NULL;

@@ -146,6 +146,24 @@ int xran_process_delmeas_rem_request_w_fup(struct rte_mbuf *pkt, void* handle, s
 int xran_process_delmeas_follow_up(struct rte_mbuf *pkt, void* handle, struct xran_ecpri_del_meas_pkt*, uint16_t port_id);
 void xran_initialize_ecpri_del_meas_port(struct xran_ecpri_del_meas_cmn* pCmn, struct xran_ecpri_del_meas_port* pPort,uint16_t full_init);
 
+int send_symbol_mult_section_ex(void* handle,
+                enum xran_pkt_dir direction,
+                uint16_t section_id,
+                struct rte_mbuf *mb,
+                uint8_t *data,
+                uint8_t compMeth,
+                uint8_t iqWidth,
+                const enum xran_input_byte_order iq_buf_byte_order,
+                uint8_t frame_id,
+                uint8_t subframe_id,
+                uint8_t slot_id,
+                uint8_t symbol_no,
+                int prb_start,
+                int prb_num,
+                uint8_t CC_ID,
+                uint8_t RU_Port_ID,
+                uint8_t seq_id);
+
 int send_symbol_ex(void* handle,
                 enum xran_pkt_dir direction,
                 uint16_t section_id,
@@ -181,8 +199,10 @@ int32_t prepare_symbol_ex(enum xran_pkt_dir direction,
                 uint8_t RU_Port_ID,
                 uint8_t seq_id,
                 uint32_t do_copy,
-                enum xran_comp_hdr_type staticEn);
-inline int32_t prepare_sf_slot_sym (enum xran_pkt_dir direction,
+                enum xran_comp_hdr_type staticEn,
+                uint16_t num_sections,
+                uint16_t iq_buffer_offset);
+int32_t prepare_sf_slot_sym (enum xran_pkt_dir direction,
                 uint8_t frame_id,
                 uint8_t subframe_id,
                 uint8_t slot_id,
@@ -215,16 +235,16 @@ int32_t generate_cpmsg_dlul(void *pHandle, struct xran_cp_gen_params *params, st
     uint16_t beam_id, uint8_t cc_id, uint8_t ru_port_id, uint8_t comp_method, uint8_t iqWidth,  uint8_t seq_id, uint8_t symInc);
 
 int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struct xran_section_gen_info *sect_geninfo, struct rte_mbuf *mbuf, struct xran_device_ctx *pxran_lib_ctx,
-                uint8_t frame_id, uint8_t subframe_id, uint8_t slot_id,
+                uint8_t frame_id, uint8_t subframe_id, uint8_t slot_id, int tti,
                 uint16_t beam_id, uint8_t cc_id, uint8_t prach_port_id, uint16_t occasionid, uint8_t seq_id);
 
 struct xran_eaxcid_config *xran_get_conf_eAxC(void *pHandle);
 int xran_register_cb_mbuf2ring(xran_ethdi_mbuf_send_fn mbuf_send_cp, xran_ethdi_mbuf_send_fn mbuf_send_up);
 
-uint16_t xran_alloc_sectionid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t slot_id);
+//uint16_t xran_alloc_sectionid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t slot_id);
 uint8_t xran_get_seqid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id, uint8_t slot_id);
 int32_t ring_processing_func(void* arg);
-int xran_init_prach(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_dev_ctx);
+int xran_init_prach(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_dev_ctx, enum xran_ran_tech xran_tech);
 void xran_updateSfnSecStart(void);
 uint32_t xran_slotid_convert(uint16_t slot_id, uint16_t dir);
 

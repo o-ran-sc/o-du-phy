@@ -79,6 +79,7 @@ typedef struct _RuntimeConfig
                               Set by SIB2, prach-FreqOffset in E-UTRA. */
 
     uint8_t prachConfigIndex;/**< TS36.211 - Table 5.7.1-2 : PRACH Configuration Index */
+    uint8_t prachConfigIndexLTE;/**< PRACH Configuration Index for LTE in dss case*/
     uint8_t iqswap;          /**< do swap of IQ before send to ETH */
     uint8_t nebyteorderswap; /**< do swap of byte order from host byte order to network byte order. ETH */
     uint8_t compression;     /**< enable use case with compression */
@@ -89,10 +90,14 @@ typedef struct _RuntimeConfig
     uint16_t totalBfWeights; /**< The total number of beamforming weights on RU */
 
     uint8_t enableSrs; /**< enable SRS (valid for Cat B only) */
-    uint16_t srsSymMask; /**< SRS symbol mask [014] within S/U slot [0-13] def is  13 */
+    uint16_t srsSymMask;    /* deprecated */
+    uint16_t srsSlot;       /**< SRS slot within TDD period (special slot), for O-RU emulation */
+    uint8_t  srsNdmOffset;  /**< tti offset to delay the transmission of NDM SRS UP, for O-RU emulation */
+    uint16_t srsNdmTxDuration; /**< symbol duration for NDM SRS UP transmisson, for O-RU emulation */
 
     uint8_t puschMaskEnable; /**< enable PUSCH mask, which means not tranfer PUSCH in some UL slot */
     uint8_t puschMaskSlot; /**< PUSCH channel will not tranfer in slot module Frame */
+    uint8_t extType;
 
     uint16_t maxFrameId; /**< max value of frame id */
 
@@ -142,6 +147,10 @@ typedef struct _RuntimeConfig
     struct xran_prb_map* p_PrbMapUl;
     struct xran_prb_map* p_PrbMapSrs;
 
+    uint8_t dssEnable;      /**< enable DSS (extension-9) */
+    uint8_t dssPeriod;      /**< DSS pattern period for LTE/NR */
+    uint8_t technology[XRAN_MAX_DSS_PERIODICITY];   /**< technology array represents slot is LTE(0)/NR(1) */
+
     uint16_t SlotPrbCCmask[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTIONS_PER_SLOT];
     uint64_t SlotPrbAntCMask[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTIONS_PER_SLOT];
     struct xran_prb_map* p_SlotPrbMap[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN];
@@ -161,6 +170,7 @@ typedef struct _RuntimeConfig
 
     uint16_t max_sections_per_slot;
     uint16_t max_sections_per_symbol;
+    int32_t RunSlotPrbMapBySymbolEnable;
 } RuntimeConfig;
 
 /** use case configuration  */
@@ -201,8 +211,14 @@ typedef struct _UsecaseConfig
     char o_xu_cfg_file [XRAN_PORTS_NUM][512]; /**< file with config for each O-XU */
     char o_xu_pcie_bus_addr[XRAN_PORTS_NUM][XRAN_VF_MAX][512]; /**<  VFs used for each O-RU|O-DU */
 
-    char prefix_name[256];
 
+    char o_xu_bbu_cfg_file[512]; /**< file with config for each O-XU */
+
+    char prefix_name[256];
+    uint8_t     dlCpProcBurst; /**< When set to 1, dl cp processing will be done on single symbol. When set to 0, DL CP processing
+                                     will be spread across all allowed symbols and multiple cores to reduce burstiness */
+    int32_t  bbu_offload;     /**< enable packet handling on BBU cores */
+    int32_t  mlogxrandisable;  /**< set to 1 to disable mlog 0 - default mlog enabled */
 } UsecaseConfig;
 
 /**
@@ -210,22 +226,23 @@ typedef struct _UsecaseConfig
  *
  * @param filename The name of the configuration file to be parsed.
  * @param config The configuration structure to be filled with parsed data. */
-int parseConfigFile(char *filename, RuntimeConfig *config);
+int parseConfigFile(const char *filename, RuntimeConfig *config);
 
 /**
  * Parse application use case  file.
  *
  * @param filename The name of the use case file to be parsed.
  * @param config The configuration structure to be filled with parsed data. */
-int parseUsecaseFile(char *filename, UsecaseConfig *config);
+int parseUsecaseFile(const char *filename, UsecaseConfig *config);
 
 /**
  * Parse slot config file.
  *
  * @param dir folder name.
  * @param config The configuration structure to be filled with parsed data. */
-int32_t parseSlotConfigFile(char *dir, RuntimeConfig *config);
+int32_t parseSlotConfigFile(const char *dir, RuntimeConfig *config);
 int32_t config_init(RuntimeConfig *p_o_xu_cfg);
+int32_t config_init2(RuntimeConfig *p_o_xu_cfg);
 struct xran_prb_map* config_malloc_prb_map(void);
 
 #endif /* _SAMPLEAPP__CONFIG_H_ */

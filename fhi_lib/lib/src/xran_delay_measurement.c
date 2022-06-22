@@ -529,9 +529,8 @@ int xran_ecpri_one_way_delay_measurement_transmitter(uint16_t port_id, void* han
 int xran_generate_delay_meas(uint16_t port_id, void* handle, uint8_t actionType, uint8_t MeasurementID )
 {
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    struct xran_ecpri_delay_meas_pkt *ecpri_delmeas_pkt;
     int pkt_len;
-    struct rte_mbuf *mbuf,*pkt;
+    struct rte_mbuf *mbuf;
     char* pChar;
     struct xran_ecpri_delay_meas_pl * pdm= NULL;
     uint64_t tcv1,tr2m,trm;
@@ -801,21 +800,18 @@ int xran_generate_delay_meas(uint16_t port_id, void* handle, uint8_t actionType,
 int xran_process_delmeas_request(struct rte_mbuf *pkt, void* handle, struct xran_ecpri_del_meas_pkt* ptr, uint16_t port_id)
 {
     int ret_value = FAIL;
-
-    struct xran_ecpri_delay_meas_pl *txDelayHdr;
     TimeStamp pt1;
     struct rte_mbuf* pkt1;
-    char* pchar;
+    //char* pchar;
     uint64_t tcv1, tcv2,t2m,trm, td12, t1m;
     struct xran_ecpri_del_meas_pkt *pdm= NULL;
-    union xran_ecpri_cmn_hdr *cmn;
     struct timespec tr, t2;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
     struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
     struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
     struct rte_ether_hdr *eth_hdr;
     struct rte_ether_addr addr;
-    struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
+    //struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
 //101620
     struct xran_io_cfg* cfg = &p_xran_dev_ctx->fh_init.io_cfg;
 //    struct xran_io_cfg *cfg = &ctx->io_cfg;
@@ -837,7 +833,7 @@ int xran_process_delmeas_request(struct rte_mbuf *pkt, void* handle, struct xran
     // 2) Copy MeasurementID to the Delay Measurement Response packet
     //     but first prepend ethernet header since the info is still in the buffer
 //    pchar = rte_pktmbuf_prepend(pkt, (uint16_t)(sizeof(struct rte_ether_hdr)+ sizeof(union xran_ecpri_cmn_hdr ))); // Pointer to new data start address 10/20/20 Now not removing ecpri_cmn in process_delay_meas
-    pchar = rte_pktmbuf_prepend(pkt, (uint16_t)sizeof(struct rte_ether_hdr));
+    /*pchar = */rte_pktmbuf_prepend(pkt, (uint16_t)sizeof(struct rte_ether_hdr));
     pkt1 = rte_pktmbuf_copy(pkt, _eth_mbuf_pool, 0, UINT32_MAX);
     pdm = (struct xran_ecpri_del_meas_pkt*)rte_pktmbuf_mtod_offset(pkt1, struct xran_ecpri_del_meas_pkt*, sizeof(struct rte_ether_hdr));
     // 3) Get time stamp T1 from the Timestamp field i.e. t1
@@ -874,8 +870,8 @@ int xran_process_delmeas_request(struct rte_mbuf *pkt, void* handle, struct xran
     // Still need to define the DB to save the info and run averages
     td12 = t2m - tcv2 - (t1m + tcv1);
     // 12) Send the response right away
-    struct rte_ether_hdr *h = (struct rte_ether_hdr *)rte_pktmbuf_mtod(pkt1, struct rte_ether_hdr*);
 #ifdef XRAN_OWD_DEBUG_PKTS
+    struct rte_ether_hdr *h = (struct rte_ether_hdr *)rte_pktmbuf_mtod(pkt1, struct rte_ether_hdr*);
     uint8_t *pc = &h->s_addr.addr_bytes[0];
     printf(" Src MAC from packet: %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8"\n", pc[0],pc[1],pc[2],pc[3],pc[4],pc[5]);
     uint8_t *pd = &h->d_addr.addr_bytes[0];
@@ -930,18 +926,15 @@ int xran_process_delmeas_request(struct rte_mbuf *pkt, void* handle, struct xran
 int xran_process_delmeas_request_w_fup(struct rte_mbuf *pkt, void* handle, struct xran_ecpri_del_meas_pkt* ptr, uint16_t port_id)
 {
     int ret_value = FAIL;
-    struct xran_ecpri_delay_meas_pl* txDelayHdr;
-    TimeStamp pt2;
-    struct rte_mbuf* pkt1;
     uint64_t trm;
     struct xran_ecpri_del_meas_pkt* pdm= ptr;
     struct timespec tr;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
+    //struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
     struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
-    struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
-    struct xran_io_cfg *cfg = &ctx->io_cfg;
-    int32_t* port = &cfg->port[port_id];
+    //struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
+    //struct xran_io_cfg *cfg = &ctx->io_cfg;
+    //int32_t* port = &cfg->port[port_id];
 
     // Since we are processing the receipt of a delay measurement request with follow up packet the following actions
     // need to be taken (Per eCPRI V2.0 Figure 26)
@@ -972,19 +965,17 @@ int xran_process_delmeas_request_w_fup(struct rte_mbuf *pkt, void* handle, struc
 int xran_process_delmeas_response(struct rte_mbuf *pkt, void* handle, struct xran_ecpri_del_meas_pkt* ptr, uint16_t port_id)
 {
     int ret_value = 1;
-    struct xran_ecpri_delay_meas_pl* txDelayHdr;
     TimeStamp pt2;
-    struct rte_mbuf* pkt1;
-    uint64_t tcv1, tcv2,t2m,trm, td12;
+    uint64_t tcv2,t2m;
     struct xran_ecpri_del_meas_pkt* pdm;
-    struct timespec tr, t2;
+    //struct timespec t2;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
     struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
     struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
-    struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
-    struct xran_io_cfg *cfg = &ctx->io_cfg;
-    struct xran_io_cfg* cfg1 = &p_xran_dev_ctx->fh_init.io_cfg;
-    int32_t* port = &cfg->port[port_id];
+    //struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
+    //struct xran_io_cfg *cfg = &ctx->io_cfg;
+    //struct xran_io_cfg* cfg1 = &p_xran_dev_ctx->fh_init.io_cfg;
+    //int32_t* port = &cfg->port[port_id];
 
 
     // Since we are processing the receipt of a delay measurement response packet the following actions
@@ -1056,11 +1047,10 @@ int xran_process_delmeas_response(struct rte_mbuf *pkt, void* handle, struct xra
 int xran_process_delmeas_rem_request(struct rte_mbuf *pkt, void* handle, struct xran_ecpri_del_meas_pkt* ptr, uint16_t port_id)
 {
     int ret_value = FAIL;
-    struct xran_ecpri_delay_meas_pl* txDelayHdr;
     struct rte_mbuf* pkt1;
     uint64_t tcv1,tr2m,trm;
     struct xran_ecpri_del_meas_pkt* pdm;
-    char* pchar;
+    //char* pchar;
     struct timespec tr2, tr;
     struct rte_ether_hdr *eth_hdr;
     struct rte_ether_addr addr;
@@ -1086,7 +1076,7 @@ int xran_process_delmeas_rem_request(struct rte_mbuf *pkt, void* handle, struct 
     trm = xran_timespec_to_ns(&tr);
     // 2) Copy MeasurementID to the Delay Measurement Request packet
     //     but first prepend ethernet header since the info is still in the buffer
-    pchar = rte_pktmbuf_prepend(pkt, (uint16_t)sizeof(struct rte_ether_hdr));
+    /*pchar = */rte_pktmbuf_prepend(pkt, (uint16_t)sizeof(struct rte_ether_hdr));
     pkt1 = rte_pktmbuf_copy(pkt, _eth_mbuf_pool, 0, UINT32_MAX);
     pdm = (struct xran_ecpri_del_meas_pkt*)rte_pktmbuf_mtod_offset(pkt1, struct xran_ecpri_del_meas_pkt*, sizeof(struct rte_ether_hdr));
 
@@ -1135,19 +1125,17 @@ int xran_process_delmeas_rem_request(struct rte_mbuf *pkt, void* handle, struct 
 int xran_process_delmeas_rem_request_w_fup(struct rte_mbuf* pkt, void* handle, struct xran_ecpri_del_meas_pkt* ptr, uint16_t port_id)
 {
     int ret_value = FAIL;
-    struct xran_ecpri_delay_meas_pl* txDelayHdr;
-    TimeStamp pt2;
     struct rte_mbuf* pkt1;
     struct rte_mbuf* pkt2;
     uint64_t tcv1,tsm,t1;
     struct rte_ether_hdr *eth_hdr;
     struct rte_ether_addr addr;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
+    //struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
     struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
     struct xran_ecpri_del_meas_pkt* pdm;
     struct timespec tr, ts;
-    char* pchar;
+    //char* pchar;
 
 
     struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
@@ -1171,7 +1159,7 @@ int xran_process_delmeas_rem_request_w_fup(struct rte_mbuf* pkt, void* handle, s
     t1 = xran_timespec_to_ns(&tr);
     // 2) Copy MeasurementID to the Delay Measurement Request packet
     //     but first prepend ethernet header since the info is still in the buffer
-    pchar = rte_pktmbuf_prepend(pkt, (uint16_t)sizeof(struct rte_ether_hdr));
+    /*pchar = */rte_pktmbuf_prepend(pkt, (uint16_t)sizeof(struct rte_ether_hdr));
     pkt1 = rte_pktmbuf_copy(pkt, _eth_mbuf_pool, 0, UINT32_MAX);
 
     pdm = (struct xran_ecpri_del_meas_pkt*)rte_pktmbuf_mtod_offset(pkt1, struct xran_ecpri_del_meas_pkt*, sizeof(struct rte_ether_hdr));
@@ -1239,12 +1227,11 @@ int xran_process_delmeas_rem_request_w_fup(struct rte_mbuf* pkt, void* handle, s
 int xran_process_delmeas_follow_up(struct rte_mbuf *pkt, void* handle, struct xran_ecpri_del_meas_pkt* ptr, uint16_t port_id)
 {
     int ret_value = FAIL;
-    struct xran_ecpri_delay_meas_pl *txDelayHdr;
     struct rte_mbuf *pkt1;
-    char* pChar= NULL;
+    //char* pChar= NULL;
     uint64_t tcv1,tr2m, tcv2, t1;
     struct xran_ecpri_del_meas_pkt *pdm;
-    struct timespec tr2, tr;
+    struct timespec tr2;
     struct rte_ether_hdr *eth_hdr;
     struct rte_ether_addr addr;
     TimeStamp pt1;
@@ -1271,7 +1258,7 @@ int xran_process_delmeas_follow_up(struct rte_mbuf *pkt, void* handle, struct xr
 
     // 2) Copy MeasurementID to the Delay Measurement Response packet
     //     but first prepend ethernet header since the info is still in the buffer
-    pChar = rte_pktmbuf_prepend(pkt, (uint16_t)sizeof(struct rte_ether_hdr));
+    /*pChar = */rte_pktmbuf_prepend(pkt, (uint16_t)sizeof(struct rte_ether_hdr));
     pkt1 = rte_pktmbuf_copy(pkt, _eth_mbuf_pool, 0, UINT32_MAX);
     pdm = (struct xran_ecpri_del_meas_pkt*)rte_pktmbuf_mtod_offset(pkt1, struct xran_ecpri_del_meas_pkt*, sizeof(struct rte_ether_hdr));
 
@@ -1359,13 +1346,13 @@ int process_delay_meas(struct rte_mbuf *pkt,  void* handle, uint16_t port_id)
 {
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)handle;
     struct xran_ecpri_del_meas_pkt *ecpri_delmeas_pkt;
-    union  xran_ecpri_cmn_hdr * ecpricmn;
+    //union  xran_ecpri_cmn_hdr * ecpricmn;
     int ret_value = FAIL;
 #ifdef XRAN_OWD_DEBUG_PKTS
     printf("pdm Device is %d\n", p_xran_dev_ctx->fh_init.io_cfg.id);
 #endif
-        /* Process eCPRI cmn header. */
 
+    /* Process eCPRI cmn header. */
  //   (void *)rte_pktmbuf_adj(pkt, sizeof(*ecpricmn));
     ecpri_delmeas_pkt = (struct xran_ecpri_del_meas_pkt *)rte_pktmbuf_mtod(pkt,  struct xran_ecpri_del_meas_pkt *);
     // The processing of the delay measurement here corresponds to eCPRI sections 3.2.4.6.2 and 3.42.6.3

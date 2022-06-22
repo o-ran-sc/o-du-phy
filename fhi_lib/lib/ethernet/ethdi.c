@@ -38,6 +38,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <immintrin.h>
+#include <numa.h>
 #include <rte_config.h>
 #include <rte_common.h>
 #include <rte_log.h>
@@ -154,13 +155,11 @@ int xran_handle_ether(uint16_t ethertype, struct rte_mbuf* pkt_q[], uint16_t xpo
 /* Process vlan tag. Cut the ethernet header. Call the etherype handlers. */
 int xran_ethdi_filter_packet(struct rte_mbuf *pkt_q[], uint16_t vf_id, uint16_t q_id, uint16_t num)
 {
-    int ret;
     struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
-    struct rte_ether_hdr* eth_hdr;
     uint16_t port_id = ctx->vf2xran_port[vf_id];
     struct xran_eaxc_info *p_cid = &ctx->vf_and_q2cid[vf_id][q_id];
 
-    ret = xran_handle_ether(ETHER_TYPE_ECPRI, pkt_q, port_id, p_cid, num);
+    xran_handle_ether(ETHER_TYPE_ECPRI, pkt_q, port_id, p_cid, num);
 
     return MBUF_FREE;
 }
@@ -330,13 +329,15 @@ xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
     char socket_limit[32] = "--socket-limit=8192";
     char ring_name[32]    = "";
     int32_t xran_port = -1;
-    portid_t port_id;
     queueid_t qi = 0;
-    uint16_t count;
+    uint32_t cpu = 0;
+    uint32_t node = 0;
+
+    cpu = sched_getcpu();
+    node = numa_node_of_cpu(cpu);
 
     char *argv[] = { name, core_mask, "-n2", iova_mode, socket_mem, socket_limit, "--proc-type=auto",
         "--file-prefix", name, "-a0000:00:00.0", bbdev_wdev, bbdev_vdev};
-
 
     if (io_cfg == NULL)
         return 0;
@@ -345,17 +346,12 @@ xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
         if (io_cfg->bbdev_mode == XRAN_BBDEV_MODE_HW_ON){
             // hw-accelerated bbdev
             printf("hw-accelerated bbdev %s\n", io_cfg->bbdev_dev[0]);
-
             snprintf(bbdev_wdev, RTE_DIM(bbdev_wdev), "-a%s", io_cfg->bbdev_dev[0]);
-
         } else if (io_cfg->bbdev_mode == XRAN_BBDEV_MODE_HW_OFF){
-
             snprintf(bbdev_wdev, RTE_DIM(bbdev_wdev), "%s", "--vdev=baseband_turbo_sw");
         } else if (io_cfg->bbdev_mode == XRAN_BBDEV_MODE_HW_SW){
             printf("software and hw-accelerated bbdev %s\n", io_cfg->bbdev_dev[0]);
-
             snprintf(bbdev_wdev, RTE_DIM(bbdev_wdev), "-a%s", io_cfg->bbdev_dev[0]);
-
             snprintf(bbdev_vdev, RTE_DIM(bbdev_vdev), "%s", "--vdev=baseband_turbo_sw");
         } else {
             rte_panic("Cannot init DPDK incorrect [bbdev_mode %d]\n", io_cfg->bbdev_mode);
@@ -367,8 +363,14 @@ xran_ethdi_init_dpdk_io(char *name, const struct xran_io_cfg *io_cfg,
     }
 
     if (io_cfg->dpdkMemorySize){
-        snprintf(socket_mem, RTE_DIM(socket_mem), "--socket-mem=%d", io_cfg->dpdkMemorySize);
-        snprintf(socket_limit, RTE_DIM(socket_limit), "--socket-limit=%d", io_cfg->dpdkMemorySize);
+        printf("node %d\n", node);
+        if (node == 1){
+            snprintf(socket_mem, RTE_DIM(socket_mem), "--socket-mem=0,%d", io_cfg->dpdkMemorySize);
+            snprintf(socket_limit, RTE_DIM(socket_limit), "--socket-limit=0,%d", io_cfg->dpdkMemorySize);
+        } else {
+            snprintf(socket_mem, RTE_DIM(socket_mem), "--socket-mem=%d,0", io_cfg->dpdkMemorySize);
+            snprintf(socket_limit, RTE_DIM(socket_limit), "--socket-limit=%d,0", io_cfg->dpdkMemorySize);
+        }
     }
 
     if (io_cfg->core < 64)
@@ -564,8 +566,7 @@ static inline uint16_t xran_tx_from_ring(int port, struct rte_ring *r)
     struct rte_mbuf *mbufs[BURST_SIZE];
     uint16_t dequeued, sent = 0;
     uint32_t remaining;
-    int i;
-    long t1 = MLogTick();
+    long t1 = MLogXRANTick();
 
     dequeued = rte_ring_dequeue_burst(r, (void **)mbufs, BURST_SIZE,
             &remaining);
@@ -575,7 +576,7 @@ static inline uint16_t xran_tx_from_ring(int port, struct rte_ring *r)
     while (1) {     /* When tx queue is full it is trying again till succeed */
         sent += rte_eth_tx_burst(port, 0, &mbufs[sent], dequeued - sent);
         if (sent == dequeued){
-        MLogTask(PID_RADIO_ETH_TX_BURST, t1, MLogTick());
+            MLogXRANTask(PID_RADIO_ETH_TX_BURST, t1, MLogXRANTick());
             return remaining;
     }
 }
@@ -601,18 +602,18 @@ int32_t process_dpdk_io(void* args)
             const uint16_t rxed = rte_eth_rx_burst(port[port_id], qi, mbufs, BURST_RX_IO_SIZE);
         if (rxed != 0){
             unsigned enq_n = 0;
-            long t1 = MLogTick();
+                long t1 = MLogXRANTick();
                 ctx->rx_vf_queue_cnt[port[port_id]][qi] += rxed;
                 enq_n =  rte_ring_enqueue_burst(ctx->rx_ring[port_id][qi], (void*)mbufs, rxed, NULL);
             if(rxed - enq_n)
                 rte_panic("error enq\n");
-            MLogTask(PID_RADIO_RX_VALIDATE, t1, MLogTick());
+                MLogXRANTask(PID_RADIO_RX_VALIDATE, t1, MLogXRANTick());
         }
         }
 
         /* TX */
 
-        const uint16_t sent = xran_tx_from_ring(port[port_id], ctx->tx_ring[port_id]);
+        xran_tx_from_ring(port[port_id], ctx->tx_ring[port_id]);
         /* One way Delay Measurements */
         if ((cfg->eowd_cmn[cfg->id].owdm_enable != 0) && (cfg->eowd_cmn[cfg->id].measVf == port_id))
         {
@@ -648,11 +649,10 @@ int32_t process_dpdk_io_tx(void* args)
     //rte_timer_manage();
 
     for (port_id = 0; port_id < XRAN_VF_MAX && port_id < ctx->io_cfg.num_vfs; port_id++){
-        struct rte_mbuf *mbufs[BURST_RX_IO_SIZE];
         if(port[port_id] == 0xFF)
             return 0;
         /* TX */
-        const uint16_t sent = xran_tx_from_ring(port[port_id], ctx->tx_ring[port_id]);
+        xran_tx_from_ring(port[port_id], ctx->tx_ring[port_id]);
 
         if (XRAN_STOPPED == xran_if_current_state)
             return -1;
@@ -674,6 +674,9 @@ int32_t process_dpdk_io_rx(void* args)
 
     rte_timer_manage();
 
+    if (XRAN_RUNNING != xran_if_current_state)
+            return 0;
+
     for (port_id = 0; port_id < XRAN_VF_MAX && port_id < ctx->io_cfg.num_vfs; port_id++){
         struct rte_mbuf *mbufs[BURST_RX_IO_SIZE];
         if(port[port_id] == 0xFF)
@@ -684,12 +687,12 @@ int32_t process_dpdk_io_rx(void* args)
             const uint16_t rxed = rte_eth_rx_burst(port[port_id], qi, mbufs, BURST_RX_IO_SIZE);
             if (rxed != 0){
                 unsigned enq_n = 0;
-                long t1 = MLogTick();
+                long t1 = MLogXRANTick();
                 ctx->rx_vf_queue_cnt[port[port_id]][qi] += rxed;
                 enq_n =  rte_ring_enqueue_burst(ctx->rx_ring[port_id][qi], (void*)mbufs, rxed, NULL);
                 if(rxed - enq_n)
                     rte_panic("error enq\n");
-                MLogTask(PID_RADIO_RX_VALIDATE, t1, MLogTick());
+                MLogXRANTask(PID_RADIO_RX_VALIDATE, t1, MLogXRANTick());
             }
         }
         if (XRAN_STOPPED == xran_if_current_state)

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@
 #ifndef _NR5G_FAPI2PHY_WLS_H_
 #define _NR5G_FAPI2PHY_WLS_H_
 
-#include "gnb_l1_l2_api.h"
+#include "common_mac_phy_api.h"
 
 uint8_t nr5g_fapi_fapi2phy_is_valid_wls_ptr(
     void *data);
@@ -34,18 +34,16 @@ uint8_t nr5g_fapi_fapi2phy_wls_send(
     bool is_urllc);
 PMAC2PHY_QUEUE_EL nr5g_fapi_fapi2phy_wls_recv(
     );
-inline uint32_t nr5g_fapi_fapi2phy_wls_wait(
+uint32_t nr5g_fapi_fapi2phy_wls_wait(
     );
 void wls_fapi_add_send_apis_to_free(
     PMAC2PHY_QUEUE_EL pListElem,
     uint32_t idx);
-void wls_fapi_free_send_free_list(
-    uint32_t idx);
+void wls_fapi_free_send_free_list();
 void wls_fapi_add_send_apis_to_free_urllc(
     PMAC2PHY_QUEUE_EL pListElem,
     uint32_t idx);
-void wls_fapi_free_send_free_list_urllc(
-    uint32_t idx);
+void wls_fapi_free_send_free_list_urllc();
 void wls_fapi_add_recv_apis_to_free(
     PMAC2PHY_QUEUE_EL pListElem,
     uint32_t idx);

@@ -61,7 +61,7 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick);
 long sleep_next_tick(long interval);
 int timing_set_debug_stop(int value, int count);
 int timing_get_debug_stop(void);
-inline uint64_t timing_get_current_second(void);
+uint64_t timing_get_current_second(void);
 uint8_t timing_get_numerology(void);
 int timing_set_numerology(uint8_t value);
 uint32_t xran_max_ota_sym_idx(uint8_t numerlogy);

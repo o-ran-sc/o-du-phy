@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -28,20 +28,23 @@
 #define NR5G_FAPI_MEMSET(s, x, c, n) nr5g_fapi_memset_bound_check(s, x, c, n)
 #define NR5G_FAPI_STRCPY(d, x, s, n) nr5g_fapi_strcpy_bound_check(d, x, s, n)
 
-inline uint8_t nr5g_fapi_memcpy_bound_check(
-    void *d,
+#include <stdint.h>
+#include <stddef.h>
+
+uint8_t nr5g_fapi_memcpy_bound_check(
+    void * const d,
     size_t x,
-    const void *s,
+    const void * const s,
     size_t n);
-inline uint8_t nr5g_fapi_memset_bound_check(
-    void *s,
+uint8_t nr5g_fapi_memset_bound_check(
+    void * const s,
     size_t x,
     const int32_t c,
     size_t n);
-inline uint8_t nr5g_fapi_strcpy_bound_check(
-    char *d,
+uint8_t nr5g_fapi_strcpy_bound_check(
+    char * const d,
     size_t x,
-    const char *s,
+    const char * const s,
     size_t n);
 
 #endif                          // NR5G_FAPI_MEM_H_

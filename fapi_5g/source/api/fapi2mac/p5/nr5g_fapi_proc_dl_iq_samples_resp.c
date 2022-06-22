@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@
  *
  **/
 #include "nr5g_fapi_framework.h"
-#include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_api.h"
 #include "nr5g_fapi_fapi2mac_p5_proc.h"
 
@@ -40,7 +39,7 @@
 **/
 uint8_t nr5g_fapi_dl_iq_samples_response(
     p_nr5g_fapi_phy_ctx_t p_phy_ctx,
-    PADD_REMOVE_BBU_CORES p_iapi_resp)
+    PADD_REMOVE_BBU_CORES_NR5G p_iapi_resp)
 {
     uint8_t phy_id;
     fapi_vendor_ext_dl_iq_samples_res_t *p_fapi_resp;
@@ -87,6 +86,7 @@ uint8_t nr5g_fapi_dl_iq_samples_response(
 
     NR5G_FAPI_LOG(INFO_LOG, ("[DL_IQ_SAMPLES.response][%d]", phy_id));
 
+    nr5g_fapi_clean(p_phy_instance);
     return SUCCESS;
 }
 #endif

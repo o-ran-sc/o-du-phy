@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -25,6 +25,32 @@
 
 #ifndef _NR5G_FAPI_FAP2PHY_P7_PVT_PROC_H_
 #define _NR5G_FAPI_FAP2PHY_P7_PVT_PROC_H_
+
+#include "nr5g_mac_phy_api.h"
+#include "fapi_interface.h"
+#include "fapi_vendor_extension.h"
+#include "nr5g_fapi_framework.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// DL/UL_TTI.req common
+uint8_t nr5g_fapi_calc_n_rbg_size(
+    uint16_t bwp_size);
+
+uint32_t nr5g_fapi_calc_rbg_index(
+    const uint8_t rb_bitmap[FAPI_RB_BITMAP_SIZE],
+    uint16_t bwp_start,
+    uint16_t bwp_size,
+    uint32_t(*get_rbg_index_mask)(uint32_t nth_bit));
+
+uint16_t nr5g_fapi_get_rb_bits_for_rbg(
+    const uint8_t rb_bitmap[FAPI_RB_BITMAP_SIZE],
+    uint32_t rbg_bit,
+    uint8_t rbg_size,
+    uint16_t rb_bitmap_mask);
+
 // DL_TTI.req
 uint8_t nr5g_fapi_dl_tti_req_to_phy_translation(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
@@ -56,6 +82,11 @@ uint16_t nr5g_fapi_calculate_nEpreRatioOfDmrsToSSB(
 uint16_t nr5g_fapi_calculate_nEpreRatioOfPDSCHToSSB(
     uint8_t power_control_offset);
 
+uint32_t nr5g_fapi_calc_pdsch_rbg_index(
+    const uint8_t rb_bitmap[FAPI_RB_BITMAP_SIZE],
+    uint16_t bwp_start,
+    uint16_t bwp_size);
+
 void nr5g_fapi_fill_ssb_pdu(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     PBCHPDUStruct p_bch_pdu,
@@ -67,12 +98,10 @@ void nr5g_fapi_fill_csi_rs_pdu(
     PCSIRSPDUStruct pCSIRSPdu);
 
 // UL_TTI.req
-uint8_t nr5g_fapi_calc_n_rbg_size(
+uint32_t nr5g_fapi_calc_pusch_rbg_index(
+    const uint8_t rb_bitmap[FAPI_RB_BITMAP_SIZE],
+    uint16_t bwp_start,
     uint16_t bwp_size);
-
-uint32_t nr5g_fapi_calc_n_rbg_index_entry(
-    uint8_t n_rbg_size,
-    fapi_ul_pusch_pdu_t * p_pusch_pdu);
 
 void nr5g_fapi_pusch_data_to_phy_ulsch_translation(
     nr5g_fapi_pusch_info_t * p_pusch_info,
@@ -149,5 +178,9 @@ uint8_t nr5g_fapi_tx_data_req_to_phy_translation(
 void nr5g_fapi_tx_data_req_to_phy_translation_vendor_ext(
     fapi_vendor_msg_t * p_fapi_vendor_msg,
     PTXRequestStruct p_phy_req);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif                          //_NR5G_FAPI_FAP2PHY_P7_PVT_PROC_H_

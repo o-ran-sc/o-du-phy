@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+<!--******************************************************************************-->
+<!--                                                                              -->
+<!--   Copyright (c) 2019 Intel.                                                  -->
+<!--                                                                              -->
+<!--   Licensed under the Apache License, Version 2.0 (the "License");            -->
+<!--   you may not use this file except in compliance with the License.           -->
+<!--   You may obtain a copy of the License at                                    -->
+<!--                                                                              -->
+<!--       http://www.apache.org/licenses/LICENSE-2.0                             -->
+<!--                                                                              -->
+<!--   Unless required by applicable law or agreed to in writing, software        -->
+<!--   distributed under the License is distributed on an "AS IS" BASIS,          -->
+<!--   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.   -->
+<!--   See the License for the specific language governing permissions and        -->
+<!--   limitations under the License.                                             -->
+<!--                                                                              -->
+<!--******************************************************************************-->
+<eBbuPoolConfig>
+    <version>21.03</version>
+
+    <eBbuPool>
+        <!--  Logical core index to pin eBbuPool maintain thread, non-real time -->
+        <eBbuPoolMainThreadCore>0</eBbuPoolMainThreadCore>
+        <!--  1: Enable consumer thread sleep; 0: disable. Consumer thread is real-time thread -->
+        <eBbuPoolConsumerSleep>1</eBbuPoolConsumerSleep>
+    </eBbuPool>
+
+    <Queue>
+        <!--  Queue depth, maximum 1024 -->
+        <QueueDepth>1024</QueueDepth>
+        <!--  Queue numbers, maximum 8 -->
+        <QueueNum>4</QueueNum>
+        <!--  Queue context, maximum 8 -->
+        <QueuCtxNum>1</QueuCtxNum>
+    </Queue>
+
+    <Test>
+        <!--  Logical core index to pin the timer thread, which is a real-time thread -->
+        <TimerThreadCore>1</TimerThreadCore>
+        <!--  Number of control threads, which are responsible to enqueue trigger events for different cells -->
+        <CtrlThreadNum>1</CtrlThreadNum>
+        <!--  Logical core list for control threads, which are real-time threads -->
+        <CtrlThreadCoreList>20</CtrlThreadCoreList>
+        <!--  Number of cosumer threads, maximum 256 -->
+        <TestCoreNum>20</TestCoreNum>
+        <!--  The core index list of the consumer threads -->
+        <TestCoreList>16,48,17,49,18,50,19,51,20,52,21,53,22,54,23,55,24,56,25,57,26,58,27,59</TestCoreList>
+        <!--  Number of cells to test, maximum 40 -->
+        <TestCellNum>3</TestCellNum>
+        <!--  The frame format of each cell: 0, FDD; 1, DDDSU; 2, DDDDDDDSUU -->
+        <TestCellFrameFormat>1,1,1,1</TestCellFrameFormat>
+        <!--  The TTI of each cell, unit micro-second -->
+        <TestCellTti>500, 500, 500, 500</TestCellTti>
+        <!--  The number of events per cell, maximum 1000 -->
+        <TestCellEventNum>50, 50, 50, 50</TestCellEventNum>
+    </Test>
+
+    <Misc>
+        <!-- Mlog enable: 0 disable; 1 enable-->
+        <MlogEnable>1</MlogEnable>
+  	</Misc>
+
+</eBbuPoolConfig>
+

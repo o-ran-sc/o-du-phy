@@ -72,6 +72,8 @@ typedef enum {
     XRANFTHRACH_IN,
     XRANSRS_IN,
     XRANSRS_PRB_MAP_IN,
+    XRANCP_PRB_MAP_IN_RX,
+    XRANCP_PRB_MAP_IN_TX,
     XRANSRS_SEC_DESC_IN,
     MAX_SW_XRAN_INTERFACE_NUM
 } SWXRANInterfaceTypeEnum;
@@ -93,6 +95,9 @@ struct xran_io_buf_ctrl {
 };
 
 struct xran_io_shared_ctrl {
+    enum xran_input_byte_order byteOrder; /* Order of bytes in int16_t in buffer. Big or little endian */
+    enum xran_input_i_q_order  iqOrder; /* order of IQs in the buffer */
+
     /* io struct */
     struct xran_io_buf_ctrl sFrontHaulTxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     struct xran_io_buf_ctrl sFrontHaulTxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
@@ -105,6 +110,9 @@ struct xran_io_shared_ctrl {
     struct xran_io_buf_ctrl sFHSrsRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
     struct xran_io_buf_ctrl sFHSrsRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
 
+    struct xran_io_buf_ctrl sFHCpRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+    struct xran_io_buf_ctrl sFHCpTxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+
     /* buffers lists */
     struct xran_flat_buffer sFrontHaulTxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFrontHaulTxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
@@ -113,9 +121,14 @@ struct xran_io_shared_ctrl {
     struct xran_flat_buffer sFHPrachRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFHPrachRxBuffersDecomp[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     
+    struct xran_flat_buffer sFrontHaulCpRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+    struct xran_flat_buffer sFrontHaulCpTxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+
     /* Cat B SRS buffers */
     struct xran_flat_buffer sFHSrsRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFHSrsRxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
+
+    // struct xran_flat_buffer sFHCpRxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
 };
 
 struct bbu_xran_io_if {
@@ -124,7 +137,14 @@ struct bbu_xran_io_if {
     uint16_t nInstanceNum[XRAN_PORTS_NUM]; /**< instance is equivalent to CC */
 
     uint16_t DynamicSectionEna;
+    uint16_t DynamicSectionEnaUL;
     uint32_t nPhaseCompFlag;
+    uint32_t xranModCompEna;
+    uint32_t xranCompMethod;
+    uint32_t iqWidth;
+    uint32_t mtu;
+
+    int32_t  bbu_offload;         /**< enable packet handling on BBU cores */
 
     int32_t num_o_ru;
     int32_t num_cc_per_port[XRAN_PORTS_NUM];
@@ -135,6 +155,7 @@ struct bbu_xran_io_if {
     struct xran_cb_tag  RxCbTag[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR];
     struct xran_cb_tag  PrachCbTag[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR];
     struct xran_cb_tag  SrsCbTag[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR];
+    struct xran_cb_tag  BfwCbTag[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR];
 };
 
 struct bbu_xran_io_if* app_io_xran_if_alloc(void);
@@ -143,7 +164,7 @@ void app_io_xran_if_free(void);
 struct xran_io_shared_ctrl * app_io_xran_if_ctrl_get(uint32_t o_xu_id);
 int32_t app_io_xran_sfidx_get(uint8_t nNrOfSlotInSf);
 
-int32_t app_io_xran_interface(uint32_t o_xu_id, RuntimeConfig *p_o_xu_cfg, UsecaseConfig* p_use_cfg);
+int32_t app_io_xran_interface(uint32_t o_xu_id, RuntimeConfig *p_o_xu_cfg, UsecaseConfig* p_use_cfg, struct xran_fh_init* p_xran_fh_init);
 int32_t app_io_xran_iq_content_init(uint32_t o_xu_id, RuntimeConfig *p_o_xu_cfg);
 int32_t app_io_xran_iq_content_get(uint32_t o_xu_id, RuntimeConfig *p_o_xu_cfg);
 int32_t app_io_xran_eAxCid_conf_set(struct xran_eaxcid_config *p_eAxC_cfg, RuntimeConfig * p_s_cfg);
@@ -151,10 +172,46 @@ int32_t app_io_xran_fh_config_init(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o
 int32_t app_io_xran_fh_init_init(UsecaseConfig* p_use_cfg,  RuntimeConfig* p_o_xu_cfg, struct xran_fh_init* p_xran_fh_init);
 int32_t app_io_xran_buffers_max_sz_set (RuntimeConfig* p_o_xu_cfg);
 
+int32_t app_io_xran_dl_post_func(uint16_t nCellIdx, uint32_t nSfIdx, uint32_t nSymMask, uint32_t nAntStart, uint32_t nAntNum);
+
 int32_t app_io_xran_dl_tti_call_back(void * param);
 int32_t app_io_xran_ul_half_slot_call_back(void * param);
 int32_t app_io_xran_ul_full_slot_call_back(void * param);
 int32_t app_io_xran_ul_custom_sym_call_back(void * param, struct xran_sense_of_time* time);
+
+int32_t app_io_xran_map_cellid_to_port(struct bbu_xran_io_if * p_xran_io, uint32_t cell_id, uint32_t *ret_cc_id);
+
+int32_t app_io_xran_iq_content_init_cp_tx(uint8_t  appMode, struct xran_fh_config  *pXranConf,
+                                  struct bbu_xran_io_if *psBbuIo, struct xran_io_shared_ctrl *psIoCtrl, struct o_xu_buffers * p_iq,
+                                  int32_t cc_id, int32_t ant_id, int32_t sym_id, int32_t tti, int32_t flowId);
+
+int32_t app_io_xran_iq_content_init_cp_rx(uint8_t  appMode, struct xran_fh_config  *pXranConf,
+                                  struct bbu_xran_io_if *psBbuIo, struct xran_io_shared_ctrl *psIoCtrl, struct o_xu_buffers * p_iq,
+                                  int32_t cc_id, int32_t ant_id, int32_t sym_id, int32_t tti, int32_t flowId);
+
+int32_t app_io_xran_iq_content_init_up_tx(uint8_t  appMode, struct xran_fh_config  *pXranConf,
+                                  struct bbu_xran_io_if *psBbuIo, struct xran_io_shared_ctrl *psIoCtrl, struct o_xu_buffers * p_iq,
+                                  int32_t cc_id, int32_t ant_id, int32_t sym_id, int32_t tti, int32_t flowId);
+
+int32_t app_io_xran_iq_content_init_up_prach(uint8_t  appMode, struct xran_fh_config  *pXranConf,
+                                    struct bbu_xran_io_if *psBbuIo, struct xran_io_shared_ctrl *psIoCtrl, struct o_xu_buffers * p_iq,
+                                    int32_t cc_id, int32_t ant_id, int32_t sym_id, int32_t tti, int32_t flowId);
+
+int32_t app_io_xran_iq_content_init_up_srs(uint8_t  appMode, struct xran_fh_config  *pXranConf,
+                                  struct bbu_xran_io_if *psBbuIo, struct xran_io_shared_ctrl *psIoCtrl, struct o_xu_buffers * p_iq,
+                                  int32_t cc_id, int32_t ant_id, int32_t sym_id, int32_t tti, int32_t flowId);
+
+int32_t app_io_xran_iq_content_get_up_rx(uint8_t  appMode, struct xran_fh_config  *pXranConf,
+                                  struct bbu_xran_io_if *psBbuIo, struct xran_io_shared_ctrl *psIoCtrl, struct o_xu_buffers * p_iq,
+                                  int32_t cc_id, int32_t ant_id, int32_t sym_id, int32_t tti, int32_t flowId);
+
+int32_t app_io_xran_iq_content_get_up_prach(uint8_t  appMode, struct xran_fh_config  *pXranConf,
+                                  struct bbu_xran_io_if *psBbuIo, struct xran_io_shared_ctrl *psIoCtrl, struct o_xu_buffers * p_iq,
+                                  int32_t cc_id, int32_t ant_id, int32_t sym_id, int32_t tti, int32_t flowId);
+
+int32_t app_io_xran_iq_content_get_up_srs(uint8_t  appMode, struct xran_fh_config  *pXranConf,
+                                  struct bbu_xran_io_if *psBbuIo, struct xran_io_shared_ctrl *psIoCtrl, struct o_xu_buffers * p_iq,
+                                  int32_t cc_id, int32_t ant_id, int32_t sym_id, int32_t tti, int32_t flowId);
 
 void app_io_xran_if_stop(void);
 

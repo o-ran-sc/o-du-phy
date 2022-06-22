@@ -51,19 +51,19 @@ typedef void (*rx_dpdk_sym_cb_fn)(struct rte_timer *tim, void *arg);
 void xran_timer_arm(struct rte_timer *tim, void* arg, void *p_dev_ctx)
 {
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)p_dev_ctx;
-    uint64_t t3 = MLogTick();
+    uint64_t t3 = MLogXRANTick();
 
     if (xran_if_current_state == XRAN_RUNNING){
         rte_timer_cb_t fct = (rte_timer_cb_t)arg;
         rte_timer_reset_sync(tim, 0, SINGLE, p_xran_dev_ctx->fh_init.io_cfg.timing_core, fct, p_dev_ctx);
     }
-    MLogTask(PID_TIME_ARM_TIMER, t3, MLogTick());
+    MLogXRANTask(PID_TIME_ARM_TIMER, t3, MLogXRANTick());
 }
 
 void xran_timer_arm_cp_dl(struct rte_timer *tim, void* arg, void *p_dev_ctx)
 {
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)p_dev_ctx;
-    uint64_t t3 = MLogTick();
+    uint64_t t3 = MLogXRANTick();
 
     unsigned tim_lcore = xran_schedule_to_worker(XRAN_JOB_TYPE_CP_DL, p_xran_dev_ctx);
 
@@ -71,13 +71,13 @@ void xran_timer_arm_cp_dl(struct rte_timer *tim, void* arg, void *p_dev_ctx)
         rte_timer_cb_t fct = (rte_timer_cb_t)arg;
         rte_timer_reset_sync(tim, 0, SINGLE, tim_lcore, fct, p_dev_ctx);
     }
-    MLogTask(PID_TIME_ARM_TIMER, t3, MLogTick());
+    MLogXRANTask(PID_TIME_ARM_TIMER, t3, MLogXRANTick());
 }
 
 void xran_timer_arm_cp_ul(struct rte_timer *tim, void* arg, void *p_dev_ctx)
 {
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)p_dev_ctx;
-    uint64_t t3 = MLogTick();
+    uint64_t t3 = MLogXRANTick();
 
     unsigned tim_lcore = xran_schedule_to_worker(XRAN_JOB_TYPE_CP_UL, p_xran_dev_ctx);
 
@@ -85,18 +85,17 @@ void xran_timer_arm_cp_ul(struct rte_timer *tim, void* arg, void *p_dev_ctx)
         rte_timer_cb_t fct = (rte_timer_cb_t)arg;
         rte_timer_reset_sync(tim, 0, SINGLE, tim_lcore, fct, p_dev_ctx);
     }
-    MLogTask(PID_TIME_ARM_TIMER, t3, MLogTick());
+    MLogXRANTask(PID_TIME_ARM_TIMER, t3, MLogXRANTick());
 }
 
 void xran_timer_arm_for_deadline(struct rte_timer *tim, void* arg,  void *p_dev_ctx)
 {
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)p_dev_ctx;
-    uint64_t t3 = MLogTick();
+    uint64_t t3 = MLogXRANTick();
 
     unsigned tim_lcore = xran_schedule_to_worker(XRAN_JOB_TYPE_DEADLINE, p_xran_dev_ctx);
 
     int32_t rx_tti;
-    int32_t cc_id;
     uint32_t nFrameIdx;
     uint32_t nSubframeIdx;
     uint32_t nSlotIdx;
@@ -113,19 +112,18 @@ void xran_timer_arm_for_deadline(struct rte_timer *tim, void* arg,  void *p_dev_
         rte_timer_reset_sync(tim, 0, SINGLE, tim_lcore, fct, p_xran_dev_ctx);
     }
 
-    MLogTask(PID_TIME_ARM_TIMER_DEADLINE, t3, MLogTick());
+    MLogXRANTask(PID_TIME_ARM_TIMER_DEADLINE, t3, MLogXRANTick());
 }
 
 void xran_timer_arm_user_cb(struct rte_timer *tim, void* arg,  void *p_ctx)
 {
     struct cb_user_per_sym_ctx* p_sym_cb_ctx = (struct cb_user_per_sym_ctx *)p_ctx;
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)p_sym_cb_ctx->p_dev;
-    uint64_t t3 = MLogTick();
+    uint64_t t3 = MLogXRANTick();
 
     unsigned tim_lcore = xran_schedule_to_worker(XRAN_JOB_TYPE_SYM_CB, NULL);
 
     int32_t rx_tti;
-    int32_t cc_id;
     uint32_t nFrameIdx = 0;
     uint32_t nSubframeIdx = 0;
     uint32_t nSlotIdx = 0;
@@ -148,38 +146,35 @@ void xran_timer_arm_user_cb(struct rte_timer *tim, void* arg,  void *p_ctx)
             p_sym_cb_ctx->user_timer_put = 0;
     }
 
-    MLogTask(PID_TIME_ARM_USER_TIMER_DEADLINE, t3, MLogTick());
+    MLogXRANTask(PID_TIME_ARM_USER_TIMER_DEADLINE, t3, MLogXRANTick());
 }
 
 void xran_timer_arm_ex(struct rte_timer *tim, void* CbFct, void *CbArg, unsigned tim_lcore)
 {
-    uint64_t t3 = MLogTick();
+    uint64_t t3 = MLogXRANTick();
 
     if (xran_if_current_state == XRAN_RUNNING){
         rte_timer_cb_t fct = (rte_timer_cb_t)CbFct;
         rte_timer_reset_sync(tim, 0, SINGLE, tim_lcore, fct, CbArg);
     }
-    MLogTask(PID_TIME_ARM_TIMER, t3, MLogTick());
+    MLogXRANTask(PID_TIME_ARM_TIMER, t3, MLogXRANTick());
 }
 
 int32_t
 xran_timing_create_cbs(void *args)
 {
-    int32_t  res = XRAN_STATUS_SUCCESS;
-    int32_t  do_reset = 0;
-    uint64_t t1 = 0;
-    int32_t  result1,i,j;
-    uint32_t delay_cp_dl;
+    //int32_t  res = XRAN_STATUS_SUCCESS;
+    int32_t  j;
+    uint32_t delay_cp_dl_max, delay_cp_dl_min;
     uint32_t delay_cp_ul;
     uint32_t delay_up;
     uint32_t time_diff_us;
     uint32_t delay_cp2up;
-    uint32_t sym_cp_dl;
+    uint32_t sym_cp_dl_max, sym_cp_dl_min;
     uint32_t sym_cp_ul;
     uint32_t time_diff_nSymb;
     int32_t  sym_up;
     struct xran_device_ctx * p_dev_ctx =  (struct xran_device_ctx *)args;
-    uint64_t tWake = 0, tWakePrev = 0, tUsed = 0;
     struct cb_elem_entry * cb_elm = NULL;
     uint32_t interval_us_local = p_dev_ctx->interval_us_local;
 
@@ -189,20 +184,75 @@ xran_timing_create_cbs(void *args)
 
     if (p_dev_ctx->fh_init.io_cfg.id == O_DU) {
 
-        delay_cp_dl = interval_us_local - p_dev_ctx->fh_cfg.T1a_max_cp_dl;
+        delay_cp_dl_max = interval_us_local - p_dev_ctx->fh_cfg.T1a_max_cp_dl;
+        delay_cp_dl_min = interval_us_local - p_dev_ctx->fh_cfg.T1a_min_cp_dl;
         delay_cp_ul = interval_us_local - p_dev_ctx->fh_cfg.T1a_max_cp_ul;
+
+        uint8_t numSlots=0; /* How many slots you need to go backwards from OTA */
+        uint32_t max_dl_delay_offset=interval_us_local; /* Start of the slot in which you will start CP DL */
+        while(p_dev_ctx->fh_cfg.T1a_max_cp_dl > max_dl_delay_offset)
+        {
+            max_dl_delay_offset += interval_us_local;
+            numSlots++;
+        }
+
+        /* Delay from start of 'a' slot */
+        delay_cp_dl_max = max_dl_delay_offset - p_dev_ctx->fh_cfg.T1a_max_cp_dl;
+        /* Symbol on which we will start CP transmission */
+        sym_cp_dl_max = delay_cp_dl_max*1000/(interval_us_local*1000/N_SYM_PER_SLOT)+1;
+        /* Backward offset from OTA in terms of symbols when Cp transmission will start
+         * i.e. cp transmission will start 'max_dl_offset_sym' symbols before OTA
+         */
+        uint8_t max_dl_offset_sym = (numSlots+1)*N_SYM_PER_SLOT - sym_cp_dl_max;
+        /* Handle corner case of symbol-0*/
+        sym_cp_dl_max%=N_SYM_PER_SLOT;
+
+        uint32_t min_dl_delay_offset=interval_us_local;
+        numSlots=0;
+        while(p_dev_ctx->fh_cfg.T1a_min_cp_dl > min_dl_delay_offset)
+        {
+            min_dl_delay_offset += interval_us_local;
+            numSlots++;
+        }
+        delay_cp_dl_min = min_dl_delay_offset - p_dev_ctx->fh_cfg.T1a_min_cp_dl;
+        sym_cp_dl_min = delay_cp_dl_min*1000/(interval_us_local*1000/N_SYM_PER_SLOT) - 1;
+        uint8_t min_dl_offset_sym = (numSlots+1)*N_SYM_PER_SLOT - sym_cp_dl_min;
+        sym_cp_dl_min%=N_SYM_PER_SLOT;
+
+
+        uint32_t ul_delay_offset=interval_us_local;
+        numSlots=0;
+        while(p_dev_ctx->fh_cfg.T1a_max_cp_ul > ul_delay_offset)
+        {
+            ul_delay_offset += interval_us_local;
+            numSlots++;
+        }
+        delay_cp_ul = ul_delay_offset - p_dev_ctx->fh_cfg.T1a_max_cp_ul;
+        sym_cp_ul = (delay_cp_ul*1000/(interval_us_local*1000/N_SYM_PER_SLOT)+1);
+        uint8_t ul_offset_sym = (numSlots+1)*N_SYM_PER_SLOT - sym_cp_ul;
+        sym_cp_ul%=N_SYM_PER_SLOT;
+
+        printf("delay_cp_dl_max=%u, sym_cp_dl_max=%u, max_dl_offset_sym=%u\n"
+               "delay_cp_dl_min=%u, sym_cp_dl_min=%u, min_dl_offset_sym=%u\n"
+               "delay_cp_ul=%u,     sym_cp_ul=%u,     ul_offset_sym=%u\n",
+                delay_cp_dl_max, sym_cp_dl_max, max_dl_offset_sym,
+                delay_cp_dl_min, sym_cp_dl_min, min_dl_offset_sym,
+                delay_cp_ul, sym_cp_ul, ul_offset_sym);
+
+
         delay_up    = p_dev_ctx->fh_cfg.T1a_max_up;
         time_diff_us = p_dev_ctx->fh_cfg.Ta4_max;
 
-        delay_cp2up = delay_up-delay_cp_dl;
+        delay_cp2up = delay_up-delay_cp_dl_max;
 
-        sym_cp_dl = delay_cp_dl*1000/(interval_us_local*1000/N_SYM_PER_SLOT)+1;
-        sym_cp_ul = delay_cp_ul*1000/(interval_us_local*1000/N_SYM_PER_SLOT)+1;
+
         time_diff_nSymb = time_diff_us*1000/(interval_us_local*1000/N_SYM_PER_SLOT);
         p_dev_ctx->sym_up = sym_up = -(delay_up*1000/(interval_us_local*1000/N_SYM_PER_SLOT));
         p_dev_ctx->sym_up_ul = time_diff_nSymb = (time_diff_us*1000/(interval_us_local*1000/N_SYM_PER_SLOT)+1);
 
-        printf("Start C-plane DL %d us after TTI  [trigger on sym %d]\n", delay_cp_dl, sym_cp_dl);
+        printf("C-plane DL from %d us after TTI  [trigger on sym %d] to %d us after TTI [trigger on sym %d]\n",
+                delay_cp_dl_max, sym_cp_dl_max, delay_cp_dl_min, sym_cp_dl_min);
+
         printf("Start C-plane UL %d us after TTI  [trigger on sym %d]\n", delay_cp_ul, sym_cp_ul);
         printf("Start U-plane DL %d us before OTA [offset  in sym %d]\n", delay_up, sym_up);
         printf("Start U-plane UL %d us OTA        [offset  in sym %d]\n", time_diff_us, time_diff_nSymb);
@@ -210,15 +260,38 @@ xran_timing_create_cbs(void *args)
         printf("C-plane to U-plane delay %d us after TTI\n", delay_cp2up);
         printf("Start Sym timer %ld ns\n", TX_TIMER_INTERVAL/N_SYM_PER_SLOT);
 
-        cb_elm = xran_create_cb(xran_timer_arm_cp_dl, tx_cp_dl_cb, (void*)p_dev_ctx);
-        if(cb_elm){
-            LIST_INSERT_HEAD(&p_dev_ctx->sym_cb_list_head[sym_cp_dl],
-                             cb_elm,
-                             pointers);
-        } else {
+        if(1 == p_dev_ctx->fh_init.dlCpProcBurst){
+            p_dev_ctx->numSymsForDlCP = 1;
+        }
+        else{
+            if(max_dl_offset_sym >= min_dl_offset_sym) /* corner case where only 1 symbol is available for transmission */
+                p_dev_ctx->numSymsForDlCP = max_dl_offset_sym - min_dl_offset_sym + 1;
+            else
+                p_dev_ctx->numSymsForDlCP = 1;
+
+        }
+
+        int count=0;
+        while (count < p_dev_ctx->numSymsForDlCP)
+        {
+            cb_elm =
+                    xran_create_cb (xran_timer_arm_cp_dl, tx_cp_dl_cb, (void *) p_dev_ctx);
+            if (cb_elm)
+            {
+                LIST_INSERT_HEAD (&p_dev_ctx->sym_cb_list_head[sym_cp_dl_max],
+                        cb_elm, pointers);
+            }
+            else
+            {
             print_err("cb_elm is NULL\n");
-            res =  XRAN_STATUS_FAIL;
+                //res = XRAN_STATUS_FAIL;
             goto err0;
+        }
+            printf ("created sym cp dl cb for symbol %u\n", sym_cp_dl_max);
+
+            sym_cp_dl_max = (sym_cp_dl_max+1)%N_SYM_PER_SLOT;
+            max_dl_offset_sym--;
+            count++;
         }
 
         cb_elm = xran_create_cb(xran_timer_arm_cp_ul, tx_cp_ul_cb, (void*)p_dev_ctx);
@@ -228,31 +301,55 @@ xran_timing_create_cbs(void *args)
                              pointers);
         } else {
             print_err("cb_elm is NULL\n");
-            res =  XRAN_STATUS_FAIL;
+            //res =  XRAN_STATUS_FAIL;
             goto err0;
         }
 
         /* Full slot UL OTA + time_diff_us */
         cb_elm = xran_create_cb(xran_timer_arm_for_deadline, rx_ul_deadline_full_cb, (void*)p_dev_ctx);
         if(cb_elm){
-            LIST_INSERT_HEAD(&p_dev_ctx->sym_cb_list_head[time_diff_nSymb],
+            LIST_INSERT_HEAD(&p_dev_ctx->sym_cb_list_head[time_diff_nSymb % XRAN_NUM_OF_SYMBOL_PER_SLOT],
                              cb_elm,
                              pointers);
         } else {
             print_err("cb_elm is NULL\n");
-            res =  XRAN_STATUS_FAIL;
+            //res =  XRAN_STATUS_FAIL;
+            goto err0;
+        }
+
+        /* 1/4 UL OTA + time_diff_us*/
+        cb_elm = xran_create_cb(xran_timer_arm_for_deadline, rx_ul_deadline_one_fourths_cb, (void*)p_dev_ctx);
+        if(cb_elm){
+            LIST_INSERT_HEAD(&p_dev_ctx->sym_cb_list_head[(time_diff_nSymb + 1*(N_SYM_PER_SLOT/4)) % XRAN_NUM_OF_SYMBOL_PER_SLOT],
+                         cb_elm,
+                         pointers);
+        } else {
+            print_err("cb_elm is NULL\n");
+            //res =  XRAN_STATUS_FAIL;
             goto err0;
         }
 
         /* Half slot UL OTA + time_diff_us*/
         cb_elm = xran_create_cb(xran_timer_arm_for_deadline, rx_ul_deadline_half_cb, (void*)p_dev_ctx);
         if(cb_elm){
-            LIST_INSERT_HEAD(&p_dev_ctx->sym_cb_list_head[time_diff_nSymb + N_SYM_PER_SLOT/2],
+            LIST_INSERT_HEAD(&p_dev_ctx->sym_cb_list_head[(time_diff_nSymb + N_SYM_PER_SLOT/2) % XRAN_NUM_OF_SYMBOL_PER_SLOT],
                          cb_elm,
                          pointers);
         } else {
             print_err("cb_elm is NULL\n");
-            res =  XRAN_STATUS_FAIL;
+            //res =  XRAN_STATUS_FAIL;
+            goto err0;
+        }
+
+        /* 3/4 UL OTA + time_diff_us*/
+        cb_elm = xran_create_cb(xran_timer_arm_for_deadline, rx_ul_deadline_three_fourths_cb, (void*)p_dev_ctx);
+        if(cb_elm){
+            LIST_INSERT_HEAD(&p_dev_ctx->sym_cb_list_head[(time_diff_nSymb + 4*(N_SYM_PER_SLOT/4)) % XRAN_NUM_OF_SYMBOL_PER_SLOT],
+                         cb_elm,
+                         pointers);
+        } else {
+            print_err("cb_elm is NULL\n");
+            //res =  XRAN_STATUS_FAIL;
             goto err0;
         }
     } else {    // APP_O_RU
@@ -261,7 +358,7 @@ xran_timing_create_cbs(void *args)
         p_dev_ctx->sym_up = sym_up = delay_up*1000/(interval_us_local*1000/N_SYM_PER_SLOT)+1;
         printf("Start UL U-plane %d us after OTA [offset in sym %d]\n", delay_up, sym_up);
 
-        /* calcualte when to Receive DL U-plane */
+        /* calculate when to Receive DL U-plane */
         delay_up = p_dev_ctx->fh_cfg.T2a_max_up;
         sym_up = delay_up*1000/(interval_us_local*1000/N_SYM_PER_SLOT)+1;
         printf("Receive DL U-plane %d us after OTA [offset in sym %d]\n", delay_up, sym_up);
@@ -269,12 +366,12 @@ xran_timing_create_cbs(void *args)
         /* Full slot UL OTA + time_diff_us */
         cb_elm = xran_create_cb(xran_timer_arm_for_deadline, rx_ul_deadline_full_cb, (void*)p_dev_ctx);
         if(cb_elm){
-            LIST_INSERT_HEAD(&p_dev_ctx->sym_cb_list_head[sym_up],
+            LIST_INSERT_HEAD(&p_dev_ctx->sym_cb_list_head[sym_up % XRAN_NUM_OF_SYMBOL_PER_SLOT],
                              cb_elm,
                              pointers);
         } else {
             print_err("cb_elm is NULL\n");
-            res =  -1;
+            //res =  -1;
             goto err0;
         }
 
@@ -306,12 +403,9 @@ xran_timing_create_cbs(void *args)
 int32_t
 xran_timing_destroy_cbs(void *args)
 {
-    int res = XRAN_STATUS_SUCCESS;
-    int32_t   do_reset = 0;
-    uint64_t  t1 = 0;
-    int32_t   result1,i,j;
+    //int res = XRAN_STATUS_SUCCESS;
+    int32_t j;
     struct xran_device_ctx * p_dev_ctx = (struct xran_device_ctx *)args;
-    struct cb_elem_entry * cb_elm = NULL;
 
     for (j = 0; j< XRAN_NUM_OF_SYMBOL_PER_SLOT; j++){
         struct cb_elem_entry *cb_elm;
@@ -623,6 +717,26 @@ xran_reg_physide_cb(void *pHandle, xran_fh_tti_callback_fn Cb, void *cbParam, in
     return 0;
 }
 
+int32_t
+xran_reg_physide_cb_by_dev_id(void *pHandle, xran_fh_tti_callback_fn Cb, void *cbParam, int skipTtiNum, enum callback_to_phy_id id, uint8_t xran_port_id)
+{
+    struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx_by_id(xran_port_id);
+    if (!p_xran_dev_ctx)
+    {
+        print_err("Null xRAN context on port id %u!!\n", xran_port_id);
+        return -1;
+    }
 
+    if(xran_get_if_state() == XRAN_RUNNING) {
+        print_err("Cannot register callback while running!!\n");
+        return (-1);
+    }
+
+    p_xran_dev_ctx->ttiCb[id]      = Cb;
+    p_xran_dev_ctx->TtiCbParam[id] = cbParam;
+    p_xran_dev_ctx->SkipTti[id]    = skipTtiNum;
+
+    return 0;
+}
 
 

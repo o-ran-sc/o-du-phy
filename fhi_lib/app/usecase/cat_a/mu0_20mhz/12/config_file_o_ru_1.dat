@@ -179,7 +179,7 @@ antC47=../usecase/cat_a/mu0_20mhz/12/uliq3.bin    #CC0
 #antC46=../usecase/cat_a/mu0_20mhz/12/ant_14.bin  #CC11
 #antC47=../usecase/cat_a/mu0_20mhz/12/ant_15.bin  #CC11
 
-rachEanble=1 # Enable (1)| disable (0) PRACH configuration
+rachEnable=1 # Enable (1)| disable (0) PRACH configuration
 prachConfigIndex=189 # PRACH config index as per TS36.211 - Table 5.7.1-2 : PRACH Configuration Index
 
 antPrachC0=../usecase/cat_a/mu0_20mhz/12/ant_0.bin

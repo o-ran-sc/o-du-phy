@@ -122,7 +122,7 @@ antPrachC13=./usecase/cat_a/mu3_100mhz/ant_13.bin #CC3
 antPrachC14=./usecase/cat_a/mu3_100mhz/ant_14.bin #CC3
 antPrachC15=./usecase/cat_a/mu3_100mhz/ant_15.bin #CC3
 
-rachEanble=1 # Enable (1)| disable (0) PRACH configuration
+rachEnable=1 # Enable (1)| disable (0) PRACH configuration
 prachConfigIndex=81
 
 ## control of IQ byte order

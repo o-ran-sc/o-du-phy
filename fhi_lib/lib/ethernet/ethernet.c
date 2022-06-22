@@ -74,7 +74,7 @@ struct rte_mempool *_eth_mbuf_pkt_gen       = NULL;
 struct rte_mempool *socket_direct_pool    = NULL;
 struct rte_mempool *socket_indirect_pool  = NULL;
 
-struct rte_mempool *_eth_mbuf_pool_vf_rx[16][RTE_MAX_QUEUES_PER_PORT] = {NULL};
+struct rte_mempool *_eth_mbuf_pool_vf_rx[16][RTE_MAX_QUEUES_PER_PORT] = {};
 struct rte_mempool *_eth_mbuf_pool_vf_small[16]    = {NULL};
 
 void
@@ -121,7 +121,6 @@ rx_queue_setup(uint16_t port_id, uint16_t rx_queue_id,
            uint16_t nb_rx_desc, unsigned int socket_id,
            struct rte_eth_rxconf *rx_conf, struct rte_mempool *mp)
 {
-    unsigned int i, mp_n;
     int ret;
 #ifndef RTE_ETH_RX_OFFLOAD_BUFFER_SPLIT
 #define RTE_ETH_RX_OFFLOAD_BUFFER_SPLIT 0x00100000
@@ -273,14 +272,7 @@ void xran_init_port(int p_id, uint16_t num_rxq, uint32_t mtu)
 
 void xran_init_port_mempool(int p_id, uint32_t mtu)
 {
-    int ret;
-    int sock_id = rte_eth_dev_socket_id(p_id);
     char rx_pool_name[32]    = "";
-    uint16_t data_room_size = MBUF_POOL_ELEMENT;
-
-    if (mtu <= 1500) {
-        data_room_size = MBUF_POOL_ELM_SMALL;
-}
 
     snprintf(rx_pool_name, RTE_DIM(rx_pool_name), "%s_%d", "mempool_small_", p_id);
     printf("[%d] %s\n", p_id, rx_pool_name);
@@ -289,13 +281,12 @@ void xran_init_port_mempool(int p_id, uint32_t mtu)
 
     if (_eth_mbuf_pool_vf_small[p_id] == NULL)
         rte_panic("Cannot create mbuf pool: %s\n", rte_strerror(rte_errno));
-
-
 }
 
 /* Prepend ethernet header, possibly vlan tag. */
 void xran_add_eth_hdr_vlan(struct rte_ether_addr *dst, uint16_t ethertype, struct rte_mbuf *mb)
 {
+
     /* add in the ethernet header */
     struct rte_ether_hdr *h = (struct rte_ether_hdr *)rte_pktmbuf_mtod(mb, struct rte_ether_hdr*);
 
@@ -305,7 +296,22 @@ void xran_add_eth_hdr_vlan(struct rte_ether_addr *dst, uint16_t ethertype, struc
     rte_eth_macaddr_get(mb->port, &h->s_addr);          /* set source addr */
     h->d_addr = *dst;                                   /* set dst addr */
     h->ether_type = rte_cpu_to_be_16(ethertype);        /* ethertype too */
-
+#if 0
+    struct rte_ether_addr *s = &h->s_addr;
+    printf("src=%x:%x:%x:%x:%x:%x, dst=%x:%x:%x:%x:%x:%x\n", s->addr_bytes[0],
+            s->addr_bytes[1],
+            s->addr_bytes[2],
+            s->addr_bytes[3],
+            s->addr_bytes[4],
+            s->addr_bytes[5],
+            dst->addr_bytes[0],
+            dst->addr_bytes[1],
+            dst->addr_bytes[2],
+            dst->addr_bytes[3],
+            dst->addr_bytes[4],
+            dst->addr_bytes[5]
+    );
+#endif
 #if defined(DPDKIO_DEBUG) && DPDKIO_DEBUG > 1
     {
         char dst[RTE_ETHER_ADDR_FMT_SIZE] = "(empty)";

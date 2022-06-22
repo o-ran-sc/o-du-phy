@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -27,6 +27,11 @@
 #include <stdio.h>
 
 #define NR5G_FAPI_STATS_FNAME "FapiStats.txt"
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef enum _nr5g_fapi_log_types_t {
     NONE_LOG = 0,
@@ -98,5 +103,9 @@ uint16_t nr5g_fapi_statistic_info_print(
     );
 uint16_t nr5g_fapi_statistic_info_set_all(
     );
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif                          // NR5G_FAPI_LOG_H_

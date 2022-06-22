@@ -52,7 +52,7 @@ U-plane packets for UL and DL direction are constructed the same way
 except for the direction field.
 
 Examples of default configurations used with the sample application for
-v21.03 release provided below:
+v20.04 release provided below:
 
 1 Cell mmWave 100MHz TDD DDDS:
 ------------------------------

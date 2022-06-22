@@ -12,7 +12,7 @@
             "dpdkBasebandFecMode":  0,
             "dpdkBasebandDevice":   "",
             "dpdkMemorySize":       8192,
-            "mtu":                  1500,
+            "mtu":                  9600,
             "o_du_macaddr":         "00:11:22:33:44:66",
             "o_ru_macaddr":         "00:11:22:33:44:55",
             "cp_vlan_tag":          1,
@@ -123,6 +123,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -152,6 +153,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -190,6 +192,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -228,6 +231,7 @@
             "symbol_start": 6,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -306,6 +310,7 @@
             "symbol_start": 5,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -364,6 +369,7 @@
             "symbol_start": 5,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -502,6 +508,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -530,6 +537,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -558,6 +566,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -606,6 +615,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -664,6 +674,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -710,6 +721,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -748,6 +760,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -786,6 +799,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -824,6 +838,7 @@
             "symbol_start": 0,
             "comp_method":  1,
             "iq_width":     9,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -862,6 +877,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -905,6 +921,7 @@
             "symbol_start": 0,
             "comp_method":  1,
             "iq_width":     9,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -955,6 +972,7 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -1048,6 +1066,7 @@
             "fft_size":     10,
             "scs":          3,
             "cp_length":    0,
+            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -1059,6 +1078,43 @@
                 "numSymbol":    6,
                 "beamId":       0,
                 "freqOffset":   -792
+                }
+                ]
+          }
+      },
+      {
+        "name": "DL_SectionType1_SingleSection_Ext9",
+        "parameters": {
+            "direction":    "DL",
+            "section_type": 1,
+            "cc_id":        0,
+            "ant_id":       0,
+            "seq_id":       0,
+            "frame_id":     0,
+            "subframe_id":  0,
+            "slot_id":      0,
+            "symbol_start": 0,
+            "comp_method":  0,
+            "iq_width":     16,
+            "interval":     500,
+            "sections": [
+                {
+                "sectionId":    0,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      273,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0,
+                "exts":         [ 0 ]
+                }
+                ],
+            "extensions":   [
+                {
+                "name":         "ext9",
+                "type":         9,
+                "technology":   1
                 }
                 ]
           }
@@ -1273,7 +1329,7 @@
         "dpdkBasebandDevice": "none",
         "filePrefix": "wls",
         "xranCat": 0,
-        "mtu": 1500,
+        "mtu": 9600,
         "p_o_du_addr": "00:11:22:33:44:66",
         "p_o_ru_addr": "00:11:22:33:44:55",
         "Tadv_cp_dl": 0,
@@ -1323,7 +1379,8 @@
         "antId": 0,
         "iqWidth": 16,
         "compMeth": 0,
-        "fftSize": 10
+        "fftSize": 10,
+        "dssperiod": 1
       },
 
       "references": {
@@ -1363,7 +1420,8 @@
         "slotId": 0,
         "beamId": 0,
         "ccId": 0,
-        "antId": 0
+        "antId": 0,
+        "dssperiod": 1
       },
 
       "references": {

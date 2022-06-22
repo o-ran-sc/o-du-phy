@@ -1,6 +1,6 @@
 ###############################################################################
 #
-#   Copyright (c) 2019 Intel.
+#   Copyright (c) 2021 Intel.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -37,8 +37,11 @@ fi
 echo start ORAN 5G FAPI
 if [ "$1" = "-g" ]; then
     shift
-    #gdb-ia --args ./oran_5g_fapi $@
-    gdb --args ./oran_5g_fapi $@
+    if [ "$RTE_TARGET" == "x86_64-native-linuxapp-icx"]; then
+        /opt/intel/oneapi/debugger/10.2.4/gdb/intel64/bin/gdb-oneapi --args ./oran_5g_fapi $@
+    else
+        /home/opt/intel/system_studio_2019/bin/gdb-ia --args ./oran_5g_fapi $@
+    fi
 else
     ./oran_5g_fapi $@
 fi

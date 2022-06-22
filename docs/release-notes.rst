@@ -19,6 +19,15 @@
 O-DU Low Project Release Notes
 ==========================================
 
+O-DU Low oran_f_release_v1.0. June 2022
+---------------------------------------
+
+* Enhanced features and optimizations in support of MMIMO and URLC.
+* Enhanced test coverage prior to the comunity release.
+* Incorporation of Bug Fixes for E2E connectivity from Commercial product.
+* Additional information at the component level release notes.
+* Support for oneAPI compiler.
+
 O-DU Low oran_e_maintenance_release_v1.0, Mar 2022
 --------------------------------------------------
 

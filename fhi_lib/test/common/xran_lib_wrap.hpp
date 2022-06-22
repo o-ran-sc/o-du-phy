@@ -1,19 +1,6 @@
 /*******************************************************************************
  *
- * Copyright (c) 2020 Intel.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
+ * <COPYRIGHT_TAG>
  *
  *******************************************************************************/
 
@@ -31,6 +18,7 @@
 
 #include "common.hpp"
 #include "xran_fh_o_du.h"
+#include "xran_fh_o_ru.h"
 #include "xran_common.h"
 #include "xran_frame_struct.h"
 
@@ -74,6 +62,8 @@ public:
         XRANFTHTX_SEC_DESC_OUT,
         XRANFTHRX_IN,
         XRANFTHRX_PRB_MAP_IN,
+        XRANCP_PRB_MAP_IN_RX,
+        XRANCP_PRB_MAP_IN_TX,
         XRANFTHTX_SEC_DESC_IN,
         XRANFTHRACH_IN,
         MAX_SW_XRAN_INTERFACE_NUM
@@ -108,6 +98,9 @@ struct xran_io_shared_ctrl {
     struct xran_io_buf_ctrl sFHSrsRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
     struct xran_io_buf_ctrl sFHSrsRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
 
+    struct xran_io_buf_ctrl sFHCpRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+    struct xran_io_buf_ctrl sFHCpTxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+
     /* buffers lists */
     struct xran_flat_buffer sFrontHaulTxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFrontHaulTxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
@@ -116,6 +109,9 @@ struct xran_io_shared_ctrl {
     struct xran_flat_buffer sFHPrachRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFHPrachRxBuffersDecomp[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     
+    struct xran_flat_buffer sFrontHaulCpRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+    struct xran_flat_buffer sFrontHaulCpTxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+
     /* Cat B SRS buffers */
     struct xran_flat_buffer sFHSrsRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT];
     struct xran_flat_buffer sFHSrsRxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
@@ -228,7 +224,7 @@ private:
     int init_memory(uint32_t o_xu_id)
     {
         xran_status_t status;
-        int32_t i, j, k, z, m;
+        uint32_t i, j, k, z, m;
         SWXRANInterfaceTypeEnum eInterfaceType;
         void *ptr;
         void *mb;
@@ -239,8 +235,8 @@ private:
         struct bbu_xran_io_if *psBbuIo = (struct bbu_xran_io_if*)&m_gsXranIoIf;
         struct xran_io_shared_ctrl *psIoCtrl =  (struct xran_io_shared_ctrl *)&psBbuIo->ioCtrl[o_xu_id];
 
-        uint32_t xran_max_antenna_nr = RTE_MAX(get_num_eaxc(), get_num_eaxc_ul());
-        uint32_t xran_max_ant_array_elm_nr = RTE_MAX(get_num_antelmtrx(), xran_max_antenna_nr);
+        uint32_t xran_max_antenna_nr = (uint32_t)RTE_MAX((uint32_t)get_num_eaxc(), (uint32_t)get_num_eaxc_ul());
+        uint32_t xran_max_ant_array_elm_nr = (uint32_t)RTE_MAX((uint32_t)get_num_antelmtrx(), (uint32_t)xran_max_antenna_nr);
 
 
         std::cout << "XRAN front haul xran_mm_init" << std::endl;
@@ -253,7 +249,7 @@ private:
         /* initialize maximum instances to have flexibility for the tests */
 
         /* initialize maximum supported CC to have flexibility on the test */
-        int32_t nSectorNum = 6;//XRAN_MAX_SECTOR_NR;
+        uint32_t nSectorNum = 6;//XRAN_MAX_SECTOR_NR;
 
         k = o_xu_id;
         psBbuIo->nInstanceNum[k] = nSectorNum;
@@ -309,14 +305,6 @@ private:
                 }
 
             /* C-plane DL */
-            eInterfaceType = XRANFTHTX_SEC_DESC_OUT;
-            status = xran_bm_init(psBbuIo->nInstanceHandle[o_xu_id][i],
-                            &psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][eInterfaceType],
-                            XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT*XRAN_MAX_SECTIONS_PER_SLOT*XRAN_MAX_FRAGMENT, sizeof(struct xran_section_desc));
-            if(XRAN_STATUS_SUCCESS != status) {
-                std::cout << __LINE__ << " Failed at xran_bm_init, status " << status << std::endl;
-                return (-1);
-            }
             eInterfaceType = XRANFTHTX_PRB_MAP_OUT;
             status = xran_bm_init(psBbuIo->nInstanceHandle[o_xu_id][i],
                             &psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][eInterfaceType],
@@ -346,24 +334,73 @@ private:
                         }
                     psIoCtrl->sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pData = (uint8_t *)ptr;
                     psIoCtrl->sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pCtrl = (void *)mb;
-                    void *sd_ptr;
-                    void *sd_mb;
-                    int  elm_id;
+
                     struct xran_prb_map * p_rb_map = (struct xran_prb_map *)ptr;
                     //memcpy(ptr, &startupConfiguration.PrbMap, sizeof(struct xran_prb_map));
-                    for (elm_id = 0; elm_id < XRAN_MAX_SECTIONS_PER_SLOT; elm_id++){
-                        struct xran_prb_elm *pPrbElem = &p_rb_map->prbMap[elm_id];
-                        for(k = 0; k < XRAN_NUM_OF_SYMBOL_PER_SLOT; k++){
-                            for(m = 0; m < XRAN_MAX_FRAGMENT; m++){
-                                status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[o_xu_id][i], psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][XRANFTHTX_SEC_DESC_OUT], &sd_ptr, &sd_mb);
+                }
+             }
+            /* C-plane */
+            eInterfaceType = XRANCP_PRB_MAP_IN_RX;
+            status = xran_bm_init(psBbuIo->nInstanceHandle[o_xu_id][i],
+                            &psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][eInterfaceType],
+                            XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT,
+                            sizeof(struct xran_prb_map));
                             if(XRAN_STATUS_SUCCESS != status){
-                                std::cout << __LINE__ << "SD Failed at  xran_bm_allocate_buffer , status %d\n" << status << std::endl;
-                                return (-1);
+                rte_panic("Failed at xran_bm_init, status %d\n", status);
                             }
-                                pPrbElem->p_sec_desc[k][m] = (struct xran_section_desc *)sd_ptr;
+
+            for(j = 0;j < XRAN_N_FE_BUF_LEN; j++) {
+                for(z = 0; z < xran_max_antenna_nr; z++){
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].bValid = 0;
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].nSegGenerated = -1;
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].nSegToBeGen = -1;
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].nSegTransferred = 0;
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.nNumBuffers = XRAN_NUM_OF_SYMBOL_PER_SLOT;
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers = &psIoCtrl->sFrontHaulCpRxPrbMapBbuIoBufCtrl[j][i][z];
+
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nElementLenInBytes = sizeof(struct xran_prb_map);
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nNumberOfElements = 1;
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nOffsetInBytes = 0;
+                    status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[o_xu_id][i], psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][eInterfaceType], &ptr, &mb);
+                    if(XRAN_STATUS_SUCCESS != status) {
+                        rte_panic("Failed at  xran_bm_allocate_buffer , status %d\n",status);
                             }
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pData = (uint8_t *)ptr;
+                    psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pCtrl = (void *)mb;
+                    struct xran_prb_map * p_rb_map = (struct xran_prb_map *)ptr;
                         }
                     }
+
+
+            /* C-plane Tx */
+            eInterfaceType = XRANCP_PRB_MAP_IN_TX;
+            status = xran_bm_init(psBbuIo->nInstanceHandle[o_xu_id][i],
+                            &psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][eInterfaceType],
+                            XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT,
+                            sizeof(struct xran_prb_map));
+            if(XRAN_STATUS_SUCCESS != status) {
+                rte_panic("Failed at xran_bm_init, status %d\n", status);
+            }
+
+            for(j = 0;j < XRAN_N_FE_BUF_LEN; j++) {
+                for(z = 0; z < xran_max_antenna_nr; z++){
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].bValid = 0;
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].nSegGenerated = -1;
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].nSegToBeGen = -1;
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].nSegTransferred = 0;
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.nNumBuffers = XRAN_NUM_OF_SYMBOL_PER_SLOT;
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers = &psIoCtrl->sFrontHaulCpTxPrbMapBbuIoBufCtrl[j][i][z];
+
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nElementLenInBytes = sizeof(struct xran_prb_map);
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nNumberOfElements = 1;
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->nOffsetInBytes = 0;
+                    status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[o_xu_id][i],psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][eInterfaceType],&ptr, &mb);
+                    if(XRAN_STATUS_SUCCESS != status) {
+                        rte_panic("Failed at  xran_bm_allocate_buffer , status %d\n",status);
+                    }
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pData = (uint8_t *)ptr;
+                    psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pCtrl = (void *)mb;
+                    struct xran_prb_map * p_rb_map = (struct xran_prb_map *)ptr;
                  }
              }
         }
@@ -407,14 +444,6 @@ private:
                     }
                 }
 
-            eInterfaceType = XRANFTHTX_SEC_DESC_IN;
-            status = xran_bm_init(psBbuIo->nInstanceHandle[o_xu_id][i],
-                            &psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][eInterfaceType],
-                            XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT*XRAN_MAX_SECTIONS_PER_SLOT*XRAN_MAX_FRAGMENT, sizeof(struct xran_section_desc));
-            if(XRAN_STATUS_SUCCESS != status) {
-                std::cout << __LINE__ << " Failed at xran_bm_init, status " << status << std::endl;
-                return (-1);
-            }
             eInterfaceType = XRANFTHRX_PRB_MAP_IN;
             status = xran_bm_init(psBbuIo->nInstanceHandle[o_xu_id][i],
                                 &psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][eInterfaceType],
@@ -444,24 +473,8 @@ private:
                         }
                     psIoCtrl->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pData   = (uint8_t *)ptr;
                     psIoCtrl->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList.pBuffers->pCtrl   = (void *)mb;
-                    void *sd_ptr;
-                    void *sd_mb;
-                    int  elm_id;
                     struct xran_prb_map * p_rb_map = (struct xran_prb_map *)ptr;
                     //memcpy(ptr, &startupConfiguration.PrbMap, sizeof(struct xran_prb_map));
-                    for (elm_id = 0; elm_id < XRAN_MAX_SECTIONS_PER_SLOT; elm_id++){
-                        struct xran_prb_elm *pPrbElem = &p_rb_map->prbMap[elm_id];
-                        for(k = 0; k < XRAN_NUM_OF_SYMBOL_PER_SLOT; k++){
-                            for(m = 0; m < XRAN_MAX_FRAGMENT; m++){
-                                status = xran_bm_allocate_buffer(psBbuIo->nInstanceHandle[o_xu_id][i], psBbuIo->nBufPoolIndex[o_xu_id][m_nSectorIndex[i]][XRANFTHTX_SEC_DESC_IN], &sd_ptr, &sd_mb);
-                            if(XRAN_STATUS_SUCCESS != status){
-                                std::cout << __LINE__ << "SD Failed at  xran_bm_allocate_buffer , status %d\n" << status << std::endl;
-                                return (-1);
-                            }
-                                pPrbElem->p_sec_desc[k][m] = (struct xran_section_desc *)sd_ptr;
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -593,7 +606,7 @@ public:
         m_xranInit.eAxCId_conf.mask_ruPortId      = get_eaxcid_mask(bitnum_ruport, m_xranInit.eAxCId_conf.bit_ruPortId);
 
         m_xranInit.totalBfWeights   = get_globalcfg<int>(XRAN_UT_KEY_GLOBALCFG_RU, "totalBfWeights");
-        m_xranInit.filePrefix   = "wls";
+        m_xranInit.filePrefix   = (char *)"wls";
 
         m_bSub6     = get_globalcfg<bool>(XRAN_UT_KEY_GLOBALCFG_RU, "sub6");
 
@@ -639,7 +652,7 @@ public:
                 std::stringstream slotcfgname;
                 slotcfgname << "slot" << i;
                 std::vector<int> slotcfg = get_globalcfg_array<int>(slotcfg_key, slotcfgname.str());
-                for(int j=0; j < slotcfg.size(); j++) {
+                for(int j=0; j < (int)slotcfg.size(); j++) {
                     m_xranConf.frame_conf.sSlotConfig[i].nSymbolType[j] = slotcfg[j];
                     }
                 m_xranConf.frame_conf.sSlotConfig[i].reserved[0] = 0;
@@ -794,7 +807,7 @@ public:
     int Init(uint32_t o_xu_id, struct xran_fh_config *pCfg = nullptr)
     {
         xran_status_t status;
-        int32_t nSectorNum;
+        uint32_t nSectorNum;
         int32_t i, j, k, z;
         void *ptr;
         void *mb;
@@ -802,10 +815,11 @@ public:
         uint16_t *u16dptr;
         uint8_t  *u8dptr;
         SWXRANInterfaceTypeEnum eInterfaceType;
-        int32_t cc_id, ant_id, sym_id, tti;
+        uint32_t cc_id, ant_id, sym_id, tti;
         int32_t flowId;
         char    *pos        = NULL;
         struct xran_prb_map *pRbMap = NULL;
+        struct xran_prb_map tmppRbMap;
 
         struct bbu_xran_io_if *psBbuIo = (struct bbu_xran_io_if*)&m_gsXranIoIf;
         struct xran_io_shared_ctrl *psIoCtrl =  (struct xran_io_shared_ctrl *)&psBbuIo->ioCtrl[o_xu_id];
@@ -836,7 +850,7 @@ public:
             iq_bfw_buffer_size_dl = (m_nSlots * N_SYM_PER_SLOT * get_num_antelmtrx() * get_num_dlrbs() * 4L);
             iq_bfw_buffer_size_ul = (m_nSlots * N_SYM_PER_SLOT * get_num_antelmtrx() * get_num_ulrbs() * 4L);
 
-            for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(get_num_cc() * get_num_eaxc()); i++) {
+            for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (get_num_cc() * get_num_eaxc()); i++) {
                 p_tx_dl_bfw_buffer[i]   = (int16_t*)malloc(iq_bfw_buffer_size_dl);
                 tx_dl_bfw_buffer_size[i] = (int32_t)iq_bfw_buffer_size_dl;
                 if(p_tx_dl_bfw_buffer[i] == NULL)
@@ -891,12 +905,12 @@ public:
                             int iPrb;
                             char *dl_bfw_pos = ((char*)p_tx_dl_bfw_buffer[flowId]) + tx_dl_bfw_buffer_position[flowId];
                             struct xran_prb_elm* p_prbMap = NULL;
-                            int num_antelm;
+                            // int num_antelm;
 
                             pRbMap->prbMap[0].BeamFormingType   = XRAN_BEAM_WEIGHT;
                             pRbMap->prbMap[0].bf_weight_update  = 1;
 
-                            num_antelm = get_num_antelmtrx();
+                            // num_antelm = get_num_antelmtrx();
 #if 0
                             /* populate beam weights to C-plane for each elm */
                             pRbMap->bf_weight.nAntElmTRx = num_antelm;
@@ -909,10 +923,102 @@ public:
                                 }
 #endif
                             } /* else if(get_rucategory() == XRAN_CATEGORY_B) */
+                        memcpy(&tmppRbMap, pRbMap, sizeof(struct xran_prb_map));
+                        xran_init_PrbMap_from_cfg(&tmppRbMap, pRbMap, m_xranInit.mtu);
                         } /* if(pRbMap) */
                     else {
                         std::cout << "DL pRbMap ==NULL" << std::endl;
                         }
+
+                if(get_rucategory() == XRAN_CATEGORY_B){
+                    pRbMap = (struct xran_prb_map *)psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers->pData;
+                    if(pRbMap) {
+                        pRbMap->dir                     = XRAN_DIR_DL;
+                        pRbMap->xran_port               = 0;
+                        pRbMap->band_id                 = 0;
+                        pRbMap->cc_id                   = cc_id;
+                        pRbMap->ru_port_id              = ant_id;
+                        pRbMap->tti_id                  = tti;
+                        pRbMap->start_sym_id            = 0;
+
+                        pRbMap->nPrbElm                 = 1;
+                        pRbMap->prbMap[0].nRBStart      = 0;
+                        pRbMap->prbMap[0].nRBSize       = get_num_dlrbs();
+                        pRbMap->prbMap[0].nStartSymb    = 0;
+                        pRbMap->prbMap[0].numSymb       = 14;
+                        pRbMap->prbMap[0].nBeamIndex    = 0;
+                        pRbMap->prbMap[0].compMethod    = XRAN_COMPMETHOD_NONE;
+                        uint32_t idxElm;
+                        int iPrb;
+                        char *dl_bfw_pos = ((char*)p_tx_dl_bfw_buffer[flowId]) + tx_dl_bfw_buffer_position[flowId];
+                        struct xran_prb_elm* p_prbMap = NULL;
+                        int num_antelm;
+
+                        pRbMap->prbMap[0].BeamFormingType   = XRAN_BEAM_WEIGHT;
+                        pRbMap->prbMap[0].bf_weight_update  = 1;
+
+                        num_antelm = get_num_antelmtrx();
+#if 1
+                        /* populate beam weights to C-plane for each elm */
+                        // pRbMap->bf_weight.nAntElmTRx = num_antelm;
+                        for(idxElm = 0;  idxElm < pRbMap->nPrbElm; idxElm++){
+                            p_prbMap = &pRbMap->prbMap[idxElm];
+                            for (iPrb = p_prbMap->nRBStart; iPrb < (p_prbMap->nRBStart + p_prbMap->nRBSize); iPrb++) {
+                                /* copy BF W IQs for 1 PRB of */
+                                p_prbMap->bf_weight.nAntElmTRx = num_antelm;
+                                // memcpy(&p_prbMap->bf_weight.p_ext_section[iPrb][0], (dl_bfw_pos + (iPrb * num_antelm)*4), num_antelm*4);
+                                }
+                            }
+#endif
+                        } /* if(pRbMap) */
+                    else {
+                        std::cout << "Cp DL pRbMap ==NULL" << std::endl;
+                        }
+
+                    pRbMap = (struct xran_prb_map *)psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers->pData;
+                    if(pRbMap) {
+                        pRbMap->dir                     = XRAN_DIR_DL;
+                        pRbMap->xran_port               = 0;
+                        pRbMap->band_id                 = 0;
+                        pRbMap->cc_id                   = cc_id;
+                        pRbMap->ru_port_id              = ant_id;
+                        pRbMap->tti_id                  = tti;
+                        pRbMap->start_sym_id            = 0;
+
+                        pRbMap->nPrbElm                 = 1;
+                        pRbMap->prbMap[0].nRBStart      = 0;
+                        pRbMap->prbMap[0].nRBSize       = get_num_dlrbs();
+                        pRbMap->prbMap[0].nStartSymb    = 0;
+                        pRbMap->prbMap[0].numSymb       = 14;
+                        pRbMap->prbMap[0].nBeamIndex    = 0;
+                        pRbMap->prbMap[0].compMethod    = XRAN_COMPMETHOD_NONE;
+                        int idxElm;
+                        int iPrb;
+                        char *dl_bfw_pos = ((char*)p_tx_dl_bfw_buffer[flowId]) + tx_dl_bfw_buffer_position[flowId];
+                        struct xran_prb_elm* p_prbMap = NULL;
+                        // int num_antelm;
+
+                        pRbMap->prbMap[0].BeamFormingType   = XRAN_BEAM_WEIGHT;
+                        pRbMap->prbMap[0].bf_weight_update  = 1;
+
+                        // num_antelm = get_num_antelmtrx();
+#if 0
+                        /* populate beam weights to C-plane for each elm */
+                        pRbMap->bf_weight.nAntElmTRx = num_antelm;
+                        for(idxElm = 0;  idxElm < pRbMap->nPrbElm; idxElm++){
+                            p_prbMap = &pRbMap->prbMap[idxElm];
+                            for (iPrb = p_prbMap->nRBStart; iPrb < (p_prbMap->nRBStart + p_prbMap->nRBSize); iPrb++) {
+                                /* copy BF W IQs for 1 PRB of */
+                                memcpy(&pRbMap->bf_weight.weight[iPrb][0], (dl_bfw_pos + (iPrb * num_antelm)*4), num_antelm*4);
+                                }
+                            }
+#endif
+                        } /* if(pRbMap) */
+                    else {
+                        std::cout << "Cp UL pRbMap ==NULL" << std::endl;
+                        }
+                }
+
 
                     /* C-plane UL */
                     pRbMap = (struct xran_prb_map *)psIoCtrl->sFrontHaulRxPrbMapBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers->pData;
@@ -944,12 +1050,12 @@ public:
                             int iPrb;
                             char *ul_bfw_pos =  ((char*)p_tx_ul_bfw_buffer[flowId]) + tx_ul_bfw_buffer_position[flowId];
                             struct xran_prb_elm* p_prbMap = NULL;
-                            int num_antelm;
+                            // int num_antelm;
 
                             pRbMap->prbMap[0].BeamFormingType   = XRAN_BEAM_WEIGHT;
                             pRbMap->prbMap[0].bf_weight_update  = 1;
 
-                            num_antelm = get_num_antelmtrx();
+                            // num_antelm = get_num_antelmtrx();
 #if 0
                             /* populate beam weights to C-plane for each elm */
                             pRbMap->bf_weight.nAntElmTRx = num_antelm;
@@ -962,7 +1068,8 @@ public:
                                 }
 #endif
                             } /* else if(get_rucategory() == XRAN_CATEGORY_B) */
-
+                        memcpy(&tmppRbMap, pRbMap, sizeof(struct xran_prb_map));
+                        xran_init_PrbMap_from_cfg(&tmppRbMap, pRbMap, m_xranInit.mtu);
                         } /* if(pRbMap) */
                     else {
                         std::cout << "UL: pRbMap ==NULL" << std::endl;
@@ -979,15 +1086,15 @@ public:
         int i;
 
         if(get_rucategory() == XRAN_CATEGORY_B) {
-            for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (uint32_t)(get_num_cc() * get_num_eaxc()); i++) {
+            for(i = 0; i < MAX_ANT_CARRIER_SUPPORTED && i < (get_num_cc() * get_num_eaxc()); i++) {
                 if(p_tx_dl_bfw_buffer[i]) {
                     free(p_tx_dl_bfw_buffer[i]);
-                    p_tx_dl_bfw_buffer[i] == NULL;
+                    p_tx_dl_bfw_buffer[i] = NULL;
                     }
 
                 if(p_tx_ul_bfw_buffer[i]) {
                     free(p_tx_ul_bfw_buffer[i]);
-                    p_tx_ul_bfw_buffer[i] == NULL;
+                    p_tx_ul_bfw_buffer[i] = NULL;
                     }
                 }
             }
@@ -997,7 +1104,7 @@ public:
 
 
     void Open(uint32_t o_xu_id, xran_ethdi_mbuf_send_fn send_cp, xran_ethdi_mbuf_send_fn send_up,
-            void *fh_rx_callback, void *fh_rx_prach_callback, void *fh_srs_callback)
+            void *fh_rx_callback, void *fh_bfw_callback, void *fh_rx_prach_callback, void *fh_srs_callback)
     {
         struct xran_fh_config *pXranConf;
         int32_t nSectorNum;
@@ -1018,6 +1125,9 @@ public:
         struct xran_buffer_list *pFthRxSrsBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_N_FE_BUF_LEN];
         struct xran_buffer_list *pFthRxSrsPrbMapBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_N_FE_BUF_LEN];
 
+        struct xran_buffer_list *pFthRxCpPrbMapBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_N_FE_BUF_LEN];
+        struct xran_buffer_list *pFthTxCpPrbMapBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_N_FE_BUF_LEN];
+
 #if 0
         xran_reg_physide_cb(xranHandle, physide_dl_tti_call_back, NULL, 10, XRAN_CB_TTI);
         xran_reg_physide_cb(xranHandle, physide_ul_half_slot_call_back, NULL, 10, XRAN_CB_HALF_SLOT_RX);
@@ -1034,6 +1144,8 @@ public:
                     pFthRxPrbMapBuffer[i][z][j] = NULL;
                     pFthRxRachBuffer[i][z][j]   = NULL;
                     pFthRxRachBufferDecomp[i][z][j]   = NULL;
+                    pFthRxCpPrbMapBuffer[i][z][j]     = NULL;
+                    pFthTxCpPrbMapBuffer[i][z][j]     = NULL;
                 }
                 for(z = 0; z < /*xran_max_ant_array_elm_nr*/XRAN_MAX_ANT_ARRAY_ELM_NR; z++) {
                     pFthRxSrsBuffer[i][z][j] = NULL;
@@ -1051,6 +1163,8 @@ public:
                     pFthRxPrbMapBuffer[i][z][j] = &(psIoCtrl->sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList);
                     pFthRxRachBuffer[i][z][j]   = &(psIoCtrl->sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList);
                     pFthRxRachBufferDecomp[i][z][j]   = &(psIoCtrl->sFHPrachRxBbuIoBufCtrlDecomp[j][i][z].sBufferList);                    
+                    pFthRxCpPrbMapBuffer[i][z][j]     = &(psIoCtrl->sFHCpRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList);
+                    pFthTxCpPrbMapBuffer[i][z][j]     = &(psIoCtrl->sFHCpTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList);
                     }
                 for(z = 0; z < XRAN_MAX_ANT_ARRAY_ELM_NR /*xran_max_ant_array_elm_nr && xran_max_ant_array_elm_nr*/; z++) {
                     pFthRxSrsBuffer[i][z][j] = &(psIoCtrl->sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList);
@@ -1065,6 +1179,12 @@ public:
                         pFthTxBuffer[i], pFthTxPrbMapBuffer[i],
                         pFthRxBuffer[i], pFthRxPrbMapBuffer[i],
                         (void (*)(void *, xran_status_t))fh_rx_callback, &pFthRxBuffer[i][0]);
+
+                xran_5g_bfw_config(psBbuIo->nInstanceHandle[o_xu_id][i],
+                        pFthRxCpPrbMapBuffer[i],
+                        pFthTxCpPrbMapBuffer[i],
+                        (void (*)(void *, xran_status_t))fh_bfw_callback, &pFthRxCpPrbMapBuffer[i][0]);
+
                 xran_5g_prach_req(psBbuIo->nInstanceHandle[o_xu_id][i], pFthRxRachBuffer[i],pFthRxRachBufferDecomp[i],
                         (void (*)(void *, xran_status_t))fh_rx_prach_callback, &pFthRxRachBuffer[i]);
                 }
@@ -1162,7 +1282,7 @@ public:
             slotcfgname << "slot" << i;
             std::vector<int> slotcfg = get_globalcfg_array<int>(cfgname, slotcfgname.str());
 
-            for(j=0; j < slotcfg.size(); j++)
+            for(j=0; j < (int)slotcfg.size(); j++)
                 pCfg->sSlotConfig[i].nSymbolType[j] = slotcfg[j];
             pCfg->sSlotConfig[i].reserved[0] = 0; pCfg->sSlotConfig[i].reserved[1] = 0;
             }
@@ -1227,7 +1347,7 @@ public:
     int get_num_eaxc_ul()   { return(m_xranConf.neAxcUl); }
     int get_num_dlrbs()     { return(m_xranConf.nDLRBs); }
     int get_num_ulrbs()     { return(m_xranConf.nULRBs); }
-    int get_num_antelmtrx() { return(m_xranConf.nAntElmTRx); }
+    uint32_t get_num_antelmtrx() { return(m_xranConf.nAntElmTRx); }
 
     bool is_cpenable()      { return(m_xranConf.enableCP); };
     bool is_prachenable()   { return(m_xranConf.prachEnable); };

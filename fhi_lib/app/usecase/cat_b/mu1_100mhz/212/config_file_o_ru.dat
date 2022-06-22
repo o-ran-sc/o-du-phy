@@ -25,7 +25,7 @@ appMode=1 # O-DU(0) | O-RU(1)
 xranMode=1 # Category A  (0) (precoder in O-DU) | Category B (1) (precoder in O-RU)
 ccNum=1 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 4)
 antNum=16 # Number of Antennas per CC (default: 4) or number of Digital streams for Category B 
-antNumUL=16 # Cat B: UL Number of Antennas per CC (default: 8) or number of UL Digital streams for Category B 
+antNumUL=8 # Cat B: UL Number of Antennas per CC (default: 8) or number of UL Digital streams for Category B
 antElmTRx=64 #number of Antenna Elements for Cat B default 32T32R
 
 #UEs
@@ -64,19 +64,6 @@ MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protoco
 Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
 
-ioCore=15
-# Eth 0
-duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
-ruMac0=00:11:22:33:44:55 # O-RU VF for O-RU app
-duMac1=00:11:22:33:44:66 # asigned MAC of O-DU VF
-ruMac1=00:11:22:33:44:55 # O-RU VF for O-RU app
-
-# Eth 1
-duMac2=00:11:22:33:44:77 # asigned MAC of O-DU VF
-ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
-duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
-ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
-
 numSlots=20 #number of slots per IQ files
 antC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   #CC0
 antC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   #CC0
@@ -112,11 +99,14 @@ antPrachC13=./usecase/cat_b/mu1_100mhz/ant_5.bin  #CC3
 antPrachC14=./usecase/cat_b/mu1_100mhz/ant_6.bin  #CC3
 antPrachC15=./usecase/cat_b/mu1_100mhz/ant_7.bin  #CC3
 
-rachEanble=0 # Enable (1)| disable (0) PRACH configuration
+rachEnable=0 # Enable (1)| disable (0) PRACH configuration
 prachConfigIndex=189
 
-srsEanble=1 # Enable (1)| disable (0) SRS 
-srsSym=8192 # (1<<13) symbol used for SRS (def: sym 13)
+srsEnable=1 # Enable (1)| disable (0) SRS
+srsSym=4 # deprecated
+srsSlot=3           # scheduled SRS slot within TDD period
+srsNdmOffset=3      # delay offset to start NDM SRS U-Plane
+srsNdmTxDuration=4  # TX duration for NDM SRTS U-Plane (numberof of symbols)
 
 antSrsC0=./usecase/cat_b/mu1_100mhz/ant_0.bin   
 antSrsC1=./usecase/cat_b/mu1_100mhz/ant_1.bin   
@@ -196,6 +186,15 @@ PrbElemDl2=96,48,0,14,3,1,1,9,1
 PrbElemDl3=144,48,0,14,4,1,1,9,1
 PrbElemDl4=192,48,0,14,5,1,1,9,1
 PrbElemDl5=240,33,0,14,6,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwDl0=2,24,0,0,9,1
+ExtBfwDl1=2,24,0,0,9,1
+ExtBfwDl2=2,24,0,0,9,1
+ExtBfwDl3=2,24,0,0,9,1
+ExtBfwDl4=2,24,0,0,9,1
+ExtBfwDl5=2,17,0,0,9,1
+
 
 nPrbElemUl=6
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
@@ -206,6 +205,17 @@ PrbElemUl2=96,48,0,14,3,1,1,9,1
 PrbElemUl3=144,48,0,14,4,1,1,9,1
 PrbElemUl4=192,48,0,14,5,1,1,9,1
 PrbElemUl5=240,33,0,14,6,1,1,9,1
+# Extension Parameters for Beamforming weights
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwUl0=2,24,0,0,9,1
+ExtBfwUl1=2,24,0,0,9,1
+ExtBfwUl2=2,24,0,0,9,1
+ExtBfwUl3=2,24,0,0,9,1
+ExtBfwUl4=2,24,0,0,9,1
+ExtBfwUl5=2,17,0,0,9,1
+
+nPrbElemSrs=1
+PrbElemSrs0=0,273,13,1,0,0,1,9,0
 
 ###########################################################
 

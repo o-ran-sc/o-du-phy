@@ -83,7 +83,7 @@ antC13=./usecase/cat_a/mu1_100mhz/ant_13.bin #CC3
 antC14=./usecase/cat_a/mu1_100mhz/ant_14.bin #CC3
 antC15=./usecase/cat_a/mu1_100mhz/ant_15.bin #CC3
 
-rachEanble=1 # Enable (1)| disable (0) PRACH configuration
+rachEnable=1 # Enable (1)| disable (0) PRACH configuration
 
 ## control of IQ byte order
 iqswap=0 #do swap of IQ before send buffer to eth

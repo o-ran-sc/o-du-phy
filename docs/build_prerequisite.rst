@@ -24,6 +24,21 @@ Build Prerequisite
     :local:
     
 This section describes how to install and build the required components needed to build the FHI Library, WLS Library and the 5G FAPI TM modules.
+For the f release the ICC compiler is optional and support will be discontinued in future releases
+
+Download and Install oneAPI
+---------------------------
+Download and install the Intel®  oneAPI Base Toolkit by issuing the following commands from yor Linux
+Console:
+
+wget https://registrationcenter-download.intel.com/akdlm/irc_nas/18673/l_BaseKit_p_2022.2.0.262_offline.sh
+
+sudo sh ./l_BaseKit_p_2022.2.0.262_offline.sh
+
+Then follow the instructions on the installer.
+Additional information available from
+
+https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html?operatingsystem=linux&distributions=webdownload&options=offline
 
 Install ICC and System Studio
 -----------------------------
@@ -87,7 +102,7 @@ Here we are using the Linux* Host,Linux* Target and standalone installer as one 
          #cd /opt && mkdir intel && cp $BUILD_DIR/license.lic intel/license.lic
          #tar -zxvf $BUILD_DIR/system_studio_2019_update_3_composer_edition_offline.tar.gz
 
-Edit system_studio_2029_update_3_composer_edition_offline/silent.cfg to accept the EULA file as below example::
+Edit system_studio_2019_update_3_composer_edition_offline/silent.cfg to accept the EULA file as below example::
   
          ACCEPT_EULA=accept
          PSET_INSTALL_DIR=opt/intel
@@ -98,8 +113,9 @@ Silent installation::
 
          #./install.sh -s silent.cfg
 
-Set env for ICC::
-         Check for your installation path. The folloing is an example
+Set env for oneAPI or ICC:
+         Check for your installation path. The following is an example for ICC.
+         
          #source /opt/intel_2019/system_studio_2019/compiler_and_libraries_2019.3.206/linux/bin/iccvars.sh intel64
          #export PATH=/opt/intel_2019/system_studio_2019/compiler_and_libraries_2019.3.206/linux/bin/:$PATH
 
@@ -108,10 +124,10 @@ Download and Build DPDK
 -----------------------
    - download DPDK::
      
-         #wget http://static.dpdk.org/rel/dpdk-20.11.1.tar.x
-         #tar -xf dpdk-20.11.1.tar.xz
+         #wget http://static.dpdk.org/rel/dpdk-20.11.3.tar.x
+         #tar -xf dpdk-20.11.3.tar.xz
          #export RTE_TARGET=x86_64-native-linuxapp-icc
-         #export RTE_SDK=Intallation_DIR/dpdk-20.11.1
+         #export RTE_SDK=Intallation_DIR/dpdk-20.11.3
 
    - patch DPDK for O-RAN FHI lib, this patch is specific for O-RAN FHI to reduce the data transmission latency of Intel NIC. This may not be needed for some NICs, please refer to |br| O-RAN FHI Lib Introduction -> setup configuration -> A.2 prerequisites
 
@@ -119,15 +135,27 @@ Download and Build DPDK
 
 
    - build DPDK
-        This release uses DPDK version 20.11.1 plus patches so the build procedure for the DPDK is the following
+        This release uses DPDK version 20.11.3 so the build procedure for the DPDK is the following
+ 
+        Setup compiler environment
         
-        export RTE_TARGET=x86_64-native-linuxapp-icc
-        export WIRELESS_SDK_TARGET_ISA=avx512
-        export WIRELESS_SDK_TOOLCHAIN=icc
-        export SDK_BUILD=build-${WIRELESS_DSK_TARGET_ISA}-icc
-        
-        Then locate the shell script file compilervars.sh that goes into the system studio 2019 installation folder and invoke following the example below:
-        source /opt/intel_2019/system_studio_2019/compilers_and_libraries_2019/linux/bin/compilervars.sh -arch intel64 -platform linux
+        if [ $oneapi -eq 1 ]; then
+           export RTE_TARGET=x86_64-native-linuxapp-icx
+           export WIRELESS_SDK_TOOLCHAIN=icx
+           export SDK_BUILD=build-${WIRELESS_SDK_TARGET_ISA}-icc
+           source /opt/intel/oneapi/setvars.sh
+           export PATH=$PATH:/opt/intel/oneapi/compiler/2022.0.1/linux/bin-llvm/
+           echo "Changing the toolchain to GCC 8.3.1 20190311 (Red Hat 8.3.1-3)"
+           source /opt/rh/devtoolset-8/enable
+           
+        else
+           export RTE_TARGET=x86_64-native-linuxapp-icc
+           export WIRELESS_SDK_TOOLCHAIN=icc
+           export SDK_BUILD=build-${WIRELESS_SDK_TARGET_ISA}-icc
+           source /opt/intel/system_studio_2019/bin/iccvars.sh intel64 -platform linux
+           
+        fi
+  
 
         The build procedure uses meson and ninja so if not present in your system please install before the next step
         
@@ -140,8 +168,8 @@ Download and Build DPDK
     - set DPDK path
        DPDK path is needed during build and run lib/app::
 
-        #export RTE_SDK=Installation_DIR/dpdk-20.11.1
-        #export DESTDIR=Installation_DIR/dpdk-20.11.1
+        #export RTE_SDK=Installation_DIR/dpdk-20.11.3
+        #export DESTDIR=Installation_DIR/dpdk-20.11.3
 
 
 Install google test
@@ -170,7 +198,7 @@ Download google test from https://github.com/google/googletest/releases
 
 Configure FEC card
 --------------------
-For the E Maintenance Release either a SW FEC, or an FPGA FEC (Vista Creek N3000) or an ASIC FEC (Mount Bryce ACC100) can be used.
+For the F Release either a SW FEC, or an FPGA FEC (Vista Creek N3000) or an ASIC FEC (Mount Bryce ACC100) can be used.
 The procedure to configure the HW based FECs is explained below.
 
 Customize a setup environment shell script
@@ -179,7 +207,7 @@ Using as an example the provided in the folder phy\\setupenv.sh as the starting 
 customize this script to provide the paths to the tools and libraries that
 are used building and running the code.
 You can add for example the following entries based on your particular installation and the
-following illustration is just an example::
+following illustration is just an example (use icx for oneApi instead of icc)::
                                                                            
 - export DIR_ROOT=/home/                                                           
 - #set the L1 binary root DIR                                                      
@@ -187,7 +215,7 @@ following illustration is just an example::
 - #set the phy root DIR                                                            
 - export DIR_ROOT_PHY=$DIR_ROOT/phy                                                
 - #set the DPDK root DIR                                                           
-- #export DIR_ROOT_DPDK=/home/dpdk-20.11.1                                           
+- #export DIR_ROOT_DPDK=/home/dpdk-20.11.3                                           
 - #set the GTEST root DIR                                                          
 - #export DIR_ROOT_GTEST=/home/gtest/gtest-1.7.0                                                                                                                   
 - export DIR_WIRELESS_TEST_5G=$DIR_ROOT_L1_BIN/testcase                            

@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2021 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -186,24 +186,30 @@ typedef struct _nr5g_fapi_phy_instance {
 } nr5g_fapi_phy_instance_t,
 *p_nr5g_fapi_phy_instance_t;
 
+typedef struct _nr5g_fapi_urllc_thread_params_t {
+    void *p_urllc_list_elem;
+    pthread_mutex_t lock;
+    sem_t urllc_sem_process;
+    sem_t urllc_sem_done;
+} nr5g_fapi_urllc_thread_params_t;
+
 // Phy Context
 typedef struct _nr5g_fapi_phy_context {
     uint8_t num_phy_instance;
     uint8_t mac2phy_worker_core_id;
     uint8_t phy2mac_worker_core_id;
-    uint8_t urllc_worker_core_id;
-    pthread_t phy2mac_tid;
-    pthread_t mac2phy_tid;
-    pthread_t urllc_tid;
-    sem_t urllc_sem_process;
-    sem_t urllc_sem_done;
+    uint8_t urllc_mac2phy_worker_core_id;
+    uint8_t urllc_phy2mac_worker_core_id;
+    nr5g_fapi_urllc_thread_params_t urllc_mac2phy_params;
+    nr5g_fapi_urllc_thread_params_t urllc_phy2mac_params;
+    bool is_urllc_enabled;
     volatile uint64_t process_exit;
     nr5g_fapi_phy_instance_t phy_instance[FAPI_MAX_PHY_INSTANCES];
 } nr5g_fapi_phy_ctx_t,
 *p_nr5g_fapi_phy_ctx_t;
 
 // Function Declarations
-inline p_nr5g_fapi_phy_ctx_t nr5g_fapi_get_nr5g_fapi_phy_ctx(
+p_nr5g_fapi_phy_ctx_t nr5g_fapi_get_nr5g_fapi_phy_ctx(
     );
 uint8_t nr5g_fapi_framework_init(
     );
@@ -219,7 +225,9 @@ void *nr5g_fapi_phy2mac_thread_func(
     void *config);
 void *nr5g_fapi_mac2phy_thread_func(
     void *config);
-void *nr5g_fapi_urllc_thread_func(
+void *nr5g_fapi_urllc_mac2phy_thread_func(
+    void *config);
+void *nr5g_fapi_urllc_phy2mac_thread_func(
     void *config);
 nr5g_fapi_ul_slot_info_t *nr5g_fapi_get_ul_slot_info(
     bool is_urllc,
@@ -232,4 +240,10 @@ void nr5g_fapi_set_ul_slot_info(
     uint16_t slot_no,
     uint8_t symbol_no,
     nr5g_fapi_ul_slot_info_t * p_ul_slot_info);
+void nr5g_fapi_init_thread(uint8_t worker_core_id);
+void nr5g_fapi_urllc_thread_callback(
+    void *p_list_elem,
+    nr5g_fapi_urllc_thread_params_t* urllc_params);
+void nr5g_fapi_clean(
+    p_nr5g_fapi_phy_instance_t p_phy_instance);
 #endif                          // _NR5G_FAPI_FRAMEWORK_H_

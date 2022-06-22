@@ -1,12 +1,12 @@
 #!/bin/bash
 
-export DIR_ROOT=/home/
+export DIR_ROOT=$HOME
 #set the L1 binary root DIR
 export DIR_ROOT_L1_BIN=$DIR_ROOT/FlexRAN
 #set the phy root DIR
 export DIR_ROOT_PHY=$DIR_ROOT/phy
 #set the DPDK root DIR
-#export DIR_ROOT_DPDK=/home/dpdk-19.11
+export DIR_ROOT_DPDK=/$DIR_ROOT/dpdk
 #set the GTEST root DIR
 #export DIR_ROOT_GTEST=/home/gtest/gtest-1.7.0
 
@@ -17,9 +17,10 @@ export DIR_WIRELESS_TABLE_5G=$DIR_ROOT_L1_BIN/l1/bin/nr5g/gnb/l1/table
 export XRAN_DIR=$DIR_ROOT_PHY/fhi_lib
 export XRAN_LIB_SO=true
 export RTE_TARGET=x86_64-native-linuxapp-icc
-#export RTE_SDK=$DIR_ROOT_DPDK
-#export DESTDIR=""
+export RTE_SDK=$DIR_ROOT_DPDK
+export DESTDIR=$DIR_ROOT_DPDK
 
+#Uncomment to run tests - it's commented to make builds faster.
 #export GTEST_ROOT=$DIR_ROOT_GTEST
 
 export ORAN_5G_FAPI=true

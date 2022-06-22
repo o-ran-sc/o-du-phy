@@ -186,7 +186,9 @@ static int wls_initialize(const char *ifacename, uint64_t nWlsMemorySize)
 
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
-    if (ret = pthread_mutex_init(&mng_ctx->mng_mutex, &attr)) {
+    ret = pthread_mutex_init(&mng_ctx->mng_mutex, &attr);
+    if (ret)
+    {
         pthread_mutexattr_destroy(&attr);
         PLIB_ERR("Failed to initialize mng_mutex %d\n", ret);
         return ret;
@@ -469,7 +471,7 @@ void *WLS_Open(const char *ifacename, unsigned int mode, uint64_t *nWlsMacMemory
 {
     wls_us_ctx_t* pWls_us = NULL;
     wls_drv_ctx_t *pWlsDrvCtx;
-    int i, len;
+ 
     char temp[WLS_DEV_SHM_NAME_LEN] = {0};
     static const struct rte_memzone *mng_memzone;
 
@@ -490,9 +492,9 @@ void *WLS_Open(const char *ifacename, unsigned int mode, uint64_t *nWlsMacMemory
             mng_memzone = (struct rte_memzone *)rte_memzone_lookup(temp);
             if (mng_memzone == NULL)
             {
-        PLIB_ERR("Cannot initialize wls shared memory: %s\n", temp);
-        return NULL;
-    }
+                PLIB_ERR("Cannot initialize wls shared memory: %s\n", temp);
+                return NULL;
+            }
         }
         else
         {
@@ -546,7 +548,7 @@ void *WLS_Open_Dual(const char *ifacename, unsigned int mode, uint64_t *nWlsMacM
     wls_us_ctx_t* pWls_us = NULL;
     wls_us_ctx_t* pWls_us1 = NULL;
     wls_drv_ctx_t *pWlsDrvCtx;
-    int i, len;
+
     char temp[WLS_DEV_SHM_NAME_LEN] = {0};
     static const struct rte_memzone *mng_memzone;
 
@@ -837,7 +839,6 @@ void* WLS_Alloc(void* h, uint64_t size)
 int WLS_Free(void* h, PVOID pMsg)
 {
     wls_us_ctx_t* pWls_us = (wls_us_ctx_t*) h;
-    wls_drv_ctx_t *pDrv_ctx;
     struct rte_memzone *mng_memzone;
 
     mng_memzone = (struct rte_memzone *)rte_memzone_lookup(pWls_us->wls_dev_name);
@@ -846,7 +847,6 @@ int WLS_Free(void* h, PVOID pMsg)
                     pWls_us->wls_dev_name, rte_strerror(rte_errno));
         return -1;
     }
-    pDrv_ctx = mng_memzone->addr;
 
     if (pMsg !=  pWls_us->alloc_buffer) {
         PLIB_ERR("incorrect pMsg %p [expected %p]\n", pMsg, pWls_us->alloc_buffer);
@@ -868,7 +868,7 @@ int WLS_Put(void *h, unsigned long long pMsg, unsigned int MsgSize, unsigned sho
 {
     wls_us_ctx_t* pWls_us = (wls_us_ctx_t*) h;
     int ret = 0;
-    unsigned short nFlags = Flags & (~WLS_TF_URLLC);
+    unsigned short nFlags = Flags & (~(WLS_TF_URLLC | WLS_TF_LTE));
 
     if (wls_check_ctx(h))
         return -1;

@@ -229,7 +229,7 @@ xran_get_mlog_stats(char *usecase, UsecaseConfig *puConf, RuntimeConfig *psConf[
 
     MLogGetStats(PID_TTI_TIMER, &tti.cnt, &tti.max, &tti.min, &tti.avg);
     if (tti.cnt != 0) {
-        sprintf(stats_file, "%s-%s-%s\0", XRAN_REPORT_FILE, (puConf->appMode == APP_O_DU)? "o-du" : "o-ru", usecase);
+        sprintf(stats_file, "%s-%s-%s", XRAN_REPORT_FILE, (puConf->appMode == APP_O_DU)? "o-du" : "o-ru", usecase);
         printf("xran report file: %s\n", stats_file);
         ret = xran_init_mlog_stats(stats_file, mlog_times_p->ticks_per_usec);
         if (ret != 0)

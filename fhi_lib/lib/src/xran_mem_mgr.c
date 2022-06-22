@@ -63,6 +63,10 @@ xran_mm_init (void * pHandle, uint64_t nMemorySize,
 int32_t
 xran_bm_init (void * pHandle, uint32_t * pPoolIndex, uint32_t nNumberOfBuffers, uint32_t nBufferSize)
 {
+    //printf("nNumberOfBuffers=%u\n", nNumberOfBuffers);
+    if(nNumberOfBuffers == 280)
+        nNumberOfBuffers = 560;
+
     XranSectorHandleInfo* pXranCc = (XranSectorHandleInfo*) pHandle;
     uint32_t nAllocBufferSize;
 
@@ -82,18 +86,20 @@ xran_bm_init (void * pHandle, uint32_t * pPoolIndex, uint32_t nNumberOfBuffers, 
         return -1;
     }
 
-    printf("%s: [ handle %p %d %d ] [nPoolIndex %d] nNumberOfBuffers %d nBufferSize %d\n", pool_name,
-                        pXranCc, pXranCc->nXranPort, pXranCc->nIndex, pXranCc->nBufferPoolIndex, nNumberOfBuffers, nBufferSize);
+    printf("%s: [ handle %p %d %d ] [nPoolIndex %d] nNumberOfBuffers %d nBufferSize %d socket_id %d\n", pool_name,
+                        pXranCc, pXranCc->nXranPort, pXranCc->nIndex, pXranCc->nBufferPoolIndex, nNumberOfBuffers, nBufferSize, rte_socket_id());
 
     pXranCc->p_bufferPool[pXranCc->nBufferPoolIndex] = rte_pktmbuf_pool_create(pool_name, nNumberOfBuffers,
-                                                                               MBUF_CACHE, 0, nAllocBufferSize, rte_socket_id());
+                                                                               /*MBUF_CACHE*/0, 0, nAllocBufferSize, rte_socket_id());
+
 
     if(pXranCc->p_bufferPool[pXranCc->nBufferPoolIndex] == NULL){
-        rte_panic("rte_pktmbuf_pool_create failed [ handle %p %d %d ] [nPoolIndex %d] nNumberOfBuffers %d nBufferSize %d errno %s\n",
-                    pXranCc, pXranCc->nXranPort, pXranCc->nIndex, pXranCc->nBufferPoolIndex, nNumberOfBuffers, nBufferSize, rte_strerror(rte_errno));
+        rte_panic("rte_pktmbuf_pool_create failed [poolName=%s, handle %p %d %d ] [nPoolIndex %d] nNumberOfBuffers %d nBufferSize %d errno %s\n",
+                    pool_name, pXranCc, pXranCc->nXranPort, pXranCc->nIndex, pXranCc->nBufferPoolIndex, nNumberOfBuffers, nBufferSize, rte_strerror(rte_errno));
         return -1;
     }
-
+    //printf("press enter (RTE_MEMPOOL_NAMESIZE=%u)\n", RTE_MEMPOOL_NAMESIZE);
+    //getchar();
     pXranCc->bufferPoolElmSz[pXranCc->nBufferPoolIndex]  = nBufferSize;
     pXranCc->bufferPoolNumElm[pXranCc->nBufferPoolIndex] = nNumberOfBuffers;
 
@@ -150,9 +156,50 @@ xran_bm_allocate_buffer(void * pHandle, uint32_t nPoolIndex, void **ppData,  voi
 }
 
 int32_t
+xran_bm_allocate_ring(void * pHandle, const char *rng_name_prefix, uint16_t cc_id, uint16_t buff_id, uint16_t ant_id, uint16_t symb_id, void **ppRing)
+{
+    int32_t ret = 0;
+    XranSectorHandleInfo* pXranCc = (XranSectorHandleInfo*) pHandle;
+    uint32_t xran_port_id;
+    char ring_name[32]    = "";
+    struct rte_ring *ring =  NULL;
+    ssize_t r_size;
+
+    if(pHandle){
+        xran_port_id = pXranCc->nXranPort;
+        *ppRing = NULL;
+        snprintf(ring_name, RTE_DIM(ring_name), "%srb%dp%dcc%dant%dsym%d", rng_name_prefix, buff_id, xran_port_id, cc_id, ant_id, symb_id);
+        print_dbg("%s\n", ring_name);
+        r_size = rte_ring_get_memsize(XRAN_MAX_MEM_IF_RING_SIZE);
+        ring = (struct rte_ring *)xran_malloc(r_size);
+        if(ring ==  NULL) {
+            print_err("[%srb%dp%dcc%dant%dsym%d] ring alloc failed \n", rng_name_prefix, buff_id, xran_port_id, cc_id, ant_id, symb_id);
+            return -1;
+        }
+        ret = rte_ring_init(ring, ring_name, XRAN_MAX_MEM_IF_RING_SIZE, /*RING_F_SC_DEQ*/0);
+        if(ret != 0){
+            print_err("[%srb%dp%dcc%dant%dsym%d] rte_ring_init failed \n", rng_name_prefix, buff_id, xran_port_id, cc_id, ant_id, symb_id);
+            return -1;
+        }
+
+        if(ring) {
+            *ppRing  = (void *)ring;
+        }else {
+            print_err("[%srb%dp%dcc%dant%dsym%d] ring alloc failed \n", rng_name_prefix, buff_id, xran_port_id, cc_id, ant_id, symb_id);
+            return -1;
+        }
+    } else {
+        print_err("pHandle failed \n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int32_t
 xran_bm_free_buffer(void * pHandle, void *pData, void *pCtrl)
 {
-    XranSectorHandleInfo* pXranCc = (XranSectorHandleInfo*) pHandle;
+    //XranSectorHandleInfo* pXranCc = (XranSectorHandleInfo*) pHandle;
 
     if(pCtrl)
         rte_pktmbuf_free(pCtrl);

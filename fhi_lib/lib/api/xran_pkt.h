@@ -67,7 +67,7 @@ extern "C" {
 #define	XRAN_MTU_DEFAULT	RTE_ETHER_MTU
 #define XRAN_APP_LAYER_MAX_SIZE_L2_DEFAUT    (XRAN_MTU_DEFAULT - 8) /**< In case of L2 only solution, application layer maximum transmission unit size
                                                                          is standard IEEE 802.3 Ethernet frame payload
-                                                                         size (1500 bytes) – transport overhead (8 bytes) = 1492 bytes (or larger for Jumbo frames) */
+                                                                         size (1500 bytes) ? transport overhead (8 bytes) = 1492 bytes (or larger for Jumbo frames) */
 
 #ifndef OK
 #define OK 0    /* Function executed correctly */
@@ -201,7 +201,7 @@ struct xran_ecpri_delay_meas_pl
     TimeStamp           ts;                   /**< Table 2-17 Octet 7-16  */
     int64_t             CompensationValue;    /**< Table 2-17 Octet 17    */
     uint8_t             DummyBytes[1400];       /**< Table 2-17 Octet 25    */
-} __rte_packed;
+} /*__rte_packed*/;
 
 /**
  ******************************************************************************
@@ -215,7 +215,7 @@ struct xran_ecpri_delay_meas_pl
  {
     union xran_ecpri_cmn_hdr cmnhdr;
     struct xran_ecpri_delay_meas_pl  deMeasPl;
-} __rte_packed;
+ }/*__rte_packed*/;
 
 /**
  ******************************************************************************
