@@ -29,7 +29,7 @@ Figure 26 illustrates a sample xRAN application.
 Figure 26. Sample Application
 
 The sample application was created to execute test scenarios with
-features of the O-RAN library and test external API as well as timing.
+features of the xRAN library and test external API as well as timing.
 The sample application is named sample-app, and depending on
 configuration file settings can act as O-DU or simplified simulation of
 O-RU. The first O-DU should be run on the machine that acts as O-DU and
@@ -52,7 +52,7 @@ U-plane packets for UL and DL direction are constructed the same way
 except for the direction field.
 
 Examples of default configurations used with the sample application for
-v21.03 release provided below:
+v20.04 release provided below:
 
 1 Cell mmWave 100MHz TDD DDDS:
 ------------------------------
@@ -204,4 +204,3 @@ Payload Size
 oXuOwdmMeasMeth=3 # Measurement Method REM_REQ_WFUP
 
 -
-
