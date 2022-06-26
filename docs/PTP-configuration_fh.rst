@@ -94,11 +94,12 @@ To set up PTP for Linux*:
     port_id_post_recv(&m->delay_resp.requestingPortIdentity);
     break;
 
-2. Build and install ptp41. ::
+2.Build and install ptp41. ::
 
    # make && make install
 
-22. Modify configs/default.cfg to control frequency of Sync interval to 0.0625 s. ::
+3.Modify configs/default.cfg to control frequency of Sync interval to
+0.0625 s. ::
 
         logSyncInterval -4
 
@@ -192,11 +193,11 @@ below can be used to instantiate this scenario. The difference is that
 on the O-DU side, the Fronthaul port can be used as the source of PTP as
 well as for U-plane and C-plane traffic.
 
-1. Follow the steps in Appendix *B.1.1,* *PTP for Linux\* Requirements*
-to install PTP on the O-RU server.
+1.Follow the steps in Appendix *B.1.1, PTP for Linux\* Requirements* to
+install PTP on the O-RU server.
 
 2.Copy configs/default.cfg to configs/default_slave.cfg and modify the
-Copied file as below::
+copied file as below::
 
     diff --git a/configs/default.cfg b/configs/default.cfg
     old mode 100644
@@ -247,7 +248,7 @@ Copied file as below::
     # Run time options
 
 
-3. Start slave port toward PTP GM::
+3.Start slave port toward PTP GM::
 
     ./ptp4l -f ./configs/default_slave.cfg -2 -i enp25s0f0 –m
 
@@ -261,14 +262,6 @@ Example of output::
     ptp4l[3904475.053]: selected best master clock fcaf6a.fffe.029708
     ptp4l[3904475.053]: updating UTC offset to 37
     ptp4l[3904475.053]: port 1: LISTENING to UNCALIBRATED on RS_SLAVE
-    ptp4l[3904477.029]: master offset        196 s0 freq  -18570 path delay      1109
-    ptp4l[3904478.029]: master offset        212 s2 freq  -18554 path delay      1109
-    ptp4l[3904478.029]: port 1: UNCALIBRATED to SLAVE on MASTER_CLOCK_SELECTED
-    ptp4l[3904479.029]: master offset         86 s2 freq  -18468 path delay      1109
-    ptp4l[3904480.029]: master offset         23 s2 freq  -18505 path delay      1124
-    ptp4l[3904481.029]: master offset          3 s2 freq  -18518 path delay      1132
-    ptp4l[3904482.029]: master offset       -169 s2 freq  -18689 path delay      1141
-    
 4. Synchronize local timer clock on O-RU for sample application ::
 
    ./phc2sys -s enp25s0f0 -w -m -R 8
@@ -324,7 +317,7 @@ Example of output::
     #
     # Run time options
 
-6. Start PTP master toward O-DU::
+6.Start PTP master toward O-DU::
 
    ./ptp4l -f ./configs/default.cfg -2 -i enp175s0f1 –m
 
@@ -338,7 +331,7 @@ Example of output::
     ptp4l[3903863.734]: selected local clock 3cfdfe.fffe.bd005d as best master
     ptp4l[3903863.734]: assuming the grand master role
    
-7. Synchronize local NIC PTP master clock to local NIC PTP slave clock. ::
+7.Synchronize local NIC PTP master clock to local NIC PTP slave clock. ::
 
    ./phc2sys -c enp175s0f1 -s enp25s0f0 -w -m -R 8
 
@@ -393,8 +386,8 @@ Example of output::
     ptp4l[809107.054]: rms 401 max 466 freq +946 +/- 646 delay 1702 +/- 0
     ptp4l[809108.055]: rms 401 max 502 freq +912 +/- 659
 
-10. Synchronize local clock on O-DU for sample application or l1
-Application. ::
+10.Synchronize local clock on O-DU for sample application or l1
+application. ::
 
     ./phc2sys -s enp181s0f0 -w -m -R 8
 
