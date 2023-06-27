@@ -26,8 +26,11 @@ if [ ${MACHINE_TYPE} == 'x86_64' ]; then
 	echo 1 > /proc/sys/kernel/core_uses_pid
 
 	sysctl -w kernel.sched_rt_runtime_us=-1
-	sysctl -w kernel.shmmax=2147483648
-	sysctl -w kernel.shmall=2147483648
+#	sysctl -w kernel.shmmax=2147483648
+#	sysctl -w kernel.shmall=2147483648
+	sysctl -w kernel.shmmax=3221225472
+	sysctl -w kernel.shmall=3221225472
+
 	chkconfig --level 12345 irqbalance off
 	echo 0 > /proc/sys/kernel/nmi_watchdog
 	echo 1 > /sys/module/rcupdate/parameters/rcu_cpu_stall_suppress

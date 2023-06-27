@@ -48,7 +48,7 @@ typedef void *WLS_HANDLE;
 #define ALLOC_TRACK_SIZE                    ( 16384 )
 #define MSG_MAXSIZE                         (16*16384 )
 
-#define MEMORY_CORRUPTION_DETECT
+//#define MEMORY_CORRUPTION_DETECT
 #define MEMORY_CORRUPTION_DETECT_FLAG       (0xAB)
 
 typedef enum wls_fapi_free_list_e {
