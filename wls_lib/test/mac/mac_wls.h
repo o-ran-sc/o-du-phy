@@ -32,6 +32,7 @@ extern "C" {
 
 //#include "common_typedef.h"
 #include "fapi_interface.h"
+#include "fapi_vendor_extension.h"
 
 #define SUCCESS 0
 #define FAILURE 1

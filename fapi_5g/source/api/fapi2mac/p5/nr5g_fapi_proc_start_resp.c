@@ -43,7 +43,9 @@ uint8_t nr5g_fapi_start_resp(
     PSTARTRESPONSEStruct p_iapi_resp)
 {
     uint8_t phy_id;
+#ifdef DEBUG_MODE
     fapi_vendor_ext_start_response_t *p_fapi_resp;
+#endif
     fapi_error_ind_t *p_fapi_error_ind;
     p_fapi_api_queue_elem_t p_list_elem;
     p_nr5g_fapi_phy_instance_t p_phy_instance = NULL;

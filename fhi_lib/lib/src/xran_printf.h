@@ -32,9 +32,9 @@ extern "C" {
 #include <stdio.h>
 #include <stdlib.h>
 
-#define PRINTF_LOG_OK
-#define PRINTF_INF_OK
-#define PRINTF_ERR_OK
+//#define PRINTF_LOG_OK
+//#define PRINTF_INF_OK
+//#define PRINTF_ERR_OK
 //#define PRINTF_DBG_OK
 
 #ifndef WIN32

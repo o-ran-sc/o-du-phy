@@ -205,11 +205,6 @@ struct radio_app_common_hdr
  *****************************************************************************/
 struct compression_hdr
 {
-    uint8_t ud_iq_width:4; /**< Bit width of each I and each Q
-                                16 for udIqWidth=0, otherwise equals udIqWidth e.g. udIqWidth = 0000b means I and Q are each 16 bits wide;
-                                e.g. udIQWidth = 0001b means I and Q are each 1 bit wide;
-                                e.g. udIqWidth = 1111b means I and Q are each 15 bits wide
-                                */
     uint8_t ud_comp_meth:4;
     /**< udCompMeth|  compression method         |udIqWidth meaning
     ---------------+-----------------------------+--------------------------------------------
@@ -220,6 +215,11 @@ struct compression_hdr
     0100b          | modulation compression      |bitwidth of each compressed I and Q value
     0100b - 1111b  | reserved for future methods |depends on the specific compression method
     */
+    uint8_t ud_iq_width:4; /**< Bit width of each I and each Q
+                                16 for udIqWidth=0, otherwise equals udIqWidth e.g. udIqWidth = 0000b means I and Q are each 16 bits wide;
+                                e.g. udIQWidth = 0001b means I and Q are each 1 bit wide;
+                                e.g. udIqWidth = 1111b means I and Q are each 15 bits wide
+                                */
 } __rte_packed;
 
 /**
@@ -232,7 +232,7 @@ struct compression_hdr
  *****************************************************************************/
 struct xran_pkt_comm_hdr
 {
-    struct ether_hdr eth_hdr; /**< Ethernet Header */
+    struct rte_ether_hdr eth_hdr; /**< Ethernet Header */
     struct xran_ecpri_hdr ecpri_hdr; /**< eCPRI Transport Header */
 } __rte_packed;
 

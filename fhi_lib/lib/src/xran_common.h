@@ -166,7 +166,7 @@ struct cb_elem_entry{
 };
 
 /* Callback function to send mbuf to the ring */
-typedef int (*xran_ethdi_mbuf_send_fn)(struct rte_mbuf *mb, uint16_t ethertype);
+typedef int (*xran_ethdi_mbuf_send_fn)(struct rte_mbuf *mb, uint16_t ethertype, uint16_t vf_id);
 
 /*
  * manage one cell's all Ethernet frames for one DL or UL LTE subframe
@@ -275,15 +275,8 @@ struct xran_device_ctx
 
     xran_ethdi_mbuf_send_fn send_cpmbuf2ring;   /**< callback to send mbufs of C-Plane packets to the ring */
     xran_ethdi_mbuf_send_fn send_upmbuf2ring;   /**< callback to send mbufs of U-Plane packets to the ring */
+    uint32_t pkt_proc_core_id; /**< core used for processing DPDK timer cb */
 };
-
-extern long rx_counter;
-extern long tx_counter;
-extern long tx_bytes_counter;
-extern long rx_bytes_counter;
-extern long tx_bytes_per_sec;
-extern long rx_bytes_per_sec;
-
 
 extern const xRANPrachConfigTableStruct gxranPrachDataTable_sub6_fdd[XRAN_PRACH_CONFIG_TABLE_SIZE];
 extern const xRANPrachConfigTableStruct gxranPrachDataTable_sub6_tdd[XRAN_PRACH_CONFIG_TABLE_SIZE];
@@ -355,6 +348,7 @@ uint8_t xran_get_num_ant_elm(void *pHandle);
 enum xran_category xran_get_ru_category(void *pHandle);
 
 struct xran_device_ctx *xran_dev_get_ctx(void);
+int xran_is_prach_slot(uint32_t subframe_id, uint32_t slot_id);
 
 int xran_register_cb_mbuf2ring(xran_ethdi_mbuf_send_fn mbuf_send_cp, xran_ethdi_mbuf_send_fn mbuf_send_up);
 
@@ -363,9 +357,12 @@ uint8_t xran_get_seqid(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ant_id
 int32_t ring_processing_func(void);
 int xran_init_prach(struct xran_fh_config* pConf, struct xran_device_ctx * p_xran_dev_ctx);
 void xran_updateSfnSecStart(void);
-
+uint32_t xran_slotid_convert(uint16_t slot_id, uint16_t dir);
 struct cb_elem_entry *xran_create_cb(XranSymCallbackFn cb_fn, void *cb_data);
 int xran_destroy_cb(struct cb_elem_entry * cb_elm);
+
+uint16_t xran_map_ecpriRtcid_to_vf(int32_t dir, int32_t cc_id, int32_t ru_port_id);
+uint16_t xran_map_ecpriPcid_to_vf(int32_t dir, int32_t cc_id, int32_t ru_port_id);
 
 #ifdef __cplusplus
 }

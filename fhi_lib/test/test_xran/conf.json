@@ -1,28 +1,28 @@
 {
     "GLOBAL": {
         "io_cfg": {
-            "dpdk_dev_up":          "",
-            "dpdk_dev_cp":          "",
+            "dpdk_dev_up":          "0001:01:00.2",
+            "dpdk_dev_cp":          "0001:01:00.3",
             "bbdev_mode":           "none",
             "system_core":          0,
-            "core":                 5,
-            "pkt_proc_core":        6,
-            "timing_core":          7,
-            "pkt_aux_core":         0,
+            "core":                 1,
+            "pkt_proc_core":        2,
+            "timing_core":          1,
+            "pkt_aux_core":         1,
             "dpdkBasebandFecMode":  0,
             "dpdkBasebandDevice":   "",
             "mtu":                  9600,
-            "o_du_macaddr":         "00:11:22:33:44:66",
-            "o_ru_macaddr":         "00:11:22:33:44:55",
+            "o_du_macaddr":         "e2:93:88:bd:61:f3",
+            "o_ru_macaddr":         "08:c0:eb:9e:2f:bb",
             "cp_vlan_tag":          1,
             "up_vlan_tag":          2
             },
 
         "eAxCId_cfg": {
-            "bit_cuPortId":         4,
-            "bit_bandSectorId":     4,
-            "bit_ccId":             4,
-            "bit_ruPortId":         4
+            "bit_cuPortId":         0,
+            "bit_bandSectorId":     0,
+            "bit_ccId":             0,
+            "bit_ruPortId":         0
             },
 
         "prach_cfg": {
@@ -38,33 +38,33 @@
             "duplex":           "TDD",
             "slot_config":      "slotcfg_0",
             "sub6":             true,
-            "mu":               0,
-            "num_cc":           6,
-            "num_eaxc":         8,
-            "ant_elm_trx":      32,
-            "chbw_dl":          20,
-            "chbw_ul":          20,
+            "mu":               1,
+            "num_cc":           1,
+            "num_eaxc":         1,
+            "ant_elm_trx":      2,
+            "chbw_dl":          100,
+            "chbw_ul":          100,
             "iq_width":         16,
             "comp_meth":        0,
-            "fft_size":         1024,
+            "fft_size":         4096,
             "totalBfWeights":   32,
-            "Tadv_cp_dl":       0,
-            "T2a_min_cp_dl":    0,
-            "T2a_max_cp_dl":    0,
-            "T2a_min_cp_ul":    0,
-            "T2a_max_cp_ul":    0,
-            "T2a_min_up":       0,
-            "T2a_max_up":       0,
-            "Ta3_min":          0,
-            "Ta3_max":          0,
-            "T1a_min_cp_dl":    0,
-            "T1a_max_cp_dl":    0,
-            "T1a_min_cp_ul":    0,
-            "T1a_max_cp_ul":    0,
-            "T1a_min_up":       0,
-            "T1a_max_up":       0,
-            "Ta4_min":          0,
-            "Ta4_max":          0
+            "Tadv_cp_dl":       125,
+            "T2a_min_cp_dl":    285,
+            "T2a_max_cp_dl":    429,
+            "T2a_min_cp_ul":    285,
+            "T2a_max_cp_ul":    429,
+            "T2a_min_up":       125,
+            "T2a_max_up":       428,
+            "Ta3_min":          130,
+            "Ta3_max":          170,
+            "T1a_min_cp_dl":    285,
+            "T1a_max_cp_dl":    470,
+            "T1a_min_cp_ul":    285,
+            "T1a_max_cp_ul":    429,
+            "T1a_min_up":       125,
+            "T1a_max_up":       350,
+            "Ta4_min":          110,
+            "Ta4_max":          180
             },
         "slotcfg_0": {
             "desc":     "DDDSUUDDDD_644",
@@ -109,11 +109,10 @@
 
     "C_Plane": [
       {
-        "name": "DL_SectionType1_SingleSection",
+        "name": "DL_StockA",
         "parameters": {
             "direction":    "DL",
             "section_type": 1,
-            "num_sections": 1,
             "cc_id":        0,
             "ant_id":       0,
             "seq_id":       0,
@@ -121,13 +120,399 @@
             "subframe_id":  0,
             "slot_id":      0,
             "symbol_start": 0,
-            "symbol_num":   14,
-            "prb_start":    [   0 ],
-            "prb_num":      [  66 ],
             "comp_method":  0,
-            "beam_id":      0,
-            "section_id":   0,
-            "iq_width":     16
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      273,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0,
+                "exts":         [ ]
+                }
+                ]
+          }
+      },
+      {
+        "name": "DL_StockB",
+        "parameters": {
+            "direction":    "DL",
+            "section_type": 1,
+            "cc_id":        0,
+            "ant_id":       0,
+            "seq_id":       0,
+            "frame_id":     0,
+            "subframe_id":  0,
+            "slot_id":      0,
+            "symbol_start": 0,
+            "comp_method":  0,
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      7,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    2,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    7,
+                "numPrbc":      255,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                }
+                ]
+          }
+      },
+      {
+        "name": "DL_StockC",
+        "parameters": {
+            "direction":    "DL",
+            "section_type": 1,
+            "cc_id":        0,
+            "ant_id":       0,
+            "seq_id":       0,
+            "frame_id":     0,
+            "subframe_id":  0,
+            "slot_id":      0,
+            "symbol_start": 0,
+            "comp_method":  0,
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      4,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    2,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    8,
+                "numPrbc":      255,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                }
+                ]
+          }
+      },
+      {
+        "name": "DL_StockD",
+        "parameters": {
+            "direction":    "DL",
+            "section_type": 1,
+            "cc_id":        0,
+            "ant_id":       0,
+            "seq_id":       0,
+            "frame_id":     0,
+            "subframe_id":  0,
+            "slot_id":      0,
+            "symbol_start": 6,
+            "comp_method":  0,
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      1,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    2,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    1,
+                "numPrbc":      4,
+                "reMask":       2730,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    3,
+                "rb":           1,
+                "symInc":       0,
+                "startPrbc":    5,
+                "numPrbc":      10,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    4,
+                "rb":           1,
+                "symInc":       0,
+                "startPrbc":    6,
+                "numPrbc":      9,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    5,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    24,
+                "numPrbc":      46,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    6,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    66,
+                "numPrbc":      207,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                }
+                ]
+          }
+      },
+      {
+        "name": "DL_StockE",
+        "parameters": {
+            "direction":    "DL",
+            "section_type": 1,
+            "cc_id":        0,
+            "ant_id":       0,
+            "seq_id":       0,
+            "frame_id":     0,
+            "subframe_id":  0,
+            "slot_id":      0,
+            "symbol_start": 5,
+            "comp_method":  0,
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      7,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    2,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    7,
+                "numPrbc":      255,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    3,
+                "rb":           0,
+                "symInc":       1,
+                "startPrbc":    0,
+                "numPrbc":      7,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    4,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    7,
+                "numPrbc":      255,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                }
+                ]
+          }
+      },
+      {
+        "name": "DL_StockF",
+        "parameters": {
+            "direction":    "DL",
+            "section_type": 1,
+            "cc_id":        0,
+            "ant_id":       0,
+            "seq_id":       0,
+            "frame_id":     0,
+            "subframe_id":  0,
+            "slot_id":      0,
+            "symbol_start": 5,
+            "comp_method":  0,
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      20,
+                "reMask":       2730,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    2,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    25,
+                "numPrbc":      15,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    3,
+                "rb":           0,
+                "symInc":       1,
+                "startPrbc":    40,
+                "numPrbc":      95,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    4,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    162,
+                "numPrbc":      111,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    5,
+                "rb":           0,
+                "symInc":       1,
+                "startPrbc":    0,
+                "numPrbc":      5,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    6,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    25,
+                "numPrbc":      15,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    7,
+                "rb":           0,
+                "symInc":       1,
+                "startPrbc":    40,
+                "numPrbc":      95,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    8,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    162,
+                "numPrbc":      111,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    9,
+                "rb":           0,
+                "symInc":       1,
+                "startPrbc":    0,
+                "numPrbc":      5,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    10,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    10,
+                "numPrbc":      30,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    11,
+                "rb":           0,
+                "symInc":       1,
+                "startPrbc":    40,
+                "numPrbc":      95,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                },
+                {
+                "sectionId":    12,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    162,
+                "numPrbc":      111,
+                "reMask":       4095,
+                "numSymbol":    1,
+                "beamId":       0
+                }
+                ]
+          }
+      },
+      {
+        "name": "DL_SectionType1_SingleSection",
+        "parameters": {
+            "direction":    "DL",
+            "section_type": 1,
+            "cc_id":        0,
+            "ant_id":       0,
+            "seq_id":       0,
+            "frame_id":     0,
+            "subframe_id":  0,
+            "slot_id":      0,
+            "symbol_start": 0,
+            "comp_method":  0,
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      66,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0
+                }
+                ]
           }
       },
       {
@@ -135,7 +520,6 @@
         "parameters": {
             "direction":    "UL",
             "section_type": 1,
-            "num_sections": 1,
             "cc_id":        0,
             "ant_id":       0,
             "seq_id":       0,
@@ -143,13 +527,20 @@
             "subframe_id":  0,
             "slot_id":      0,
             "symbol_start": 0,
-            "symbol_num":   14,
-            "prb_start":    [   0 ],
-            "prb_num":      [  66 ],
             "comp_method":  0,
-            "beam_id":      0,
-            "section_id":   0,
-            "iq_width":     16
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      66,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0
+                }
+                ]
           }
       },
       {
@@ -157,7 +548,6 @@
         "parameters": {
             "direction":    "DL",
             "section_type": 1,
-            "num_sections": 3,
             "cc_id":        0,
             "ant_id":       0,
             "seq_id":       0,
@@ -165,13 +555,40 @@
             "subframe_id":  0,
             "slot_id":      0,
             "symbol_start": 0,
-            "symbol_num":   14,
-            "prb_start":    [   0,  22,  44 ],
-            "prb_num":      [  22,  22,  22 ],
             "comp_method":  0,
-            "beam_id":      0,
-            "section_id":   0,
-            "iq_width":     16
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      22,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0
+                },
+                {
+                "sectionId":    2,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    22,
+                "numPrbc":      22,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0
+                },
+                {
+                "sectionId":    3,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    44,
+                "numPrbc":      22,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0
+                }
+                ]
           }
       },
       {
@@ -179,7 +596,6 @@
         "parameters": {
             "direction":    "UL",
             "section_type": 1,
-            "num_sections": 4,
             "cc_id":        0,
             "ant_id":       0,
             "seq_id":       0,
@@ -187,13 +603,170 @@
             "subframe_id":  0,
             "slot_id":      0,
             "symbol_start": 0,
-            "symbol_num":   14,
-            "prb_start":    [   0,  25,  50,  75 ],
-            "prb_num":      [  25,  25,  25,  25 ],
             "comp_method":  0,
-            "beam_id":      0,
-            "section_id":   0,
-            "iq_width":     16
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      25,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0
+                },
+                {
+                "sectionId":    2,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    25,
+                "numPrbc":      25,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0
+                },
+                {
+                "sectionId":    3,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    50,
+                "numPrbc":      25,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0
+                },
+                {
+                "sectionId":    4,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    75,
+                "numPrbc":      25,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0
+                }
+                ]
+          }
+      },
+      {
+        "name": "DL_SectionType1_SingleSection_Ext3",
+        "parameters": {
+            "direction":    "DL",
+            "section_type": 1,
+            "cc_id":        0,
+            "ant_id":       0,
+            "seq_id":       0,
+            "frame_id":     0,
+            "subframe_id":  0,
+            "slot_id":      0,
+            "symbol_start": 0,
+            "comp_method":  0,
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      273,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0,
+                "exts":         [ 0 ]
+                }
+                ],
+            "extensions":   [
+                {
+                "name":         "ext3",
+                "type":         3,
+                "codebookIdx":  165,
+                "layerId":      2,
+                "numLayers":    2,
+                "txScheme":     1,
+                "crsReMask":    10,
+                "crsShift":     0,
+                "crsSymNum":    5,
+                "numAntPort":   4,
+                "beamIdAP1":    100,
+                "beamIdAP2":    200,
+                "beamIdAP3":    300
+                }
+                ]
+          }
+      },
+      {
+        "name": "DL_SectionType1_SingleSection_ExtAll",
+        "parameters": {
+            "direction":    "DL",
+            "section_type": 1,
+            "cc_id":        0,
+            "ant_id":       0,
+            "seq_id":       0,
+            "frame_id":     0,
+            "subframe_id":  0,
+            "slot_id":      0,
+            "symbol_start": 0,
+            "comp_method":  0,
+            "iq_width":     16,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      273,
+                "reMask":       4095,
+                "numSymbol":    14,
+                "beamId":       0,
+                "exts":         [ 0, 1, 2, 3 ]
+                }
+                ],
+            "extensions":   [
+                {
+                "name":         "ext2",
+                "type":         2,
+                "bfAzPtWidth":  7,
+                "bfAzPt":       10,
+                "bfZePtWidth":  7,
+                "bfZePt":       20,
+                "bfAz3ddWidth": 7,
+                "bfAz3dd":      30,
+                "bfZe3ddWidth": 7,
+                "bfZe3dd":      40,
+                "bfAzSI":       2,
+                "bfZeSI":       5
+                },
+                {
+                "name":         "ext3",
+                "type":         3,
+                "codebookIdx":  165,
+                "layerId":      2,
+                "numLayers":    2,
+                "txScheme":     1,
+                "crsReMask":    10,
+                "crsShift":     0,
+                "crsSymNum":    5,
+                "numAntPort":   4,
+                "beamIdAP1":    100,
+                "beamIdAP2":    200,
+                "beamIdAP3":    300
+                },
+                {
+                "name":         "ext4",
+                "type":         4,
+                "csf":          1,
+                "modCompScaler":1365
+                },
+                {
+                "name":         "ext5",
+                "type":         5,
+                "num_sets":     2,
+                "csf":          [ 1, 0 ],
+                "mcScaleReMask":[ 15, 7 ],
+                "mcScaleOffset":[ 100, 200 ]
+                }
+                ]
           }
       },
       {
@@ -201,7 +774,6 @@
         "parameters": {
             "direction":    "UL",
             "section_type": 3,
-            "num_sections": 1,
             "cc_id":        0,
             "ant_id":       0,
             "seq_id":       0,
@@ -209,19 +781,26 @@
             "subframe_id":  0,
             "slot_id":      0,
             "symbol_start": 7,
-            "symbol_num":   6,
-            "prb_start":    [   0 ],
-            "prb_num":      [  12 ],
             "comp_method":  0,
-            "beam_id":      0,
-            "section_id":   0,
             "iq_width":     16,
             "filter_index": 3,
             "time_offset":  2026,
-            "freq_offset":  -792,
             "fft_size":     10,
             "scs":          3,
-            "cp_length":    0
+            "cp_length":    0,
+            "sections": [
+                {
+                "sectionId":    1,
+                "rb":           0,
+                "symInc":       0,
+                "startPrbc":    0,
+                "numPrbc":      12,
+                "reMask":       4095,
+                "numSymbol":    6,
+                "beamId":       0,
+                "freqOffset":   -792
+                }
+                ]
           }
       }
     ],
@@ -244,7 +823,7 @@
             "antelm_trx":       32,
             "iq_width":         16,
             "comp_meth":        0,
-            "totalBfWeights":   32,
+            "totalBfWeights":   64,
             "num_slots":        10,
             "bfw_prefix_dl":    "test_vectors/mu1_100_32/dl_bfw_ue_",
             "bfw_prefix_ul":    "test_vectors/mu1_100_32/ul_bfw_ue_"
@@ -267,7 +846,7 @@
             "antelm_trx":       32,
             "iq_width":         16,
             "comp_meth":        0,
-            "totalBfWeights":   32,
+            "totalBfWeights":   64,
             "num_slots":        10,
             "bfw_prefix_dl":    "test_vectors/mu1_100_32/dl_bfw_ue_",
             "bfw_prefix_ul":    "test_vectors/mu1_100_32/ul_bfw_ue_"
@@ -291,7 +870,7 @@
             "antelm_trx":       32,
             "iq_width":         16,
             "comp_meth":        0,
-            "totalBfWeights":   32,
+            "totalBfWeights":   64,
             "num_slots":        10,
             "bfw_prefix_dl":    "test_vectors/mu1_100_32/dl_bfw_ue_",
             "bfw_prefix_ul":    "test_vectors/mu1_100_32/ul_bfw_ue_"
@@ -314,7 +893,7 @@
             "antelm_trx":       32,
             "iq_width":         16,
             "comp_meth":        0,
-            "totalBfWeights":   32,
+            "totalBfWeights":   64,
             "num_slots":        10,
             "bfw_prefix_dl":    "test_vectors/mu1_100_32/dl_bfw_ue_",
             "bfw_prefix_ul":    "test_vectors/mu1_100_32/ul_bfw_ue_"
@@ -338,7 +917,7 @@
             "antelm_trx":       32,
             "iq_width":         16,
             "comp_meth":        0,
-            "totalBfWeights":   32,
+            "totalBfWeights":   64,
             "num_slots":        10,
             "bfw_prefix_dl":    "test_vectors/mu1_100_32/dl_bfw_ue_",
             "bfw_prefix_ul":    "test_vectors/mu1_100_32/ul_bfw_ue_"
@@ -362,7 +941,7 @@
             "antelm_trx":       32,
             "iq_width":         16,
             "comp_meth":        0,
-            "totalBfWeights":   32,
+            "totalBfWeights":   64,
             "num_slots":        10,
             "bfw_prefix_dl":    "test_vectors/mu1_100_32/dl_bfw_ue_",
             "bfw_prefix_ul":    "test_vectors/mu1_100_32/ul_bfw_ue_"
@@ -385,7 +964,7 @@
             "antelm_trx":       32,
             "iq_width":         16,
             "comp_meth":        0,
-            "totalBfWeights":   32,
+            "totalBfWeights":   64,
             "num_slots":        10,
             "bfw_prefix_dl":    "test_vectors/mu1_100_32/dl_bfw_ue_",
             "bfw_prefix_ul":    "test_vectors/mu1_100_32/ul_bfw_ue_"
@@ -408,7 +987,7 @@
             "antelm_trx":       32,
             "iq_width":         16,
             "comp_meth":        0,
-            "totalBfWeights":   32,
+            "totalBfWeights":   64,
             "num_slots":        10,
             "bfw_prefix_dl":    "test_vectors/mu1_100_32/dl_bfw_ue_",
             "bfw_prefix_ul":    "test_vectors/mu1_100_32/ul_bfw_ue_"
@@ -580,16 +1159,131 @@
       "parameters": {
       }
     }
-  ], 
+  ],
+
+  "bfp_performace_cp": [
+    {
+      "name": "AntElm_8_IQ_8",
+      "parameters": {
+        "AntElm": 8,
+        "iqWidth": 8
+      }
+    },
+    {
+      "name": "AntElm_16_IQ_8",
+      "parameters": {
+        "AntElm": 16,
+        "iqWidth": 8
+      }
+    },
+    {
+      "name": "AntElm_32_IQ_8",
+      "parameters": {
+        "AntElm": 32,
+        "iqWidth": 8
+      }
+    },
+    {
+      "name": "AntElm_64_IQ_8",
+      "parameters": {
+        "AntElm": 64,
+        "iqWidth": 8
+      }
+    },
+    {
+      "name": "AntElm_8_IQ_9",
+      "parameters": {
+        "AntElm": 8,
+        "iqWidth": 9
+      }
+    },
+    {
+      "name": "AntElm_16_IQ_9",
+      "parameters": {
+        "AntElm": 16,
+        "iqWidth": 9
+      }
+    },
+    {
+      "name": "AntElm_32_IQ_9",
+      "parameters": {
+        "AntElm": 32,
+        "iqWidth": 9
+      }
+    },
+    {
+      "name": "AntElm_64_IQ_9",
+      "parameters": {
+        "AntElm": 64,
+        "iqWidth": 9
+      }
+    },
+    {
+      "name": "AntElm_8_IQ_10",
+      "parameters": {
+        "AntElm": 8,
+        "iqWidth": 10
+      }
+    },
+    {
+      "name": "AntElm_16_IQ_10",
+      "parameters": {
+        "AntElm": 16,
+        "iqWidth": 10
+      }
+    },
+    {
+      "name": "AntElm_32_IQ_10",
+      "parameters": {
+        "AntElm": 32,
+        "iqWidth": 10
+      }
+    },
+    {
+      "name": "AntElm_64_IQ_10",
+      "parameters": {
+        "AntElm": 64,
+        "iqWidth": 10
+      }
+    },
+    {
+      "name": "AntElm_8_IQ_12",
+      "parameters": {
+        "AntElm": 8,
+        "iqWidth": 12
+      }
+    },
+    {
+      "name": "AntElm_16_IQ_12",
+      "parameters": {
+        "AntElm": 16,
+        "iqWidth": 12
+      }
+    },
+    {
+      "name": "AntElm_32_IQ_12",
+      "parameters": {
+        "AntElm": 32,
+        "iqWidth": 12
+      }
+    },
+    {
+      "name": "AntElm_64_IQ_12",
+      "parameters": {
+        "AntElm": 64,
+        "iqWidth": 12
+      }
+    }
+  ],
 
   "bfp_performace_ex": [
     {
       "name": "RB_16_IQ_8",
       "parameters": {
         "nRBsize": 16,
-        "iqWidth": 8    
+        "iqWidth": 8
       }
-    }, 
+    },
     {
       "name": "RB_18_IQ_8",
       "parameters": {
@@ -601,9 +1295,9 @@
       "name": "RB_32_IQ_8",
       "parameters": {
         "nRBsize": 32,
-        "iqWidth": 8    
+        "iqWidth": 8
       }
-    }, 
+    },
     {
       "name": "RB_36_IQ_8",
       "parameters": {
@@ -615,23 +1309,23 @@
       "name": "RB_48_IQ_8",
       "parameters": {
         "nRBsize": 48,
-        "iqWidth": 8    
+        "iqWidth": 8
       }
-    }, 
+    },
     {
       "name": "RB_70_IQ_8",
       "parameters": {
         "nRBsize": 70,
         "iqWidth": 8
       }
-    }, 
+    },
     {
       "name": "RB_113_IQ_8",
       "parameters": {
         "nRBsize": 113,
         "iqWidth": 8
       }
-    }, 
+    },
     {
       "name": "RB_273_IQ_8",
       "parameters": {
@@ -643,23 +1337,23 @@
       "name": "RB_6_IQ_9",
       "parameters": {
         "nRBsize": 6,
-        "iqWidth": 9    
+        "iqWidth": 9
       }
-    }, 
+    },
     {
       "name": "RB_12_IQ_9",
       "parameters": {
         "nRBsize": 12,
-        "iqWidth": 9    
+        "iqWidth": 9
       }
-    }, 
+    },
     {
       "name": "RB_16_IQ_9",
       "parameters": {
         "nRBsize": 16,
-        "iqWidth": 9    
+        "iqWidth": 9
       }
-    }, 
+    },
     {
       "name": "RB_18_IQ_9",
       "parameters": {
@@ -685,9 +1379,9 @@
       "name": "RB_32_IQ_9",
       "parameters": {
         "nRBsize": 32,
-        "iqWidth": 9    
+        "iqWidth": 9
       }
-    }, 
+    },
     {
       "name": "RB_36_IQ_9",
       "parameters": {
@@ -706,9 +1400,9 @@
       "name": "RB_48_IQ_9",
       "parameters": {
         "nRBsize": 48,
-        "iqWidth": 9    
+        "iqWidth": 9
       }
-    }, 
+    },
     {
       "name": "RB_54_IQ_9",
       "parameters": {
@@ -736,7 +1430,7 @@
         "nRBsize": 70,
         "iqWidth": 9
       }
-    }, 
+    },
     {
       "name": "RB_72_IQ_9",
       "parameters": {
@@ -790,9 +1484,9 @@
       "name": "RB_113_IQ_9",
       "parameters": {
         "nRBsize": 113,
-        "iqWidth": 9    
+        "iqWidth": 9
       }
-    }, 
+    },
     {
       "name": "RB_114_IQ_9",
       "parameters": {
@@ -993,9 +1687,9 @@
       "name": "RB_16_IQ_10",
       "parameters": {
         "nRBsize": 16,
-        "iqWidth": 10   
+        "iqWidth": 10
       }
-    }, 
+    },
     {
       "name": "RB_18_IQ_10",
       "parameters": {
@@ -1007,9 +1701,9 @@
       "name": "RB_32_IQ_10",
       "parameters": {
         "nRBsize": 32,
-        "iqWidth": 10   
+        "iqWidth": 10
       }
-    }, 
+    },
     {
       "name": "RB_36_IQ_10",
       "parameters": {
@@ -1023,21 +1717,21 @@
         "nRBsize": 48,
         "iqWidth": 10
       }
-    }, 
+    },
     {
       "name": "RB_70_IQ_10",
       "parameters": {
         "nRBsize": 70,
         "iqWidth": 10
       }
-    }, 
+    },
     {
       "name": "RB_113_IQ_10",
       "parameters": {
         "nRBsize": 113,
-        "iqWidth": 10   
+        "iqWidth": 10
       }
-    }, 
+    },
     {
       "name": "RB_273_IQ_10",
       "parameters": {
@@ -1051,7 +1745,7 @@
         "nRBsize": 16,
         "iqWidth": 12
       }
-    }, 
+    },
     {
       "name": "RB_18_IQ_12",
       "parameters": {
@@ -1065,7 +1759,7 @@
         "nRBsize": 32,
         "iqWidth": 12
       }
-    }, 
+    },
     {
       "name": "RB_36_IQ_12",
       "parameters": {
@@ -1079,21 +1773,21 @@
         "nRBsize": 48,
         "iqWidth": 12
       }
-    }, 
+    },
     {
       "name": "RB_70_IQ_12",
       "parameters": {
         "nRBsize": 70,
         "iqWidth": 12
       }
-    }, 
+    },
     {
       "name": "RB_113_IQ_12",
       "parameters": {
         "nRBsize": 113,
-        "iqWidth": 12   
+        "iqWidth": 12
       }
-    }, 
+    },
     {
       "name": "RB_273_IQ_12",
       "parameters": {
@@ -1107,7 +1801,7 @@
         "nRBsize": 16,
         "iqWidth": 14
       }
-    }, 
+    },
     {
       "name": "RB_18_IQ_14",
       "parameters": {
@@ -1121,7 +1815,7 @@
         "nRBsize": 32,
         "iqWidth": 14
       }
-    }, 
+    },
     {
       "name": "RB_36_IQ_14",
       "parameters": {
@@ -1135,21 +1829,21 @@
         "nRBsize": 48,
         "iqWidth": 14
       }
-    }, 
+    },
     {
       "name": "RB_70_IQ_14",
       "parameters": {
         "nRBsize": 70,
         "iqWidth": 14
       }
-    }, 
+    },
     {
       "name": "RB_113_IQ_14",
       "parameters": {
         "nRBsize": 113,
-        "iqWidth": 14   
+        "iqWidth": 14
       }
-    }, 
+    },
     {
       "name": "RB_273_IQ_14",
       "parameters": {

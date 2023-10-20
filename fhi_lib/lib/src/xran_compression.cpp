@@ -16,42 +16,51 @@
 *
 *******************************************************************************/
 
+/**
+ * @brief xRAN BFP compression/decompression U-plane implementation and interface functions
+ *
+ * @file xran_compression.cpp
+ * @ingroup group_source_xran
+ * @author Intel Corporation
+ **/
+
 #include "xran_compression.hpp"
+#include "xran_bfp_utils.hpp"
 #include "xran_compression.h"
 #include <complex>
 #include <algorithm>
-#include <immintrin.h>
 #include <limits.h>
 #include <cstring>
 
-static int16_t saturateAbs(int16_t inVal)
+namespace BFP_UPlane
 {
-  int16_t result;
-  if (inVal == std::numeric_limits<short>::min())
+  /// Namespace constants
+  const int k_numREReal = 24; /// 12 IQ pairs
+
+  /// Perform horizontal max of 16 bit values across each lane
+  __m512i
+  horizontalMax4x16(const __m512i maxAbsIn)
   {
-    result = std::numeric_limits<short>::max();
+    /// Swap 64b in each lane and compute max
+    const auto k_perm64b = _mm512_set_epi64(6, 7, 4, 5, 2, 3, 0, 1);
+    auto maxAbsPerm = _mm512_permutexvar_epi64(k_perm64b, maxAbsIn);
+    auto maxAbsHorz = _mm512_max_epi16(maxAbsIn, maxAbsPerm);
+
+    /// Swap each pair of 32b in each lane and compute max
+    const auto k_perm32b = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1);
+    maxAbsPerm = _mm512_permutexvar_epi32(k_perm32b, maxAbsHorz);
+    maxAbsHorz = _mm512_max_epi16(maxAbsHorz, maxAbsPerm);
+
+    /// Swap each IQ pair in each lane (via 32b rotation) and compute max
+    maxAbsPerm = _mm512_rol_epi32(maxAbsHorz, BlockFloatCompander::k_numBitsIQ);
+    return _mm512_max_epi16(maxAbsHorz, maxAbsPerm);
   }
-  else
-  {
-    result = (int16_t)std::abs(inVal);
-  }
-  return result;
-}
 
 
-/// Compute exponent value for a set of RB from the maximum absolute value
-void
-computeExponent(const BlockFloatCompander::ExpandedData& dataIn, int8_t* expStore)
-{
-  __m512i maxAbs = __m512i();
-
-  /// Load data and find max(abs(RB))
-  const __m512i* rawData = reinterpret_cast<const __m512i*>(dataIn.dataExpanded);
-  constexpr int k_numRBPerLoop = 4;
-  constexpr int k_numInputLoopIts = BlockFloatCompander::k_numRB / k_numRBPerLoop;
-
-#pragma unroll(k_numInputLoopIts)
-  for (int n = 0; n < k_numInputLoopIts; ++n)
+  /// Perform U-plane input data re-ordering and vertical max abs of 16b values
+  /// Works on 4 RB at a time
+  __m512i
+  maxAbsVertical4RB(const __m512i inA, const __m512i inB, const __m512i inC)
   {
     /// Re-order the next 4RB in input data into 3 registers
     /// Input SIMD vectors are:
@@ -64,666 +73,436 @@ computeExponent(const BlockFloatCompander::ExpandedData& dataIn, int8_t* expStor
     ///   [A A A A B B B B C C C C D D D D]
     constexpr uint8_t k_msk1 = 0b11111100; // Copy first lane of src
     constexpr int k_shuff1 = 0x41;
-    const auto z_w1 = _mm512_mask_shuffle_i64x2(rawData[3 * n + 0], k_msk1, rawData[3 * n + 1], rawData[3 * n + 2], k_shuff1);
+    const auto z_w1 = _mm512_mask_shuffle_i64x2(inA, k_msk1, inB, inC, k_shuff1);
 
     constexpr uint8_t k_msk2 = 0b11000011; // Copy middle two lanes of src
     constexpr int k_shuff2 = 0xB1;
-    const auto z_w2 = _mm512_mask_shuffle_i64x2(rawData[3 * n + 1], k_msk2, rawData[3 * n + 0], rawData[3 * n + 2], k_shuff2);
+    const auto z_w2 = _mm512_mask_shuffle_i64x2(inB, k_msk2, inA, inC, k_shuff2);
 
     constexpr uint8_t k_msk3 = 0b00111111; // Copy last lane of src
     constexpr int k_shuff3 = 0xBE;
-    const auto z_w3 = _mm512_mask_shuffle_i64x2(rawData[3 * n + 2], k_msk3, rawData[3 * n + 0], rawData[3 * n + 1], k_shuff3);
+    const auto z_w3 = _mm512_mask_shuffle_i64x2(inC, k_msk3, inA, inB, k_shuff3);
 
     /// Perform max abs on these 3 registers
     const auto abs16_1 = _mm512_abs_epi16(z_w1);
     const auto abs16_2 = _mm512_abs_epi16(z_w2);
     const auto abs16_3 = _mm512_abs_epi16(z_w3);
-    const auto maxAbs_12 = _mm512_max_epi16(abs16_1, abs16_2);
-    const auto maxAbs_123 = _mm512_max_epi16(maxAbs_12, abs16_3);
-
-    /// Perform horizontal max over each lane
-    /// Swap 64b in each lane and compute max
-    const auto k_perm64b = _mm512_set_epi64(6, 7, 4, 5, 2, 3, 0, 1);
-    auto maxAbsPerm = _mm512_permutexvar_epi64(k_perm64b, maxAbs_123);
-    auto maxAbsHorz = _mm512_max_epi16(maxAbs_123, maxAbsPerm);
-
-    /// Swap each pair of 32b in each lane and compute max
-    const auto k_perm32b = _mm512_set_epi32(14, 15, 12, 13, 10, 11, 8, 9, 6, 7, 4, 5, 2, 3, 0, 1);
-    maxAbsPerm = _mm512_permutexvar_epi32(k_perm32b, maxAbsHorz);
-    maxAbsHorz = _mm512_max_epi16(maxAbsHorz, maxAbsPerm);
-
-    /// Swap each IQ pair in each lane (via 32b rotation) and compute max
-    maxAbsPerm = _mm512_rol_epi32(maxAbsHorz, BlockFloatCompander::k_numBitsIQ);
-    maxAbsHorz = _mm512_max_epi16(maxAbsHorz, maxAbsPerm);
-
-    /// Insert values into maxAbs
-    /// Use sliding mask to insert wanted values into maxAbs
-    /// Pairs of values will be inserted and corrected outside of loop
-    const auto k_select4RB = _mm512_set_epi32(28, 24, 20, 16, 28, 24, 20, 16,
-                                              28, 24, 20, 16, 28, 24, 20, 16);
-    constexpr uint16_t k_expMsk[k_numInputLoopIts] = { 0x000F, 0x00F0, 0x0F00, 0xF000 };
-    maxAbs = _mm512_mask_permutex2var_epi32(maxAbs, k_expMsk[n], k_select4RB, maxAbsHorz);
+    return _mm512_max_epi16(_mm512_max_epi16(abs16_1, abs16_2), abs16_3);
   }
 
-  /// Convert to 32b by removing repeated values in maxAbs
-  const auto k_upperWordMask = _mm512_set_epi64(0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
-                                                0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
-                                                0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF,
-                                                0x0000FFFF0000FFFF, 0x0000FFFF0000FFFF);
-  maxAbs = _mm512_and_epi64(maxAbs, k_upperWordMask);
 
-  /// Compute and store exponent
-  const auto totShiftBits = _mm512_set1_epi32(32 - dataIn.iqWidth + 1);
-  const auto lzCount = _mm512_lzcnt_epi32(maxAbs);
-  const auto exponent = _mm512_sub_epi32(totShiftBits, lzCount);
-  constexpr uint16_t k_expWriteMask = 0xFFFF;
-  _mm512_mask_cvtepi32_storeu_epi8(expStore, k_expWriteMask, exponent);
-}
-
-
-/// Pack compressed 9 bit data in network byte order
-/// See https://soco.intel.com/docs/DOC-2665619
-__m512i
-networkBytePack9b(const __m512i compData)
-{
-  /// Logical shift left to align network order byte parts
-  const __m512i k_shiftLeft = _mm512_set_epi64(0x0000000100020003, 0x0004000500060007,
-                                               0x0000000100020003, 0x0004000500060007,
-                                               0x0000000100020003, 0x0004000500060007,
-                                               0x0000000100020003, 0x0004000500060007);
-  auto compDataPacked = _mm512_sllv_epi16(compData, k_shiftLeft);
-
-  /// First epi8 shuffle of even indexed samples
-  const __m512i k_byteShuffleMask1 = _mm512_set_epi64(0x0000000000000000, 0x0C0D080904050001,
-                                                      0x0000000000000000, 0x0C0D080904050001,
-                                                      0x0000000000000000, 0x0C0D080904050001,
-                                                      0x0000000000000000, 0x0C0D080904050001);
-  constexpr uint64_t k_byteMask1 = 0x000000FF00FF00FF;
-  auto compDataShuff1 = _mm512_maskz_shuffle_epi8(k_byteMask1, compDataPacked, k_byteShuffleMask1);
-
-  /// Second epi8 shuffle of odd indexed samples
-  const __m512i k_byteShuffleMask2 = _mm512_set_epi64(0x000000000000000E, 0x0F0A0B0607020300,
-                                                      0x000000000000000E, 0x0F0A0B0607020300,
-                                                      0x000000000000000E, 0x0F0A0B0607020300,
-                                                      0x000000000000000E, 0x0F0A0B0607020300);
-  constexpr uint64_t k_byteMask2 = 0x000001FE01FE01FE;
-  auto compDataShuff2 = _mm512_maskz_shuffle_epi8(k_byteMask2, compDataPacked, k_byteShuffleMask2);
-
-  /// Ternary blend of the two shuffled results
-  const __m512i k_ternLogSelect = _mm512_set_epi64(0x00000000000000FF, 0x01FC07F01FC07F00,
-                                                   0x00000000000000FF, 0x01FC07F01FC07F00,
-                                                   0x00000000000000FF, 0x01FC07F01FC07F00,
-                                                   0x00000000000000FF, 0x01FC07F01FC07F00);
-  return _mm512_ternarylogic_epi64(compDataShuff1, compDataShuff2, k_ternLogSelect, 0xd8);
-}
-
-
-/// Pack compressed 10 bit data in network byte order
-/// See https://soco.intel.com/docs/DOC-2665619
-__m512i
-networkBytePack10b(const __m512i compData)
-{
-  /// Logical shift left to align network order byte parts
-  const __m512i k_shiftLeft = _mm512_set_epi64(0x0000000200040006, 0x0000000200040006,
-                                               0x0000000200040006, 0x0000000200040006,
-                                               0x0000000200040006, 0x0000000200040006,
-                                               0x0000000200040006, 0x0000000200040006);
-  auto compDataPacked = _mm512_sllv_epi16(compData, k_shiftLeft);
-
-  /// First epi8 shuffle of even indexed samples
-  const __m512i k_byteShuffleMask1 = _mm512_set_epi64(0x000000000000000C, 0x0D08090004050001,
-                                                      0x000000000000000C, 0x0D08090004050001,
-                                                      0x000000000000000C, 0x0D08090004050001,
-                                                      0x000000000000000C, 0x0D08090004050001);
-  constexpr uint64_t k_byteMask1 = 0x000001EF01EF01EF;
-  auto compDataShuff1 = _mm512_maskz_shuffle_epi8(k_byteMask1, compDataPacked, k_byteShuffleMask1);
-
-  /// Second epi8 shuffle of odd indexed samples
-  const __m512i k_byteShuffleMask2 = _mm512_set_epi64(0x0000000000000E0F, 0x0A0B000607020300,
-                                                      0x0000000000000E0F, 0x0A0B000607020300,
-                                                      0x0000000000000E0F, 0x0A0B000607020300,
-                                                      0x0000000000000E0F, 0x0A0B000607020300);
-  constexpr uint64_t k_byteMask2 = 0x000003DE03DE03DE;
-  auto compDataShuff2 = _mm512_maskz_shuffle_epi8(k_byteMask2, compDataPacked, k_byteShuffleMask2);
-
-  /// Ternary blend of the two shuffled results
-  const __m512i k_ternLogSelect = _mm512_set_epi64(0x000000000000FF03, 0xF03F00FF03F03F00,
-                                                   0x000000000000FF03, 0xF03F00FF03F03F00,
-                                                   0x000000000000FF03, 0xF03F00FF03F03F00,
-                                                   0x000000000000FF03, 0xF03F00FF03F03F00);
-  return _mm512_ternarylogic_epi64(compDataShuff1, compDataShuff2, k_ternLogSelect, 0xd8);
-}
-
-
-/// Pack compressed 12 bit data in network byte order
-/// See https://soco.intel.com/docs/DOC-2665619
-__m512i
-networkBytePack12b(const __m512i compData)
-{
-  /// Logical shift left to align network order byte parts
-  const __m512i k_shiftLeft = _mm512_set_epi64(0x0000000400000004, 0x0000000400000004,
-                                               0x0000000400000004, 0x0000000400000004,
-                                               0x0000000400000004, 0x0000000400000004,
-                                               0x0000000400000004, 0x0000000400000004);
-  auto compDataPacked = _mm512_sllv_epi16(compData, k_shiftLeft);
-
-  /// First epi8 shuffle of even indexed samples
-  const __m512i k_byteShuffleMask1 = _mm512_set_epi64(0x00000000000C0D00, 0x0809000405000001,
-                                                      0x00000000000C0D00, 0x0809000405000001,
-                                                      0x00000000000C0D00, 0x0809000405000001,
-                                                      0x00000000000C0D00, 0x0809000405000001);
-  constexpr uint64_t k_byteMask1 = 0x000006DB06DB06DB;
-  auto compDataShuff1 = _mm512_maskz_shuffle_epi8(k_byteMask1, compDataPacked, k_byteShuffleMask1);
-
-  /// Second epi8 shuffle of odd indexed samples
-  const __m512i k_byteShuffleMask2 = _mm512_set_epi64(0x000000000E0F000A, 0x0B00060700020300,
-                                                      0x000000000E0F000A, 0x0B00060700020300,
-                                                      0x000000000E0F000A, 0x0B00060700020300,
-                                                      0x000000000E0F000A, 0x0B00060700020300);
-  constexpr uint64_t k_byteMask2 = 0x00000DB60DB60DB6;
-  auto compDataShuff2 = _mm512_maskz_shuffle_epi8(k_byteMask2, compDataPacked, k_byteShuffleMask2);
-
-  /// Ternary blend of the two shuffled results
-  const __m512i k_ternLogSelect = _mm512_set_epi64(0x00000000FF0F00FF, 0x0F00FF0F00FF0F00,
-                                                   0x00000000FF0F00FF, 0x0F00FF0F00FF0F00,
-                                                   0x00000000FF0F00FF, 0x0F00FF0F00FF0F00,
-                                                   0x00000000FF0F00FF, 0x0F00FF0F00FF0F00);
-  return _mm512_ternarylogic_epi64(compDataShuff1, compDataShuff2, k_ternLogSelect, 0xd8);
-}
-
-
-/// Unpack compressed 9 bit data in network byte order
-/// See https://soco.intel.com/docs/DOC-2665619
-__m512i
-networkByteUnpack9b(const uint8_t* inData)
-{
-  /// Align chunks of compressed bytes into lanes to allow for expansion
-  const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(inData);
-  const auto k_expPerm = _mm512_set_epi32(15, 14, 13, 12,  7,  6,  5,  4,
-                                           5,  4,  3,  2,  3,  2,  1,  0);
-  auto expData = _mm512_permutexvar_epi32(k_expPerm, *rawDataIn);
-
-  /// Byte shuffle to get all bits for each sample into 16b chunks
-  /// Due to previous permute to get chunks of bytes into each lane, there is
-  /// a different shuffle offset in each lane
-  const __m512i k_byteShuffleMask = _mm512_set_epi64(0x0F0E0D0C0B0A0908, 0x0706050403020100,
-                                                     0x090A080907080607, 0x0506040503040203,
-                                                     0x0809070806070506, 0x0405030402030102,
-                                                     0x0708060705060405, 0x0304020301020001);
-  expData = _mm512_shuffle_epi8(expData, k_byteShuffleMask);
-
-  /// Logical shift left to set sign bit
-  const __m512i k_slBits = _mm512_set_epi64(0x0007000600050004, 0x0003000200010000,
-                                            0x0007000600050004, 0x0003000200010000,
-                                            0x0007000600050004, 0x0003000200010000,
-                                            0x0007000600050004, 0x0003000200010000);
-  expData = _mm512_sllv_epi16(expData, k_slBits);
-
-  /// Mask to zero unwanted bits
-  const __m512i k_expMask = _mm512_set1_epi16(0xFF80);
-  return _mm512_and_epi64(expData, k_expMask);
-}
-
-
-/// Unpack compressed 10 bit data in network byte order
-/// See https://soco.intel.com/docs/DOC-2665619
-__m512i
-networkByteUnpack10b(const uint8_t* inData)
-{
-  /// Align chunks of compressed bytes into lanes to allow for expansion
-  const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(inData);
-  const auto k_expPerm = _mm512_set_epi32(15, 14, 13, 12,  8,  7,  6,  5,
-                                           5,  4,  3,  2,  3,  2,  1,  0);
-  auto expData = _mm512_permutexvar_epi32(k_expPerm, *rawDataIn);
-
-  /// Byte shuffle to get all bits for each sample into 16b chunks
-  /// Due to previous permute to get chunks of bytes into each lane, lanes
-  /// 0 and 2 happen to be aligned, but lane 1 is offset by 2 bytes
-  const __m512i k_byteShuffleMask = _mm512_set_epi64(0x0809070806070506, 0x0304020301020001,
-                                                     0x0809070806070506, 0x0304020301020001,
-                                                     0x0A0B090A08090708, 0x0506040503040203,
-                                                     0x0809070806070506, 0x0304020301020001);
-  expData = _mm512_shuffle_epi8(expData, k_byteShuffleMask);
-
-  /// Logical shift left to set sign bit
-  const __m512i k_slBits = _mm512_set_epi64(0x0006000400020000, 0x0006000400020000,
-                                            0x0006000400020000, 0x0006000400020000,
-                                            0x0006000400020000, 0x0006000400020000,
-                                            0x0006000400020000, 0x0006000400020000);
-  expData = _mm512_sllv_epi16(expData, k_slBits);
-
-  /// Mask to zero unwanted bits
-  const __m512i k_expMask = _mm512_set1_epi16(0xFFC0);
-  return _mm512_and_epi64(expData, k_expMask);
-}
-
-
-/// Unpack compressed 12 bit data in network byte order
-/// See https://soco.intel.com/docs/DOC-2665619
-__m512i
-networkByteUnpack12b(const uint8_t* inData)
-{
-  /// Align chunks of compressed bytes into lanes to allow for expansion
-  const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(inData);
-  const auto k_expPerm = _mm512_set_epi32(15, 14, 13, 12,  9,  8,  7,  6,
-                                           6,  5,  4,  3,  3,  2,  1,  0);
-  auto expData = _mm512_permutexvar_epi32(k_expPerm, *rawDataIn);
-
-  /// Byte shuffle to get all bits for each sample into 16b chunks
-  /// For 12b mantissa all lanes post-permute are aligned and require same shuffle offset
-  const __m512i k_byteShuffleMask = _mm512_set_epi64(0x0A0B090A07080607, 0x0405030401020001,
-                                                     0x0A0B090A07080607, 0x0405030401020001,
-                                                     0x0A0B090A07080607, 0x0405030401020001,
-                                                     0x0A0B090A07080607, 0x0405030401020001);
-  expData = _mm512_shuffle_epi8(expData, k_byteShuffleMask);
-
-  /// Logical shift left to set sign bit
-  const __m512i k_slBits = _mm512_set_epi64(0x0004000000040000, 0x0004000000040000,
-                                            0x0004000000040000, 0x0004000000040000,
-                                            0x0004000000040000, 0x0004000000040000,
-                                            0x0004000000040000, 0x0004000000040000);
-  expData = _mm512_sllv_epi16(expData, k_slBits);
-
-  /// Mask to zero unwanted bits
-  const __m512i k_expMask = _mm512_set1_epi16(0xFFF0);
-  return _mm512_and_epi64(expData, k_expMask);
-}
-
-
-/// 8 bit compression
-void
-BlockFloatCompander::BlockFloatCompress_8b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut)
-{
-  /// Compute exponent and store for later use
-  int8_t storedExp[BlockFloatCompander::k_numRB] = {};
-  computeExponent(dataIn, storedExp);
-
-  /// Shift 1RB by corresponding exponent and write exponent and data to output
-#pragma unroll(BlockFloatCompander::k_numRB)
-  for (int n = 0; n < BlockFloatCompander::k_numRB; ++n)
+  /// Selects first 32 bit value in each src lane and packs into laneNum of dest
+  __m512i
+  slidePermute(const __m512i src, const __m512i dest, const int laneNum)
   {
-    const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + n * BlockFloatCompander::k_numREReal);
-    auto compData = _mm512_srai_epi16(*rawDataIn, storedExp[n]);
-    auto thisRBExpAddr = n * (BlockFloatCompander::k_numREReal + 1);
+    const auto k_selectVals = _mm512_set_epi32(28, 24, 20, 16, 28, 24, 20, 16,
+                                               28, 24, 20, 16, 28, 24, 20, 16);
+    constexpr uint16_t k_laneMsk[4] = { 0x000F, 0x00F0, 0x0F00, 0xF000 };
+    return _mm512_mask_permutex2var_epi32(dest, k_laneMsk[laneNum], k_selectVals, src);
+  }
+
+
+  /// Compute exponent value for a set of 16 RB from the maximum absolute value.
+  /// Max Abs operates in a loop, executing 4 RB per iteration. The results are
+  /// packed into the final output register.
+  __m512i
+  computeExponent_16RB(const BlockFloatCompander::ExpandedData& dataIn, const __m512i totShiftBits)
+  {
+    __m512i maxAbs = __m512i();
+    const __m512i* rawData = reinterpret_cast<const __m512i*>(dataIn.dataExpanded);
+    /// Max Abs loop operates on 4RB at a time
+#pragma unroll(4)
+    for (int n = 0; n < 4; ++n)
+    {
+      /// Re-order and vertical max abs
+      auto maxAbsVert = maxAbsVertical4RB(rawData[3 * n + 0], rawData[3 * n + 1], rawData[3 * n + 2]);
+      /// Horizontal max abs
+      auto maxAbsHorz = horizontalMax4x16(maxAbsVert);
+      /// Pack these 4 values into maxAbs
+      maxAbs = slidePermute(maxAbsHorz, maxAbs, n);
+    }
+    /// Calculate exponent
+    const auto maxAbs32 = BlockFloatCompander::maskUpperWord(maxAbs);
+    return BlockFloatCompander::expLzCnt(maxAbs32, totShiftBits);
+  }
+
+
+  /// Compute exponent value for a set of 4 RB from the maximum absolute value.
+  /// Note that we do not need to perform any packing of result as we are only
+  /// computing 4 RB. The appropriate offset is taken later when extracting the
+  /// exponent.
+  __m512i
+  computeExponent_4RB(const BlockFloatCompander::ExpandedData& dataIn, const __m512i totShiftBits)
+  {
+    const __m512i* rawData = reinterpret_cast<const __m512i*>(dataIn.dataExpanded);
+    /// Re-order and vertical max abs
+    const auto maxAbsVert = maxAbsVertical4RB(rawData[0], rawData[1], rawData[2]);
+    /// Horizontal max abs
+    const auto maxAbsHorz = horizontalMax4x16(maxAbsVert);
+    /// Calculate exponent
+    const auto maxAbs = BlockFloatCompander::maskUpperWord(maxAbsHorz);
+    return BlockFloatCompander::expLzCnt(maxAbs, totShiftBits);
+  }
+
+
+  /// Compute exponent value for 1 RB from the maximum absolute value.
+  /// This works with horizontal max abs only, and needs to include a
+  /// step to select the final exponent from the 4 lanes.
+  uint8_t
+  computeExponent_1RB(const BlockFloatCompander::ExpandedData& dataIn, const __m512i totShiftBits)
+  {
+    const __m512i* rawData = reinterpret_cast<const __m512i*>(dataIn.dataExpanded);
+    /// Abs
+    const auto rawDataAbs = _mm512_abs_epi16(rawData[0]);
+    /// No need to do a full horizontal max operation here, just do a max IQ step,
+    /// compute the exponents and then use a reduce max over all exponent values. This
+    /// is the fastest way to handle a single RB.
+    const auto rawAbsIQSwap = _mm512_rol_epi32(rawDataAbs, BlockFloatCompander::k_numBitsIQ);
+    const auto maxAbsIQ = _mm512_max_epi16(rawDataAbs, rawAbsIQSwap);
+    /// Calculate exponent
+    const auto maxAbsIQ32 = BlockFloatCompander::maskUpperWord(maxAbsIQ);
+    const auto exps = BlockFloatCompander::expLzCnt(maxAbsIQ32, totShiftBits);
+    /// At this point we have exponent values for the maximum of each IQ pair.
+    /// Run a reduce max step to compute the maximum exponent value in the first
+    /// three lanes - this will give the desired exponent for this RB.
+    constexpr uint16_t k_expMsk = 0x0FFF;
+    return (uint8_t)_mm512_mask_reduce_max_epi32(k_expMsk, exps);
+  }
+
+
+  /// Apply compression to 1 RB
+  template<BlockFloatCompander::PackFunction networkBytePack>
+  void
+  applyCompressionN_1RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut,
+                        const int numREOffset, const uint8_t thisExp, const int thisRBExpAddr, const uint16_t rbWriteMask)
+  {
+    /// Get AVX512 pointer aligned to desired RB
+    const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + numREOffset);
+    /// Apply the exponent shift
+    const auto compData = _mm512_srai_epi16(*rawDataIn, thisExp);
+    /// Pack compressed data network byte order
+    const auto compDataBytePacked = networkBytePack(compData);
     /// Store exponent first
-    dataOut->dataCompressed[thisRBExpAddr] = storedExp[n];
-    /// Store compressed RB
+    dataOut->dataCompressed[thisRBExpAddr] = thisExp;
+    /// Now have 1 RB worth of bytes separated into 3 chunks (1 per lane)
+    /// Use three offset stores to join
+    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1, rbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 0));
+    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1 + dataIn.iqWidth, rbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 1));
+    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1 + (2 * dataIn.iqWidth), rbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 2));
+  }
+
+
+  /// Apply 9, 10, or 12bit compression to 16 RB
+  template<BlockFloatCompander::PackFunction networkBytePack>
+  void
+  compressN_16RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut,
+                 const __m512i totShiftBits, const int totNumBytesPerRB, const uint16_t rbWriteMask)
+  {
+    const auto exponents = computeExponent_16RB(dataIn, totShiftBits);
+#pragma unroll(16)
+    for (int n = 0; n < 16; ++n)
+    {
+      applyCompressionN_1RB<networkBytePack>(dataIn, dataOut, n * k_numREReal, ((uint8_t*)&exponents)[n * 4], n * totNumBytesPerRB, rbWriteMask);
+    }
+  }
+
+
+  /// Apply 9, 10, or 12bit compression to 4 RB
+  template<BlockFloatCompander::PackFunction networkBytePack>
+  void
+  compressN_4RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut,
+                const __m512i totShiftBits, const int totNumBytesPerRB, const uint16_t rbWriteMask)
+  {
+    const auto exponents = computeExponent_4RB(dataIn, totShiftBits);
+#pragma unroll(4)
+    for (int n = 0; n < 4; ++n)
+    {
+      applyCompressionN_1RB<networkBytePack>(dataIn, dataOut, n * k_numREReal, ((uint8_t*)&exponents)[n * 16], n * totNumBytesPerRB, rbWriteMask);
+    }
+  }
+
+
+  /// Apply 9, 10, or 12bit compression to 1 RB
+  template<BlockFloatCompander::PackFunction networkBytePack>
+  void
+  compressN_1RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut,
+                const __m512i totShiftBits, const int totNumBytesPerRB, const uint16_t rbWriteMask)
+  {
+    const auto thisExponent = computeExponent_1RB(dataIn, totShiftBits);
+    applyCompressionN_1RB<networkBytePack>(dataIn, dataOut, 0, thisExponent, 0, rbWriteMask);
+  }
+
+
+  /// Calls compression function specific to the number of RB to be executed. For 9, 10, or 12bit iqWidth.
+  template<BlockFloatCompander::PackFunction networkBytePack>
+  void
+  compressByAllocN(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut,
+                   const __m512i totShiftBits, const int totNumBytesPerRB, const uint16_t rbWriteMask)
+  {
+    switch (dataIn.numBlocks)
+    {
+    case 16:
+      compressN_16RB<networkBytePack>(dataIn, dataOut, totShiftBits, totNumBytesPerRB, rbWriteMask);
+      break;
+
+    case 4:
+      compressN_4RB<networkBytePack>(dataIn, dataOut, totShiftBits, totNumBytesPerRB, rbWriteMask);
+      break;
+
+    case 1:
+      compressN_1RB<networkBytePack>(dataIn, dataOut, totShiftBits, totNumBytesPerRB, rbWriteMask);
+      break;
+    }
+  }
+
+
+  /// Apply compression to 1 RB
+  void
+  applyCompression8_1RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut,
+                        const int numREOffset, const uint8_t thisExp, const int thisRBExpAddr)
+  {
+    /// Get AVX512 pointer aligned to desired RB
+    const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + numREOffset);
+    /// Apply the exponent shift
+    const auto compData = _mm512_srai_epi16(*rawDataIn, thisExp);
+    /// Store exponent first
+    dataOut->dataCompressed[thisRBExpAddr] = thisExp;
+    /// Now have 1 RB worth of bytes separated into 3 chunks (1 per lane)
+    /// Use three offset stores to join
     constexpr uint32_t k_rbMask = 0x00FFFFFF; // Write mask for 1RB (24 values)
     _mm256_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1, k_rbMask, _mm512_cvtepi16_epi8(compData));
   }
-}
 
 
-/// 9 bit compression
-void
-BlockFloatCompander::BlockFloatCompress_9b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut)
-{
-  /// Compute exponent and store for later use
-  int8_t storedExp[BlockFloatCompander::k_numRB] = {};
-  computeExponent(dataIn, storedExp);
-
-  /// Shift 1RB by corresponding exponent and write exponent and data to output
-  /// Output data is packed exponent first followed by corresponding compressed RB
-#pragma unroll(BlockFloatCompander::k_numRB)
-  for (int n = 0; n < BlockFloatCompander::k_numRB; ++n)
+  /// 8bit RB compression loop for 16 RB
+  void
+  compress8_16RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    /// Apply exponent shift
-    const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + n * BlockFloatCompander::k_numREReal);
-    auto compData = _mm512_srai_epi16(*rawDataIn, storedExp[n]);
-
-    /// Pack compressed data network byte order
-    auto compDataBytePacked = networkBytePack9b(compData);
-
-    /// Store exponent first
-    constexpr int k_totNumBytesPerRB = 28;
-    auto thisRBExpAddr = n * k_totNumBytesPerRB;
-    dataOut->dataCompressed[thisRBExpAddr] = storedExp[n];
-
-    /// Now have 1 RB worth of bytes separated into 3 chunks (1 per lane)
-    /// Use three offset stores to join
-    constexpr uint16_t k_RbWriteMask = 0x01FF;
-    constexpr int k_numDataBytesPerLane = 9;
-    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1, k_RbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 0));
-    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1 + k_numDataBytesPerLane, k_RbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 1));
-    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1 + (2 * k_numDataBytesPerLane), k_RbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 2));
+    const auto exponents = computeExponent_16RB(dataIn, totShiftBits);
+#pragma unroll(16)
+    for (int n = 0; n < 16; ++n)
+    {
+      applyCompression8_1RB(dataIn, dataOut, n * k_numREReal, ((uint8_t*)&exponents)[n * 4], n * (k_numREReal + 1));
+    }
   }
-}
 
 
-/// 10 bit compression
-void
-BlockFloatCompander::BlockFloatCompress_10b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut)
-{
-  /// Compute exponent and store for later use
-  int8_t storedExp[BlockFloatCompander::k_numRB] = {};
-  computeExponent(dataIn, storedExp);
-
-  /// Shift 1RB by corresponding exponent and write exponent and data to output
-  /// Output data is packed exponent first followed by corresponding compressed RB
-#pragma unroll(BlockFloatCompander::k_numRB)
-  for (int n = 0; n < BlockFloatCompander::k_numRB; ++n)
+  /// 8bit RB compression loop for 4 RB
+  void
+  compress8_4RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    /// Apply exponent shift
-    const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + n * BlockFloatCompander::k_numREReal);
-    auto compData = _mm512_srai_epi16(*rawDataIn, storedExp[n]);
-
-    /// Pack compressed data network byte order
-    auto compDataBytePacked = networkBytePack10b(compData);
-
-    /// Store exponent first
-    constexpr int k_totNumBytesPerRB = 31;
-    auto thisRBExpAddr = n * k_totNumBytesPerRB;
-    dataOut->dataCompressed[thisRBExpAddr] = storedExp[n];
-
-    /// Now have 1 RB worth of bytes separated into 3 chunks (1 per lane)
-    /// Use three offset stores to join
-    constexpr uint16_t k_RbWriteMask = 0x03FF;
-    constexpr int k_numDataBytesPerLane = 10;
-    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1, k_RbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 0));
-    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1 + k_numDataBytesPerLane, k_RbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 1));
-    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1 + (2 * k_numDataBytesPerLane), k_RbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 2));
+    const auto exponents = computeExponent_4RB(dataIn, totShiftBits);
+#pragma unroll(4)
+    for (int n = 0; n < 4; ++n)
+    {
+      applyCompression8_1RB(dataIn, dataOut, n * k_numREReal, ((uint8_t*)&exponents)[n * 16], n * (k_numREReal + 1));
+    }
   }
-}
 
 
-/// 12 bit compression
-void
-BlockFloatCompander::BlockFloatCompress_12b_AVX512(const ExpandedData& dataIn, CompressedData* dataOut)
-{
-  /// Compute exponent and store for later use
-  int8_t storedExp[BlockFloatCompander::k_numRB] = {};
-  computeExponent(dataIn, storedExp);
-
-  /// Shift 1RB by corresponding exponent and write exponent and data to output
-  /// Output data is packed exponent first followed by corresponding compressed RB
-#pragma unroll(BlockFloatCompander::k_numRB)
-  for (int n = 0; n < BlockFloatCompander::k_numRB; ++n)
+  /// 8bit RB compression loop for 4 RB
+  void
+  compress8_1RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    /// Apply exponent shift
-    const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + n * BlockFloatCompander::k_numREReal);
-    auto compData = _mm512_srai_epi16(*rawDataIn, storedExp[n]);
-
-    /// Pack compressed data network byte order
-    auto compDataBytePacked = networkBytePack12b(compData);
-
-    /// Store exponent first
-    constexpr int k_totNumBytesPerRB = 37;
-    auto thisRBExpAddr = n * k_totNumBytesPerRB;
-    dataOut->dataCompressed[thisRBExpAddr] = storedExp[n];
-
-    /// Now have 1 RB worth of bytes separated into 3 chunks (1 per lane)
-    /// Use three offset stores to join
-    constexpr uint16_t k_RbWriteMask = 0x0FFF;
-    constexpr int k_numDataBytesPerLane = 12;
-    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1, k_RbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 0));
-    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1 + k_numDataBytesPerLane, k_RbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 1));
-    _mm_mask_storeu_epi8(dataOut->dataCompressed + thisRBExpAddr + 1 + (2 * k_numDataBytesPerLane), k_RbWriteMask, _mm512_extracti64x2_epi64(compDataBytePacked, 2));
+    const auto thisExponent = computeExponent_1RB(dataIn, totShiftBits);
+    applyCompression8_1RB(dataIn, dataOut, 0, thisExponent, 0);
   }
-}
 
 
-/// 8 bit expansion
-void
-BlockFloatCompander::BlockFloatExpand_8b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut)
-{
-#pragma unroll(BlockFloatCompander::k_numRB)
-  for (int n = 0; n < BlockFloatCompander::k_numRB; ++n)
+  /// Calls compression function specific to the number of RB to be executed. For 8 bit iqWidth.
+  void
+  compressByAlloc8(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    /// Expand 1RB of data
-    auto expAddr = n * (BlockFloatCompander::k_numREReal + 1);
+    switch (dataIn.numBlocks)
+    {
+    case 16:
+      compress8_16RB(dataIn, dataOut, totShiftBits);
+      break;
+
+    case 4:
+      compress8_4RB(dataIn, dataOut, totShiftBits);
+      break;
+
+    case 1:
+      compress8_1RB(dataIn, dataOut, totShiftBits);
+      break;
+    }
+  }
+
+
+  /// Apply compression to 1 RB
+  template<BlockFloatCompander::UnpackFunction networkByteUnpack>
+  void
+  applyExpansionN_1RB(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut,
+                      const int expAddr, const int thisRBAddr, const int maxExpShift)
+  {
+    /// Unpack network order packed data
+    const auto dataUnpacked = networkByteUnpack(dataIn.dataCompressed + expAddr + 1);
+    /// Apply exponent scaling (by appropriate arithmetic shift right)
+    const auto dataExpanded = _mm512_srai_epi16(dataUnpacked, maxExpShift - *(dataIn.dataCompressed + expAddr));
+    /// Write expanded data to output
+    static constexpr uint32_t k_WriteMask = 0x00FFFFFF;
+    _mm512_mask_storeu_epi16(dataOut->dataExpanded + thisRBAddr, k_WriteMask, dataExpanded);
+  }
+
+
+  /// Calls compression function specific to the number of RB to be executed. For 9, 10, or 12bit iqWidth.
+  template<BlockFloatCompander::UnpackFunction networkByteUnpack>
+  void
+  expandByAllocN(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut,
+                 const int totNumBytesPerRB, const int maxExpShift)
+  {
+    switch (dataIn.numBlocks)
+    {
+    case 16:
+#pragma unroll(16)
+      for (int n = 0; n < 16; ++n)
+      {
+        applyExpansionN_1RB<networkByteUnpack>(dataIn, dataOut, n * totNumBytesPerRB, n * k_numREReal, maxExpShift);
+      }
+      break;
+
+    case 4:
+#pragma unroll(4)
+      for (int n = 0; n < 4; ++n)
+      {
+        applyExpansionN_1RB<networkByteUnpack>(dataIn, dataOut, n * totNumBytesPerRB, n * k_numREReal, maxExpShift);
+      }
+      break;
+
+    case 1:
+      applyExpansionN_1RB<networkByteUnpack>(dataIn, dataOut, 0, 0, maxExpShift);
+      break;
+    }
+  }
+
+
+  /// Apply expansion to 1 RB and store
+  void
+  applyExpansion8_1RB(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut,
+                      const int expAddr, const int thisRBAddr)
+  {
     const __m256i* rawDataIn = reinterpret_cast<const __m256i*>(dataIn.dataCompressed + expAddr + 1);
     const auto compData16 = _mm512_cvtepi8_epi16(*rawDataIn);
     const auto expData = _mm512_slli_epi16(compData16, *(dataIn.dataCompressed + expAddr));
-    /// Write expanded data to output
     constexpr uint8_t k_rbMask64 = 0b00111111; // 64b write mask for 1RB (24 int16 values)
-    _mm512_mask_storeu_epi64(dataOut->dataExpanded + n * BlockFloatCompander::k_numREReal, k_rbMask64, expData);
+    _mm512_mask_storeu_epi64(dataOut->dataExpanded + thisRBAddr, k_rbMask64, expData);
   }
-}
 
 
-/// 9 bit expansion
-void
-BlockFloatCompander::BlockFloatExpand_9b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut)
-{
-#pragma unroll(BlockFloatCompander::k_numRB)
-  for (int n = 0; n < BlockFloatCompander::k_numRB; ++n)
+  /// Calls expansion function specific to the number of RB to be executed. For 8 bit iqWidth.
+  void
+  expandByAlloc8(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut)
   {
-    constexpr int k_totNumBytesPerRB = 28;
-    auto expAddr = n * k_totNumBytesPerRB;
-
-    /// Unpack network order packed data
-    auto expData = networkByteUnpack9b(dataIn.dataCompressed + expAddr + 1);
-
-    /// Apply exponent scaling (by appropriate arithmetic shift right)
-    constexpr int k_maxExpShift = 7;
-    expData = _mm512_srai_epi16(expData, k_maxExpShift - *(dataIn.dataCompressed + expAddr));
-
-    /// Write expanded data to output
-    static constexpr uint32_t k_WriteMask = 0x00FFFFFF;
-    _mm512_mask_storeu_epi16(dataOut->dataExpanded + n * BlockFloatCompander::k_numREReal, k_WriteMask, expData);
-  }
-}
-
-
-/// 10 bit expansion
-void
-BlockFloatCompander::BlockFloatExpand_10b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut)
-{
-#pragma unroll(BlockFloatCompander::k_numRB)
-  for (int n = 0; n < BlockFloatCompander::k_numRB; ++n)
-  {
-    constexpr int k_totNumBytesPerRB = 31;
-    auto expAddr = n * k_totNumBytesPerRB;
-
-    /// Unpack network order packed data
-    auto expData = networkByteUnpack10b(dataIn.dataCompressed + expAddr + 1);
-
-    /// Apply exponent scaling (by appropriate arithmetic shift right)
-    constexpr int k_maxExpShift = 6;
-    expData = _mm512_srai_epi16(expData, k_maxExpShift - *(dataIn.dataCompressed + expAddr));
-
-    /// Write expanded data to output
-    static constexpr uint32_t k_WriteMask = 0x00FFFFFF;
-    _mm512_mask_storeu_epi16(dataOut->dataExpanded + n * BlockFloatCompander::k_numREReal, k_WriteMask, expData);
-  }
-}
-
-
-/// 12 bit expansion
-void
-BlockFloatCompander::BlockFloatExpand_12b_AVX512(const CompressedData& dataIn, ExpandedData* dataOut)
-{
-#pragma unroll(BlockFloatCompander::k_numRB)
-  for (int n = 0; n < BlockFloatCompander::k_numRB; ++n)
-  {
-    constexpr int k_totNumBytesPerRB = 37;
-    auto expAddr = n * k_totNumBytesPerRB;
-
-    /// Unpack network order packed data
-    auto expData = networkByteUnpack12b(dataIn.dataCompressed + expAddr + 1);
-
-    /// Apply exponent scaling (by appropriate arithmetic shift right)
-    constexpr int k_maxExpShift = 4;
-    expData = _mm512_srai_epi16(expData, k_maxExpShift - *(dataIn.dataCompressed + expAddr));
-
-    /// Write expanded data to output
-    static constexpr uint32_t k_WriteMask = 0x00FFFFFF;
-    _mm512_mask_storeu_epi16(dataOut->dataExpanded + n * BlockFloatCompander::k_numREReal, k_WriteMask, expData);
-  }
-}
-
-
-/// Reference compression
-void
-BlockFloatCompander::BlockFloatCompress_Basic(const ExpandedData& dataIn, CompressedData* dataOut)
-{
-  int dataOutIdx = 0;
-  int16_t iqMask = (int16_t)((1 << dataIn.iqWidth) - 1);
-  int byteShiftUnits = dataIn.iqWidth - 8;
-
-  for (int rb = 0; rb < BlockFloatCompander::k_numRB; ++rb)
-  {
-    /// Find max abs value for this RB
-    int16_t maxAbs = 0;
-    for (int re = 0; re < BlockFloatCompander::k_numREReal; ++re)
+    switch (dataIn.numBlocks)
     {
-      auto dataIdx = rb * BlockFloatCompander::k_numREReal + re;
-      auto dataAbs = saturateAbs(dataIn.dataExpanded[dataIdx]);
-      maxAbs = std::max(maxAbs, dataAbs);
-    }
-
-    // Find exponent and insert into byte stream
-    auto thisExp = (uint8_t)(std::max(0,(16 - dataIn.iqWidth + 1 - __lzcnt16(maxAbs))));
-    dataOut->dataCompressed[dataOutIdx++] = thisExp;
-
-    /// ARS data by exponent and pack bytes in Network order
-    /// This uses a sliding buffer where one or more bytes are
-    /// extracted after the insertion of each compressed sample
-    static constexpr int k_byteMask = 0xFF;
-    int byteShiftVal = -8;
-    int byteBuffer = { 0 };
-    for (int re = 0; re < BlockFloatCompander::k_numREReal; ++re)
-    {
-      auto dataIdxIn = rb * BlockFloatCompander::k_numREReal + re;
-      auto thisRE = dataIn.dataExpanded[dataIdxIn] >> thisExp;
-      byteBuffer = (byteBuffer << dataIn.iqWidth) + (int)(thisRE & iqMask);
-
-      byteShiftVal += (8 + byteShiftUnits);
-      while (byteShiftVal >= 0)
+    case 16:
+#pragma unroll(16)
+      for (int n = 0; n < 16; ++n)
       {
-        auto thisByte = (uint8_t)((byteBuffer >> byteShiftVal) & k_byteMask);
-        dataOut->dataCompressed[dataOutIdx++] = thisByte;
-        byteShiftVal -= 8;
+        applyExpansion8_1RB(dataIn, dataOut, n * (k_numREReal + 1), n * k_numREReal);
       }
-    }
-  }
-  dataOut->iqWidth = dataIn.iqWidth;
-}
+      break;
 
-/// Reference expansion
-void
-BlockFloatCompander::BlockFloatExpand_Basic(const CompressedData& dataIn, ExpandedData* dataOut)
-{
-  uint32_t iqMask = (uint32_t)(UINT_MAX - ((1 << (32 - dataIn.iqWidth)) - 1));
-  uint32_t byteBuffer = { 0 };
-  int numBytesPerRB = (3 * dataIn.iqWidth) + 1;
-  int bitPointer = 0;
-  int dataIdxOut = 0;
-
-  for (int rb = 0; rb < BlockFloatCompander::k_numRB; ++rb)
-  {
-    auto expIdx = rb * numBytesPerRB;
-    auto signExtShift = 32 - dataIn.iqWidth - dataIn.dataCompressed[expIdx];
-
-    for (int b = 0; b < numBytesPerRB - 1; ++b)
-    {
-      auto dataIdxIn = (expIdx + 1) + b;
-      auto thisByte = (uint16_t)dataIn.dataCompressed[dataIdxIn];
-      byteBuffer = (uint32_t)((byteBuffer << 8) + thisByte);
-      bitPointer += 8;
-      while (bitPointer >= dataIn.iqWidth)
+    case 4:
+#pragma unroll(4)
+      for (int n = 0; n < 4; ++n)
       {
-        /// byteBuffer currently has enough data in it to extract a sample
-        /// Shift left first to set sign bit at MSB, then shift right to
-        /// sign extend down to iqWidth. Finally recast to int16.
-        int32_t thisSample32 = (int32_t)((byteBuffer << (32 - bitPointer)) & iqMask);
-        int16_t thisSample = (int16_t)(thisSample32 >> signExtShift);
-        bitPointer -= dataIn.iqWidth;
-        dataOut->dataExpanded[dataIdxOut++] = thisSample;
+        applyExpansion8_1RB(dataIn, dataOut, n * (k_numREReal + 1), n * k_numREReal);
       }
+      break;
+
+    case 1:
+      applyExpansion8_1RB(dataIn, dataOut, 0, 0);
+      break;
     }
   }
 }
 
-/// Reference compression
+
+
+/// Main kernel function for compression.
+/// Starts by determining iqWidth specific parameters and functions.
 void
-BlockFloatCompanderBFW::BlockFloatCompress_Basic(const BlockFloatCompanderBFW::ExpandedData& dataIn, BlockFloatCompanderBFW::CompressedData* dataOut)
+BlockFloatCompander::BFPCompressUserPlaneAvx512(const ExpandedData& dataIn, CompressedData* dataOut)
 {
-  int dataOutIdx = 0;
-  int16_t iqMask = (int16_t)((1 << dataIn.iqWidth) - 1);
-  int byteShiftUnits = dataIn.iqWidth - 8;
+  /// Compensation for extra zeros in 32b leading zero count when computing exponent
+  const auto totShiftBits8 = _mm512_set1_epi32(25);
+  const auto totShiftBits9 = _mm512_set1_epi32(24);
+  const auto totShiftBits10 = _mm512_set1_epi32(23);
+  const auto totShiftBits12 = _mm512_set1_epi32(21);
 
-  for (int rb = 0; rb < BlockFloatCompanderBFW::k_numRB; ++rb)
+  /// Total number of compressed bytes per RB for each iqWidth option
+  constexpr int totNumBytesPerRB9 = 28;
+  constexpr int totNumBytesPerRB10 = 31;
+  constexpr int totNumBytesPerRB12 = 37;
+
+  /// Compressed data write mask for each iqWidth option
+  constexpr uint16_t rbWriteMask9 = 0x01FF;
+  constexpr uint16_t rbWriteMask10 = 0x03FF;
+  constexpr uint16_t rbWriteMask12 = 0x0FFF;
+
+  switch (dataIn.iqWidth)
   {
-    /// Find max abs value for this RB
-    int16_t maxAbs = 0;
-    for (int re = 0; re < BlockFloatCompanderBFW::k_numREReal; ++re)
-    {
-      auto dataIdx = rb * BlockFloatCompanderBFW::k_numREReal + re;
-      auto dataAbs = saturateAbs(dataIn.dataExpanded[dataIdx]);
-      maxAbs = std::max(maxAbs, dataAbs);
-    }
+  case 8:
+    BFP_UPlane::compressByAlloc8(dataIn, dataOut, totShiftBits8);
+    break;
 
-    // Find exponent and insert into byte stream
-    auto thisExp = (uint8_t)(std::max(0,(16 - dataIn.iqWidth + 1 - __lzcnt16(maxAbs))));
-    dataOut->dataCompressed[dataOutIdx++] = thisExp;
+  case 9:
+    BFP_UPlane::compressByAllocN<BlockFloatCompander::networkBytePack9b>(dataIn, dataOut, totShiftBits9, totNumBytesPerRB9, rbWriteMask9);
+    break;
 
-    /// ARS data by exponent and pack bytes in Network order
-    /// This uses a sliding buffer where one or more bytes are
-    /// extracted after the insertion of each compressed sample
-    static constexpr int k_byteMask = 0xFF;
-    int byteShiftVal = -8;
-    int byteBuffer = { 0 };
-    for (int re = 0; re < BlockFloatCompanderBFW::k_numREReal; ++re)
-    {
-      auto dataIdxIn = rb * BlockFloatCompanderBFW::k_numREReal + re;
-      auto thisRE = dataIn.dataExpanded[dataIdxIn] >> thisExp;
-      byteBuffer = (byteBuffer << dataIn.iqWidth) + (int)(thisRE & iqMask);
+  case 10:
+    BFP_UPlane::compressByAllocN<BlockFloatCompander::networkBytePack10b>(dataIn, dataOut, totShiftBits10, totNumBytesPerRB10, rbWriteMask10);
+    break;
 
-      byteShiftVal += (8 + byteShiftUnits);
-      while (byteShiftVal >= 0)
-      {
-        auto thisByte = (uint8_t)((byteBuffer >> byteShiftVal) & k_byteMask);
-        dataOut->dataCompressed[dataOutIdx++] = thisByte;
-        byteShiftVal -= 8;
-      }
-    }
+  case 12:
+    BFP_UPlane::compressByAllocN<BlockFloatCompander::networkBytePack12b>(dataIn, dataOut, totShiftBits12, totNumBytesPerRB12, rbWriteMask12);
+    break;
   }
-  dataOut->iqWidth = dataIn.iqWidth;
 }
 
-/// Reference expansion
+
+
+/// Main kernel function for expansion.
+/// Starts by determining iqWidth specific parameters and functions.
 void
-BlockFloatCompanderBFW::BlockFloatExpand_Basic(const BlockFloatCompanderBFW::CompressedData& dataIn, BlockFloatCompanderBFW::ExpandedData* dataOut)
+BlockFloatCompander::BFPExpandUserPlaneAvx512(const CompressedData& dataIn, ExpandedData* dataOut)
 {
-  uint32_t iqMask = (uint32_t)(UINT_MAX - ((1 << (32 - dataIn.iqWidth)) - 1));
-  uint32_t byteBuffer = { 0 };
-  int numBytesPerRB = (3 * dataIn.iqWidth) + 1;
-  int bitPointer = 0;
-  int dataIdxOut = 0;
+  constexpr int k_totNumBytesPerRB9 = 28;
+  constexpr int k_totNumBytesPerRB10 = 31;
+  constexpr int k_totNumBytesPerRB12 = 37;
 
-  for (int rb = 0; rb < BlockFloatCompanderBFW::k_numRB; ++rb)
+  constexpr int k_maxExpShift9 = 7;
+  constexpr int k_maxExpShift10 = 6;
+  constexpr int k_maxExpShift12 = 4;
+
+  switch (dataIn.iqWidth)
   {
-    auto expIdx = rb * numBytesPerRB;
-    auto signExtShift = 32 - dataIn.iqWidth - dataIn.dataCompressed[expIdx];
+  case 8:
+    BFP_UPlane::expandByAlloc8(dataIn, dataOut);
+    break;
 
-    for (int b = 0; b < numBytesPerRB - 1; ++b)
-    {
-      auto dataIdxIn = (expIdx + 1) + b;
-      auto thisByte = (uint16_t)dataIn.dataCompressed[dataIdxIn];
-      byteBuffer = (uint32_t)((byteBuffer << 8) + thisByte);
-      bitPointer += 8;
-      while (bitPointer >= dataIn.iqWidth)
-      {
-        /// byteBuffer currently has enough data in it to extract a sample
-        /// Shift left first to set sign bit at MSB, then shift right to
-        /// sign extend down to iqWidth. Finally recast to int16.
-        int32_t thisSample32 = (int32_t)((byteBuffer << (32 - bitPointer)) & iqMask);
-        int16_t thisSample = (int16_t)(thisSample32 >> signExtShift);
-        bitPointer -= dataIn.iqWidth;
-        dataOut->dataExpanded[dataIdxOut++] = thisSample;
-      }
-    }
+  case 9:
+    BFP_UPlane::expandByAllocN<BlockFloatCompander::networkByteUnpack9b>(dataIn, dataOut, k_totNumBytesPerRB9, k_maxExpShift9);
+    break;
+
+  case 10:
+    BFP_UPlane::expandByAllocN<BlockFloatCompander::networkByteUnpack10b>(dataIn, dataOut, k_totNumBytesPerRB10, k_maxExpShift10);
+    break;
+
+  case 12:
+    BFP_UPlane::expandByAllocN<BlockFloatCompander::networkByteUnpack12b>(dataIn, dataOut, k_totNumBytesPerRB12, k_maxExpShift12);
+    break;
   }
 }
-
-#define RB_NUM_ROUNDUP(rb) \
-    (BlockFloatCompander::k_numRB * ((rb + BlockFloatCompander::k_numRB - 1) / BlockFloatCompander::k_numRB))
-
 
 /** callback function type for Symbol packet */
 typedef void (*xran_bfp_compress_fn)(const BlockFloatCompander::ExpandedData& dataIn,
                                      BlockFloatCompander::CompressedData* dataOut);
+
+/** callback function type for Symbol packet */
+typedef void (*xran_bfp_decompress_fn)(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut);
 
 int32_t
 xranlib_compress_avx512(const struct xranlib_compress_request *request,
@@ -732,151 +511,224 @@ xranlib_compress_avx512(const struct xranlib_compress_request *request,
     BlockFloatCompander::ExpandedData expandedDataInput;
     BlockFloatCompander::CompressedData compressedDataOut;
     xran_bfp_compress_fn com_fn = NULL;
-    int16_t numRBs = request->numRBs;
+    uint16_t totalRBs = request->numRBs;
+    uint16_t remRBs   = totalRBs;
     int16_t len = 0;
+    int16_t block_idx_bytes = 0;
 
-    switch (request->iqWidth){
+    switch (request->iqWidth) {
         case 8:
-            expandedDataInput.iqWidth = 8;
-            com_fn = BlockFloatCompander::BlockFloatCompress_8b_AVX512;
-            break;
         case 9:
-            expandedDataInput.iqWidth = 9;
-            com_fn = BlockFloatCompander::BlockFloatCompress_9b_AVX512;
-            break;
         case 10:
-            expandedDataInput.iqWidth = 10;
-            com_fn = BlockFloatCompander::BlockFloatCompress_10b_AVX512;
-            break;
         case 12:
-            expandedDataInput.iqWidth = 12;
-            com_fn = BlockFloatCompander::BlockFloatCompress_12b_AVX512;
+            com_fn = BlockFloatCompander::BFPCompressUserPlaneAvx512;
             break;
         default:
-            expandedDataInput.iqWidth = request->iqWidth;
-            com_fn = BlockFloatCompander::BlockFloatCompress_Basic;
+            com_fn = BlockFloatCompander::BFPCompressRef;
             break;
     }
 
-    for (int16_t block_idx = 0;
-        block_idx < RB_NUM_ROUNDUP(numRBs)/BlockFloatCompander::k_numRB /*+ 1*/; /*  16 RBs at time */
-        block_idx++) {
+    expandedDataInput.iqWidth = request->iqWidth;
+    expandedDataInput.numDataElements =  24;
 
-        expandedDataInput.dataExpanded =
-            &request->data_in[block_idx*BlockFloatCompander::k_numSampsExpanded];
-        compressedDataOut.dataCompressed =
-            (uint8_t*)&response->data_out[len];
-
-        com_fn(expandedDataInput, &compressedDataOut);
-        len  += ((3 * expandedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_numRB,(int16_t)numRBs);
-    }
-
-    response->len =  ((3 * expandedDataInput.iqWidth) + 1) * numRBs;
-
-    return 0;
-}
-
-/** callback function type for Symbol packet */
-typedef void (*xran_bfp_compress_bfw_fn)(const BlockFloatCompanderBFW::ExpandedData& dataIn, BlockFloatCompanderBFW::CompressedData* dataOut);
-
-int32_t
-xranlib_compress_avx512_bfw(const struct xranlib_compress_request *request,
-                        struct xranlib_compress_response *response)
-{
-    BlockFloatCompanderBFW::ExpandedData expandedDataInput;
-    BlockFloatCompanderBFW::CompressedData compressedDataKern;
-    xran_bfp_compress_bfw_fn com_fn = NULL;
-
-#if 0
-    for (int m = 0; m < BlockFloatCompander::k_numRB; ++m){
-        for (int n = 0; n < BlockFloatCompander::k_numREReal; ++n){
-            expandedDataInput.dataExpanded[m*BlockFloatCompander::k_numREReal+n] =
-                request->data_in[m*BlockFloatCompander::k_numREReal+n];
+    while (remRBs){
+        expandedDataInput.dataExpanded   = &request->data_in[block_idx_bytes];
+        compressedDataOut.dataCompressed = (uint8_t*)&response->data_out[len];
+        if(remRBs >= 16){
+            expandedDataInput.numBlocks = 16;
+            com_fn(expandedDataInput, &compressedDataOut);
+            len  += ((3 * expandedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)16);
+            block_idx_bytes += 16*expandedDataInput.numDataElements;
+            remRBs -= 16;
+        }else if(remRBs >= 4){
+            expandedDataInput.numBlocks = 4;
+            com_fn(expandedDataInput, &compressedDataOut);
+            len  += ((3 * expandedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)4);
+            block_idx_bytes +=4*expandedDataInput.numDataElements;
+            remRBs -=4;
+        }else if (remRBs >= 1){
+            expandedDataInput.numBlocks = 1;
+            com_fn(expandedDataInput, &compressedDataOut);
+            len  += ((3 * expandedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)1);
+            block_idx_bytes +=1*expandedDataInput.numDataElements;
+            remRBs = remRBs - 1;
         }
     }
-#endif
 
-    expandedDataInput.dataExpanded = request->data_in;
-    compressedDataKern.dataCompressed = (uint8_t*)response->data_out;
-
-    com_fn = BlockFloatCompanderBFW::BlockFloatCompress_Basic;
-    switch (request->iqWidth){
-        case 8:
-            expandedDataInput.iqWidth = 8;
-            break;
-        case 9:
-            expandedDataInput.iqWidth = 9;
-            //com_fn = BlockFloatCompanderBFW::BlockFloatExpand_9b_AVX512
-            break;
-        case 10:
-            expandedDataInput.iqWidth = 10;
-            break;
-        case 12:
-            expandedDataInput.iqWidth = 12;
-            break;
-        default:
-            printf("bfwIqWidth is not supported %d\n", request->iqWidth);
-            return -1;
-            break;
-    }
-
-    com_fn(expandedDataInput, &compressedDataKern);
-    response->len = ((BlockFloatCompanderBFW::k_numRE/16*4*expandedDataInput.iqWidth)+1)*BlockFloatCompanderBFW::k_numRB;
+    response->len =  ((3 * expandedDataInput.iqWidth) + 1) * totalRBs;
 
     return 0;
 }
-
-/** callback function type for Symbol packet */
-typedef void (*xran_bfp_decompress_fn)(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut);
-
 
 int32_t
 xranlib_decompress_avx512(const struct xranlib_decompress_request *request,
     struct xranlib_decompress_response *response)
 {
-
     BlockFloatCompander::CompressedData compressedDataInput;
     BlockFloatCompander::ExpandedData expandedDataOut;
 
     xran_bfp_decompress_fn decom_fn = NULL;
-    int16_t numRBs = request->numRBs;
+    uint16_t totalRBs = request->numRBs;
+    uint16_t remRBs   = totalRBs;
     int16_t len = 0;
+    int16_t block_idx_bytes = 0;
 
-    switch (request->iqWidth){
-        case 8:
-            compressedDataInput.iqWidth = 8;
-            decom_fn = BlockFloatCompander::BlockFloatExpand_8b_AVX512;
-            break;
-        case 9:
-            compressedDataInput.iqWidth = 9;
-            decom_fn = BlockFloatCompander::BlockFloatExpand_9b_AVX512;
-            break;
-        case 10:
-            compressedDataInput.iqWidth = 10;
-            decom_fn = BlockFloatCompander::BlockFloatExpand_10b_AVX512;
-            break;
-        case 12:
-            compressedDataInput.iqWidth = 12;
-            decom_fn = BlockFloatCompander::BlockFloatExpand_12b_AVX512;
-            break;
-        default:
-            compressedDataInput.iqWidth = request->iqWidth;
-            decom_fn = BlockFloatCompander::BlockFloatExpand_Basic;
-            break;
+    switch (request->iqWidth) {
+    case 8:
+    case 9:
+    case 10:
+    case 12:
+        decom_fn = BlockFloatCompander::BFPExpandUserPlaneAvx512;
+        break;
+    default:
+        decom_fn = BlockFloatCompander::BFPExpandRef;
+        break;
     }
 
-    for (int16_t block_idx = 0;
-        block_idx < RB_NUM_ROUNDUP(numRBs)/BlockFloatCompander::k_numRB;
-        block_idx++) {
+    compressedDataInput.iqWidth         =  request->iqWidth;
+    compressedDataInput.numDataElements =  24;
 
-        compressedDataInput.dataCompressed = (uint8_t*)&request->data_in[block_idx*(((3 * compressedDataInput.iqWidth ) + 1) * BlockFloatCompander::k_numRB)];
-        expandedDataOut.dataExpanded = &response->data_out[len];
-
-        decom_fn(compressedDataInput, &expandedDataOut);
-        len  += std::min((int16_t)BlockFloatCompander::k_numSampsExpanded, (int16_t)(numRBs*BlockFloatCompander::k_numREReal));
+    while(remRBs) {
+        compressedDataInput.dataCompressed = (uint8_t*)&request->data_in[block_idx_bytes];
+        expandedDataOut.dataExpanded       = &response->data_out[len];
+        if(remRBs >= 16){
+            compressedDataInput.numBlocks = 16;
+            decom_fn(compressedDataInput, &expandedDataOut);
+            len  += 16*compressedDataInput.numDataElements;
+            block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)16);
+            remRBs -= 16;
+        }else if(remRBs >= 4){
+            compressedDataInput.numBlocks = 4;
+            decom_fn(compressedDataInput, &expandedDataOut);
+            len  += 4*compressedDataInput.numDataElements;
+            block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)4);
+            remRBs -=4;
+        }else if (remRBs >= 1){
+            compressedDataInput.numBlocks = 1;
+            decom_fn(compressedDataInput, &expandedDataOut);
+            len  += 1*compressedDataInput.numDataElements;
+            block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)1);
+            remRBs = remRBs - 1;
+        }
     }
 
-    response->len = numRBs * BlockFloatCompander::k_numREReal* sizeof(int16_t);
+    response->len = totalRBs * compressedDataInput.numDataElements * sizeof(int16_t);
 
     return 0;
 }
+
+int32_t
+xranlib_compress_avx512_bfw(const struct xranlib_compress_request *request,
+                        struct xranlib_compress_response *response)
+{
+    BlockFloatCompander::ExpandedData expandedDataInput;
+    BlockFloatCompander::CompressedData compressedDataOut;
+    xran_bfp_compress_fn com_fn = NULL;
+
+    if (request->numRBs != 1){
+        printf("Unsupported numRBs %d\n", request->numRBs);
+        return -1;
+    }
+
+    switch (request->iqWidth) {
+        case 8:
+        case 9:
+        case 10:
+        case 12:
+        switch (request->numDataElements) {
+            case 16:
+                com_fn = BlockFloatCompander::BFPCompressCtrlPlane8Avx512;
+                break;
+            case 32:
+                com_fn = BlockFloatCompander::BFPCompressCtrlPlane16Avx512;
+                break;
+            case 64:
+                com_fn = BlockFloatCompander::BFPCompressCtrlPlane32Avx512;
+                break;
+            case 128:
+                com_fn = BlockFloatCompander::BFPCompressCtrlPlane64Avx512;
+                break;
+            case 24:
+            default:
+                printf("Unsupported numDataElements %d\n", request->numDataElements);
+                return -1;
+                break;
+        }
+        break;
+    default:
+        printf("Unsupported iqWidth %d\n", request->iqWidth);
+        return -1;
+        break;
+    }
+
+    expandedDataInput.iqWidth         = request->iqWidth;
+    expandedDataInput.numDataElements = request->numDataElements;
+    expandedDataInput.numBlocks       = 1;
+    expandedDataInput.dataExpanded    = &request->data_in[0];
+    compressedDataOut.dataCompressed  = (uint8_t*)&response->data_out[0];
+
+    com_fn(expandedDataInput, &compressedDataOut);
+
+    response->len =  (((expandedDataInput.numDataElements  * expandedDataInput.iqWidth) >> 3) + 1)
+                            * request->numRBs;
+
+    return 0;
+}
+
+int32_t
+xranlib_decompress_avx512_bfw(const struct xranlib_decompress_request *request,
+                        struct xranlib_decompress_response *response)
+{
+    BlockFloatCompander::CompressedData compressedDataInput;
+    BlockFloatCompander::ExpandedData expandedDataOut;
+    xran_bfp_decompress_fn decom_fn = NULL;
+
+    if (request->numRBs != 1){
+        printf("Unsupported numRBs %d\n", request->numRBs);
+        return -1;
+    }
+
+    switch (request->iqWidth) {
+        case 8:
+        case 9:
+        case 10:
+        case 12:
+        switch (request->numDataElements) {
+            case 16:
+                decom_fn = BlockFloatCompander::BFPExpandCtrlPlane8Avx512;
+                break;
+            case 32:
+                decom_fn = BlockFloatCompander::BFPExpandCtrlPlane16Avx512;
+                break;
+            case 64:
+                decom_fn = BlockFloatCompander::BFPExpandCtrlPlane32Avx512;
+                break;
+            case 128:
+                decom_fn = BlockFloatCompander::BFPExpandCtrlPlane64Avx512;
+                break;
+            case 24:
+            default:
+                printf("Unsupported numDataElements %d\n", request->numDataElements);
+                return -1;
+                break;
+        }
+        break;
+    default:
+        printf("Unsupported iqWidth %d\n", request->iqWidth);
+        return -1;
+        break;
+    }
+
+    compressedDataInput.iqWidth         = request->iqWidth;
+    compressedDataInput.numDataElements = request->numDataElements;
+    compressedDataInput.numBlocks       = 1;
+    compressedDataInput.dataCompressed  = (uint8_t*)&request->data_in[0];
+    expandedDataOut.dataExpanded        = &response->data_out[0];
+
+    decom_fn(compressedDataInput, &expandedDataOut);
+
+    response->len = request->numRBs * compressedDataInput.numDataElements * sizeof(int16_t);
+
+    return 0;
+}
+

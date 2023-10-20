@@ -1,0 +1,28 @@
+###############################################################################
+#
+#   Copyright (c) 2019 Intel.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+################################################################################
+#
+# Usage: source inden_options
+#
+
+find . -name '*.[ch]' | xargs indent -nbad -bap -nbc -nbbo -hnl -br -brs -c33 -cd33 -ncdb -ce -ci4 -cli4 -d0 -di1 -nfc1 -i4 -nip -l80 -nlp -npcs -nprs -npsl -sai -saf -saw -ncs -nsc -sob -nfca -cp33 -ss -ts4 -il1 -nut -bfda
+
+#indent source/api/fapi2mac/nr5g_fapi_fapi2mac_api.c -nbad -bap -nbc -nbbo -hnl -br -brs -c33 -cd33 -ncdb -ce -ci4 -cli4 -d0 -di1 -nfc1 -i4 -nip -l80 -nlp -npcs -nprs -npsl -sai -saf -saw -ncs -nsc -sob -nfca -cp33 -ss -ts4 -il1 -nut -bfda
+
+
+
+#indent nr5g_fapi.c -bad -bap -bli0 -br -ce -ci4 -i4 -nbbo -ncdb -bfda -nhnl -nlp -nsc -nip -npcs -nut -kr

@@ -1,21 +1,8 @@
-/******************************************************************************
-*
-*   Copyright (c) 2019 Intel.
-*
-*   Licensed under the Apache License, Version 2.0 (the "License");
-*   you may not use this file except in compliance with the License.
-*   You may obtain a copy of the License at
-*
-*       http://www.apache.org/licenses/LICENSE-2.0
-*
-*   Unless required by applicable law or agreed to in writing, software
-*   distributed under the License is distributed on an "AS IS" BASIS,
-*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*   See the License for the specific language governing permissions and
-*   limitations under the License.
-*
-*******************************************************************************/
-
+/*******************************************************************************
+ *
+ * <COPYRIGHT_TAG>
+ *
+ *******************************************************************************/
 
 /* This is the new utility file for all tests, all new common functionality has to go here.
    When contributing to the common.hpp please focus on readability and maintainability rather than
@@ -33,8 +20,14 @@
 #include <string>
 #include <utility>
 #include <vector>
-
+#if defined(__arm__) || defined(__aarch64__)
+#define SIMDE_ENABLE_NATIVE_ALIASES
+#include <simde/x86/sse2.h>
+#include <simde/x86/avx2.h>
+#include <simde/x86/avx512.h>
+#else
 #include <immintrin.h>
+#endif
 #include <malloc.h>
 
 #define _BBLIB_DPDK_
@@ -42,9 +35,12 @@
 #ifdef _BBLIB_DPDK_
 #include <rte_config.h>
 #include <rte_malloc.h>
+#include <rte_cycles.h>
 #endif
 
+#ifdef  TEST_XRAN
 #include "gtest/gtest.h"
+#endif
 
 #include "common_typedef_xran.h"
 
@@ -81,6 +77,9 @@ struct reading_input_file_exception : public std::exception
         return "Input file cannot be read!";
     }
 };
+
+template <typename F, typename ... Args>
+std::pair<double, double> run_benchmark(F function, Args ... args);
 
 /*!
     \brief Attach current process to the selected core.
@@ -153,6 +152,7 @@ unsigned long tsc_tick();
     values, e.g. 1, 0.001, 5e-05, etc. or filename. Depends on the get type test framework can either
     read the value or load data from the file - and it happens automatically (*pff* MAGIC!).
 */
+#ifdef TEST_XRAN
 class KernelTests : public testing::TestWithParam<unsigned>
 {
 public:
@@ -309,6 +309,92 @@ protected:
     }
 
     template <typename T>
+    T get_input_parameter(const std::string &subsection_name, const std::string &parameter_name)
+    {
+        try
+        {
+            return get_parameter<T>("parameters", subsection_name, parameter_name);
+        }
+        catch (std::domain_error &e)
+        {
+            std::cout << "[----------] get_input_parameter (" << subsection_name << "." << parameter_name
+                      << ") failed: " << e.what()
+                      << ". Did you mispell the parameter name?" << std::endl;
+            throw;
+        }
+        catch(reading_input_file_exception &e)
+        {
+            std::cout << "[----------] get_input_parameter (" << subsection_name << "." << parameter_name
+                      << ") failed: " << e.what() << std::endl;
+            throw;
+        }
+    }
+    
+    template <typename T>
+    T get_input_parameter(const std::string &subsection_name, const int index, const std::string &parameter_name)
+    {
+        try
+        {
+            return get_parameter<T>("parameters", subsection_name, index, parameter_name);
+        }
+        catch (std::domain_error &e)
+        {
+            std::cout << "[----------] get_input_parameter (" << subsection_name << "[" << index << "]." << parameter_name
+                      << ") failed: " << e.what()
+                      << ". Did you mispell the parameter name?" << std::endl;
+            throw;
+        }
+        catch(reading_input_file_exception &e)
+        {
+            std::cout << "[----------] get_input_parameter (" << subsection_name << "[" << index << "]." << parameter_name
+                      << ") failed: " << e.what() << std::endl;
+            throw;
+        }
+    }
+    int get_input_parameter_size(const std::string &subsection_name, const std::string &parameter_name)
+    {
+        try
+        {
+            auto array_size = conf[test_type][GetParam()]["parameters"][subsection_name][parameter_name].size();
+            return (array_size);
+        }
+        catch (std::domain_error &e)
+        {
+            std::cout << "[----------] get_input_parameter_size (" << subsection_name << "." << parameter_name
+                      << ") failed: " << e.what()
+                      << ". Did you mispell the parameter name?" << std::endl;
+            return (-1);
+        }
+        catch(reading_input_file_exception &e)
+        {
+            std::cout << "[----------] get_input_parameter_size (" << subsection_name << "." << parameter_name
+                      << ") failed: " << e.what() << std::endl;
+            throw;
+        }
+    }
+    int get_input_subsection_size(const std::string &subsection_name)
+    {
+        try
+        {
+            auto array_size = conf[test_type][GetParam()]["parameters"][subsection_name].size();
+            return (array_size);
+        }
+        catch (std::domain_error &e)
+        {
+            std::cout << "[----------] get_input_subsection_size (" << subsection_name 
+                      << ") failed: " << e.what()
+                      << ". Did you mispell the subsection name?" << std::endl;
+            return (-1);
+        }
+        catch(reading_input_file_exception &e)
+        {
+            std::cout << "[----------] get_input_subsection_size (" << subsection_name
+                      << ") failed: " << e.what() << std::endl;
+            throw;
+        }
+    }
+
+    template <typename T>
     T get_reference_parameter(const std::string &parameter_name)
     {
         try
@@ -405,6 +491,93 @@ private:
         return data_reader<T>::read_parameter(GetParam(), type, parameter_name);
     }
 
+    template<typename T>
+    struct data_reader2 {
+        static T read_parameter(const int index, const std::string &type,
+                                const std::string &subsection_name,
+                                const std::string &parameter_name)
+        {
+            return conf[test_type][index][type][subsection_name][parameter_name];
+        }
+    };
+
+    template<typename T>
+    struct data_reader2<std::vector<T>> {
+        static std::vector<T> read_parameter(const int index, const std::string &type,
+                                             const std::string &subsection_name,
+                                             const std::string &parameter_name)
+        {
+            auto array_size = conf[test_type][index][type][subsection_name][parameter_name].size();
+
+            std::vector<T> result(array_size);
+
+            for(unsigned number = 0; number < array_size; number++)
+                result.at(number) = conf[test_type][index][type][subsection_name][parameter_name][number];
+
+            return result;
+        }
+    };
+
+    template<typename T>
+    struct data_reader2<T*> {
+        static T* read_parameter(const int index, const std::string &type,
+                                 const std::string &subsection_name,
+                                 const std::string &parameter_name)
+        {
+            return (T*) read_data_to_aligned_array(conf[test_type][index][type][subsection_name][parameter_name]);
+        }
+    };
+    template <typename T>
+    T get_parameter(const std::string &type, const std::string &subsection_name, const std::string &parameter_name)
+    {
+        return data_reader2<T>::read_parameter(GetParam(), type, subsection_name, parameter_name);
+    }
+
+    template<typename T>
+    struct data_reader3 {
+        static T read_parameter(const int index, const std::string &type,
+                                const std::string &subsection_name,
+                                const int subindex,
+                                const std::string &parameter_name)
+        {
+            return conf[test_type][index][type][subsection_name][subindex][parameter_name];
+        }
+    };
+
+    template<typename T>
+    struct data_reader3<std::vector<T>> {
+        static std::vector<T> read_parameter(const int index, const std::string &type,
+                                             const std::string &subsection_name,
+                                             const int subindex,
+                                             const std::string &parameter_name)
+        {
+            auto array_size = conf[test_type][index][type][subsection_name][subindex][parameter_name].size();
+
+            std::vector<T> result(array_size);
+
+            for(unsigned number = 0; number < array_size; number++)
+                result.at(number) = conf[test_type][index][type][subsection_name][subindex][parameter_name][number];
+
+            return result;
+        }
+    };
+
+    template<typename T>
+    struct data_reader3<T*> {
+        static T* read_parameter(const int index, const std::string &type,
+                                 const std::string &subsection_name,
+                                 const int subindex,
+                                 const std::string &parameter_name)
+        {
+            return (T*) read_data_to_aligned_array(conf[test_type][index][type][subsection_name][subindex][parameter_name]);
+        }
+    };
+    template <typename T>
+    T get_parameter(const std::string &type, const std::string &subsection_name, const int subindex, const std::string &parameter_name)
+    {
+        return data_reader3<T>::read_parameter(GetParam(), type, subsection_name, subindex, parameter_name);
+    }
+
     void print_and_store_results(const std::string &isa,
                                  const std::string &parameters,
                                  const std::string &module_name,
@@ -427,11 +600,19 @@ std::pair<double, double> run_benchmark(F function, Args ... args)
     std::vector<long> results((unsigned long) BenchmarkParameters::repetition);
 
     for(unsigned int outer_loop = 0; outer_loop < BenchmarkParameters::repetition; outer_loop++) {
+#if !defined(RTE_ARCH_ARM64)
         const auto start_time =  __rdtsc();
+#else
+        const auto start_time =  rte_rdtsc();
+#endif
         for (unsigned int inner_loop = 0; inner_loop < BenchmarkParameters::loop; inner_loop++) {
                 function(args ...);
         }
+#if !defined(RTE_ARCH_ARM64)
         const auto end_time = __rdtsc();
+#else
+        const auto end_time = rte_rdtsc();
+#endif
         results.push_back(end_time - start_time);
     }
 
@@ -471,6 +652,7 @@ void assert_array_near(const T* reference, const T* actual, const int size, cons
     }
 }
 
+/*
 template <>
 void assert_array_near<complex_float>(const complex_float* reference, const complex_float* actual, const int size, const double precision)
 {
@@ -481,7 +663,7 @@ void assert_array_near<complex_float>(const complex_float* reference, const comp
         ASSERT_NEAR(reference[index].im, actual[index].im, precision)
                              <<"The wrong number is IM, index: "<< index;
     }
-}
+}*/
 
 /*!
     \brief Assert average diff of two arrays. It calls ASSERT_GT to check the average.
@@ -667,5 +849,6 @@ T* generate_random_real_numbers(const long size, const unsigned alignment, const
 
     return generate_random_numbers<T, std::uniform_real_distribution<T>>(size, alignment, distribution);
 }
+#endif
 
 #endif //XRANLIB_COMMON_HPP

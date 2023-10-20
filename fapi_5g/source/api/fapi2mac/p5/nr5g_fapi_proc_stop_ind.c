@@ -25,7 +25,10 @@
 #include "nr5g_fapi_framework.h"
 #include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_api.h"
+#include "nr5g_fapi_fapi2phy_api.h"
 #include "nr5g_fapi_fapi2mac_p5_proc.h"
+#include "nr5g_fapi_fapi2phy_p5_proc.h"
+#include "nr5g_fapi_fapi2phy_p5_pvt_proc.h"
 
 /** @ingroup group_source_api_p5_fapi2mac_proc
  *
@@ -44,7 +47,6 @@ uint8_t nr5g_fapi_stop_indication(
 {
     uint8_t phy_id;
 
-    fapi_stop_ind_t *p_fapi_resp;
     fapi_error_ind_t *p_fapi_error_ind;
     p_fapi_api_queue_elem_t p_list_elem;
     p_nr5g_fapi_phy_instance_t p_phy_instance = NULL;
@@ -70,10 +72,11 @@ uint8_t nr5g_fapi_stop_indication(
 
     p_stats = &p_phy_instance->stats;
     p_stats->iapi_stats.iapi_stop_ind++;
-    if (0 == p_iapi_resp->nStatus) {
+    if (SUCCESS == p_iapi_resp->nStatus) {
         if (FAPI_STATE_RUNNING == p_phy_instance->state) {
             p_phy_instance->state = FAPI_STATE_CONFIGURED;
         }
+#ifdef DEBUG_MODE
         p_list_elem =
             nr5g_fapi_fapi2mac_create_api_list_elem(FAPI_STOP_INDICATION, 1,
             sizeof(fapi_stop_ind_t));
@@ -82,7 +85,7 @@ uint8_t nr5g_fapi_stop_indication(
                     "list element. Out of memory!!!"));
             return FAILURE;
         }
-
+        fapi_stop_ind_t *p_fapi_resp;
         p_fapi_resp = (fapi_stop_ind_t *) (p_list_elem + 1);
         p_fapi_resp->header.msg_id = FAPI_STOP_INDICATION;
         p_fapi_resp->header.length = (uint16_t) sizeof(fapi_stop_ind_t);
@@ -90,7 +93,17 @@ uint8_t nr5g_fapi_stop_indication(
         nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
         p_stats->fapi_stats.fapi_stop_ind++;
         NR5G_FAPI_LOG(INFO_LOG, ("[STOP.indication][%d]", phy_id));
-    } else if (1 == p_iapi_resp->nStatus) {
+#else
+        fapi_vendor_ext_shutdown_req_t fapi_req;
+        fapi_req.header.msg_id = FAPI_VENDOR_EXT_SHUTDOWN_REQUEST;
+        fapi_req.header.length = sizeof(fapi_vendor_ext_shutdown_req_t);
+        fapi_req.sfn = 0;
+        fapi_req.slot = 0;
+        fapi_req.test_type = 0;
+        nr5g_fapi_shutdown_request(p_phy_instance, &fapi_req);
+        nr5g_fapi_fapi2phy_send_api_list();
+#endif
+    } else if (FAILURE == p_iapi_resp->nStatus) {
         p_list_elem =
             nr5g_fapi_fapi2mac_create_api_list_elem(FAPI_ERROR_INDICATION, 1,
             sizeof(fapi_error_ind_t));

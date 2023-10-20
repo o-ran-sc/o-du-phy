@@ -67,6 +67,7 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
         pclose(fp);
         return NULL;
     }
+    pclose(fp);
     num_cpus = atoi(max_core);
     entry = rte_cfgfile_get_entry(cfg_file, "MAC2PHY_WORKER", "core_id");
     if (entry) {
@@ -79,7 +80,8 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
     }
 
     entry =
-        rte_cfgfile_get_entry(cfg_file, "MAC2PHY_WORKER", "thread_sched_policy");
+        rte_cfgfile_get_entry(cfg_file, "MAC2PHY_WORKER",
+        "thread_sched_policy");
     if (entry) {
         cfg->mac2phy_worker.thread_sched_policy = (uint8_t) atoi(entry);
         if (cfg->mac2phy_worker.thread_sched_policy != SCHED_FIFO &&
@@ -118,7 +120,8 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
     }
 
     entry =
-        rte_cfgfile_get_entry(cfg_file, "PHY2MAC_WORKER", "thread_sched_policy");
+        rte_cfgfile_get_entry(cfg_file, "PHY2MAC_WORKER",
+        "thread_sched_policy");
     if (entry) {
         cfg->phy2mac_worker.thread_sched_policy = (uint8_t) atoi(entry);
         if (cfg->phy2mac_worker.thread_sched_policy != SCHED_FIFO &&
@@ -168,13 +171,18 @@ p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
             cfg->logger.level = ERROR_LOG;
         else if (!strcmp(entry, "trace"))
             cfg->logger.level = TRACE_LOG;
-        else if (!strcmp(entry, "hexdump"))
-            cfg->logger.level = HEXDUMP_LOG;
         else
             cfg->logger.level = NONE_LOG;
     }
 
-    pclose(fp);
+    entry = rte_cfgfile_get_entry(cfg_file, "DPDK", "dpdk_iova_mode");
+    if (entry) {
+        cfg->dpdk.iova_mode = (uint8_t) atoi(entry);
+        if (cfg->dpdk.iova_mode >= DPDK_IOVA_MAX_MODE) {
+            printf("The mode is out of range: %d", cfg->dpdk.iova_mode);
+            exit(-1);
+        }
+    }
 
     return cfg;
 }

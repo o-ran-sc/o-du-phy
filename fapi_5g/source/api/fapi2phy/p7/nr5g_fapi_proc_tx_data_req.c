@@ -28,6 +28,7 @@
 #include "nr5g_fapi_fapi2phy_api.h"
 #include "nr5g_fapi_fapi2phy_p7_proc.h"
 #include "nr5g_fapi_fapi2phy_p7_pvt_proc.h"
+#include "nr5g_fapi_memory.h"
 
  /** @ingroup group_source_api_p7_fapi2phy_proc
  *
@@ -102,11 +103,23 @@ uint8_t nr5g_fapi_tx_data_req_to_phy_translation(
     fapi_tx_data_req_t * p_fapi_req,
     PTXRequestStruct p_phy_req)
 {
-    uint16_t idx;
-    uint32_t tlv;
+#define GATHER_SIZE 3
+#define GATHER_PDU_IDX 0
+#define GATHER_CW1 1
+#define GATHER_CW2 2
+    int gather[FAPI_MAX_NUMBER_DL_PDUS_PER_TTI][GATHER_SIZE];
+    int gathered_count = 0;
+    uint8_t *tag;
+    uint32_t length;
+    uint16_t idx, count, found;
     fapi_tx_pdu_desc_t *p_fapi_pdu = NULL;
     PDLPDUDataStruct p_phy_pdu = NULL;
 
+    NR5G_FAPI_MEMSET(gather,
+        (sizeof(int) * FAPI_MAX_NUMBER_DL_PDUS_PER_TTI * 3), -1,
+        (sizeof(int) * FAPI_MAX_NUMBER_DL_PDUS_PER_TTI * 3));
+    NR5G_FAPI_MEMSET(p_phy_req, sizeof(TXRequestStruct), 0,
+        sizeof(TXRequestStruct));
     p_phy_req->sMsgHdr.nMessageType = MSG_TYPE_PHY_TX_REQ;
     p_phy_req->sMsgHdr.nMessageLen = (uint16_t) sizeof(TXRequestStruct);
     p_phy_req->sSFN_Slot.nCarrierIdx = p_phy_instance->phy_id;
@@ -114,20 +127,66 @@ uint8_t nr5g_fapi_tx_data_req_to_phy_translation(
     p_phy_req->sSFN_Slot.nSlot = p_fapi_req->slot;
     p_phy_req->nPDU = p_fapi_req->num_pdus;
     p_phy_pdu = (PDLPDUDataStruct) (p_phy_req + 1);
+
     for (idx = 0; idx < p_fapi_req->num_pdus; idx++) {
+        found = FALSE;
         p_fapi_pdu = &p_fapi_req->pdu_desc[idx];
-        for (tlv = 0; tlv < p_fapi_pdu->num_tlvs; tlv++) {
-            p_phy_pdu->nPduIdx = p_fapi_pdu->pdu_index;
-            p_phy_pdu->nPduLen1 = 0;
-            p_phy_pdu->nPduLen2 = 0;
-            p_phy_pdu->pPayload1 = NULL;
-            p_phy_pdu->pPayload2 = NULL;
-            if (tlv == 0) {
-                p_phy_pdu->nPduLen1 = p_fapi_pdu->tlvs[tlv].tl.length;
-                p_phy_pdu->pPayload1 = p_fapi_pdu->tlvs[tlv].value;
+        for (count = 0; count < gathered_count; count++) {
+            if (gather[count][GATHER_PDU_IDX] == p_fapi_pdu->pdu_index) {
+                found = TRUE;
+                break;
+            }
+        }
+
+        if (found) {
+            gather[count][GATHER_CW2] = idx;
+        } else {
+            if (gathered_count < FAPI_MAX_NUMBER_DL_PDUS_PER_TTI) {
+                gather[gathered_count][GATHER_PDU_IDX] = p_fapi_pdu->pdu_index;
+                gather[gathered_count][GATHER_CW1] = idx;
+                gathered_count++;
             } else {
-                p_phy_pdu->nPduLen2 = p_fapi_pdu->tlvs[tlv].tl.length;
-                p_phy_pdu->pPayload2 = p_fapi_pdu->tlvs[tlv].value;
+                NR5G_FAPI_LOG(ERROR_LOG,
+                    ("exceeded Max DL Pdus supported per tti: %d [%d] ",
+                        gathered_count, FAPI_MAX_NUMBER_DL_PDUS_PER_TTI));
+            }
+        }
+    }
+
+    for (count = 0; count < gathered_count; count++) {
+        p_phy_pdu->nPduLen1 = 0;
+        p_phy_pdu->nPduLen2 = 0;
+        p_phy_pdu->pPayload1 = NULL;
+        p_phy_pdu->pPayload2 = NULL;
+        if (gather[count][GATHER_CW1] >= 0) {
+            p_fapi_pdu = &p_fapi_req->pdu_desc[gather[count][GATHER_CW1]];
+            p_phy_pdu->nPduIdx = p_fapi_pdu->pdu_index;
+            tag = (uint8_t *) & p_fapi_pdu->tlvs[0].tl.tag;
+            if (*tag == FAPI_TX_DATA_PTR_TO_PAYLOAD_64) {
+                tag++;
+                length =
+                    (((uint32_t) *
+                        tag) << 16) | (uint32_t) p_fapi_pdu->tlvs[0].tl.length;
+                p_phy_pdu->nPduLen1 = length;
+                p_phy_pdu->pPayload1 = p_fapi_pdu->tlvs[0].value;
+            } else {
+                NR5G_FAPI_LOG(ERROR_LOG,
+                    ("Only 64 bit Ptr to Payload in TX_DATA.req is supported"));
+            }
+        }
+        if (gather[count][GATHER_CW2] >= 0) {
+            p_fapi_pdu = &p_fapi_req->pdu_desc[gather[count][GATHER_CW2]];
+            tag = (uint8_t *) & p_fapi_pdu->tlvs[0].tl.tag;
+            if (*tag == FAPI_TX_DATA_PTR_TO_PAYLOAD_64) {
+                tag++;
+                length =
+                    (((uint32_t) *
+                        tag) << 16) | (uint32_t) p_fapi_pdu->tlvs[0].tl.length;
+                p_phy_pdu->nPduLen2 = length;
+                p_phy_pdu->pPayload2 = p_fapi_pdu->tlvs[0].value;
+            } else {
+                NR5G_FAPI_LOG(ERROR_LOG,
+                    ("Only 64 bit Ptr to Payload in TX_DATA.req is supported"));
             }
         }
         p_phy_pdu++;

@@ -164,47 +164,47 @@ uint8_t nr5g_fapi_dl_tti_req_to_phy_translation(
         p_stats->fapi_stats.fapi_dl_tti_pdus++;
         p_fapi_dl_tti_req_pdu = &p_fapi_req->pdus[idx];
         switch (p_fapi_dl_tti_req_pdu->pduType) {
-            case DL_PDU_TYPE_DCI:
+            case FAPI_PDCCH_PDU_TYPE:
                 nDCI++;
                 p_dci_pdu = (PDCIPDUStruct) pPduStruct;
                 NR5G_FAPI_MEMSET(p_dci_pdu, RUP32B(sizeof(DCIPDUStruct)), 0,
                     pdcch_size);
                 p_pdcch_pdu = &p_fapi_dl_tti_req_pdu->pdu.pdcch_pdu;
-                p_dci_pdu->sPDUHdr.nPDUType = p_fapi_dl_tti_req_pdu->pduType;
+                p_dci_pdu->sPDUHdr.nPDUType = DL_PDU_TYPE_DCI;
                 p_dci_pdu->sPDUHdr.nPDUSize = pdcch_size;
                 total_size += pdcch_size;
                 nr5g_fapi_fill_dci_pdu(p_phy_instance, p_pdcch_pdu, p_dci_pdu);
                 break;
 
-            case DL_PDU_TYPE_DLSCH:
+            case FAPI_PDSCH_PDU_TYPE:
                 p_dlsch_pdu = (PDLSCHPDUStruct) pPduStruct;
                 p_pdsch_pdu = &p_fapi_dl_tti_req_pdu->pdu.pdsch_pdu;
                 NR5G_FAPI_MEMSET(p_dlsch_pdu, RUP32B(sizeof(DLSCHPDUStruct)), 0,
                     pdsch_size);
-                p_dlsch_pdu->sPDUHdr.nPDUType = p_fapi_dl_tti_req_pdu->pduType;
+                p_dlsch_pdu->sPDUHdr.nPDUType = DL_PDU_TYPE_DLSCH;
                 p_dlsch_pdu->sPDUHdr.nPDUSize = pdsch_size;
                 total_size += pdsch_size;
                 nr5g_fapi_fill_pdsch_pdu(p_phy_instance, p_pdsch_pdu,
                     p_dlsch_pdu);
                 break;
 
-            case DL_PDU_TYPE_PBCH:
+            case FAPI_PBCH_PDU_TYPE:
                 p_bch_pdu = (PBCHPDUStruct) pPduStruct;
                 p_ssb_pdu = &p_fapi_dl_tti_req_pdu->pdu.ssb_pdu;
                 NR5G_FAPI_MEMSET(p_bch_pdu, RUP32B(sizeof(BCHPDUStruct)), 0,
                     pbch_size);
-                p_bch_pdu->sPDUHdr.nPDUType = p_fapi_dl_tti_req_pdu->pduType;
+                p_bch_pdu->sPDUHdr.nPDUType = DL_PDU_TYPE_PBCH;
                 p_bch_pdu->sPDUHdr.nPDUSize = pbch_size;
                 total_size += pbch_size;
                 nr5g_fapi_fill_ssb_pdu(p_phy_instance, p_bch_pdu, p_ssb_pdu);
                 break;
 
-            case DL_PDU_TYPE_CSIRS:
+            case FAPI_CSIRS_PDU_TYPE:
                 pCSIRSPdu = (PCSIRSPDUStruct) pPduStruct;
                 p_csi_rs_pdu = &p_fapi_dl_tti_req_pdu->pdu.csi_rs_pdu;
                 NR5G_FAPI_MEMSET(pCSIRSPdu, RUP32B(sizeof(CSIRSPDUStruct)), 0,
                     csirs_size);
-                pCSIRSPdu->sPDUHdr.nPDUType = p_fapi_dl_tti_req_pdu->pduType;
+                pCSIRSPdu->sPDUHdr.nPDUType = DL_PDU_TYPE_CSIRS;
                 pCSIRSPdu->sPDUHdr.nPDUSize = csirs_size;
                 total_size += csirs_size;
                 nr5g_fapi_fill_csi_rs_pdu(p_phy_instance, pCSIRSPdu,
@@ -274,10 +274,10 @@ void nr5g_fapi_fill_dci_pdu(
     p_dci_pdu->nTotalBits = p_pdcch_pdu->dlDci[0].payloadSizeBits;
 
     p_dci_pdu->nEpreRatioOfPDCCHToSSB =
-        nr5g_fapi_calculate_nEpreRatioOfPDCCHToSSB(p_pdcch_pdu->dlDci[0].
-        beta_pdcch_1_0);
+        nr5g_fapi_calculate_nEpreRatioOfPDCCHToSSB(p_pdcch_pdu->
+        dlDci[0].beta_pdcch_1_0);
     p_dci_pdu->nEpreRatioOfDmrsToSSB =
-        p_pdcch_pdu->dlDci[0].powerControlOfssetSS;
+        p_pdcch_pdu->dlDci[0].powerControlOffsetSS;
     if (FAILURE == NR5G_FAPI_MEMCPY(p_dci_pdu->nDciBits,
             sizeof(uint8_t) * MAX_DCI_BIT_BYTE_LEN,
             p_pdcch_pdu->dlDci[0].payload,
@@ -285,7 +285,6 @@ void nr5g_fapi_fill_dci_pdu(
         NR5G_FAPI_LOG(ERROR_LOG, ("PDCCH: RNTI: %d -- DCI Bits copy error.",
                 p_pdcch_pdu->dlDci[0].rnti));
     }
-
     p_stats->iapi_stats.iapi_dl_tti_pdcch_pdus++;
 }
 
@@ -329,9 +328,9 @@ void nr5g_fapi_fill_pdsch_pdu(
         p_dlsch_pdu->nRV[1] = p_pdsch_pdu->cwInfo[1].rvIndex;
         p_dlsch_pdu->nTBSize[1] = p_pdsch_pdu->cwInfo[1].tbSize;
     }
-
-    p_dlsch_pdu->nNrOfAntennaPorts = p_phy_instance->phy_config.n_nr_of_rx_ant;
+    //p_dlsch_pdu->nNrOfAntennaPorts = p_phy_instance->phy_config.n_nr_of_rx_ant;
     p_dlsch_pdu->nNrOfLayers = p_pdsch_pdu->nrOfLayers;
+    p_dlsch_pdu->nNrOfAntennaPorts = p_pdsch_pdu->nrOfLayers;
     p_dlsch_pdu->nTransmissionScheme = p_pdsch_pdu->transmissionScheme;
     p_dlsch_pdu->nDMRSConfigType = p_pdsch_pdu->dmrsConfigType;
     p_dlsch_pdu->nNIDnSCID = p_pdsch_pdu->dlDmrsScramblingId;
@@ -369,15 +368,26 @@ void nr5g_fapi_fill_pdsch_pdu(
     p_dlsch_pdu->nPTRSFreqDensity = p_pdsch_pdu->ptrsFreqDensity;
     p_dlsch_pdu->nPTRSReOffset = p_pdsch_pdu->ptrsReOffset;
     p_dlsch_pdu->nEpreRatioOfPDSCHToPTRS = p_pdsch_pdu->nEpreRatioOfPdschToPtrs;
+    // Currently no mapping info available.
+    //p_dlsch_pdu->nEpreRatioOfPDSCHToSSB = 0x1170;
     // PTRS Information
     p_dlsch_pdu->nPTRSPresent = p_pdsch_pdu->pduBitMap & 0x0001;
     p_dlsch_pdu->nNrOfPTRSPorts =
         __builtin_popcount(p_pdsch_pdu->ptrsPortIndex);
-    p_dlsch_pdu->nPTRSPortIndex[0] = p_pdsch_pdu->ptrsPortIndex;
+    for (idx = 0; idx < p_dlsch_pdu->nNrOfPTRSPorts &&
+        idx < MAX_DL_PER_UE_PTRS_PORT_NUM; idx++) {
+        p_dlsch_pdu->nPTRSPortIndex[idx] = idx;
+    }
+
     // Don't Cares
     p_dlsch_pdu->nNrOfDMRSAssPTRS[0] = 0x1;
     p_dlsch_pdu->nNrOfDMRSAssPTRS[1] = 0x1;
     p_dlsch_pdu->n1n2 = 0x201;
+
+    for (idx = 0; (idx < MAX_TXRU_NUM && idx < port_index); idx++) {
+        p_dlsch_pdu->nTxRUIdx[idx] = p_dlsch_pdu->nPortIndex[idx];
+    }
+    p_dlsch_pdu->nNrofTxRU = port_index;
     p_stats->iapi_stats.iapi_dl_tti_pdsch_pdus++;
 }
 
@@ -416,7 +426,7 @@ void nr5g_fapi_fill_pdsch_pdu(
  * |-----------------------------------------|
  *
 **/
-uint8_t nr5g_fapi_calculate_nEpreRatioOfPDCCHToSSB(
+uint16_t nr5g_fapi_calculate_nEpreRatioOfPDCCHToSSB(
     uint8_t beta_pdcch_1_0)
 {
     if (beta_pdcch_1_0 > 0 && beta_pdcch_1_0 <= 2) {
@@ -446,19 +456,18 @@ void nr5g_fapi_fill_ssb_pdu(
     PBCHPDUStruct p_bch_pdu,
     fapi_dl_ssb_pdu_t * p_ssb_pdu)
 {
+    uint8_t *p_mib = (uint8_t *) & p_bch_pdu->nMIB[0];
+    uint8_t *payload = (uint8_t *) & p_ssb_pdu->bchPayload.bchPayload;
     nr5g_fapi_stats_t *p_stats;
 
+    p_mib[0] = payload[0];
+    p_mib[1] = payload[1];
+    p_mib[2] = payload[2];
     p_stats = &p_phy_instance->stats;
     p_stats->fapi_stats.fapi_dl_tti_ssb_pdus++;
     p_bch_pdu->nSSBSubcOffset = p_ssb_pdu->ssbSubCarrierOffset;
+    p_bch_pdu->nSSBPrbOffset = p_phy_instance->phy_config.nSSBPrbOffset;
     p_stats->iapi_stats.iapi_dl_tti_ssb_pdus++;
-    // p_ssb_pdu->bchPayload = p_bch_pdu->nMIB
-    // p_ssb_pdu->ssbBlockIndex 
-    // p_ssb_pdu->physCellId
-    // p_ssb_pdu->betaPss
-    // p_ssb_pdu->bchPayloadFlag
-    // p_ssb_pdu->ssbOffsetPointA
-    // p_ssb_pdu->preCodingAndBeamforming
 }
 
 /** @ingroup group_nr5g_test_config
@@ -501,4 +510,3 @@ void nr5g_fapi_fill_csi_rs_pdu(
     // pCSIRSPdu->nEpreRatioToSSB = p_csi_rs_pdu->powerControlOffsetSs;
     p_stats->iapi_stats.iapi_dl_tti_csi_rs_pdus++;
 }
-

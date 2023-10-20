@@ -54,13 +54,17 @@ Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
 
 ioCore=10
-systemCore=10
-pktProcCore=10
-pktAuxCore=10
-timingCore=11
-llsCUMac=00:11:22:33:44:66 # asigned MAC of lls-CU VF
-#llsCUMac=3c:fd:fe:a8:e0:70
-ruMac=00:11:22:33:44:55    # RU VF for RU app
+# Eth 0
+duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
+ruMac0=00:11:22:33:44:55 # O-RU VF for O-RU app
+duMac1=00:11:22:33:44:66 # asigned MAC of O-DU VF
+ruMac1=00:11:22:33:44:55 # O-RU VF for O-RU app
+
+# Eth 1
+duMac2=00:11:22:33:44:77 # asigned MAC of O-DU VF
+ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
+duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
+ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
 maxFrameId=99 # set for compatibility with O-RU
 

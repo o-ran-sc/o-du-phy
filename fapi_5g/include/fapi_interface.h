@@ -257,6 +257,10 @@ extern "C" {
 // Based on 38.214 5.1.3.4, the TBS is 1376264 bits and divided by 8 and
 // aligned to 64 bytes
 #define FAPI_MAX_PDU_LENGTH                                 172096
+#define FAPI_TX_DATA_PAYLOAD                                0x00
+#define FAPI_TX_DATA_PTR_TO_PAYLOAD_32                      0x01
+#define FAPI_TX_DATA_OFFSET_TO_PAYLOAD                      0x02
+#define FAPI_TX_DATA_PTR_TO_PAYLOAD_64                      0x03
 
 #define FAPI_MAX_NUMBER_OF_PDUS_PER_TTI                     129 // Same as FAPI_MAX_NUMBER_DL_PDUS_PER_TTI
 #define FAPI_MAX_NUMBER_OF_ULSCH_PDUS_PER_SLOT              64  // NUM_PUSCH_CHAN*FAPI_MAX_NUMBER_OF_CODEWORDS_PER_PDU
@@ -278,38 +282,23 @@ extern "C" {
 #define FAPI_MAX_NUM_TLVS_SHUTDOWN                          1   // Based on Timer Mode requirement.
 #define FAPI_MAX_UCI_BIT_BYTE_LEN                           256
 
-#ifdef DEBUG_MODE
-#define FAPI_MAX_IQ_SAMPLE_FILE_SIZE                        576
-#define FAPI_MAX_IQ_SAMPLE_DL_PORTS                           8
-#define FAPI_MAX_IQ_SAMPLE_UL_PORTS                           2
-#define FAPI_MAX_IQ_SAMPLE_UL_VIRTUAL_PORTS                   4
-#define FAPI_MAX_IQ_SAMPLE_UL_ANTENNA                         32
-#define FAPI_MAX_IQ_SAMPLE_BUFFER_SIZE                     4096
-#endif
+    enum ul_tti_pdu_type_e {
+        FAPI_PRACH_PDU_TYPE = 0,
+        FAPI_PUSCH_PDU_TYPE,
+        FAPI_PUCCH_PDU_TYPE,
+        FAPI_SRS_PDU_TYPE,
+        FAPI_UL_TTI_PDU_TYPE_MAX
+    };
 
-#define FAPI_PRACH_PDU_TYPE                                   0
-#define FAPI_PUSCH_PDU_TYPE                                   1
-#define FAPI_PUCCH_PDU_TYPE                                   2
-#define FAPI_SRS_PDU_TYPE                                     3
-
-#define FAPI_PDCCH_PDU_TYPE                                   0
-#define FAPI_PDSCH_PDU_TYPE                                   1
-#define FAPI_PBCH_PDU_TYPE                                    2
-#define FAPI_CSIRS_PDU_TYPE                                   3
+    enum dl_tti_pdu_type_e {
+        FAPI_PDCCH_PDU_TYPE = 0,
+        FAPI_PDSCH_PDU_TYPE,
+        FAPI_CSIRS_PDU_TYPE,
+        FAPI_PBCH_PDU_TYPE,
+        FAPI_DL_TTI_PDU_TYPE_MAX
+    };
 
 //------------------------------------------------------------------------------------------------------------
-// Linked list header prent at the top of all messages
-    typedef struct _fapi_api_queue_elem {
-        struct _fapi_api_queue_elem *p_next;
-        // p_tx_data_elm_list used for TX_DATA.request processing
-        struct _fapi_api_queue_elem *p_tx_data_elm_list;
-        uint8_t msg_type;
-        uint8_t num_message_in_block;
-        uint32_t msg_len;
-        uint32_t align_offset;
-        uint64_t time_stamp;
-    } fapi_api_queue_elem_t, *p_fapi_api_queue_elem_t;
-
 // Updated per 5G FAPI
     typedef struct {
         uint8_t num_msg;
@@ -369,7 +358,7 @@ extern "C" {
         uint16_t rsv;           // To be 32-bit aligned, if FAPI_NUMEROLOGIES changes to some other value than 5 please ensure 32 bit alignment
     } fapi_config_num_tlv_t;
 
-    typedef struct {
+typedef struct {
         uint16_t hopping_id;
         uint8_t carrier_aggregation_level;
         uint8_t group_hop_flag;
@@ -731,7 +720,7 @@ extern "C" {
         uint8_t aggregationLevel;
         fapi_precoding_bmform_t pc_and_bform;
         uint8_t beta_pdcch_1_0;
-        uint8_t powerControlOfssetSS;
+        uint8_t powerControlOffsetSS;
         uint16_t payloadSizeBits;
         uint8_t payload[FAPI_DCI_PAYLOAD_BYTE_LEN]; // 5G FAPI Table 3-37
     } fapi_dl_dci_t;
@@ -748,10 +737,10 @@ extern "C" {
         uint8_t cceRegMappingType;
         uint8_t regBundleSize;
         uint8_t interleaverSize;
-        uint8_t coreSetSize;
+        uint8_t coreSetType;
         uint16_t shiftIndex;
         uint8_t precoderGranularity;
-        uint8_t coreSetType;
+        uint8_t pad;
         uint16_t numDlDci;      // 5G FAPI Table 3-36
         fapi_dl_dci_t dlDci[FAPI_MAX_NUMBER_DL_DCI];
     } fapi_dl_pdcch_pdu_t;
@@ -1129,9 +1118,9 @@ extern "C" {
 
 // Updated per 5G FAPI
     typedef struct {
-        uint16_t pdu_length;
+        uint32_t pdu_length;
         uint16_t pdu_index;
-        uint32_t num_tlvs;
+        uint16_t num_tlvs;
         fapi_uint8_ptr_tlv_t tlvs[FAPI_MAX_NUMBER_OF_TLVS_PER_PDU]; // 5G FAPI Table 3-58 Subset
     } fapi_tx_pdu_desc_t;
 
@@ -1368,64 +1357,6 @@ extern "C" {
         fapi_rach_pdu_t rachPdu[FAPI_MAX_NUMBER_RACH_PDUS_PER_SLOT];    // 5G FAPI Table 3-74
     } fapi_rach_indication_t;
 
-//Vendor extension messages
-    typedef struct {
-        fapi_msg_t header;
-        uint16_t sfn;
-        uint16_t slot;
-        uint32_t test_type;
-    } fapi_vendor_ext_shutdown_req_t;
-
-    typedef struct {
-        fapi_msg_t header;
-        uint16_t sfn;
-        uint16_t slot;
-        uint32_t nStatus;
-    } fapi_vendor_ext_shutdown_res_t;
-
-#ifdef DEBUG_MODE
-    typedef struct {
-        uint32_t carrNum;
-        uint32_t numSubframes;
-        uint32_t testUeMode;
-        uint32_t timerModeFreqDomain;
-        uint32_t phaseCompensationEnable;
-        uint32_t startFrameNum;
-        uint32_t startSlotNum;
-        char filename_in_ul_iq[FAPI_MAX_IQ_SAMPLE_UL_VIRTUAL_PORTS]
-            [FAPI_MAX_IQ_SAMPLE_FILE_SIZE];
-        char filename_in_ul_urllc[FAPI_MAX_IQ_SAMPLE_UL_VIRTUAL_PORTS]
-            [FAPI_MAX_IQ_SAMPLE_FILE_SIZE];
-        char filename_in_prach_iq[FAPI_MAX_IQ_SAMPLE_UL_VIRTUAL_PORTS]
-            [FAPI_MAX_IQ_SAMPLE_FILE_SIZE];
-        char filename_in_srs_iq[FAPI_MAX_IQ_SAMPLE_UL_ANTENNA]
-            [FAPI_MAX_IQ_SAMPLE_FILE_SIZE];
-        char filename_out_dl_iq[FAPI_MAX_IQ_SAMPLE_FILE_SIZE];
-        char filename_out_dl_iq_urllc[FAPI_MAX_IQ_SAMPLE_FILE_SIZE];
-        char filename_out_dl_beam[FAPI_MAX_IQ_SAMPLE_DL_PORTS]
-            [FAPI_MAX_IQ_SAMPLE_FILE_SIZE];
-        char filename_out_ul_beam[FAPI_MAX_IQ_SAMPLE_UL_VIRTUAL_PORTS]
-            [FAPI_MAX_IQ_SAMPLE_FILE_SIZE];
-        uint8_t buffer[FAPI_MAX_IQ_SAMPLE_BUFFER_SIZE];
-    } fapi_vendor_ext_iq_samples_info_t;
-
-    typedef struct {
-        fapi_msg_t header;
-        fapi_vendor_ext_iq_samples_info_t iq_samples_info;
-    } fapi_vendor_ext_iq_samples_req_t;
-
-    typedef struct {
-        fapi_msg_t header;
-    } fapi_vendor_ext_dl_iq_samples_res_t;
-
-    typedef struct {
-        fapi_msg_t header;
-    } fapi_vendor_ext_ul_iq_samples_res_t;
-
-    typedef struct {
-        fapi_msg_t header;
-    } fapi_vendor_ext_start_response_t;
-#endif
 //------------------------------------------------------------------------------
 
 #if defined(__cplusplus)

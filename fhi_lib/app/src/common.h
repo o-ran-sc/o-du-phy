@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@
 #include <rte_common.h>
 #include <rte_mbuf.h>
 
-#define VERSIONX                "#DIRTY#"
+#define VERSIONX                "oran_bronze_release_v1.1"
 
 #define APP_O_DU  0
 #define APP_O_RU  1
@@ -135,7 +135,7 @@ void sys_save_buf_to_file_txt(char *filename, char *bufname, unsigned char *pBuf
 void sys_save_buf_to_file(char *filename, char *bufname, unsigned char *pBuffer, unsigned int size, unsigned int buffers_num);
 int  sys_load_file_to_buff(char *filename, char *bufname, unsigned char *pBuffer, unsigned int size, unsigned int buffers_num);
 uint32_t app_xran_get_scs(uint8_t nMu);
-uint16_t app_xran_get_num_rbs(uint32_t nNumerology, uint32_t nBandwidth, uint32_t nAbsFrePointA);
+uint16_t app_xran_get_num_rbs(uint8_t ranTech, uint32_t nNumerology, uint32_t nBandwidth, uint32_t nAbsFrePointA);
 uint32_t app_xran_cal_nrarfcn(uint32_t nCenterFreq);
 int32_t app_xran_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexType,
                 uint32_t nTddPeriod, struct xran_slot_config *psSlotConfig);

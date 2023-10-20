@@ -711,7 +711,7 @@ int wls_mac_add_to_free(p_fapi_api_queue_elem_t pListElem, uint32_t idx)
             return count;
         }
 
-        if (pNextMsg->msg_type != FAPI_MSG_HEADER_IND)
+        if (pNextMsg->msg_type != FAPI_VENDOR_MSG_HEADER_IND)
         {
             pMsgHeader = (void *) (pNextMsg + 1);
             count++;
@@ -909,7 +909,7 @@ uint32_t wls_mac_send_zbc_blocks(void *pMsgHeaderHead, uint16_t nFlags, int *nZb
     {
         nPduLen = p_list_elm->msg_len + sizeof(fapi_api_queue_elem_t);
         pPayload = (void *) p_list_elm;
-        nMsgType = FAPI_MSG_PHY_ZBC_BLOCK_REQ;
+        nMsgType = FAPI_VENDOR_MSG_PHY_ZBC_BLOCK_REQ;
 
         if (p_list_elm->p_next)
             isLast = 0;

@@ -31,6 +31,12 @@
 
 #define NR5G_FAPI_DEVICE_NAME_LEN   512
 
+enum {
+    DPDK_IOVA_PA_MODE = 0,
+    DPDK_IOVA_VA_MODE,
+    DPDK_IOVA_MAX_MODE
+};
+
 typedef struct _nr5g_fapi_thread_info {
     pthread_t thread_id;        /* ID returned by pthread_create() */
     pthread_attr_t thread_attr;
@@ -47,6 +53,10 @@ typedef struct _nr5g_fapi_config_wls_cfg {
     uint64_t shmem_size;
 } nr5g_fapi_config_wls_cfg_t;
 
+typedef struct nr5g_fapi_config_dpdk_cfg_t {
+    uint8_t iova_mode;          /*0 - PA mode, 1 - VA mode */
+} nr5g_fapi_config_dpdk_cft_t;
+
 typedef struct _nr5g_fapi_config_log_cfg {
     nr5g_fapi_log_types_t level;
 } nr5g_fapi_config_log_cfg_t;
@@ -60,7 +70,9 @@ typedef struct _nr5g_fapi_cfg {
     nr5g_fapi_config_log_cfg_t logger;
     nr5g_fapi_thread_info_t mac2phy_thread_info;
     nr5g_fapi_thread_info_t phy2mac_thread_info;
-} nr5g_fapi_cfg_t, *p_nr5g_fapi_cfg_t;
+    nr5g_fapi_config_dpdk_cft_t dpdk;
+} nr5g_fapi_cfg_t,
+*p_nr5g_fapi_cfg_t;
 
 p_nr5g_fapi_cfg_t nr5g_fapi_config_loader(
     char *prgname,

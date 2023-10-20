@@ -1,21 +1,8 @@
-/******************************************************************************
-*
-*   Copyright (c) 2019 Intel.
-*
-*   Licensed under the Apache License, Version 2.0 (the "License");
-*   you may not use this file except in compliance with the License.
-*   You may obtain a copy of the License at
-*
-*       http://www.apache.org/licenses/LICENSE-2.0
-*
-*   Unless required by applicable law or agreed to in writing, software
-*   distributed under the License is distributed on an "AS IS" BASIS,
-*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*   See the License for the specific language governing permissions and
-*   limitations under the License.
-*
-*******************************************************************************/
-
+/*******************************************************************************
+ *
+ * <COPYRIGHT_TAG>
+ *
+ *******************************************************************************/
 
 #ifndef XRAN_LIB_WRAP_HPP
 #define XRAN_LIB_WRAP_HPP
@@ -131,12 +118,18 @@ protected:
     BbuIoBufCtrlStruct m_sFrontHaulRxPrbMapBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     BbuIoBufCtrlStruct m_sFHPrachRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
 
+    /* Cat B */
+    BbuIoBufCtrlStruct m_sFHSrsRxBbuIoBufCtrl[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
+
     /* buffers lists */
     struct xran_flat_buffer m_sFrontHaulTxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer m_sFrontHaulTxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     struct xran_flat_buffer m_sFrontHaulRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
     struct xran_flat_buffer m_sFrontHaulRxPrbMapBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
     struct xran_flat_buffer m_sFHPrachRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_NUM_OF_SYMBOL_PER_SLOT];
+
+    /* Cat B SRS buffers */
+    struct xran_flat_buffer m_sFHSrsRxBuffers[XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_MAX_NUM_OF_SRS_SYMBOL_PER_SLOT];
 
     void    *m_nInstanceHandle[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR]; // instance per sector
     uint32_t m_nBufPoolIndex[XRAN_MAX_SECTOR_NR][MAX_SW_XRAN_INTERFACE_NUM];   // every api owns unique buffer pool
@@ -203,6 +196,9 @@ private:
         uint16_t *u16dptr;
         uint8_t  *u8dptr;
 
+        uint32_t xran_max_antenna_nr = RTE_MAX(get_num_eaxc(), get_num_eaxc_ul());
+        uint32_t xran_max_ant_array_elm_nr = RTE_MAX(get_num_antelmtrx(), xran_max_antenna_nr);
+
 
         std::cout << "XRAN front haul xran_mm_init" << std::endl;
         status = xran_mm_init(m_xranhandle, (uint64_t) SW_FPGA_FH_TOTAL_BUFFER_LEN, SW_FPGA_SEGMENT_BUFFER_LEN);
@@ -232,14 +228,14 @@ private:
             eInterfaceType = XRANFTHTX_OUT;
             status = xran_bm_init(m_nInstanceHandle[0][i],
                             &m_nBufPoolIndex[m_nSectorIndex[i]][eInterfaceType],
-                            XRAN_N_FE_BUF_LEN * XRAN_MAX_ANTENNA_NR * XRAN_NUM_OF_SYMBOL_PER_SLOT,
+                            XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT,
                             m_nSW_ToFpga_FTH_TxBufferLen);
             if(status != XRAN_STATUS_SUCCESS) {
                 std::cout << __LINE__ << " Failed at xran_bm_init, status " << status << std::endl;
                 return (-1);
                 }
             for(j = 0; j < XRAN_N_FE_BUF_LEN; j++) {
-                for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++){
+                for(z = 0; z < xran_max_antenna_nr; z++){
                     m_sFrontHaulTxBbuIoBufCtrl[j][i][z].bValid = 0;
                     m_sFrontHaulTxBbuIoBufCtrl[j][i][z].nSegGenerated = -1;
                     m_sFrontHaulTxBbuIoBufCtrl[j][i][z].nSegToBeGen = -1;
@@ -272,7 +268,7 @@ private:
             eInterfaceType = XRANFTHTX_SEC_DESC_OUT;
             status = xran_bm_init(m_nInstanceHandle[0][i],
                             &m_nBufPoolIndex[m_nSectorIndex[i]][eInterfaceType],
-                            XRAN_N_FE_BUF_LEN * XRAN_MAX_ANTENNA_NR * XRAN_NUM_OF_SYMBOL_PER_SLOT*XRAN_MAX_SECTIONS_PER_SYM, sizeof(struct xran_section_desc));
+                            XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT*XRAN_MAX_SECTIONS_PER_SYM, sizeof(struct xran_section_desc));
             if(XRAN_STATUS_SUCCESS != status) {
                 std::cout << __LINE__ << " Failed at xran_bm_init, status " << status << std::endl;
                 return (-1);
@@ -280,14 +276,14 @@ private:
             eInterfaceType = XRANFTHTX_PRB_MAP_OUT;
             status = xran_bm_init(m_nInstanceHandle[0][i],
                             &m_nBufPoolIndex[m_nSectorIndex[i]][eInterfaceType],
-                            XRAN_N_FE_BUF_LEN * XRAN_MAX_ANTENNA_NR * XRAN_NUM_OF_SYMBOL_PER_SLOT,
+                            XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT,
                             sizeof(struct xran_prb_map));
             if(status != XRAN_STATUS_SUCCESS) {
                 std::cout << __LINE__ << " Failed at xran_bm_init, status " << status << std::endl;
                 return (-1);
             }
             for(j = 0; j < XRAN_N_FE_BUF_LEN; j++) {
-                for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++) {
+                for(z = 0; z < xran_max_antenna_nr; z++) {
                     m_sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].bValid = 0;
                     m_sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].nSegGenerated = -1;
                     m_sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].nSegToBeGen = -1;
@@ -329,7 +325,7 @@ private:
             eInterfaceType = XRANFTHRX_IN;
             status = xran_bm_init(m_nInstanceHandle[0][i],
                             &m_nBufPoolIndex[m_nSectorIndex[i]][eInterfaceType],
-                            XRAN_N_FE_BUF_LEN * XRAN_MAX_ANTENNA_NR * XRAN_NUM_OF_SYMBOL_PER_SLOT,
+                            XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT,
                             m_nSW_ToFpga_FTH_TxBufferLen);  /* ????, actual alloc size is m_nFpgaToSW_FTH_RxBUfferLen */
             if(status != XRAN_STATUS_SUCCESS) {
                 std::cout << __LINE__ << " Failed at xran_bm_init, status " << status << std::endl;
@@ -337,7 +333,7 @@ private:
                 }
 
             for(j = 0;j < XRAN_N_FE_BUF_LEN; j++) {
-                for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++) {
+                for(z = 0; z < xran_max_antenna_nr; z++) {
                     m_sFrontHaulRxBbuIoBufCtrl[j][i][z].bValid                  = 0;
                     m_sFrontHaulRxBbuIoBufCtrl[j][i][z].nSegGenerated           = -1;
                     m_sFrontHaulRxBbuIoBufCtrl[j][i][z].nSegToBeGen             = -1;
@@ -367,7 +363,7 @@ private:
             eInterfaceType = XRANFTHTX_SEC_DESC_IN;
             status = xran_bm_init(m_nInstanceHandle[0][i],
                             &m_nBufPoolIndex[m_nSectorIndex[i]][eInterfaceType],
-                            XRAN_N_FE_BUF_LEN * XRAN_MAX_ANTENNA_NR * XRAN_NUM_OF_SYMBOL_PER_SLOT*XRAN_MAX_SECTIONS_PER_SYM, sizeof(struct xran_section_desc));
+                            XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT*XRAN_MAX_SECTIONS_PER_SYM, sizeof(struct xran_section_desc));
             if(XRAN_STATUS_SUCCESS != status) {
                 std::cout << __LINE__ << " Failed at xran_bm_init, status " << status << std::endl;
                 return (-1);
@@ -375,7 +371,7 @@ private:
             eInterfaceType = XRANFTHRX_PRB_MAP_IN;
             status = xran_bm_init(m_nInstanceHandle[0][i],
                                 &m_nBufPoolIndex[m_nSectorIndex[i]][eInterfaceType],
-                                XRAN_N_FE_BUF_LEN * XRAN_MAX_ANTENNA_NR * XRAN_NUM_OF_SYMBOL_PER_SLOT,
+                                XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT,
                                 sizeof(struct xran_prb_map));
             if(status != XRAN_STATUS_SUCCESS) {
                 std::cout << __LINE__ << " Failed at xran_bm_init, status " << status << std::endl;
@@ -383,7 +379,7 @@ private:
             }
 
             for(j = 0;j < XRAN_N_FE_BUF_LEN; j++) {
-                for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++) {
+                for(z = 0; z < xran_max_antenna_nr; z++) {
                     m_sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].bValid                    = 0;
                     m_sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].nSegGenerated             = -1;
                     m_sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].nSegToBeGen               = -1;
@@ -425,19 +421,19 @@ private:
             eInterfaceType = XRANFTHRACH_IN;
             status = xran_bm_init(m_nInstanceHandle[0][i],
                                 &m_nBufPoolIndex[m_nSectorIndex[i]][eInterfaceType],
-                                XRAN_N_FE_BUF_LEN * XRAN_MAX_ANTENNA_NR * XRAN_NUM_OF_SYMBOL_PER_SLOT,
+                                XRAN_N_FE_BUF_LEN * xran_max_antenna_nr * XRAN_NUM_OF_SYMBOL_PER_SLOT,
                                 FPGA_TO_SW_PRACH_RX_BUFFER_LEN);
             if(status != XRAN_STATUS_SUCCESS) {
                 std::cout << __LINE__ << " Failed at xran_bm_init, status " << status << std::endl;
                 return (-1);
                 }
             for(j = 0; j < XRAN_N_FE_BUF_LEN; j++) {
-                for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++) {
+                for(z = 0; z < xran_max_antenna_nr; z++) {
                     m_sFHPrachRxBbuIoBufCtrl[j][i][z].bValid                    = 0;
                     m_sFHPrachRxBbuIoBufCtrl[j][i][z].nSegGenerated             = -1;
                     m_sFHPrachRxBbuIoBufCtrl[j][i][z].nSegToBeGen               = -1;
                     m_sFHPrachRxBbuIoBufCtrl[j][i][z].nSegTransferred           = 0;
-                    m_sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.nNumBuffers   = XRAN_MAX_ANTENNA_NR;
+                    m_sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.nNumBuffers   = xran_max_antenna_nr;
                     m_sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers      = &m_sFHPrachRxBuffers[j][i][z][0];
                     for(k = 0; k< XRAN_NUM_OF_SYMBOL_PER_SLOT; k++) {
                         m_sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList.pBuffers[k].nElementLenInBytes    = FPGA_TO_SW_PRACH_RX_BUFFER_LEN;
@@ -479,8 +475,10 @@ public:
         /* DPDK configuration */
         m_dpdk_dev_up = get_globalcfg<std::string>(XRAN_UT_KEY_GLOBALCFG_IO, "dpdk_dev_up");
         m_dpdk_dev_cp = get_globalcfg<std::string>(XRAN_UT_KEY_GLOBALCFG_IO, "dpdk_dev_cp");
-        m_xranInit.io_cfg.dpdk_dev[XRAN_UP_VF]  = (m_dpdk_dev_up == "") ? NULL : (char *)&m_dpdk_dev_up;
-        m_xranInit.io_cfg.dpdk_dev[XRAN_CP_VF]  = (m_dpdk_dev_cp == "") ? NULL : (char *)&m_dpdk_dev_cp;
+        m_xranInit.io_cfg.num_vfs = 2;
+        m_xranInit.io_cfg.dpdk_dev[XRAN_UP_VF]  = (m_dpdk_dev_up == "") ? NULL : (char *)&m_dpdk_dev_up[0];
+        m_xranInit.io_cfg.dpdk_dev[XRAN_CP_VF]  = (m_dpdk_dev_cp == "") ? NULL : (char *)&m_dpdk_dev_cp[0];
+	    std::cout << "UP_VF [" << m_xranInit.io_cfg.dpdk_dev[XRAN_UP_VF] << "], CP_VF [" << m_xranInit.io_cfg.dpdk_dev[XRAN_CP_VF] << "]" << std::endl;
 
         m_xranInit.io_cfg.core              = get_globalcfg<int>(XRAN_UT_KEY_GLOBALCFG_IO, "core");
         m_xranInit.io_cfg.system_core       = get_globalcfg<int>(XRAN_UT_KEY_GLOBALCFG_IO, "system_core");
@@ -754,6 +752,10 @@ public:
         struct xran_prb_map *pRbMap = NULL;
 
 
+        uint32_t xran_max_antenna_nr = RTE_MAX(get_num_eaxc(), get_num_eaxc_ul());
+        uint32_t xran_max_ant_array_elm_nr = RTE_MAX(get_num_antelmtrx(), xran_max_antenna_nr);
+
+
         /* Update member variables */
         if(pCfg)
             memcpy(&m_xranConf, pCfg, sizeof(struct xran_fh_config));
@@ -795,8 +797,8 @@ public:
         /* Init RB map */
         for(cc_id = 0; cc_id <nSectorNum; cc_id++) {
             for(tti  = 0; tti  < XRAN_N_FE_BUF_LEN; tti ++) {
-                for(ant_id = 0; ant_id < XRAN_MAX_ANTENNA_NR; ant_id++) {
-                    flowId = XRAN_MAX_ANTENNA_NR*cc_id + ant_id;
+                for(ant_id = 0; ant_id < xran_max_antenna_nr; ant_id++) {
+                    flowId = xran_max_antenna_nr*cc_id + ant_id;
 
                     /* C-plane DL */
                     pRbMap = (struct xran_prb_map *)m_sFrontHaulTxPrbMapBbuIoBufCtrl[tti][cc_id][ant_id].sBufferList.pBuffers->pData;
@@ -934,16 +936,21 @@ public:
 
 
     void Open(xran_ethdi_mbuf_send_fn send_cp, xran_ethdi_mbuf_send_fn send_up,
-            void *fh_rx_callback, void *fh_rx_prach_callback)
+            void *fh_rx_callback, void *fh_rx_prach_callback, void *fh_srs_callback)
     {
         struct xran_fh_config *pXranConf;
         int32_t nSectorNum;
         int i, j, k, z;
+
+        uint32_t xran_max_antenna_nr = RTE_MAX(get_num_eaxc(), get_num_eaxc_ul());
+        uint32_t xran_max_ant_array_elm_nr = RTE_MAX(get_num_antelmtrx(), xran_max_antenna_nr);
+
         struct xran_buffer_list *pFthTxBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
         struct xran_buffer_list *pFthTxPrbMapBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
         struct xran_buffer_list *pFthRxBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
         struct xran_buffer_list *pFthRxPrbMapBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
         struct xran_buffer_list *pFthRxRachBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN];
+        struct xran_buffer_list *pFthRxSrsBuffer[XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR][XRAN_N_FE_BUF_LEN];
 
 #if 0
         xran_reg_physide_cb(xranHandle, physide_dl_tti_call_back, NULL, 10, XRAN_CB_TTI);
@@ -952,15 +959,35 @@ public:
 #endif
         nSectorNum = get_num_cc();
 
+        for(i=0; i<nSectorNum; i++)
+        {
+            for(j=0; j<XRAN_N_FE_BUF_LEN; j++)
+            {
+                for(z = 0; z < xran_max_antenna_nr; z++){
+                    pFthTxBuffer[i][z][j]       = NULL;
+                    pFthTxPrbMapBuffer[i][z][j] = NULL;
+                    pFthRxBuffer[i][z][j]       = NULL;
+                    pFthRxPrbMapBuffer[i][z][j] = NULL;
+                    pFthRxRachBuffer[i][z][j]   = NULL;
+                }
+                for(z = 0; z < xran_max_ant_array_elm_nr; z++){
+                    pFthRxSrsBuffer[i][z][j] = NULL;
+                }
+            }
+        }
+
         for(i=0; i<nSectorNum; i++) {
             for(j=0; j<XRAN_N_FE_BUF_LEN; j++) {
-                for(z = 0; z < XRAN_MAX_ANTENNA_NR; z++) {
+                for(z = 0; z < xran_max_antenna_nr; z++) {
                     pFthTxBuffer[i][z][j]       = &(m_sFrontHaulTxBbuIoBufCtrl[j][i][z].sBufferList);
                     pFthTxPrbMapBuffer[i][z][j] = &(m_sFrontHaulTxPrbMapBbuIoBufCtrl[j][i][z].sBufferList);
                     pFthRxBuffer[i][z][j]       = &(m_sFrontHaulRxBbuIoBufCtrl[j][i][z].sBufferList);
                     pFthRxPrbMapBuffer[i][z][j] = &(m_sFrontHaulRxPrbMapBbuIoBufCtrl[j][i][z].sBufferList);
                     pFthRxRachBuffer[i][z][j]   = &(m_sFHPrachRxBbuIoBufCtrl[j][i][z].sBufferList);
                     }
+                    for(z = 0; z < xran_max_ant_array_elm_nr && xran_max_ant_array_elm_nr; z++){
+                        pFthRxSrsBuffer[i][z][j] = &(m_sFHSrsRxBbuIoBufCtrl[j][i][z].sBufferList);
+            }
                 }
             }
 
@@ -974,7 +1001,16 @@ public:
                 xran_5g_prach_req(m_nInstanceHandle[0][i], pFthRxRachBuffer[i],
                         (void (*)(void *, xran_status_t))fh_rx_prach_callback, &pFthRxRachBuffer[i][0]);
                 }
+
+            /* add SRS callback here */
+            for (i = 0; i<nSectorNum && xran_max_ant_array_elm_nr; i++) {
+                xran_5g_srs_req(m_nInstanceHandle[0][i], pFthRxSrsBuffer[i],
+                    (void (*)(void *, xran_status_t))fh_srs_callback,&pFthRxSrsBuffer[i][0]);
+                }
+
             }
+
+
 
         xran_register_cb_mbuf2ring(send_cp, send_up);
 
@@ -1119,6 +1155,7 @@ public:
     int get_duplextype()    { return(m_xranConf.frame_conf.nFrameDuplexType); }
     int get_num_cc()        { return(m_xranConf.nCC); }
     int get_num_eaxc()      { return(m_xranConf.neAxc); }
+    int get_num_eaxc_ul()   { return(m_xranConf.neAxcUl); }
     int get_num_dlrbs()     { return(m_xranConf.nDLRBs); }
     int get_num_ulrbs()     { return(m_xranConf.nULRBs); }
     int get_num_antelmtrx() { return(m_xranConf.nAntElmTRx); }

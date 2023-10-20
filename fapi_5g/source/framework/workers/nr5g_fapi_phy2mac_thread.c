@@ -21,7 +21,7 @@
 #include "nr5g_fapi_fapi2mac_api.h"
 #include "nr5g_fapi_fapi2mac_p5_proc.h"
 #include "nr5g_fapi_fapi2mac_p7_proc.h"
-
+#include "nr5g_fapi_log.h"
 //------------------------------------------------------------------------------
 /** @ingroup nr5g_fapi_source_framework_workers_phy2mac_group
  *
@@ -50,6 +50,8 @@ void *nr5g_fapi_phy2mac_thread_func(
     CPU_ZERO(&cpuset);
     CPU_SET(p_phy_ctx->phy2mac_worker_core_id, &cpuset);
     pthread_setaffinity_np(thread, sizeof(cpu_set_t), &cpuset);
+
+    nr5g_fapi_fapi2mac_init_api_list();
 
     usleep(1000);
     while (!p_phy_ctx->process_exit) {
@@ -80,6 +82,7 @@ void nr5g_fapi_phy2mac_api_recv_handler(
 {
     PMAC2PHY_QUEUE_EL p_curr_msg;
     PL1L2MessageHdr p_msg_header = NULL;
+    uint64_t start_tick = __rdtsc();
 
     NR5G_FAPI_LOG(TRACE_LOG, ("[PHY2MAC] %s:", __func__));
 
@@ -180,6 +183,7 @@ void nr5g_fapi_phy2mac_api_recv_handler(
                 {
                     nr5g_fapi_slot_indication((p_nr5g_fapi_phy_ctx_t) config,
                         (PSlotIndicationStruct) p_msg_header);
+                    nr5g_fapi_statistic_info_set_all();
                 }
                 break;
 
@@ -195,4 +199,6 @@ void nr5g_fapi_phy2mac_api_recv_handler(
         }
         p_curr_msg = p_curr_msg->pNext;
     }
+    tick_total_parse_per_tti_ul += __rdtsc() - start_tick;
+
 }

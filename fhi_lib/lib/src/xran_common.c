@@ -41,6 +41,8 @@
 #include <rte_mbuf.h>
 #include "xran_mlog_lnx.h"
 
+static struct timespec sleeptime = {.tv_nsec = 1E3 }; /* 1 us */
+
 #define MBUFS_CNT 16
 
 extern long interval_us;
@@ -114,13 +116,6 @@ extern int32_t xran_pkt_validate(void *arg,
                         uint16_t rb,
                         uint16_t sect_id);
 
-long rx_counter = 0;
-long tx_counter = 0;
-long tx_bytes_counter = 0;
-long rx_bytes_counter = 0;
-long tx_bytes_per_sec = 0;
-long rx_bytes_per_sec = 0;
-
 
 struct cb_elem_entry *xran_create_cb(XranSymCallbackFn cb_fn, void *cb_data)
 {
@@ -147,6 +142,7 @@ int process_mbuf(struct rte_mbuf *pkt)
     static int symbol_total_bytes = 0;
     int num_bytes = 0;
     struct xran_device_ctx * p_x_ctx = xran_dev_get_ctx();
+    struct xran_common_counters *pCnt = &p_x_ctx->fh_counters;
 
     uint8_t CC_ID = 0;
     uint8_t Ant_ID = 0;
@@ -165,7 +161,6 @@ int process_mbuf(struct rte_mbuf *pkt)
     uint8_t iqWidth = 0;
 
     void *pHandle = NULL;
-    uint8_t num_eAxc = xran_get_num_eAxc(pHandle);
     int ret = MBUF_FREE;
     uint32_t mb_free = 0;
     int32_t valid_res = 0;
@@ -197,6 +192,7 @@ int process_mbuf(struct rte_mbuf *pkt)
         return MBUF_FREE;
     }
 
+#if 0
     valid_res = xran_pkt_validate(NULL,
                                 pkt,
                                 iq_samp_buf,
@@ -215,9 +211,10 @@ int process_mbuf(struct rte_mbuf *pkt)
                                 sect_id);
 
     if(valid_res != 0) {
-        print_err("valid_res is wrong [%d] ant %u (%u : %u : %u : %u) seq %u num_bytes %d\n", valid_res, Ant_ID, frame_id, subframe_id, slot_id, symb_id, seq.seq_id, num_bytes);
+        print_dbg("valid_res is wrong [%d] ant %u (%u : %u : %u : %u) seq %u num_bytes %d\n", valid_res, Ant_ID, frame_id, subframe_id, slot_id, symb_id, seq.seq_id, num_bytes);
         return MBUF_FREE;
     }
+#endif
 
     if (Ant_ID >= p_x_ctx->srs_cfg.eAxC_offset && p_x_ctx->fh_init.srsEnable) {
         /* SRS packet has ruportid = 2*num_eAxc + ant_id */
@@ -225,7 +222,7 @@ int process_mbuf(struct rte_mbuf *pkt)
         symbol_total_bytes += num_bytes;
 
         if (seq.e_bit == 1) {
-            print_dbg("Completed receiving symbol %d, size=%d bytes\n",
+            print_dbg("SRS receiving symbol %d, size=%d bytes\n",
                 symb_id, symbol_total_bytes);
 
             if (symbol_total_bytes) {
@@ -251,6 +248,7 @@ int process_mbuf(struct rte_mbuf *pkt)
                 } else {
                     print_err("res != symbol_total_bytes\n");
                 }
+                pCnt->rx_srs_packets++;
             }
             symbol_total_bytes = 0;
         }
@@ -288,6 +286,7 @@ int process_mbuf(struct rte_mbuf *pkt)
                 } else {
                     print_err("res != symbol_total_bytes\n");
                 }
+                pCnt->rx_prach_packets[Ant_ID]++;
             }
             symbol_total_bytes = 0;
         } else {
@@ -323,6 +322,7 @@ int process_mbuf(struct rte_mbuf *pkt)
                 } else {
                     print_err("res != symbol_total_bytes\n");
                 }
+                pCnt->rx_pusch_packets[Ant_ID]++;
             }
             symbol_total_bytes = 0;
         } else {
@@ -369,7 +369,7 @@ int32_t prepare_symbol_ex(enum xran_pkt_dir direction,
 
     int32_t prep_bytes;
 
-    int16_t nPktSize = sizeof(struct ether_hdr) + sizeof(struct xran_ecpri_hdr) +
+    int16_t nPktSize = sizeof(struct rte_ether_hdr) + sizeof(struct xran_ecpri_hdr) +
             sizeof(struct radio_app_common_hdr)+ sizeof(struct data_section_hdr) + n_bytes;
     uint32_t off;
     struct xran_up_pkt_gen_params xp = { 0 };
@@ -385,7 +385,7 @@ int32_t prepare_symbol_ex(enum xran_pkt_dir direction,
     xp.app_params.filter_id      = 0;
     xp.app_params.frame_id       = frame_id;
     xp.app_params.sf_slot_sym.subframe_id    = subframe_id;
-    xp.app_params.sf_slot_sym.slot_id        = slot_id;
+    xp.app_params.sf_slot_sym.slot_id        = xran_slotid_convert(slot_id, 0);
     xp.app_params.sf_slot_sym.symb_id        = symbol_no;
 
     /* convert to network byte order */
@@ -396,6 +396,10 @@ int32_t prepare_symbol_ex(enum xran_pkt_dir direction,
     xp.sec_hdr.fields.start_prbu = (uint8_t)prb_start;
     xp.sec_hdr.fields.sym_inc    = 0;
     xp.sec_hdr.fields.rb         = 0;
+#ifdef FCN_ADAPT
+    xp.sec_hdr.udCompHdr         = 0;
+    xp.sec_hdr.reserved          = 0;
+#endif
 
     /* compression */
     xp.compr_hdr_param.ud_comp_hdr.ud_comp_meth = compMeth;
@@ -451,6 +455,8 @@ int send_symbol_ex(enum xran_pkt_dir direction,
     uint32_t do_copy = 0;
     int32_t n_bytes = ((prb_num == 0) ? MAX_N_FULLBAND_SC : prb_num) * N_SC_PER_PRB * sizeof(struct rb_map);
     struct xran_device_ctx *p_x_ctx = xran_dev_get_ctx();
+    struct xran_common_counters *pCnt = &p_x_ctx->fh_counters;
+
 
     if (mb == NULL){
         char * pChar = NULL;
@@ -464,7 +470,7 @@ int send_symbol_ex(enum xran_pkt_dir direction,
                 MLogPrint(NULL);
                 errx(1, "incorrect mbuf size %d packets", 1);
         }
-        pChar = rte_pktmbuf_prepend(mb, sizeof(struct ether_hdr));
+        pChar = rte_pktmbuf_prepend(mb, sizeof(struct rte_ether_hdr));
         if(pChar == NULL){
                 MLogPrint(NULL);
                 errx(1, "incorrect mbuf size %d packets", 1);
@@ -493,9 +499,9 @@ int send_symbol_ex(enum xran_pkt_dir direction,
                          do_copy);
 
     if(sent){
-        tx_counter++;
-        tx_bytes_counter += rte_pktmbuf_pkt_len(mb);
-        p_x_ctx->send_upmbuf2ring(mb, ETHER_TYPE_ECPRI);
+        pCnt->tx_counter++;
+        pCnt->tx_bytes_counter += rte_pktmbuf_pkt_len(mb);
+        p_x_ctx->send_upmbuf2ring(mb, ETHER_TYPE_ECPRI, xran_map_ecpriPcid_to_vf(direction, CC_ID, RU_Port_ID));
     } else {
 
     }
@@ -511,19 +517,28 @@ int send_cpmsg(void *pHandle, struct rte_mbuf *mbuf,struct xran_cp_gen_params *p
                 struct xran_section_gen_info *sect_geninfo, uint8_t cc_id, uint8_t ru_port_id, uint8_t seq_id)
 {
     int ret = 0, nsection, i;
-    uint8_t frame_id = params->hdr.frameId;
     uint8_t subframe_id = params->hdr.subframeId;
     uint8_t slot_id = params->hdr.slotId;
     uint8_t dir = params->dir;
     struct xran_device_ctx *p_x_ctx = xran_dev_get_ctx();
+    struct xran_common_counters *pCnt = &p_x_ctx->fh_counters;
 
     nsection = params->numSections;
 
     /* add in the ethernet header */
-    struct ether_hdr *const h = (void *)rte_pktmbuf_prepend(mbuf, sizeof(*h));
-    tx_counter++;
-    tx_bytes_counter += rte_pktmbuf_pkt_len(mbuf);
-    p_x_ctx->send_cpmbuf2ring(mbuf, ETHER_TYPE_ECPRI);
+    struct rte_ether_hdr *const h = (void *)rte_pktmbuf_prepend(mbuf, sizeof(*h));
+
+    pCnt->tx_counter++;
+    pCnt->tx_bytes_counter += rte_pktmbuf_pkt_len(mbuf);
+
+    if (xran_ethdi_get_ctx()->io_cfg.num_vfs > 1) {
+	    p_x_ctx->send_cpmbuf2ring(mbuf, ETHER_TYPE_ECPRI, xran_map_ecpriRtcid_to_vf(dir, cc_id, ru_port_id));
+    }
+    else {
+	    p_x_ctx->send_cpmbuf2ring(mbuf, ETHER_TYPE_ECPRI, xran_map_ecpriPcid_to_vf(dir, cc_id, ru_port_id));
+    }
+
+	
     for(i=0; i<nsection; i++)
         xran_cp_add_section_info(pHandle, dir, cc_id, ru_port_id,
                 (slot_id + subframe_id*SLOTNUM_PER_SUBFRAME)%XRAN_MAX_SECTIONDB_CTX,
@@ -537,7 +552,7 @@ int generate_cpmsg_dlul(void *pHandle, struct xran_cp_gen_params *params, struct
     uint8_t startsym, uint8_t numsym, uint16_t prb_start, uint16_t prb_num,int16_t iq_buffer_offset, int16_t iq_buffer_len,
     uint16_t beam_id, uint8_t cc_id, uint8_t ru_port_id, uint8_t comp_method, uint8_t iqWidth,  uint8_t seq_id, uint8_t symInc)
 {
-    int ret = 0, nsection, i, loc_sym;
+    int ret = 0, nsection, loc_sym;
 
 
     params->dir                  = dir;
@@ -596,7 +611,7 @@ int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struc
                 uint8_t frame_id, uint8_t subframe_id, uint8_t slot_id,
                 uint16_t beam_id, uint8_t cc_id, uint8_t prach_port_id, uint8_t seq_id)
 {
-    int i, nsection, ret;
+    int nsection, ret;
     struct xran_prach_cp_config  *pPrachCPConfig = &(pxran_lib_ctx->PrachCPConfig);
     uint16_t timeOffset;
     uint16_t nNumerology = pxran_lib_ctx->fh_cfg.frame_conf.nNumerology;
@@ -606,7 +621,7 @@ int generate_cpmsg_prach(void *pHandle, struct xran_cp_gen_params *params, struc
         return (-1);
     }
 #if 0
-    printf("%d:%d:%d:%d - filter=%d, startSym=%d[%d:%d], numSym=%d, occasions=%d, freqOff=%d\n",
+    print_inf("%d:%d:%d:%d - filter=%d, startSym=%d[%d:%d], numSym=%d, occasions=%d, freqOff=%d\n",
                 frame_id, subframe_id, slot_id, prach_port_id,
                 pPrachCPConfig->filterIdx,
                 pPrachCPConfig->startSymId,
@@ -702,16 +717,10 @@ int32_t ring_processing_func(void)
     struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
     struct xran_device_ctx *const pxran_lib_ctx = xran_dev_get_ctx();
     int16_t retPoll = 0;
+    int32_t i;
     uint64_t t1, t2;
 
     rte_timer_manage();
-
-    /* UP first */
-    if (process_ring(ctx->rx_ring[ETHDI_UP_VF]))
-        return 0;
-    /* CP next */
-    if (process_ring(ctx->rx_ring[ETHDI_CP_VF]))
-        return 0;
 
     if (pxran_lib_ctx->bbdev_dec) {
         t1 = MLogTick();
@@ -733,6 +742,19 @@ int32_t ring_processing_func(void)
         }
     }
 
+    /* UP first */
+
+    for (i = 0; i < ctx->io_cfg.num_vfs && i < (XRAN_VF_MAX - 1); i = i+2){
+        process_ring(ctx->rx_ring[i]);
+        if(ctx->io_cfg.num_vfs > 1) {
+	  process_ring(ctx->rx_ring[i+1]);
+	}
+        /* CP next */
+        if(ctx->io_cfg.id == O_RU) /* process CP only on O-RU */
+            if (process_ring(ctx->rx_ring[i+1]))
+                return 0;
+    }
+
     if (XRAN_STOPPED == xran_if_current_state)
         return -1;
 
@@ -742,7 +764,10 @@ int32_t ring_processing_func(void)
 int ring_processing_thread(void *args)
 {
     struct sched_param sched_param;
+    struct xran_device_ctx *const p_xran_dev_ctx = xran_dev_get_ctx();
     int res = 0;
+
+    memset(&sched_param, 0, sizeof(struct sched_param));
 
     printf("%s [CPU %2d] [PID: %6d]\n", __FUNCTION__,  rte_lcore_id(), getpid());
     sched_param.sched_priority = XRAN_THREAD_DEFAULT_PRIO;
@@ -750,9 +775,14 @@ int ring_processing_thread(void *args)
         printf("priority is not changed: coreId = %d, result1 = %d\n",rte_lcore_id(), res);
     }
 
-    for (;;)
+    for (;;){
         if(ring_processing_func() != 0)
             break;
+
+        /* work around for some kernel */
+        if(p_xran_dev_ctx->fh_init.io_cfg.io_sleep)
+            nanosleep(&sleeptime,NULL);
+    }
 
     puts("Pkt processing thread finished.");
     return 0;

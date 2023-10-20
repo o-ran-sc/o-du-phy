@@ -1,5 +1,4 @@
 /******************************************************************************
-*
 *   Copyright (c) 2019 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,40 +27,46 @@
 #include "fapi_interface.h"
 #include "nr5g_fapi_common_types.h"
 
-#define RELEASE_15 0x0001
-
 #define  MAX_UL_SLOT_INFO_COUNT                      10 //Maximum no of Slots for which UL_TTI.request info has to
 #define  FAPI_MAX_NUM_PUSCH_PDU                     255 //as per Table 3-44
 #define  FAPI_MAX_NUM_PUCCH_PDU                     255 //as per Table 3-44
 #define  FAPI_MAX_NUM_SRS_PDU                       255 //as per Table 3-73
 #define  FAPI_MAX_NUM_RACH_PDU                      255 //as per Table 3-74
+#define  FAPI_MAX_PHY_INSTANCES                      12
 
-// Updated per 5G FAPI    
-typedef enum {
-    FAPI_UL_TTI_REQ_PRACH_PDU_TYPE = 0,
-    FAPI_UL_TTI_REQ_PUSCH_PDU_TYPE,
-    FAPI_UL_TTI_REQ_PUCCH_PDU_TYPE,
-    FAPI_UL_TTI_REQ_SRS_PDU_TYPE
-} fapiULTtiReqPduType_e;
+// CONFIGURATION INFORMATION CARRIER CONFIGURATION BANDWIDTH
+#define FAPI_BANDWIDTH_5_MHZ                          5
+#define FAPI_BANDWIDTH_10_MHZ                        10
+#define FAPI_BANDWIDTH_15_MHZ                        15
+#define FAPI_BANDWIDTH_20_MHZ                        20
+#define FAPI_BANDWIDTH_25_MHZ                        25
+#define FAPI_BANDWIDTH_30_MHZ                        30
+#define FAPI_BANDWIDTH_40_MHZ                        40
+#define FAPI_BANDWIDTH_50_MHZ                        50
+#define FAPI_BANDWIDTH_60_MHZ                        60
+#define FAPI_BANDWIDTH_70_MHZ                        70
+#define FAPI_BANDWIDTH_80_MHZ                        80
+#define FAPI_BANDWIDTH_90_MHZ                        90
+#define FAPI_BANDWIDTH_100_MHZ                      100
+#define FAPI_BANDWIDTH_200_MHZ                      200
+#define FAPI_BANDWIDTH_400_MHZ                      400
 
-// Updated per 5G FAPI
-typedef enum {
-    FAPI_UCI_IND_ON_PUSCH_PDU_TYPE = 0,
-    FAPI_UCI_IND_ON_PUCCH_FMT_0_1_PDU_TYPE,
-    FAPI_UCI_IND_ON_PUCCH_FMT_2_3_4_PDU_TYPE
-} fapiUciIndPdu_Type_e;
+#define FAPI_SUBCARRIER_SPACING_15                  0
+#define FAPI_SUBCARRIER_SPACING_30                  1
+#define FAPI_SUBCARRIER_SPACING_60                  2
+#define FAPI_SUBCARRIER_SPACING_120                 3
 
-// CRC
-enum {
-    FAPI_CRC_CORRECT = 0,
-    FAPI_CRC_ERROR = 1
-};
+#define FAPI_FFT_SIZE_512                          512
+#define FAPI_FFT_SIZE_1024                         1024
+#define FAPI_FFT_SIZE_2048                         2048
+#define FAPI_FFT_SIZE_4096                         4096
 
-// Release/Features support
-typedef enum {
-    FAPI_NOT_SUPPORTED = 0,
-    FAPI_SUPPORTED,
-} fapiSupport_t;
+#define FAPI_MAX_DL_LAYERS                              MAX_NUM_DL_LAYERS
+#define FAPI_MAX_UL_LAYERS                              4
+// FAPI Supports MAX 12; Mapping to Intel Phys capabilities
+#define FAPI_MAX_DMRS_PORTS                             MAX_DL_PER_UE_DMRS_PORT_NUM
+// FAPI Supports MAX 12; Mapping to Intel Phys capabilities
+#define FAPI_MAX_PTRS_PORTS                             MAX_DL_PER_UE_PTRS_PORT_NUM
 
 // FAPI States
 /**
@@ -74,46 +79,42 @@ typedef enum _fapi_states {
     FAPI_STATE_RUNNING
 } fapi_states_t;
 
-// Information of optional and mandatory status for a TLV
 typedef enum {
-    FAPI_IDLE_STATE_ONLY_OPTIONAL = 0,
-    FAPI_IDLE_STATE_ONLY_MANDATORY,
-    FAPI_IDLE_AND_CONFIGURED_STATES_OPTIONAL,
-    FAPI_IDLE_STATE_MANDATORY_CONFIGURED_STATE_OPTIONAL,
-    FAPI_IDLE_CONFIGURED_AND_RUNNING_STATES_OPTIONAL,
-    FAPI_IDLE_STATE_MANDATORY_CONFIGURED_AND_RUNNING_STATES_OPTIONAL
-} fapiTlvStatus_t;
+    FAPI_PUCCH_FORMAT_TYPE_0 = 0,
+    FAPI_PUCCH_FORMAT_TYPE_1,
+    FAPI_PUCCH_FORMAT_TYPE_2,
+    FAPI_PUCCH_FORMAT_TYPE_3,
+    FAPI_PUCCH_FORMAT_TYPE_4,
+} nr5g_fapi_uci_format_t;
 
-// PARAMETERS INFORMATION
+typedef struct {
+    uint8_t group_id;
+    uint16_t initial_cyclic_shift;
+    uint8_t nr_of_symbols;
+    uint8_t start_symbol_index;
+    uint8_t time_domain_occ_idx;
+} nr5g_fapi_pucch_resources_t;
+
+
+typedef enum {
+    MEM_STAT_CONFIG_REQ = 0,
+    MEM_STAT_START_REQ,
+    MEM_STAT_STOP_REQ,
+    MEM_STAT_SHUTDOWN_REQ,
+    MEM_STAT_DL_CONFIG_REQ,
+    MEM_STAT_UL_CONFIG_REQ,
+    MEM_STAT_UL_DCI_REQ,
+    MEM_STAT_TX_REQ,
+    MEM_STAT_DL_IQ_SAMPLES,
+    MEM_STAT_UL_IQ_SAMPLES,
+    MEM_STAT_DEFAULT,
+} _mem_stats_for_dl;
+
+//Unused definitions
+#define RELEASE_15 0x0001
+
 #define FAPI_NORMAL_CYCLIC_PREFIX_MASK              0x01
 #define FAPI_EXTENDED_CYCLIC_PREFIX_MASK            0x02
-
-// In 5G FAPI FrameDuplexType as part of Cell Configuration
-typedef enum _fapi_duplex_ {
-    FAPI_TDD = 0,
-    FAPI_FDD
-} fapi_duplex_e;
-
-// Subcarrier spacing information
-#define FAPI_15KHZ_MASK                             0x01
-#define FAPI_30KHZ_MASK                             0x02
-#define FAPI_60KHZ_MASK                             0x04
-#define FAPI_120KHZ_MASK                            0x08
-
-// Bandwitdth information
-#define FAPI_5MHZ_BW_MASK                           0x0001
-#define FAPI_10MHZ_BW_MASK                          0x0002
-#define FAPI_15MHZ_BW_MASK                          0x0004
-#define FAPI_20MHZ_BW_MASK                          0x0010
-#define FAPI_40MHZ_BW_MASK                          0x0020
-#define FAPI_50MHZ_BW_MASK                          0x0040
-#define FAPI_60MHZ_BW_MASK                          0x0080
-#define FAPI_70MHZ_BW_MASK                          0x0100
-#define FAPI_80MHZ_BW_MASK                          0x0200
-#define FAPI_90MHZ_BW_MASK                          0x0400
-#define FAPI_100MHZ_BW_MASK                         0x0800
-#define FAPI_200MHZ_BW_MASK                         0x1000
-#define FAPI_400MHZ_BW_MASK                         0x2000
 
 // PDCCH Information
 #define FAPI_CCE_MAPPING_INTERLEAVED_MASK           0x01
@@ -149,14 +150,26 @@ typedef enum _fapi_duplex_ {
 #define FAPI_MAX_PDSCHS_TBS_PER_SLOT_MASK           0xff
 #define FAPI_MAX_NUMBERMIMO_LAYERS_PDSCH            2
 
-#define FAPI_MAX_PHY_INSTANCES                      12
+// Subcarrier spacing information
+#define FAPI_15KHZ_MASK                             0x01
+#define FAPI_30KHZ_MASK                             0x02
+#define FAPI_60KHZ_MASK                             0x04
+#define FAPI_120KHZ_MASK                            0x08
 
-typedef enum modulationOrder {
-    FAPI_QPSK = 0,
-    FAPI_16QAM,
-    FAPI_64QAM,
-    FAPI_256QAM
-} fapiModOrder_t;
+// Bandwitdth information
+#define FAPI_5MHZ_BW_MASK                           0x0001
+#define FAPI_10MHZ_BW_MASK                          0x0002
+#define FAPI_15MHZ_BW_MASK                          0x0004
+#define FAPI_20MHZ_BW_MASK                          0x0010
+#define FAPI_40MHZ_BW_MASK                          0x0020
+#define FAPI_50MHZ_BW_MASK                          0x0040
+#define FAPI_60MHZ_BW_MASK                          0x0080
+#define FAPI_70MHZ_BW_MASK                          0x0100
+#define FAPI_80MHZ_BW_MASK                          0x0200
+#define FAPI_90MHZ_BW_MASK                          0x0400
+#define FAPI_100MHZ_BW_MASK                         0x0800
+#define FAPI_200MHZ_BW_MASK                         0x1000
+#define FAPI_400MHZ_BW_MASK                         0x2000
 
 #define FAPI_MAX_MUMIMO_USERS_MASK                  0xff
 
@@ -176,13 +189,6 @@ typedef enum modulationOrder {
 //Upper Limit for PDSCHS TBs per Slot
 #define FAPI_MAX_PUSCHS_TBS_PER_SLOT_MASK           0xff
 
-typedef enum aggregationFactor {
-    FAPI_PUSCH_AGG_FACTOR_1 = 0,
-    FAPI_PUSCH_AGG_FACTOR_2,
-    FAPI_PUSCH_AGG_FACTOR_4,
-    FAPI_PUSCH_AGG_FACTOR_8
-} fapiPuschAggFactor_t;
-
 // PRACH Parameters
 #define FAPI_PRACH_LF_FORMAT_0_MASK                 0x01
 #define FAPI_PRACH_LF_FORMAT_1_MASK                 0x02
@@ -199,43 +205,10 @@ typedef enum aggregationFactor {
 #define FAPI_PRACH_SF_FORMAT_C0_MASK                0x80
 #define FAPI_PRACH_SF_FORMAT_C2_MASK                0x100
 
-typedef enum prachMaxOccasionsPerSlot {
-    FAPI_MAX_PRACH_FD_OCC_IN_A_SLOT_1 = 0,
-    FAPI_MAX_PRACH_FD_OCC_IN_A_SLOT_2,
-    FAPI_MAX_PRACH_FD_OCC_IN_A_SLOT_4,
-    FAPI_MAX_PRACH_FD_OCC_IN_A_SLOT_8
-} fapi_prachMaxFdOccasionsPerSlot_t;
-
 // Measurement Parameters
 #define FAPI_RSSI_REPORT_IN_DBM_MASK                0x01
 #define FAPI_RSSI_REPORT_IN_DBFS_MASK               0x02
 
-// CONFIGURATION INFORMATION CARRIER CONFIGURATION BANDWIDTH
-#define FAPI_BANDWIDTH_5_MHZ                          5
-#define FAPI_BANDWIDTH_10_MHZ                        10
-#define FAPI_BANDWIDTH_15_MHZ                        15
-#define FAPI_BANDWIDTH_20_MHZ                        20
-#define FAPI_BANDWIDTH_25_MHZ                        25
-#define FAPI_BANDWIDTH_30_MHZ                        30
-#define FAPI_BANDWIDTH_40_MHZ                        40
-#define FAPI_BANDWIDTH_50_MHZ                        50
-#define FAPI_BANDWIDTH_60_MHZ                        60
-#define FAPI_BANDWIDTH_70_MHZ                        70
-#define FAPI_BANDWIDTH_80_MHZ                        80
-#define FAPI_BANDWIDTH_90_MHZ                        90
-#define FAPI_BANDWIDTH_100_MHZ                      100
-#define FAPI_BANDWIDTH_200_MHZ                      200
-#define FAPI_BANDWIDTH_400_MHZ                      400
-
-#define FAPI_SUBCARRIER_SPACING_15                  0
-#define FAPI_SUBCARRIER_SPACING_30                  1
-#define FAPI_SUBCARRIER_SPACING_60                  2
-#define FAPI_SUBCARRIER_SPACING_120                 3
-
-#define FAPI_FFT_SIZE_512                          512
-#define FAPI_FFT_SIZE_1024                         1024
-#define FAPI_FFT_SIZE_2048                         2048
-#define FAPI_FFT_SIZE_4096                         4096
 // Frequency needs to track 38.104 Section 5.2 and 38.211 Section 5.3.1
 // Lower Bound KHz
 #define FAPI_MIN_FREQUENCY_PT_A                     450000
@@ -283,34 +256,8 @@ typedef enum prachMaxOccasionsPerSlot {
 #define FAPI_PRACHZEROCORRCONF_MASK                 0x0f
 // Number of Unused Root Sequences Mask
 #define FAPI_UNUSEDROOTSEQUENCES_MASK               0x0f
-// SSBPERRACH
-typedef enum {
-    FAPI_SSB_PER_RACH_1_OVER_8 = 0,
-    FAPI_SSB_PER_RACH_1_OVER_4,
-    FAPI_SSB_PER_RACH_1_OVER_2,
-    FAPI_SSB_PER_RACH_1,
-    FAPI_SSB_PER_RACH_2,
-    FAPI_SSB_PER_RACH_4,
-    FAPI_SSB_PER_RACH_8,
-    FAPI_SSB_PER_RACH_16
-} fapiSsbPerRach_t;
-
-typedef enum {
-    FAPI_PUCCH_FORMAT_TYPE_0 = 0,
-    FAPI_PUCCH_FORMAT_TYPE_1,
-    FAPI_PUCCH_FORMAT_TYPE_2,
-    FAPI_PUCCH_FORMAT_TYPE_3,
-    FAPI_PUCCH_FORMAT_TYPE_4,
-} nr5g_fapi_uci_format_t;
-
-typedef struct {
-    uint8_t group_id;
-    uint16_t initial_cyclic_shift;
-    uint8_t nr_of_symbols;
-    uint8_t start_symbol_index;
-    uint8_t time_domain_occ_idx;
-} nr5g_fapi_pucch_resources_t;
-// SSB Table
+// SSB
+#define FAPI_SSB_SUB6_THRESHOLD                  6000000
 // Ssb Offset Point A max
 #define FAPI_SSB_OFFSET_POINTA_MAX                  2199
 // betaPSS  i.e. PSS EPRE to SSS EPRE in a SS/PBCH Block per 38.213 Section 4.1
@@ -350,50 +297,11 @@ typedef struct {
 #define FAPI_RSSI_REPORTED_IN_DBFS                      2
 // Error Indication
 #define FAPI_SFN_MASK                                   0x03ff
-// Status and Error Codes for either .response or ERROR.indication
-// Updated per 5g FAPI Table 3-31
-typedef enum {
-    MSG_OK = 0,
-    MSG_INVALID_STATE,
-    MSG_INVALID_CONFIG,
-    SFN_OUT_OF_SYNC,
-    MSG_SLOT_ERR,
-    MSG_BCH_MISSING,
-    MSG_INVALID_SFN,
-    MSG_UL_DCI_ERR,
-    MSG_TX_ERR
-} fapiStatusAndErrorCodes_e;
-
- // Digital Beam Table (DBT) PDU
- // Number of Digital Beam Mask
- // Number of TX RUS Mask
- // Beam Index Mask
- // Digital Beam Index weights Real and Imaginary Mask
-
- // Precoding Matrix (PM) PDU
- // Precoding Matrix ID Mask
- // Number of Layers Mask
- // Number of Antenna Ports at the precoder output Mask
- // Precoder Weights Real and Imaginary Mask
-#define FAPI_U16_MASK                                  0xffff
-
  // Slot Indication
-
 #define FAPI_SLOT_MAX_VALUE                            159
 
- // DL_TTI.request
- // nPDUS mask
- // nGroup mask
+#define FAPI_U16_MASK                                  0xffff
 #define FAPI_U8_MASK                                   0xff
-
-typedef enum {
-    FAPI_DL_TTI_REQ_PDCCH_PDU_TYPE = 0,
-    FAPI_DL_TTI_REQ_PDSCH_PDU_TYPE,
-    FAPI_DL_TTI_REQ_CSI_RS_PDU_TYPE,
-    FAPI_DL_TTI_REQ_SSB_PDU_TYPE
-} fapiDlTtiReqPduType_e;
-
-// nUe
 // Define Maximum number of Ues per Group
 #define FAPI_MAX_NUMBER_OF_UES_PER_GROUP                12
 
@@ -449,13 +357,6 @@ typedef enum {
 #define FAPI_MCS_TABLE_QAM_64_LOW_SE                    2
 
 #define FAPI_REDUNDANCY_INDEX_MASK                      0x03
-#define FAPI_MAX_DL_LAYERS                              8
-#define FAPI_MAX_UL_LAYERS                              4
-//#define FAPI_MAX_DMRS_PORTS                             12
-#define FAPI_MAX_DMRS_PORTS                             MAX_DL_PER_UE_DMRS_PORT_NUM
-#define FAPI_MAX_PTRS_PORTS                             12
-
-#define FAPI_TRANSMISSION_SCHEME_1                      1
 
 #define FAPI_REF_POINT_FOR_PDSCH_DMRS_AT_PT_A           0
 #define FAPI_REF_POINT_FOR_PDSCH_DMRS_AT_LOWEST_ALLOC   1
@@ -483,6 +384,7 @@ typedef enum {
 #define FAPI_PTRS_FREQ_DENSITY_4                        1
 #define FAPI_PTRS_RE_OFFSET_MASK                        0x03
 #define FAPI_EPRE_RATIO_PDSCH_PTRS_MASK                 0x03
+
 // PDSCH Power Control Offset
 #define FAPI_PWR_CTRL_OFFSET_MINUS_8_DB                 0
 #define FAPI_PWR_CTRL_OFFSET_MINUS_7_DB                 1
@@ -700,18 +602,45 @@ typedef enum {
 #define FAPI_CSI_PARTX_CRC_NOT_PRESENT                  2
 #define FAPI_CSI_PARTX_PAYLOAD_MAX                      214
 
+// CRC
+enum {
+    FAPI_CRC_CORRECT = 0,
+    FAPI_CRC_ERROR = 1
+};
+
+// Release/Features support
 typedef enum {
-    MEM_STAT_CONFIG_REQ = 0,
-    MEM_STAT_START_REQ,
-    MEM_STAT_STOP_REQ,
-    MEM_STAT_SHUTDOWN_REQ,
-    MEM_STAT_DL_CONFIG_REQ,
-    MEM_STAT_UL_CONFIG_REQ,
-    MEM_STAT_UL_DCI_REQ,
-    MEM_STAT_TX_REQ,
-    MEM_STAT_DL_IQ_SAMPLES,
-    MEM_STAT_UL_IQ_SAMPLES,
-    MEM_STAT_DEFAULT,
-} _mem_stats_for_dl;
+    FAPI_NOT_SUPPORTED = 0,
+    FAPI_SUPPORTED,
+} fapiSupport_t;
+
+// Information of optional and mandatory status for a TLV
+typedef enum {
+    FAPI_IDLE_STATE_ONLY_OPTIONAL = 0,
+    FAPI_IDLE_STATE_ONLY_MANDATORY,
+    FAPI_IDLE_AND_CONFIGURED_STATES_OPTIONAL,
+    FAPI_IDLE_STATE_MANDATORY_CONFIGURED_STATE_OPTIONAL,
+    FAPI_IDLE_CONFIGURED_AND_RUNNING_STATES_OPTIONAL,
+    FAPI_IDLE_STATE_MANDATORY_CONFIGURED_AND_RUNNING_STATES_OPTIONAL
+} fapiTlvStatus_t;
+
+typedef enum modulationOrder {
+    FAPI_QPSK = 0,
+    FAPI_16QAM,
+    FAPI_64QAM,
+    FAPI_256QAM
+} fapiModOrder_t;
+
+// SSBPERRACH
+typedef enum {
+    FAPI_SSB_PER_RACH_1_OVER_8 = 0,
+    FAPI_SSB_PER_RACH_1_OVER_4,
+    FAPI_SSB_PER_RACH_1_OVER_2,
+    FAPI_SSB_PER_RACH_1,
+    FAPI_SSB_PER_RACH_2,
+    FAPI_SSB_PER_RACH_4,
+    FAPI_SSB_PER_RACH_8,
+    FAPI_SSB_PER_RACH_16
+} fapiSsbPerRach_t;
 
 #endif                          //_NR5G_FAPI_INTELNAL_H_

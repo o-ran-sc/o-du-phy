@@ -88,7 +88,7 @@ uint8_t nr5g_fapi_start_request(
         return FAILURE;
     }
 
-    if (p_fapi_vendor_msg->start_req_vendor.mode > 1) {
+    if (p_fapi_vendor_msg->start_req_vendor.mode > 4) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[START.request] PHY Mode %u invalid",
                 p_fapi_vendor_msg->start_req_vendor.mode));
         return FAILURE;

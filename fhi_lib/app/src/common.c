@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-*   Copyright (c) 2019 Intel.
+*   Copyright (c) 2020 Intel.
 *
 *   Licensed under the Apache License, Version 2.0 (the "License");
 *   you may not use this file except in compliance with the License.
@@ -96,6 +96,13 @@ int32_t rx_dl_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
 int16_t *p_rx_ul_bfw_buffer[MAX_ANT_CARRIER_SUPPORTED];
 int32_t rx_ul_bfw_buffer_size[MAX_ANT_CARRIER_SUPPORTED];
 int32_t rx_ul_bfw_buffer_position[MAX_ANT_CARRIER_SUPPORTED];
+
+// F1 Tables 38.101-1 Table 5.3.2-1. Maximum transmission bandwidth configuration NRB
+uint16_t nLteNumRbsPerSymF1[1][4] =
+{
+    //  5MHz    10MHz   15MHz   20 MHz
+        {25,    50,     75,     100},         // Numerology 0 (15KHz)
+};
 
 // F1 Tables 38.101-1 Table 5.3.2-1. Maximum transmission bandwidth configuration NRB
 uint16_t nNumRbsPerSymF1[3][13] =
@@ -210,13 +217,35 @@ uint32_t app_xran_get_scs(uint8_t nMu)
  *
 **/
 //-------------------------------------------------------------------------------------------
-uint16_t app_xran_get_num_rbs(uint32_t nNumerology, uint32_t nBandwidth, uint32_t nAbsFrePointA)
+uint16_t app_xran_get_num_rbs(uint8_t ranTech, uint32_t nNumerology, uint32_t nBandwidth, uint32_t nAbsFrePointA)
 {
     uint32_t error = 1;
     uint16_t numRBs = 0;
 
-    if (nAbsFrePointA <= 6000000)
-    {
+    if (ranTech == XRAN_RAN_LTE) {
+        switch(nBandwidth)
+        {
+            case PHY_BW_5_0_MHZ:
+                numRBs = nLteNumRbsPerSymF1[nNumerology][0];
+                error = 0;
+            break;
+            case PHY_BW_10_0_MHZ:
+                numRBs = nLteNumRbsPerSymF1[nNumerology][1];
+                error = 0;
+            break;
+            case PHY_BW_15_0_MHZ:
+                numRBs = nLteNumRbsPerSymF1[nNumerology][2];
+                error = 0;
+            break;
+            case PHY_BW_20_0_MHZ:
+                numRBs = nLteNumRbsPerSymF1[nNumerology][3];
+                error = 0;
+            break;
+            default:
+                error = 1;
+            break;
+        }
+    } else if (nAbsFrePointA <= 6000000) {
         // F1 Tables 38.101-1 Table 5.3.2-1. Maximum transmission bandwidth configuration NRB
         if (nNumerology < 3)
         {
@@ -313,11 +342,11 @@ uint16_t app_xran_get_num_rbs(uint32_t nNumerology, uint32_t nBandwidth, uint32_
 
     if (error)
     {
-        printf("ERROR: %s: nNumerology[%d] nBandwidth[%d] nAbsFrePointA[%d]\n",__FUNCTION__, nNumerology, nBandwidth, nAbsFrePointA);
+        printf("ERROR: %s: RAN[%s] nNumerology[%d] nBandwidth[%d] nAbsFrePointA[%d]\n",__FUNCTION__, (ranTech ? "LTE" : "5G NR"), nNumerology, nBandwidth, nAbsFrePointA);
     }
     else
     {
-        printf("%s: nNumerology[%d] nBandwidth[%d] nAbsFrePointA[%d] numRBs[%d]\n",__FUNCTION__, nNumerology, nBandwidth, nAbsFrePointA, numRBs);
+        printf("%s: RAN [%s] nNumerology[%d] nBandwidth[%d] nAbsFrePointA[%d] numRBs[%d]\n",__FUNCTION__, (ranTech ? "LTE" : "5G NR"), nNumerology, nBandwidth, nAbsFrePointA, numRBs);
     }
 
     return numRBs;

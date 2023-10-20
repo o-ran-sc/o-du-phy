@@ -20,6 +20,7 @@
 
 #include "nr5g_fapi_framework.h"
 #include "fapi_interface.h"
+#include "fapi_vendor_extension.h"
 
 void nr5g_fapi_mac2phy_api_recv_handler(
     void *config,
@@ -29,4 +30,7 @@ void nr5g_fapi_mac2phy_api_processing_handler(
     p_nr5g_fapi_phy_instance_t p_phy_instance,
     p_fapi_api_queue_elem_t p_msg_list);
 
+uint8_t nr5g_fapi_check_api_ordering(
+    p_nr5g_fapi_phy_instance_t p_phy_instance,
+    p_fapi_api_queue_elem_t p_msg_list);
 #endif

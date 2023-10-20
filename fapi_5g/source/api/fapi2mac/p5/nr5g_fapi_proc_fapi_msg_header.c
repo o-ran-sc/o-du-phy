@@ -43,30 +43,10 @@ uint8_t nr5g_fapi_message_header(
 {
     uint8_t phy_id = 0;
 
-    p_fapi_api_queue_elem_t p_list_elem = NULL;
-    p_fapi_msg_header_t p_fapi_msg_hdr = NULL;
-
     for (phy_id = 0; phy_id < FAPI_MAX_PHY_INSTANCES; phy_id++) {
         if ((FAPI_STATE_CONFIGURED == p_phy_ctx->phy_instance[phy_id].state) ||
             (FAPI_STATE_RUNNING == p_phy_ctx->phy_instance[phy_id].state)) {
-            p_list_elem =
-                nr5g_fapi_fapi2mac_create_api_list_elem(FAPI_MSG_HEADER_IND, 1,
-                sizeof(fapi_msg_header_t));
-            if (!p_list_elem) {
-                NR5G_FAPI_LOG(ERROR_LOG, ("[FAPI MSG HDR] Unable to create "
-                        "list element. Out of memory!!!"));
-                return FAILURE;
-            }
-
-            p_fapi_msg_hdr = (fapi_msg_header_t *) (p_list_elem + 1);
-            p_fapi_msg_hdr->num_msg = 0;
-            p_fapi_msg_hdr->handle = phy_id;
-
-            // Add element to send list
-            nr5g_fapi_fapi2mac_add_api_to_list(phy_id, p_list_elem);
-            NR5G_FAPI_LOG(DEBUG_LOG,
-                ("[FAPI MSG HDR] FAPI Message Header Added for PHY: %d",
-                    phy_id));
+            nr5g_fapi_message_header_per_phy(phy_id);
         }
     }
 
@@ -90,7 +70,7 @@ uint8_t nr5g_fapi_message_header_per_phy(
     p_fapi_msg_header_t p_fapi_msg_hdr = NULL;
 
     p_list_elem =
-        nr5g_fapi_fapi2mac_create_api_list_elem(FAPI_MSG_HEADER_IND, 1,
+        nr5g_fapi_fapi2mac_create_api_list_elem(FAPI_VENDOR_MSG_HEADER_IND, 1,
         sizeof(fapi_msg_header_t));
     if (!p_list_elem) {
         NR5G_FAPI_LOG(ERROR_LOG, ("[FAPI MSG HDR] Unable to create "

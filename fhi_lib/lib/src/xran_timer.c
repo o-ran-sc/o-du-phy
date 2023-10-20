@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <rte_cycles.h>
 
 #include "xran_timer.h"
 #include "xran_printf.h"
@@ -57,6 +58,8 @@ static struct timespec* p_last_time = &last_time;
 
 
 static struct timespec* p_temp_time;
+
+static struct timespec sleeptime = {.tv_nsec = 1E3 }; /* 1 us */
 
 static unsigned long current_second = 0;
 static unsigned long started_second = 0;
@@ -117,22 +120,28 @@ void timing_adjust_gps_second(struct timespec* p_time)
 {
     struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
 
-    long nsec = p_time->tv_nsec + p_xran_dev_ctx->offset_nsec;
-    p_time->tv_sec += p_xran_dev_ctx->offset_sec;
-    if (nsec >= 1e9)
+    if (p_time->tv_nsec >= p_xran_dev_ctx->offset_nsec)
     {
-        nsec -=1e9;
-        p_time->tv_sec += 1;
+        p_time->tv_nsec -= p_xran_dev_ctx->offset_nsec;
+        p_time->tv_sec -= p_xran_dev_ctx->offset_sec;
     }
-    p_time->tv_nsec = nsec;
+    else
+    {
+        p_time->tv_nsec += 1e9 - p_xran_dev_ctx->offset_nsec;
+        p_time->tv_sec -= p_xran_dev_ctx->offset_sec + 1;
+    }
 
     return;
 }
 uint64_t xran_tick(void)
 {
+#if defined(RTE_ARCH_ARM64) && !defined(CONFIG_RTE_ARM_EAL_RDTSC_USE_PMU)
+	return (rte_rdtsc() *80);
+#else
     uint32_t hi, lo;
     __asm volatile ("rdtsc" : "=a"(lo), "=d"(hi));
     return ( (uint64_t)lo)|( ((uint64_t)hi)<<32 );
+#endif
 }
 
 unsigned long get_ticks_diff(unsigned long curr_tick, unsigned long last_tick)
@@ -146,6 +155,8 @@ unsigned long get_ticks_diff(unsigned long curr_tick, unsigned long last_tick)
 long poll_next_tick(long interval_ns, unsigned long *used_tick)
 {
     struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
+    struct xran_common_counters* pCnt = &p_xran_dev_ctx->fh_counters;
+
     long target_time;
     long delta;
     static int counter = 0;
@@ -170,9 +181,9 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
             timing_adjust_gps_second(p_cur_time);
         delta = (p_cur_time->tv_sec * NSEC_PER_SEC + p_cur_time->tv_nsec) - target_time;
         if(delta > 0 || (delta < 0 && abs(delta) < THRESHOLD)) {
-            if (debugStop &&(debugStopCount > 0) && (tx_counter >= debugStopCount)){
+            if (debugStop &&(debugStopCount > 0) && (pCnt->tx_counter >= debugStopCount)){
                 uint64_t t1;
-                printf("STOP:[%ld.%09ld], debugStopCount %d, tx_counter %ld\n", p_cur_time->tv_sec, p_cur_time->tv_nsec, debugStopCount, tx_counter);
+                printf("STOP:[%ld.%09ld], debugStopCount %d, tx_counter %ld\n", p_cur_time->tv_sec, p_cur_time->tv_nsec, debugStopCount, pCnt->tx_counter);
                 t1 = MLogTick();
                 rte_pause();
                 MLogTask(PID_TIME_SYSTIME_STOP, t1, MLogTick());
@@ -231,12 +242,19 @@ long poll_next_tick(long interval_ns, unsigned long *used_tick)
                 uint64_t t1, t2;
                 t1 = xran_tick();
 
-                ring_processing_func();
+                if(p_xran_dev_ctx->fh_init.io_cfg.pkt_proc_core == 0)
+                    ring_processing_func();
+
                 process_dpdk_io();
+
+                /* work around for some kernel */
+                if(p_xran_dev_ctx->fh_init.io_cfg.io_sleep)
+                    nanosleep(&sleeptime,NULL);
 
                 t2 = xran_tick();
                 *used_tick += get_ticks_diff(t2, t1);
             }
+
         }
   }
 

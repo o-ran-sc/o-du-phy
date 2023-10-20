@@ -95,7 +95,7 @@ uint8_t nr5g_fapi_ul_tti_request(
     nr5g_fapi_fapi2phy_add_to_api_list(p_list_elem);
 
     p_stats->iapi_stats.iapi_ul_config_req++;
-    NR5G_FAPI_LOG(TRACE_LOG, ("[NR5G_FAPI][UL_TTI.request][%d][%d,%d]",
+    NR5G_FAPI_LOG(DEBUG_LOG, ("[UL_TTI.request][%d][%d,%d]",
             p_phy_instance->phy_id,
             p_ia_ul_config_req->sSFN_Slot.nSFN,
             p_ia_ul_config_req->sSFN_Slot.nSlot));
@@ -340,7 +340,7 @@ void nr5g_fapi_pusch_to_phy_ulsch_translation(
     p_ul_data_chan->nSubcSpacing = p_pusch_pdu->subCarrierSpacing;
     p_ul_data_chan->nCpType = p_pusch_pdu->cyclicPrefix;
     p_ul_data_chan->nMCS = p_pusch_pdu->mcsIndex;
-    p_ul_data_chan->nTransPrecode = 0;
+    p_ul_data_chan->nTransPrecode = !(p_pusch_pdu->transformPrecoding);
     mcs_table = p_pusch_pdu->mcsTable;
     if (mcs_table <= 2) {
         p_ul_data_chan->nMcsTable = mcs_table;
@@ -368,7 +368,7 @@ void nr5g_fapi_pusch_to_phy_ulsch_translation(
     nr_of_layers = p_ul_data_chan->nNrOfLayers = p_pusch_pdu->nrOfLayers;
     for (i = 0; (i < FAPI_MAX_DMRS_PORTS && port_index < nr_of_layers); i++) {
         if (port_index < FAPI_MAX_UL_LAYERS) {
-            if ((dmrs_ports >> i) && 0x0001) {
+            if ((dmrs_ports >> i) & 0x0001) {
                 p_ul_data_chan->nPortIndex[port_index++] = i;
             }
         } else {
@@ -502,6 +502,8 @@ void nr5g_fapi_pucch_to_phy_ulcch_uci_translation(
     p_pucch_info->handle = p_ul_ctrl_chan->nUEId =
         (uint16_t) p_pucch_pdu->handle;
 
+    p_ul_ctrl_chan->nBWPSize = p_pucch_pdu->bwpSize;
+    p_ul_ctrl_chan->nBWPStart = p_pucch_pdu->bwpStart;
     p_ul_ctrl_chan->nSubcSpacing = p_pucch_pdu->subCarrierSpacing;
     p_ul_ctrl_chan->nCpType = p_pucch_pdu->cyclicPrefix;
     p_pucch_info->pucch_format = p_ul_ctrl_chan->nFormat =
@@ -683,6 +685,7 @@ uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
         sizeof(ULConfigRequestStruct));
 
     for (i = 0; i < num_fapi_pdus; i++) {
+        p_pdu_head->nPDUSize = 0;
         p_stats->fapi_stats.fapi_ul_tti_pdus++;
         p_fapi_ul_tti_req_pdu = &p_fapi_req->pdus[i];
 
@@ -734,7 +737,6 @@ uint8_t nr5g_fapi_ul_tti_req_to_phy_translation(
                             p_fapi_ul_tti_req_pdu->pduType));
                     return FAILURE;
                 }
-                break;
         }
         p_pdu_head =
             (PDUStruct *) ((uint8_t *) p_pdu_head + p_pdu_head->nPDUSize);

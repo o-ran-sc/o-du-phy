@@ -28,6 +28,7 @@
 
 #include <stdint.h>
 
+#define DELETE_ARRAY(x)     { if(x) { delete[] x; x = nullptr; } }
 
 const std::string module_name = "C-Plane";
 
@@ -65,6 +66,30 @@ private:
     struct xran_section_gen_info *m_pSectGenInfo = NULL;
     struct xran_section_gen_info *m_pSectResult = NULL;
 
+    struct sectinfo {
+        uint16_t    sectionId;
+        uint8_t     rb;
+        uint8_t     symInc;
+        uint16_t    startPrbc;
+        uint16_t    numPrbc;
+        uint16_t    reMask;
+        uint8_t     numSymbol;
+        uint16_t    beamId;
+        int         freqOffset;
+        std::vector<uint8_t> exts;
+        };
+
+    struct extcfginfo {
+        int         type;
+        std::string name;
+        union {
+            struct xran_sectionext1_info ext1;
+            struct xran_sectionext2_info ext2;
+            struct xran_sectionext3_info ext3;
+            struct xran_sectionext4_info ext4;
+            struct xran_sectionext5_info ext5;
+            } u;
+        };
 
 protected:
     int m_maxSections = 8;  /*  not used */
@@ -76,6 +101,8 @@ protected:
     struct xran_recv_packet_info m_pktInfo;
     struct xran_cp_gen_params m_result;
 
+    struct xran_sectionext1_info m_temp_ext1[XRAN_MAX_PRBS];
+
     uint8_t     m_dir;
     std::string m_dirStr;
     uint8_t     m_sectionType;
@@ -83,28 +110,24 @@ protected:
     uint8_t     m_ccId, m_antId;
     uint8_t     m_seqId;
     uint8_t     m_frameId, m_subframeId, m_slotId;
-    uint8_t     m_symStart, m_symNum;
-    uint16_t    *m_prbStart = NULL, *m_prbNum = NULL;
+    uint8_t     m_symStart;
 
     uint8_t     m_iqWidth, m_compMethod;
-    uint16_t    m_beamId;
-    uint16_t    m_reMask = 0xfff;
-    uint16_t    m_sectionId;
     uint8_t     m_filterIndex;
     uint16_t    m_timeOffset;
     uint8_t     m_fftSize;
     uint8_t     m_scs;
     uint16_t    m_cpLength;
-    int         m_freqOffset;
+
+    struct sectinfo     *m_sections;
+    struct extcfginfo   *m_extcfgs;
+    int                 m_nextcfgs;
 
     uint16_t  m_ext1_dst_len = 0;
-    int8_t   *m_p_ext1_dst   = NULL;
-    int16_t  *m_p_bfw_iq_src = NULL;
+    int8_t   *m_p_ext1_dst   = nullptr;
+    int16_t  *m_p_bfw_iq_src = nullptr;
 
     struct xran_sectionext1_info m_ext1;
-    struct xran_sectionext2_info m_ext2;
-    struct xran_sectionext4_info m_ext4;
-    struct xran_sectionext5_info m_ext5;
 
     int16_t m_bfwIQ[XRAN_MAX_BFW_N*2];
 
@@ -114,9 +137,6 @@ protected:
         int i, j;
 
         init_test("C_Plane");
-
-        m_numSections   = get_input_parameter<int>("num_sections");
-        ASSERT_FALSE(m_numSections == 0);
 
         m_dirStr        = get_input_parameter<std::string>("direction");
 
@@ -136,25 +156,6 @@ protected:
         m_compMethod    = get_input_parameter<uint8_t>("comp_method");
         m_iqWidth       = get_input_parameter<uint8_t>("iq_width");
 
-        m_sectionId     = get_input_parameter<uint8_t>("section_id");
-        m_symNum        = get_input_parameter<uint8_t>("symbol_num");
-        m_beamId        = get_input_parameter<uint16_t>("beam_id");
-
-        /* reading configurations of start prb and the number of prbs  */
-        std::vector<int> prbstart = get_input_parameter<std::vector<int>>("prb_start");
-        std::vector<int> prbnum = get_input_parameter<std::vector<int>>("prb_num");
-        /* number of sections and  the pair of start/number of prb shall be matched */
-        ASSERT_TRUE((m_numSections == prbstart.size())
-                    && (m_numSections == prbnum.size())
-                    && (prbstart.size() == prbnum.size()));
-
-        m_prbStart  = new uint16_t [m_numSections];
-        m_prbNum    = new uint16_t [m_numSections];
-        for(i=0; i < m_numSections; i++) {
-            m_prbStart[i] = prbstart[i];
-            m_prbNum[i] = prbnum[i];
-            }
-
         switch(m_sectionType) {
             case XRAN_CP_SECTIONTYPE_1:
                 m_filterIndex = XRAN_FILTERINDEX_STANDARD;
@@ -166,158 +167,218 @@ protected:
                 m_fftSize       = get_input_parameter<uint8_t>("fft_size");
                 m_scs           = get_input_parameter<uint8_t>("scs");
                 m_cpLength      = get_input_parameter<uint16_t>("cp_length");
-                m_freqOffset    = get_input_parameter<int>("freq_offset");
                 break;
 
             default:
-                FAIL() << "Invalid Section Type - " << m_sectionType << "\n";
+                FAIL() << "Invalid Section Type - " << m_sectionType << std::endl;
+            }
+
+        m_numSections   = get_input_subsection_size("sections");
+        ASSERT_FALSE(m_numSections == 0);
+
+        m_sections = new struct sectinfo [m_numSections];
+        for(i=0; i<m_numSections; i++) {
+            m_sections[i].sectionId = get_input_parameter<uint16_t>("sections", i, "sectionId");
+            m_sections[i].rb        = get_input_parameter<uint16_t>("sections", i, "rb");
+            m_sections[i].symInc    = get_input_parameter<uint16_t>("sections", i, "symInc");
+            m_sections[i].startPrbc = get_input_parameter<uint16_t>("sections", i, "startPrbc");
+            m_sections[i].numPrbc   = get_input_parameter<uint16_t>("sections", i, "numPrbc");
+            m_sections[i].reMask    = get_input_parameter<uint16_t>("sections", i, "reMask");
+            m_sections[i].numSymbol = get_input_parameter<uint16_t>("sections", i, "numSymbol");
+            m_sections[i].beamId    = get_input_parameter<uint16_t>("sections", i, "beamId");
+
+            switch(m_sectionType) {
+                case XRAN_CP_SECTIONTYPE_3:
+                    m_sections[i].freqOffset    = get_input_parameter<uint16_t>("sections", i, "freqOffset");
+                    break;
+                }
+
+            m_sections[i].exts      = get_input_parameter<std::vector<uint8_t>>("sections", i, "exts");
+            }
+
+        /* reading configurations of section extension */
+        m_nextcfgs = get_input_subsection_size("extensions");
+        if(m_nextcfgs) {
+            m_extcfgs = new struct extcfginfo [m_nextcfgs];
+
+            for(i=0; i < m_nextcfgs; i++) {
+                std::vector<uint16_t> csf;
+                std::vector<uint16_t> mcScaleReMask;
+                std::vector<uint16_t> mcScaleOffset;
+
+                m_extcfgs[i].type   = get_input_parameter<int>("extensions", i, "type");
+                m_extcfgs[i].name   = get_input_parameter<std::string>("extensions", i, "name");
+
+                switch(m_extcfgs[i].type) {
+                    case XRAN_CP_SECTIONEXTCMD_1:
+                        /* Skip section extension type 1 since it has separate function */
+                        std::cout << "### Skip Extension 1 configuration !!\n" << std::endl;
+                        continue;
+
+                    case XRAN_CP_SECTIONEXTCMD_2:
+                        m_extcfgs[i].u.ext2.bfAzPtWidth  = get_input_parameter<uint8_t>("extensions", i, "bfAzPtWidth") & 0x7;
+                        m_extcfgs[i].u.ext2.bfAzPt       = get_input_parameter<uint8_t>("extensions", i, "bfAzPt") & 0xf;
+                        m_extcfgs[i].u.ext2.bfZePtWidth  = get_input_parameter<uint8_t>("extensions", i, "bfZePtWidth") & 0x7;
+                        m_extcfgs[i].u.ext2.bfZePt       = get_input_parameter<uint8_t>("extensions", i, "bfZePt") & 0xf;
+                        m_extcfgs[i].u.ext2.bfAz3ddWidth = get_input_parameter<uint8_t>("extensions", i, "bfAz3ddWidth") & 0x7;
+                        m_extcfgs[i].u.ext2.bfAz3dd      = get_input_parameter<uint8_t>("extensions", i, "bfAz3dd") & 0xf;
+                        m_extcfgs[i].u.ext2.bfZe3ddWidth = get_input_parameter<uint8_t>("extensions", i, "bfZe3ddWidth") & 0x7;
+                        m_extcfgs[i].u.ext2.bfZe3dd      = get_input_parameter<uint8_t>("extensions", i, "bfZe3dd") & 0xf;
+                        m_extcfgs[i].u.ext2.bfAzSI       = get_input_parameter<uint8_t>("extensions", i, "bfAzSI") & 0x7;
+                        m_extcfgs[i].u.ext2.bfZeSI       = get_input_parameter<uint8_t>("extensions", i, "bfZeSI") & 0x7;
+                        break;
+
+                    case XRAN_CP_SECTIONEXTCMD_3:
+                        m_extcfgs[i].u.ext3.codebookIdx  = get_input_parameter<uint8_t> ("extensions", i, "codebookIdx");
+                        m_extcfgs[i].u.ext3.layerId      = get_input_parameter<uint8_t> ("extensions", i, "layerId") & 0xf;
+                        m_extcfgs[i].u.ext3.numLayers    = get_input_parameter<uint8_t> ("extensions", i, "numLayers") & 0xf;
+                        m_extcfgs[i].u.ext3.txScheme     = get_input_parameter<uint8_t> ("extensions", i, "txScheme") & 0xf;
+                        m_extcfgs[i].u.ext3.crsReMask    = get_input_parameter<uint16_t>("extensions", i, "crsReMask") & 0xfff;
+                        m_extcfgs[i].u.ext3.crsShift     = get_input_parameter<uint8_t> ("extensions", i, "crsShift") & 0x1;
+                        m_extcfgs[i].u.ext3.crsSymNum    = get_input_parameter<uint8_t> ("extensions", i, "crsSymNum") & 0xf;
+                        m_extcfgs[i].u.ext3.numAntPort   = get_input_parameter<uint16_t>("extensions", i, "numAntPort");
+                        m_extcfgs[i].u.ext3.beamIdAP1    = get_input_parameter<uint16_t>("extensions", i, "beamIdAP1");
+                        m_extcfgs[i].u.ext3.beamIdAP2    = get_input_parameter<uint16_t>("extensions", i, "beamIdAP2");
+                        m_extcfgs[i].u.ext3.beamIdAP3    = get_input_parameter<uint16_t>("extensions", i, "beamIdAP3");
+                        break;
+
+                    case XRAN_CP_SECTIONEXTCMD_4:
+                        m_extcfgs[i].u.ext4.csf          = get_input_parameter<uint8_t> ("extensions", i, "csf") & 0xf;
+                        m_extcfgs[i].u.ext4.modCompScaler= get_input_parameter<uint16_t>("extensions", i, "modCompScaler") & 0x7fff;
+                        break;
+
+                    case XRAN_CP_SECTIONEXTCMD_5:
+                        m_extcfgs[i].u.ext5.num_sets     = get_input_parameter<uint8_t>("extensions", i, "num_sets");
+                        if(m_extcfgs[i].u.ext5.num_sets > XRAN_MAX_MODCOMP_ADDPARMS)
+                            FAIL() << "Invalid number of sets in extension 5!";
+
+                        csf = get_input_parameter<std::vector<uint16_t>>("extensions", i, "csf");
+                        mcScaleReMask = get_input_parameter<std::vector<uint16_t>>("extensions", i, "mcScaleReMask");
+                        mcScaleOffset = get_input_parameter<std::vector<uint16_t>>("extensions", i, "mcScaleOffset");
+
+                        if(csf.size() != m_extcfgs[i].u.ext5.num_sets
+                                || mcScaleReMask.size() != m_extcfgs[i].u.ext5.num_sets
+                                || mcScaleOffset.size() != m_extcfgs[i].u.ext5.num_sets)
+                            FAIL() << "Invalid configuration in extension 5 - different size!";
+
+                        for(int ii=0; ii < m_extcfgs[i].u.ext5.num_sets; ii++) {
+                            m_extcfgs[i].u.ext5.mc[ii].csf           = csf[ii];
+                            m_extcfgs[i].u.ext5.mc[ii].mcScaleReMask = mcScaleReMask[ii];
+                            m_extcfgs[i].u.ext5.mc[ii].mcScaleOffset = mcScaleOffset[ii];
+                            }
+                        break;
+
+                    default:
+                       FAIL() << "Invalid Section Type Extension - " << m_extcfgs[i].type << std::endl;
+                       continue;
+                    } /* switch(m_extcfgs[i].type) */
+                } /* for(i=0; i < m_nextcfgs; i++) */
+            }
+        else {
+            m_extcfgs = nullptr;
             }
 
         /* allocate and prepare required data storage */
-        m_pSectGenInfo = new struct xran_section_gen_info [m_numSections];
+        m_pSectGenInfo      = new struct xran_section_gen_info [m_numSections];
         ASSERT_NE(m_pSectGenInfo, nullptr);
-        m_params.sections = m_pSectGenInfo;
+        m_params.sections   = m_pSectGenInfo;
 
-        m_pSectResult = new struct xran_section_gen_info [m_numSections];
+        m_pSectResult       = new struct xran_section_gen_info [m_numSections];
         ASSERT_NE(m_pSectResult, nullptr);
-        m_result.sections = m_pSectResult;
+        m_result.sections   = m_pSectResult;
 
-        m_ext1_dst_len   = 9600;
-        m_p_ext1_dst   = new int8_t [m_ext1_dst_len];
-        m_p_bfw_iq_src = new int16_t [9600/2];
+        m_ext1_dst_len      = 9600;
+        m_p_ext1_dst        = new int8_t [m_ext1_dst_len];
+        m_p_bfw_iq_src      = new int16_t [9600/2];
 
         /* allocating an mbuf for packet generatrion */
-        m_pTestBuffer = xran_ethdi_mbuf_alloc();
-
-        ASSERT_FALSE(m_pTestBuffer == NULL);
+        m_pTestBuffer       = xran_ethdi_mbuf_alloc();
+        ASSERT_FALSE(m_pTestBuffer == nullptr);
     }
 
     void TearDown() override
     {
-        int i, j;
-
-        if(m_pTestBuffer != NULL)
+        if(m_pTestBuffer != nullptr) {
             rte_pktmbuf_free(m_pTestBuffer);
-
-        if(m_prbStart)
-            delete[] m_prbStart;
-        if(m_prbNum)
-            delete[] m_prbNum;
-
-        if(m_p_bfw_iq_src)
-            delete[] m_p_bfw_iq_src;
-
-        if(m_p_ext1_dst)
-            delete[] m_p_ext1_dst;
-
-        if(m_pSectGenInfo)
-            delete[] m_pSectGenInfo;
-
-        if(m_pSectResult) {
-            delete[] m_pSectResult;
+            m_pTestBuffer = nullptr;
             }
 
+        DELETE_ARRAY(m_extcfgs);
+        DELETE_ARRAY(m_sections);
+        DELETE_ARRAY(m_p_bfw_iq_src);
+        DELETE_ARRAY(m_p_ext1_dst);
+        DELETE_ARRAY(m_pSectGenInfo);
+        DELETE_ARRAY(m_pSectResult);
     }
 
-    int prepare_sections(bool extflag);
-    int prepare_extensions(int sect_num);
+    int prepare_sections(void);
+    int prepare_extensions(void);
     void verify_sections(void);
 
 };
 
 
 
-int C_plane::prepare_extensions(int sect_num)
+int C_plane::prepare_extensions()
 {
-    int i, numext;
-    int N;
+    int i, numext, sect_num;
+    int ext_id;
 
+    for(sect_num=0; sect_num < m_numSections; sect_num++) {
+        numext = 0;
 
-    N = 8;
+        for(i=0; i < m_sections[sect_num].exts.size(); i++) {
 
-    // extension 1
-    m_ext1.bfwNumber  = 4*N; // 4 ant, 8 UEs
-    m_ext1.bfwiqWidth = 16;
-    m_ext1.bfwCompMeth    = XRAN_BFWCOMPMETHOD_NONE;
-                            /* XRAN_BFWCOMPMETHOD_BLKFLOAT
-                             * XRAN_BFWCOMPMETHOD_BLKSCALE
-                             * XRAN_BFWCOMPMETHOD_ULAW
-                             * XRAN_BFWCOMPMETHOD_BEAMSPACE
-                             */
-    m_ext1.p_bfwIQ = m_bfwIQ;
+            ext_id = m_sections[sect_num].exts[i];
+            if(ext_id >= m_nextcfgs) {
+                std::cout << "Invalid section extension configuration index - " << ext_id << " [max " << m_nextcfgs-1 << "]" << std::endl;
+                return (-1);
+                }
 
-    switch (m_ext1.bfwCompMeth) {
-        case XRAN_BFWCOMPMETHOD_BLKFLOAT:
-            m_ext1.bfwCompParam.exponent = 0xa;
-            break;
-        case XRAN_BFWCOMPMETHOD_BLKSCALE:
-            m_ext1.bfwCompParam.blockScaler = 0xa5;
-            break;
-        case XRAN_BFWCOMPMETHOD_ULAW:
-            m_ext1.bfwCompParam.compBitWidthShift = 0x55;
-        case XRAN_BFWCOMPMETHOD_BEAMSPACE:
-            for(i=0; i<N; i++)
-                m_ext1.bfwCompParam.activeBeamspaceCoeffMask[i] = 0xa0 + i;
-            break;
-        }
+            switch(m_extcfgs[ext_id].type) {
+                case XRAN_CP_SECTIONEXTCMD_1:
+                    std::cout << "Skip Extension 1 !!" << std::endl;
+                    continue;
+                case XRAN_CP_SECTIONEXTCMD_2:
+                    m_params.sections[sect_num].exData[numext].len  = sizeof(m_extcfgs[ext_id].u.ext2);
+                    m_params.sections[sect_num].exData[numext].data = &m_extcfgs[ext_id].u.ext2;
+                    break;
+                case XRAN_CP_SECTIONEXTCMD_3:
+                    m_params.sections[sect_num].exData[numext].len  = sizeof(m_extcfgs[ext_id].u.ext3);
+                    m_params.sections[sect_num].exData[numext].data = &m_extcfgs[ext_id].u.ext3;
+                    break;
+                case XRAN_CP_SECTIONEXTCMD_4:
+                    m_params.sections[sect_num].exData[numext].len  = sizeof(m_extcfgs[ext_id].u.ext4);
+                    m_params.sections[sect_num].exData[numext].data = &m_extcfgs[ext_id].u.ext4;
+                    break;
+                case XRAN_CP_SECTIONEXTCMD_5:
+                    m_params.sections[sect_num].exData[numext].len  = sizeof(m_extcfgs[ext_id].u.ext5);
+                    m_params.sections[sect_num].exData[numext].data = &m_extcfgs[ext_id].u.ext5;
+                    break;
+                default:
+                    std::cout << "Invalid Section Extension Type - " << (int)m_extcfgs[ext_id].type << std::endl;
+                    return (-1);
+                } /* switch(m_extcfgs[ext_id].type) */
 
-    for(i=0; i<N*4; i++) {
-        m_ext1.p_bfwIQ[i*2]     = 0xcafe;
-        m_ext1.p_bfwIQ[i*2+1]   = 0xbeef;
-        }
+            m_params.sections[sect_num].exData[numext].type = m_extcfgs[ext_id].type;
+            numext++;
+            } /* for(i=0; i < m_sections[sect_num].exts.size(); i++) */
 
-    // extension 2
-    m_ext2.bfAzPtWidth        = 7;
-    m_ext2.bfAzPt             = 0x55 & m_bitmask[m_ext2.bfAzPtWidth];
-    m_ext2.bfZePtWidth        = 7;
-    m_ext2.bfZePt             = 0xaa & m_bitmask[m_ext2.bfAzPtWidth];
-    m_ext2.bfAz3ddWidth       = 7;
-    m_ext2.bfAz3dd            = 0x5a & m_bitmask[m_ext2.bfAzPtWidth];
-    m_ext2.bfZe3ddWidth       = 7;
-    m_ext2.bfZe3dd            = 0xa5 & m_bitmask[m_ext2.bfAzPtWidth];
-    m_ext2.bfAzSI             = 0x2 & m_bitmask[3];
-    m_ext2.bfZeSI             = 0x5 & m_bitmask[3];
-
-    // extension 4
-    m_ext4.csf                = 1;
-    m_ext4.modCompScaler      = 0x5aa5;
-
-    // extension 5
-    m_ext5.num_sets = 2;
-    for(i=0; i<m_ext5.num_sets; i++) {
-        m_ext5.mc[i].csf              = i%2;
-        m_ext5.mc[i].mcScaleReMask    = 0xa5a + i;
-        m_ext5.mc[i].mcScaleOffset    = 0x5a5a + i;
-        }
-
-    numext = 0;
-
-    m_params.sections[sect_num].exData[numext].type = XRAN_CP_SECTIONEXTCMD_1;
-    m_params.sections[sect_num].exData[numext].len  = sizeof(m_ext1);
-    m_params.sections[sect_num].exData[numext].data = &m_ext1;
-    numext++;
-
-    m_params.sections[sect_num].exData[numext].type = XRAN_CP_SECTIONEXTCMD_2;
-    m_params.sections[sect_num].exData[numext].len  = sizeof(m_ext2);
-    m_params.sections[sect_num].exData[numext].data = &m_ext2;
-    numext++;
-
-    m_params.sections[sect_num].exData[numext].type = XRAN_CP_SECTIONEXTCMD_4;
-    m_params.sections[sect_num].exData[numext].len  = sizeof(m_ext4);
-    m_params.sections[sect_num].exData[numext].data = &m_ext4;
-    numext++;
-
-    m_params.sections[sect_num].exData[numext].type = XRAN_CP_SECTIONEXTCMD_5;
-    m_params.sections[sect_num].exData[numext].len  = sizeof(m_ext5);
-    m_params.sections[sect_num].exData[numext].data = &m_ext5;
-    numext++;
-
-    m_params.sections[sect_num].exDataSize = numext;
+        if(numext) {
+            m_params.sections[sect_num].exDataSize  = numext;
+            m_params.sections[sect_num].info.ef     = 1;
+            }
+        else {
+            m_params.sections[sect_num].exDataSize  = 0;
+            m_params.sections[sect_num].info.ef     = 0;
+            }
+        } /* for(sect_num=0; sect_num < m_numSections; sect_num++) */
 
     return (0);
 }
 
-int C_plane::prepare_sections(bool extflag)
+
+int C_plane::prepare_sections(void)
 {
   int numsec;
 
@@ -354,34 +415,25 @@ int C_plane::prepare_sections(bool extflag)
         m_params.sections[numsec].info.startSymId   = m_params.hdr.startSymId;    // for database
         m_params.sections[numsec].info.iqWidth      = m_params.hdr.iqWidth;       // for database
         m_params.sections[numsec].info.compMeth     = m_params.hdr.compMeth;      // for database
-        m_params.sections[numsec].info.id           = m_sectionId++;
-        m_params.sections[numsec].info.rb           = XRAN_RBIND_EVERY;
-        m_params.sections[numsec].info.symInc       = XRAN_SYMBOLNUMBER_NOTINC;
-        m_params.sections[numsec].info.startPrbc    = m_prbStart[numsec];
-        m_params.sections[numsec].info.numPrbc      = m_prbNum[numsec];
-        m_params.sections[numsec].info.numSymbol    = m_symNum;
-        m_params.sections[numsec].info.reMask       = m_reMask;
-        m_params.sections[numsec].info.beamId       = m_beamId;
+        m_params.sections[numsec].info.id           = m_sections[numsec].sectionId;
+        m_params.sections[numsec].info.rb           = m_sections[numsec].rb;
+        m_params.sections[numsec].info.symInc       = m_sections[numsec].symInc;
+        m_params.sections[numsec].info.startPrbc    = m_sections[numsec].startPrbc;
+        m_params.sections[numsec].info.numPrbc      = m_sections[numsec].numPrbc;
+        m_params.sections[numsec].info.reMask       = m_sections[numsec].reMask;
+        m_params.sections[numsec].info.numSymbol    = m_sections[numsec].numSymbol;
+        m_params.sections[numsec].info.beamId       = m_sections[numsec].beamId;
+
         switch(m_sectionType) {
             case XRAN_CP_SECTIONTYPE_1:
                 break;
 
             case XRAN_CP_SECTIONTYPE_3:
-                m_params.sections[numsec].info.freqOffset   = m_freqOffset;
+                m_params.sections[numsec].info.freqOffset   = m_sections[numsec].freqOffset;
                 break;
 
             default:
                 return (-1);
-            }
-
-        /* section extension */
-        if(/*extflag == true*/0) {
-            m_params.sections[numsec].info.ef       = 1;
-            prepare_extensions(numsec);
-            }
-        else {
-            m_params.sections[numsec].info.ef       = 0;
-            m_params.sections[numsec].exDataSize    = 0;
             }
         }
 
@@ -424,10 +476,13 @@ void C_plane::verify_sections(void)
     ASSERT_TRUE(m_result.numSections    == m_params.numSections);
     for(i=0; i < m_result.numSections; i++) {
         EXPECT_TRUE(m_result.sections[i].info.id        == m_params.sections[i].info.id);
-        EXPECT_TRUE(m_result.sections[i].info.rb        == XRAN_RBIND_EVERY);
-        EXPECT_TRUE(m_result.sections[i].info.symInc    == XRAN_SYMBOLNUMBER_NOTINC);
+        EXPECT_TRUE(m_result.sections[i].info.rb        == m_params.sections[i].info.rb);
+        EXPECT_TRUE(m_result.sections[i].info.symInc    == m_params.sections[i].info.symInc);
         EXPECT_TRUE(m_result.sections[i].info.startPrbc == m_params.sections[i].info.startPrbc);
-        EXPECT_TRUE(m_result.sections[i].info.numPrbc   == m_params.sections[i].info.numPrbc);
+        if(m_params.sections[i].info.numPrbc > 255)
+            EXPECT_TRUE(m_result.sections[i].info.numPrbc == 0);
+        else
+            EXPECT_TRUE(m_result.sections[i].info.numPrbc == m_params.sections[i].info.numPrbc);
         EXPECT_TRUE(m_result.sections[i].info.numSymbol == m_params.sections[i].info.numSymbol);
         EXPECT_TRUE(m_result.sections[i].info.reMask    == m_params.sections[i].info.reMask);
         EXPECT_TRUE(m_result.sections[i].info.beamId    == m_params.sections[i].info.beamId);
@@ -446,7 +501,7 @@ void C_plane::verify_sections(void)
             }
 
         if(m_params.sections[i].info.ef) {
-     //       printf("[%d] %d ==  %d\n",i,  m_result.sections[i].exDataSize, m_params.sections[i].exDataSize);
+            //printf("[%d] %d ==  %d\n",i,  m_result.sections[i].exDataSize, m_params.sections[i].exDataSize);
             EXPECT_TRUE(m_result.sections[i].exDataSize == m_params.sections[i].exDataSize);
 
             for(j=0; j < m_params.sections[i].exDataSize; j++) {
@@ -461,12 +516,13 @@ void C_plane::verify_sections(void)
                         ext1_params = (struct xran_sectionext1_info *)m_params.sections[i].exData[j].data;
                         ext1_result = (struct xran_sectionext1_info *)m_result.sections[i].exData[j].data;
 
-                        EXPECT_TRUE(ext1_result->bfwiqWidth == ext1_params->bfwiqWidth);
-                        EXPECT_TRUE(ext1_result->bfwCompMeth    == ext1_params->bfwCompMeth);
+                        EXPECT_TRUE(ext1_result->bfwiqWidth  == ext1_params->bfwiqWidth);
+                        EXPECT_TRUE(ext1_result->bfwCompMeth == ext1_params->bfwCompMeth);
 
                         N = ext1_params->bfwNumber;
                         switch(ext1_params->bfwCompMeth) {
                             case XRAN_BFWCOMPMETHOD_BLKFLOAT:
+                                //printf("[%d, %d] %d ==  %d\n",i, j, ext1_result->bfwCompParam.exponent, ext1_params->bfwCompParam.exponent);
                                 EXPECT_TRUE(ext1_result->bfwCompParam.exponent == ext1_params->bfwCompParam.exponent);
                                 break;
 
@@ -488,8 +544,7 @@ void C_plane::verify_sections(void)
                         iq_size = N*ext1_params->bfwiqWidth*2;  // total in bits
                         parm_size = iq_size>>3;                 // total in bytes (/8)
                         if(iq_size%8) parm_size++;              // round up
-                        EXPECT_TRUE(std::memcmp(ext1_result->p_bfwIQ, ext1_params->p_bfwIQ, parm_size));
-
+                        EXPECT_FALSE(std::memcmp(ext1_result->p_bfwIQ, ext1_params->p_bfwIQ, parm_size));
                         }
                         break;
 
@@ -523,6 +578,36 @@ void C_plane::verify_sections(void)
                         }
                         break;
 
+                    case XRAN_CP_SECTIONEXTCMD_3:
+                        {
+                        struct xran_sectionext3_info *ext3_params, *ext3_result;
+
+                        ext3_params = (struct xran_sectionext3_info *)m_params.sections[i].exData[j].data;
+                        ext3_result = (struct xran_sectionext3_info *)m_result.sections[i].exData[j].data;
+
+                        EXPECT_TRUE(ext3_result->layerId    == ext3_params->layerId);
+                        EXPECT_TRUE(ext3_result->codebookIdx== ext3_params->codebookIdx);
+                        EXPECT_TRUE(ext3_result->numLayers  == ext3_params->numLayers);
+
+                        if(ext3_params->layerId == XRAN_LAYERID_0
+                            || ext3_params->layerId == XRAN_LAYERID_TXD) {   /* first data layer */
+                            EXPECT_TRUE(ext3_result->txScheme   == ext3_params->txScheme);
+                            EXPECT_TRUE(ext3_result->crsReMask  == ext3_params->crsReMask);
+                            EXPECT_TRUE(ext3_result->crsShift   == ext3_params->crsShift);
+                            EXPECT_TRUE(ext3_result->crsSymNum  == ext3_params->crsSymNum);
+
+                            EXPECT_TRUE(ext3_result->numAntPort == ext3_params->numAntPort);
+
+                            EXPECT_TRUE(ext3_result->beamIdAP1  == ext3_params->beamIdAP1);
+
+                            if(ext3_params->numAntPort == 4) {
+                                EXPECT_TRUE(ext3_result->beamIdAP2  == ext3_params->beamIdAP2);
+                                EXPECT_TRUE(ext3_result->beamIdAP3  == ext3_params->beamIdAP3);
+                                }
+                            }
+                        }
+                        break;
+
                     case XRAN_CP_SECTIONEXTCMD_4:
                         {
                         struct xran_sectionext4_info *ext4_params, *ext4_result;
@@ -534,6 +619,7 @@ void C_plane::verify_sections(void)
                         EXPECT_TRUE(ext4_result->modCompScaler  == ext4_params->modCompScaler);
                         }
                         break;
+
                     case XRAN_CP_SECTIONEXTCMD_5:
                         {
                         struct xran_sectionext5_info *ext5_params, *ext5_result;
@@ -566,166 +652,276 @@ void C_plane::verify_sections(void)
 TEST_P(C_plane, Section_Ext1)
 {
     int i = 0, idRb;
-    int32_t len = 0;
     int16_t *ptr = NULL;
     int32_t nRbs = 36;
-    int32_t nAntElm = 32;
+    int32_t nAntElm = 64;
     int8_t  iqWidth = 16;
     int8_t  compMethod = XRAN_COMPMETHOD_NONE;
     int8_t  *p_ext1_dst  = NULL;
-    int16_t *bfw_payload = NULL;
+    int8_t  *bfw_payload = NULL;
     int32_t expected_len = (3+1)*nRbs + nAntElm*nRbs*4;
 
+    int16_t  ext_len       = 9600;
+    int16_t  ext_sec_total = 0;
+    int8_t * ext_buf       = nullptr;
+    int8_t * ext_buf_init  = nullptr;
+
     struct xran_section_gen_info* loc_pSectGenInfo = m_params.sections;
-    struct xran_sectionext1_info m_ext1;
+    struct xran_sectionext1_info m_prep_ext1;
     struct xran_cp_radioapp_section_ext1 *p_ext1;
+    struct rte_mbuf_ext_shared_info  share_data;
+    struct rte_mbuf *mbuf = NULL;
 
     /* Configure section information */
-    if(prepare_sections(false) < 0) {
+    if(prepare_sections() < 0) {
         FAIL() << "Invalid Section configuration\n";
     }
-    ptr = m_p_bfw_iq_src;
 
-    for (idRb =0; idRb < nRbs*nAntElm*2; idRb++){
-        ptr[idRb] = i;
-        i++;
+    if(prepare_extensions() < 0) {
+        FAIL() << "Invalid Section extension configuration\n";
     }
 
-    len = xran_cp_populate_section_ext_1(m_p_ext1_dst,
-                                         m_ext1_dst_len,
-                                         m_p_bfw_iq_src,
-                                         nRbs,
-                                         nAntElm,
-                                         iqWidth,
-                                         compMethod);
+    if(loc_pSectGenInfo->info.type == XRAN_CP_SECTIONTYPE_1) {
+            /* extType 1 only with Section 1 for now */
 
-    ASSERT_TRUE(len == expected_len);
+        ext_buf  = ext_buf_init = (int8_t*) xran_malloc(ext_len);
+        if (ext_buf) {
+            ptr = m_p_bfw_iq_src;
 
-    p_ext1_dst = m_p_ext1_dst;
-    idRb = 0;
-    do {
-        p_ext1 = (struct xran_cp_radioapp_section_ext1 *)p_ext1_dst;
-        bfw_payload = (int16_t*)(p_ext1+1);
-        p_ext1_dst += p_ext1->extLen*XRAN_SECTIONEXT_ALIGN;
-        idRb++;
-    }while(p_ext1->ef != XRAN_EF_F_LAST);
+            for (idRb =0; idRb < nRbs*nAntElm*2; idRb++){
+                ptr[idRb] = i;
+                i++;
+            }
 
-    ASSERT_TRUE(idRb == nRbs);
+            ext_buf += (RTE_PKTMBUF_HEADROOM +
+                       sizeof (struct xran_ecpri_hdr) +
+                       sizeof(struct xran_cp_radioapp_common_header) +
+                       sizeof(struct xran_cp_radioapp_section1));
 
-    /* Update section information */
-    memset(&m_ext1, 0, sizeof (struct xran_sectionext1_info));
-    m_ext1.bfwNumber      = nAntElm;
-    m_ext1.bfwiqWidth     = iqWidth;
-    m_ext1.bfwCompMeth    = compMethod;
-    m_ext1.p_bfwIQ        = (int16_t*)m_p_ext1_dst;
-    m_ext1.bfwIQ_sz       = len;
+            ext_len -= (RTE_PKTMBUF_HEADROOM +
+                        sizeof(struct xran_ecpri_hdr) +
+                        sizeof(struct xran_cp_radioapp_common_header) +
+                        sizeof(struct xran_cp_radioapp_section1));
 
-    loc_pSectGenInfo->exData[0].type = XRAN_CP_SECTIONEXTCMD_1;
-    loc_pSectGenInfo->exData[0].len  = sizeof(m_ext1);
-    loc_pSectGenInfo->exData[0].data = &m_ext1;
+            ext_sec_total = xran_cp_populate_section_ext_1((int8_t *)ext_buf,
+                                                 ext_len,
+                                                 m_p_bfw_iq_src,
+                                                 nRbs,
+                                                 nAntElm,
+                                                 iqWidth,
+                                                 compMethod);
 
-    loc_pSectGenInfo->info.ef       = 1;
-    loc_pSectGenInfo->exDataSize    = 1;
+            ASSERT_TRUE(ext_sec_total == expected_len);
+            p_ext1_dst = ext_buf;
 
-    m_params.numSections    = 1;
+            memset(&m_temp_ext1[0], 0, sizeof (struct xran_sectionext1_info)*XRAN_MAX_PRBS);
 
-    /* Generating C-Plane packet */
-    ASSERT_TRUE(xran_prepare_ctrl_pkt(m_pTestBuffer, &m_params, m_ccId, m_antId, m_seqId) == XRAN_STATUS_SUCCESS);
+            idRb = 0;
+            do {
+                p_ext1 = (struct xran_cp_radioapp_section_ext1 *)p_ext1_dst;
+                bfw_payload = (int8_t*)(p_ext1+1);
+                p_ext1_dst += p_ext1->extLen*XRAN_SECTIONEXT_ALIGN;
 
-    /* Parsing generated packet */
-    EXPECT_TRUE(xran_parse_cp_pkt(m_pTestBuffer, &m_result, &m_pktInfo) == XRAN_STATUS_SUCCESS);
+                m_temp_ext1[idRb].bfwNumber      = nAntElm;
+                m_temp_ext1[idRb].bfwiqWidth     = iqWidth;
+                m_temp_ext1[idRb].bfwCompMeth    = compMethod;
+                m_temp_ext1[idRb].p_bfwIQ               = (int16_t*)bfw_payload;
+                m_temp_ext1[idRb].bfwIQ_sz              = p_ext1->extLen*XRAN_SECTIONEXT_ALIGN;
 
-    /* Verify the result */
-    //verify_sections();
+                loc_pSectGenInfo->exData[idRb].type = XRAN_CP_SECTIONEXTCMD_1;
+                loc_pSectGenInfo->exData[idRb].len  = sizeof(m_temp_ext1[idRb]);
+                loc_pSectGenInfo->exData[idRb].data = &m_temp_ext1[idRb];
+
+                idRb++;
+            }while(p_ext1->ef != XRAN_EF_F_LAST);
+            ASSERT_TRUE(idRb == nRbs);
+
+            mbuf = xran_attach_cp_ext_buf(ext_buf_init, ext_buf, ext_sec_total, &share_data);
+
+            /* Update section information */
+            memset(&m_prep_ext1, 0, sizeof (struct xran_sectionext1_info));
+            m_prep_ext1.bfwNumber      = nAntElm;
+            m_prep_ext1.bfwiqWidth     = iqWidth;
+            m_prep_ext1.bfwCompMeth    = compMethod;
+            m_prep_ext1.p_bfwIQ        = (int16_t*)ext_buf;
+            m_prep_ext1.bfwIQ_sz       = ext_sec_total;
+
+
+            loc_pSectGenInfo->exData[0].type = XRAN_CP_SECTIONEXTCMD_1;
+            loc_pSectGenInfo->exData[0].len  = sizeof(m_prep_ext1);
+            loc_pSectGenInfo->exData[0].data = &m_prep_ext1;
+
+            loc_pSectGenInfo->info.ef       = 1;
+            loc_pSectGenInfo->exDataSize    = 1; /* append all extType1 as one shot
+                                                    (as generated via xran_cp_populate_section_ext_1)*/
+
+            m_params.numSections    = 1;
+
+            /* Generating C-Plane packet */
+            ASSERT_TRUE(xran_prepare_ctrl_pkt(/*m_pTestBuffer*/mbuf, &m_params, m_ccId, m_antId, m_seqId) == XRAN_STATUS_SUCCESS);
+
+            /** to match O-RU parsing */
+            loc_pSectGenInfo->exDataSize = nRbs;
+            loc_pSectGenInfo->exData[0].len  = sizeof(m_temp_ext1[0]);
+            loc_pSectGenInfo->exData[0].data = &m_temp_ext1[0];
+
+            /* Parsing generated packet */
+            EXPECT_TRUE(xran_parse_cp_pkt(/*m_pTestBuffer*/mbuf, &m_result, &m_pktInfo) == XRAN_STATUS_SUCCESS);
+        } else {
+            FAIL() << "xran_malloc failed\n";
+        }
+
+        /* Verify the result */
+        verify_sections();
+
+        if(ext_buf_init)
+            xran_free(ext_buf_init);
+    }
 }
 
 TEST_P(C_plane, Section_Ext1_9bit)
 {
     int i = 0, idRb;
-    int32_t len = 0;
     int16_t *ptr = NULL;
     int32_t nRbs = 36;
-    int32_t nAntElm = 32;
+    int32_t nAntElm = 64;
     int8_t  iqWidth = 9;
     int8_t  compMethod = XRAN_COMPMETHOD_BLKFLOAT;
     int8_t  *p_ext1_dst  = NULL;
-    int16_t *bfw_payload = NULL;
+    int8_t  *bfw_payload = NULL;
     int32_t expected_len = ((nAntElm/16*4*iqWidth)+1)*nRbs + /* bfwCompParam + IQ = */
                             sizeof(struct xran_cp_radioapp_section_ext1)*nRbs; /* ext1 Headers */
 
+    int16_t  ext_len       = 9600;
+    int16_t  ext_sec_total = 0;
+    int8_t * ext_buf       = nullptr;
+    int8_t * ext_buf_init  = nullptr;
+
     struct xran_section_gen_info* loc_pSectGenInfo = m_params.sections;
-    struct xran_sectionext1_info m_ext1;
+    struct xran_sectionext1_info m_prep_ext1;
     struct xran_cp_radioapp_section_ext1 *p_ext1;
+    struct rte_mbuf_ext_shared_info  share_data;
+    struct rte_mbuf *mbuf = NULL;
 
     /* Configure section information */
-    if(prepare_sections(false) < 0) {
+    if(prepare_sections() < 0) {
         FAIL() << "Invalid Section configuration\n";
     }
-    ptr = m_p_bfw_iq_src;
 
-    for (idRb =0; idRb < nRbs*nAntElm*2; idRb++){
-        ptr[idRb] = i;
-        i++;
+    if(prepare_extensions() < 0) {
+        FAIL() << "Invalid Section extension configuration\n";
     }
 
-    len = xran_cp_populate_section_ext_1(m_p_ext1_dst,
-                                         m_ext1_dst_len,
-                                         m_p_bfw_iq_src,
-                                         nRbs,
-                                         nAntElm,
-                                         iqWidth,
-                                         compMethod);
+    if(loc_pSectGenInfo->info.type == XRAN_CP_SECTIONTYPE_1) {
+        /* extType 1 only with Section 1 for now */
 
-    ASSERT_TRUE(len == expected_len);
+        ext_buf  = ext_buf_init = (int8_t*) xran_malloc(ext_len);
+        if (ext_buf) {
+            ptr = m_p_bfw_iq_src;
 
-    p_ext1_dst = m_p_ext1_dst;
-    idRb = 0;
-    do {
-        p_ext1 = (struct xran_cp_radioapp_section_ext1 *)p_ext1_dst;
-        bfw_payload = (int16_t*)(p_ext1+1);
-        p_ext1_dst += p_ext1->extLen*XRAN_SECTIONEXT_ALIGN;
-        idRb++;
-    }while(p_ext1->ef != XRAN_EF_F_LAST);
+            for (idRb =0; idRb < nRbs*nAntElm*2; idRb++){
+                ptr[idRb] = i;
+                i++;
+            }
 
-    ASSERT_TRUE(idRb == nRbs);
+            ext_buf += (RTE_PKTMBUF_HEADROOM +
+                       sizeof (struct xran_ecpri_hdr) +
+                       sizeof(struct xran_cp_radioapp_common_header) +
+                       sizeof(struct xran_cp_radioapp_section1));
 
-    /* Update section information */
-    memset(&m_ext1, 0, sizeof (struct xran_sectionext1_info));
-    m_ext1.bfwNumber      = nAntElm;
-    m_ext1.bfwiqWidth     = iqWidth;
-    m_ext1.bfwCompMeth    = compMethod;
-    m_ext1.p_bfwIQ        = (int16_t*)m_p_ext1_dst;
-    m_ext1.bfwIQ_sz       = len;
+            ext_len -= (RTE_PKTMBUF_HEADROOM +
+                        sizeof(struct xran_ecpri_hdr) +
+                        sizeof(struct xran_cp_radioapp_common_header) +
+                        sizeof(struct xran_cp_radioapp_section1));
 
-    loc_pSectGenInfo->exData[0].type = XRAN_CP_SECTIONEXTCMD_1;
-    loc_pSectGenInfo->exData[0].len  = sizeof(m_ext1);
-    loc_pSectGenInfo->exData[0].data = &m_ext1;
+            ext_sec_total = xran_cp_populate_section_ext_1((int8_t *)ext_buf,
+                                                 ext_len,
+                                                 m_p_bfw_iq_src,
+                                                 nRbs,
+                                                 nAntElm,
+                                                 iqWidth,
+                                                 compMethod);
 
-    loc_pSectGenInfo->info.ef       = 1;
-    loc_pSectGenInfo->exDataSize    = 1;
+            ASSERT_TRUE(ext_sec_total == expected_len);
+            p_ext1_dst = ext_buf;
 
-    m_params.numSections    = 1;
+            memset(&m_temp_ext1[0], 0, sizeof (struct xran_sectionext1_info)*XRAN_MAX_PRBS);
 
-    /* Generating C-Plane packet */
-    ASSERT_TRUE(xran_prepare_ctrl_pkt(m_pTestBuffer, &m_params, m_ccId, m_antId, m_seqId) == XRAN_STATUS_SUCCESS);
+            idRb = 0;
+            do {
+                p_ext1 = (struct xran_cp_radioapp_section_ext1 *)p_ext1_dst;
+                bfw_payload = (int8_t*)(p_ext1+1);
+                p_ext1_dst += p_ext1->extLen*XRAN_SECTIONEXT_ALIGN;
 
-    /* Parsing generated packet */
-    EXPECT_TRUE(xran_parse_cp_pkt(m_pTestBuffer, &m_result, &m_pktInfo) == XRAN_STATUS_SUCCESS);
+                m_temp_ext1[idRb].bfwNumber      = nAntElm;
+                m_temp_ext1[idRb].bfwiqWidth     = iqWidth;
+                m_temp_ext1[idRb].bfwCompMeth    = compMethod;
 
-    /* Verify the result */
-    //verify_sections();
+                m_temp_ext1[idRb].bfwCompParam.exponent = *bfw_payload++ & 0xF;
+
+                m_temp_ext1[idRb].p_bfwIQ               = (int16_t*)bfw_payload;
+                m_temp_ext1[idRb].bfwIQ_sz              = p_ext1->extLen*XRAN_SECTIONEXT_ALIGN;
+
+                loc_pSectGenInfo->exData[idRb].type = XRAN_CP_SECTIONEXTCMD_1;
+                loc_pSectGenInfo->exData[idRb].len  = sizeof(m_temp_ext1[idRb]);
+                loc_pSectGenInfo->exData[idRb].data = &m_temp_ext1[idRb];
+
+                idRb++;
+            }while(p_ext1->ef != XRAN_EF_F_LAST);
+            ASSERT_TRUE(idRb == nRbs);
+
+            mbuf = xran_attach_cp_ext_buf(ext_buf_init, ext_buf, ext_sec_total, &share_data);
+
+            /* Update section information */
+            memset(&m_prep_ext1, 0, sizeof (struct xran_sectionext1_info));
+            m_prep_ext1.bfwNumber      = nAntElm;
+            m_prep_ext1.bfwiqWidth     = iqWidth;
+            m_prep_ext1.bfwCompMeth    = compMethod;
+            m_prep_ext1.p_bfwIQ        = (int16_t*)ext_buf;
+            m_prep_ext1.bfwIQ_sz       = ext_sec_total;
+
+
+            loc_pSectGenInfo->exData[0].type = XRAN_CP_SECTIONEXTCMD_1;
+            loc_pSectGenInfo->exData[0].len  = sizeof(m_prep_ext1);
+            loc_pSectGenInfo->exData[0].data = &m_prep_ext1;
+
+            loc_pSectGenInfo->info.ef       = 1;
+            loc_pSectGenInfo->exDataSize    = 1; /* append all extType1 as one shot
+                                                    (as generated via xran_cp_populate_section_ext_1)*/
+
+            m_params.numSections    = 1;
+
+            /* Generating C-Plane packet */
+            ASSERT_TRUE(xran_prepare_ctrl_pkt(/*m_pTestBuffer*/mbuf, &m_params, m_ccId, m_antId, m_seqId) == XRAN_STATUS_SUCCESS);
+
+            /** to match O-RU parsing */
+            loc_pSectGenInfo->exDataSize = nRbs;
+            loc_pSectGenInfo->exData[0].len  = sizeof(m_temp_ext1[0]);
+            loc_pSectGenInfo->exData[0].data = &m_temp_ext1[0];
+
+            /* Parsing generated packet */
+            EXPECT_TRUE(xran_parse_cp_pkt(/*m_pTestBuffer*/mbuf, &m_result, &m_pktInfo) == XRAN_STATUS_SUCCESS);
+        } else {
+            FAIL() << "xran_malloc failed\n";
+        }
+
+        /* Verify the result */
+        verify_sections();
+
+        if(ext_buf_init)
+            xran_free(ext_buf_init);
+    }
 }
-
 
 
 TEST_P(C_plane, PacketGen)
 {
-  int i;
-
-
     /* Configure section information */
-    if(prepare_sections(false) < 0) {
+    if(prepare_sections() < 0) {
         FAIL() << "Invalid Section configuration\n";
+        }
+    if(prepare_extensions() < 0) {
+        FAIL() << "Invalid Section extension configuration\n";
         }
 
     /* Generating C-Plane packet */
@@ -741,11 +937,8 @@ TEST_P(C_plane, PacketGen)
 
 TEST_P(C_plane, PacketGen_Ext)
 {
-  int i;
-
-
     /* Configure section information */
-    if(prepare_sections(true) < 0) {
+    if(prepare_sections() < 0) {
         FAIL() << "Invalid Section configuration\n";
         }
 
@@ -763,22 +956,27 @@ TEST_P(C_plane, PacketGen_Ext)
 /***************************************************************************
  * Performance Test cases
  ***************************************************************************/
+
 TEST_P(C_plane, Perf)
 {
     /* Configure section information */
-    if(prepare_sections(false) < 0) {
+    if(prepare_sections() < 0) {
         FAIL() << "Invalid Section configuration\n";
+        }
+    if(prepare_extensions() < 0) {
+        FAIL() << "Invalid Section extension configuration\n";
         }
 
     /* using wrapper function to reset mbuf */
     performance("C", module_name,
             &xran_ut_prepare_cp, m_pTestBuffer, &m_params, m_ccId, m_antId, m_seqId);
 }
+
 
 TEST_P(C_plane, Perf_Ext)
 {
     /* Configure section information */
-    if(prepare_sections(true) < 0) {
+    if(prepare_sections() < 0) {
         FAIL() << "Invalid Section configuration\n";
         }
 
@@ -786,7 +984,6 @@ TEST_P(C_plane, Perf_Ext)
     performance("C", module_name,
             &xran_ut_prepare_cp, m_pTestBuffer, &m_params, m_ccId, m_antId, m_seqId);
 }
-
 
 INSTANTIATE_TEST_CASE_P(UnitTest, C_plane,
         testing::ValuesIn(get_sequence(C_plane::get_number_of_cases("C_Plane"))));

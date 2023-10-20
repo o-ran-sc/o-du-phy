@@ -140,12 +140,12 @@ uint8_t nr5g_fapi_ul_dci_req_to_phy_translation(
         p_ia_dci_pdu->nCpType = p_fapi_dci_pdu->pdcchPduConfig.cyclicPrefix;
         p_freq_dom_res = &p_fapi_dci_pdu->pdcchPduConfig.freqDomainResource[0];
         p_ia_dci_pdu->nFreqDomain[0] =
-            ((uint32_t)  (p_freq_dom_res[0])) |
+            ((uint32_t) (p_freq_dom_res[0])) |
             (((uint32_t) (p_freq_dom_res[1])) << 8) |
             (((uint32_t) (p_freq_dom_res[2])) << 16) |
             (((uint32_t) (p_freq_dom_res[3])) << 24);
         p_ia_dci_pdu->nFreqDomain[1] =
-            ((uint32_t)  (p_freq_dom_res[4])) |
+            ((uint32_t) (p_freq_dom_res[4])) |
             (((uint32_t) (p_freq_dom_res[5])) << 8);
         p_ia_dci_pdu->nStartSymbolIndex =
             p_fapi_dci_pdu->pdcchPduConfig.startSymbolIndex;
@@ -170,7 +170,7 @@ uint8_t nr5g_fapi_ul_dci_req_to_phy_translation(
         p_ia_dci_pdu->nTotalBits =
             p_fapi_dci_pdu->pdcchPduConfig.dlDci[0].payloadSizeBits;
         p_ia_dci_pdu->nEpreRatioOfPDCCHToSSB =
-            p_fapi_dci_pdu->pdcchPduConfig.dlDci[0].powerControlOfssetSS;
+            p_fapi_dci_pdu->pdcchPduConfig.dlDci[0].powerControlOffsetSS;
         p_ia_dci_pdu->nEpreRatioOfDmrsToSSB =
             p_fapi_dci_pdu->pdcchPduConfig.dlDci[0].beta_pdcch_1_0;
         p_ia_dci_pdu->nTotalBits =
@@ -193,7 +193,3 @@ uint8_t nr5g_fapi_ul_dci_req_to_phy_translation(
     p_stats->iapi_stats.iapi_ul_dci_pdus++;
     return SUCCESS;
 }
-
-
-
-

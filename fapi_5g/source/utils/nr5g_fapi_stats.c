@@ -33,8 +33,9 @@ void nr5g_fapi_print_phy_instance_stats(
     FILE *fp = NULL;
     enum { FILE_MODE = 0666 };
     nr5g_fapi_stats_t *p_stats;
-    char *fname = NULL, stats_fname[NR5G_FAPI_STATS_FNAME_LEN];
+    char *fname = NULL;
 #ifdef DEBUG_MODE
+    char stats_fname[NR5G_FAPI_STATS_FNAME_LEN];
     uint32_t test_num;
     uint32_t test_type;
     char test_type_str[][8] = { {"DL"}, {"UL"}, {"FD"} };
@@ -209,4 +210,3 @@ void nr5g_fapi_print_phy_instance_stats(
     }
     close(fd);
 }
-

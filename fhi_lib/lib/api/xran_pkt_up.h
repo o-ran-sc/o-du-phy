@@ -75,6 +75,10 @@ struct data_section_hdr {
             uint32_t     sect_id:12;    /**< 5.4.5.1 section identifier */
         };
     }fields;
+#ifdef FCN_ADAPT
+        uint8_t udCompHdr;
+        uint8_t reserved;
+#endif
 } __rte_packed;
 
 
@@ -164,7 +168,7 @@ struct xran_up_pkt_hdr
  *****************************************************************************/
 struct eth_xran_up_pkt_hdr
 {
-    struct ether_hdr eth_hdr;
+    struct rte_ether_hdr eth_hdr;
     struct xran_up_pkt_hdr xran_hdr;
 }__rte_packed;
 

@@ -71,7 +71,7 @@ static int is_process_running(char *pname)
         long pid = atol(entry->d_name);
         if (0 == pid)
             continue;
-        snprintf(full_path, sizeof(full_path), "%s/%ld/%s", PROC_DIR, pid, COMM_FILE);
+        sprintf(full_path, "%s/%ld/%s", PROC_DIR, pid, COMM_FILE);
         FILE *proc_name_file = fopen(full_path, "r");
         if (NULL == proc_name_file)
             continue;

@@ -23,11 +23,11 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 ##############################################################
 #  Tools configuration
 ##############################################################
-CC  := icc
-CPP := icpc
+CC  := gcc
+CPP := g++
 AS := as
 AR := ar
-LD := icc
+LD := gcc
 OBJDUMP := objdump
 
 ifeq ($(SHELL),cmd.exe)
@@ -44,18 +44,24 @@ PROJECT_NAME := libxran
 PROJECT_TYPE := lib
 PROJECT_DIR  := $(XRAN_DIR)/lib
 BUILDDIR := ./build
+
+ifeq ($(XRAN_LIB_SO),)
 PROJECT_BINARY := $(BUILDDIR)/$(PROJECT_NAME).a
+else
+PROJECT_BINARY := $(BUILDDIR)/$(PROJECT_NAME).so
+endif
 
 ifeq ($(RTE_SDK),)
     $(error "Please define RTE_SDK environment variable")
 endif
 
-RTE_TARGET ?= x86_64-native-linuxapp-gcc
+RTE_TARGET ?= x86_64-native-linux-icc
 RTE_INC := $(RTE_SDK)/$(RTE_TARGET)/include
 
 API_DIR := $(PROJECT_DIR)/api
 SRC_DIR := $(PROJECT_DIR)/src
 ETH_DIR := $(PROJECT_DIR)/ethernet
+LOG_INC := $(LOG_DIR)
 
 ifeq ($(MLOG),1)
 ifeq ($(MLOG_DIR),)
@@ -76,26 +82,41 @@ CC_SRC = $(ETH_DIR)/ethdi.c \
 	$(SRC_DIR)/xran_app_frag.c \
 	$(SRC_DIR)/xran_main.c
 
-CPP_SRC = $(SRC_DIR)/xran_compression.cpp
+CPP_SRC = $(SRC_DIR)/xran_compression.cpp \
+	$(SRC_DIR)/xran_bfp_ref.cpp \
+	$(SRC_DIR)/xran_bfp_cplane8.cpp \
+	$(SRC_DIR)/xran_bfp_cplane16.cpp \
+	$(SRC_DIR)/xran_bfp_cplane32.cpp \
+	$(SRC_DIR)/xran_bfp_cplane64.cpp
+
+ifeq ($(CONFIG_RTE_ARCH_ARM64),n)
+else
+ARM_FLAGS = -DRTE_ARCH_64 -DRTE_ARCH_ARM64 -DRTE_MACHINE_CPUFLAG_NEON  -DRTE_MACHINE_CPUFLAG_CRC32
+CC_FLAGS += $(ARM_FLAGS) -mtls-dialect=trad
+CPP_FLAGS += $(ARM_FLAGS) -g -fPIC -O2
+endif
 
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
 	-ffunction-sections \
 	-g \
+        -fPIC \
 	-Wall \
 	-Wimplicit-function-declaration \
-	-g -O3 -wd1786
+	-g -O2 \
+	-march=armv8.2-a+crc+crypto \
+        -mcpu=neoverse-n1
 
-CC_FLAGS += -fstack-protector-strong -z,now, -z,relro \
-           -z noexecstack -Wformat -Wformat-security -Werror=format-security \
-           -fno-strict-overflow -fwrapv
-
-CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
-                -no-prec-div -fp-model fast=2\
+#CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
+                -no-prec-div -fp-model fast=2 -fPIC \
                 -no-prec-sqrt  -falign-functions=16 -fast-transcendentals \
         -Werror -Wno-unused-variable -std=c++11 -mcmodel=large
 
-INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
+INC := -I$(LOG_INC) -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
+INC += -I$(LOG_INC)/common/utils
+INC += -I$(LOG_INC)/common/utils/T
+INC += -I$(LOG_INC)/common/utils/LOG
+INC += -I$(LOG_INC)/openair2/COMMON
 DEF :=
 ifeq ($(MLOG),1)
 	INC  += -I$(MLOG_DIR)/source
@@ -114,14 +135,15 @@ PROJECT_OBJ_DIR := build/obj
 CC_OBJS := $(patsubst %.c,%.o,$(CC_SRC))
 CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
 AS_OBJS := $(patsubst %.s,%.o,$(AS_SRC))
-OBJS    := $(CC_OBJS) $(CPP_OBJS) $(AS_OBJS) $(LIBS)
+OBJS    := $(CC_OBJS) $(AS_OBJS) $(LIBS)
 DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS))))
 
 CC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CC_OBJS))
 CPP_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS))
 
 AS_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(AS_OBJS))
-CPP_COMP       := -O3 -xcore-avx512 -restrict -g -fasm-blocks
+#CPP_COMP       := -O3 -xcore-avx512 -restrict -g
+CPP_COMP       := -O3 -g
 CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
 CPP_FLAGS_FULL := $(CPP_FLAGS) $(CPP_COMP) $(INC) $(DEF)
 
@@ -153,7 +175,7 @@ $(CPP_DEPS) :
 	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPP_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
 
 .PHONY : generate_deps
-generate_deps : clear_dep $(CC_DEPS) $(CPP_DEPS)
+generate_deps : clear_dep $(CC_DEPS)
 
 
 .PHONY : echo_start_build
@@ -204,7 +226,10 @@ welcome_line :
 
 debug :  all
 release :  all
-
-$(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+$(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(AS_OBJTARGETS) $(CPP_OBJTARGETS) 
 	@echo [AR]    $(subst $(BUILDDIR)/,,$@)
+ifeq ($(XRAN_LIB_SO),)
 	@$(AR) $(AR_FLAGS) $@ $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+else
+	@$(CC) $(CC_OBJTARGETS) $(AS_OBJTARGETS) -shared -fPIC -o $@
+endif

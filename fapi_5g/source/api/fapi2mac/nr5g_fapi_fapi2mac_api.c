@@ -27,6 +27,7 @@
 #include "gnb_l1_l2_api.h"
 #include "nr5g_fapi_fapi2mac_api.h"
 #include "nr5g_fapi_fapi2mac_wls.h"
+#include "nr5g_fapi_log.h"
 
 static nr5g_fapi_fapi2mac_queue_t fapi2mac_q[FAPI_MAX_PHY_INSTANCES];
 
@@ -72,6 +73,11 @@ void nr5g_fapi_fapi2mac_add_api_to_list(
     }
 
     queue = nr5g_fapi_fapi2mac_queue(phy_id);
+    if (pthread_mutex_lock((pthread_mutex_t *) & queue->lock)) {
+        NR5G_FAPI_LOG(ERROR_LOG, ("unable to lock fapi2mac aggregate list"
+                "pthread mutex"));
+        return;
+    }
     if (queue->p_send_list_head && queue->p_send_list_tail) {
         p_fapi_msg_hdr = (p_fapi_msg_header_t) (queue->p_send_list_head + 1);
         p_fapi_msg_hdr->num_msg += 1;
@@ -79,6 +85,11 @@ void nr5g_fapi_fapi2mac_add_api_to_list(
         queue->p_send_list_tail = p_list_elem;
     } else {
         queue->p_send_list_head = queue->p_send_list_tail = p_list_elem;
+    }
+    if (pthread_mutex_unlock((pthread_mutex_t *) & queue->lock)) {
+        NR5G_FAPI_LOG(ERROR_LOG, ("unable to unlock fapi2mac aggregate list"
+                "pthread mutex"));
+        return;
     }
 }
 
@@ -97,21 +108,39 @@ void nr5g_fapi_fapi2mac_send_api_list(
     )
 {
     uint8_t phy_id = 0;
+    p_fapi_msg_header_t p_fapi_msg_hdr = NULL;
     p_fapi_api_queue_elem_t p_commit_list_head = NULL;
     p_fapi_api_queue_elem_t p_commit_list_tail = NULL;
     p_nr5g_fapi_fapi2mac_queue_t queue = NULL;
 
     for (phy_id = 0; phy_id < FAPI_MAX_PHY_INSTANCES; phy_id++) {
         queue = nr5g_fapi_fapi2mac_queue(phy_id);
+        if (pthread_mutex_lock((pthread_mutex_t *) & queue->lock)) {
+            NR5G_FAPI_LOG(ERROR_LOG, ("unable to lock fapi2mac aggregate list"
+                    "pthread mutex"));
+            return;
+        }
         if (queue->p_send_list_head && queue->p_send_list_tail) {
-            if (p_commit_list_head && p_commit_list_tail) {
-                p_commit_list_tail->p_next = queue->p_send_list_head;
-                p_commit_list_tail = queue->p_send_list_tail;
+            p_fapi_msg_hdr =
+                (p_fapi_msg_header_t) (queue->p_send_list_head + 1);
+            if (p_fapi_msg_hdr->num_msg) {
+                if (p_commit_list_head && p_commit_list_tail) {
+                    p_commit_list_tail->p_next = queue->p_send_list_head;
+                    p_commit_list_tail = queue->p_send_list_tail;
+                } else {
+                    p_commit_list_head = queue->p_send_list_head;
+                    p_commit_list_tail = queue->p_send_list_tail;
+                }
             } else {
-                p_commit_list_head = queue->p_send_list_head;
-                p_commit_list_tail = queue->p_send_list_tail;
+                nr5g_fapi_fapi2mac_wls_free_buffer((void *)
+                    queue->p_send_list_head);
             }
             queue->p_send_list_head = queue->p_send_list_tail = NULL;
+        }
+        if (pthread_mutex_unlock((pthread_mutex_t *) & queue->lock)) {
+            NR5G_FAPI_LOG(ERROR_LOG, ("unable to unlock fapi2mac aggregate list"
+                    "pthread mutex"));
+            return;
         }
     }
 
@@ -160,3 +189,21 @@ p_fapi_api_queue_elem_t nr5g_fapi_fapi2mac_create_api_list_elem(
     return p_list_elem;
 }
 
+//------------------------------------------------------------------------------
+/** @ingroup     group_lte_source_phy_fapi
+ *
+ *  @return      void
+ *
+ *  @description This function initializes the pthead_mutext_lock.
+ */
+void nr5g_fapi_fapi2mac_init_api_list(
+    )
+{
+    uint8_t phy_id = 0;
+    p_nr5g_fapi_fapi2mac_queue_t queue = NULL;
+
+    for (phy_id = 0; phy_id < FAPI_MAX_PHY_INSTANCES; phy_id++) {
+        queue = nr5g_fapi_fapi2mac_queue(phy_id);
+        pthread_mutex_init((pthread_mutex_t *) & queue->lock, NULL);
+    }
+}

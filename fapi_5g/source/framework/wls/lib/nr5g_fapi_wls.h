@@ -62,7 +62,8 @@ typedef struct wls_fapi_mem_array {
     void *pEndOfStorage;
     uint32_t nBlockSize;
     uint32_t nBlockCount;
-} WLS_FAPI_MEM_STRUCT, *PWLS_FAPI_MEM_STRUCT;
+} WLS_FAPI_MEM_STRUCT,
+*PWLS_FAPI_MEM_STRUCT;
 
 // WLS context structure
 typedef struct _nr5g_fapi_wls_context {
@@ -86,17 +87,21 @@ typedef struct _nr5g_fapi_wls_context {
     volatile pthread_mutex_t fapi2phy_lock_alloc;
     volatile pthread_mutex_t fapi2mac_lock_send;
     volatile pthread_mutex_t fapi2mac_lock_alloc;
-} nr5g_fapi_wls_context_t, *p_nr5g_fapi_wls_context_t;
+} nr5g_fapi_wls_context_t,
+*p_nr5g_fapi_wls_context_t;
 
 extern nr5g_fapi_wls_context_t g_wls_ctx;
 
 inline p_nr5g_fapi_wls_context_t nr5g_fapi_wls_context(
     );
+inline uint8_t nr5g_fapi_fapi2phy_wls_ready(
+    );
+inline uint8_t nr5g_fapi_fapi2mac_wls_ready(
+    );
 uint8_t nr5g_fapi_wls_init(
     );
-uint8_t nr5g_fapi2Phy_wls_init(
-    p_nr5g_fapi_wls_context_t p_wls);
-
+uint8_t nr5g_fapi_wls_memory_init(
+    );
 uint8_t nr5g_fapi_wls_destroy(
     WLS_HANDLE h_wls);
 void *wls_fapi_alloc_buffer(
@@ -127,23 +132,9 @@ uint8_t wls_fapi_add_blocks_to_ul(
 void nr5g_fapi_wls_show_data(
     void *ptr,
     uint32_t size);
-int32_t wls_fapi_sdu_zbc_block_add_to_free(
-    void *pMsgHeaderHead,
-    int count,
-    uint64_t * pToFreeList);
 void wls_fapi_free_list_all(
     void);
 void nr5g_fapi_wls_print_stats(
     void);
 
-void wls_fapi_add_send_apis_to_free(
-    PMAC2PHY_QUEUE_EL pListElem,
-    uint32_t idx);
-void wls_fapi_free_send_free_list(
-    uint32_t idx);
-void wls_fapi_add_recv_apis_to_free(
-    PMAC2PHY_QUEUE_EL pListElem,
-    uint32_t idx);
-void wls_fapi_free_recv_free_list(
-    uint32_t idx);
 #endif /*_NR5G_FAPI_WLS_H_*/
