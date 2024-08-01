@@ -1,25 +1,14 @@
 /*******************************************************************************
  *
- * Copyright (c) 2020 Intel.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- * 
+ * <COPYRIGHT_TAG>
  *
  *******************************************************************************/
 
 #include <cmath>
 #include <fstream>
 #include <numeric>
+#include <iomanip>
+#include <iostream>
 
 #ifndef _WIN64
 #include <unistd.h>
@@ -168,7 +157,7 @@ unsigned long tsc_tick()
 
     return lo | (hi << 32);
 #else
-	return 0;
+    return 0;
 #endif
 }
 
@@ -177,8 +166,13 @@ void KernelTests::print_and_store_results(const std::string &isa, const std::str
                                           const std::string &unit, const int para_factor,
                                           const double mean, const double stddev)
 {
+    std::ios cout_state(nullptr);
+    cout_state.copyfmt(std::cout);
+
     std::cout << "[----------] " << "Mean" << " = " << std::fixed << mean << " us" << std::endl;
     std::cout << "[----------] " << "Stddev" << " = " << stddev << " us" << std::endl;
+
+    std::cout.copyfmt(cout_state);
 
 #ifndef _WIN64
     /* Two properties below should uniquely identify a test case */
