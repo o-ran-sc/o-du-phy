@@ -19,7 +19,7 @@
 /**
  * @brief xRAN BFP compression/decompression for C-plane with 8T8R
  *
- * @file xran_bfp_cplane8.cpp
+ * @file xran_bfp_cplane8_snc.cpp
  * @ingroup group_source_xran
  * @author Intel Corporation
  **/
@@ -238,7 +238,7 @@ namespace BFP_CPlane_8_SNC
   inline void
   compress8_16RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    const __m512i exponents = computeExponent_16RB(dataIn, totShiftBits);
+    const auto exponents = computeExponent_16RB(dataIn, totShiftBits);
     const __m256i* dataInAddr = reinterpret_cast<const __m256i*>(dataIn.dataExpanded);
 #pragma unroll(16)
     for (int n = 0; n < 16; ++n)
@@ -251,7 +251,7 @@ namespace BFP_CPlane_8_SNC
   inline void
   compress8_4RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    const __m512i exponents = computeExponent_4RB(dataIn, totShiftBits);
+    const auto exponents = computeExponent_4RB(dataIn, totShiftBits);
     const __m256i* dataInAddr = reinterpret_cast<const __m256i*>(dataIn.dataExpanded);
 #pragma unroll(4)
     for (int n = 0; n < 4; ++n)
@@ -341,7 +341,7 @@ namespace BFP_CPlane_8_SNC
   applyExpansion8_1RB(const uint8_t* expAddr, __m256i* dataOutAddr)
   {
     const __m128i* rawDataIn = reinterpret_cast<const __m128i*>(expAddr + 1);
-    const auto compData16 = _mm256_cvtepi8_epi16(*rawDataIn);
+    const auto compData16 = _mm256_cvtepi8_epi16(_mm_loadu_si128(rawDataIn));
     const auto expData = _mm256_slli_epi16(compData16, *expAddr);
     static constexpr uint8_t k_WriteMask = 0x0F;
     _mm256_mask_storeu_epi64(dataOutAddr, k_WriteMask, expData);
@@ -388,15 +388,17 @@ BlockFloatCompander::BFPCompressCtrlPlane8AvxSnc(const ExpandedData& dataIn, Com
   const auto totShiftBits9 = _mm512_set1_epi32(24);
   const auto totShiftBits10 = _mm512_set1_epi32(23);
   const auto totShiftBits12 = _mm512_set1_epi32(21);
+  const auto totShiftBits14 = _mm512_set1_epi32(19);
 
   /// Total number of data bytes per compression block is (iqWidth * numElements / 8) + 1
   const auto totNumBytesPerBlock = ((BFP_CPlane_8_SNC::k_numDataElements * dataIn.iqWidth) >> 3) + 1;
 
   /// Compressed data write mask for each iqWidth option
   /// Compressed data write mask for each iqWidth option
-  constexpr uint32_t rbWriteMask9 = 0x0003FFFF;
+  constexpr uint32_t rbWriteMask9 =  0x0003FFFF;
   constexpr uint32_t rbWriteMask10 = 0x000FFFFF;
   constexpr uint32_t rbWriteMask12 = 0x00FFFFFF;
+  constexpr uint32_t rbWriteMask14 = 0x0FFFFFFF;
 
   switch (dataIn.iqWidth)
   {
@@ -415,6 +417,10 @@ BlockFloatCompander::BFPCompressCtrlPlane8AvxSnc(const ExpandedData& dataIn, Com
   case 12:
     BFP_CPlane_8_SNC::compressByAllocN<BlockFloatCompander::networkBytePack12bSncB>(dataIn, dataOut, totShiftBits12, totNumBytesPerBlock, rbWriteMask12);
     break;
+
+  case 14:
+    BFP_CPlane_8_SNC::compressByAllocN<BlockFloatCompander::networkBytePack14bSncB>(dataIn, dataOut, totShiftBits14, totNumBytesPerBlock, rbWriteMask14);
+    break;
   }
 }
 
@@ -427,6 +433,7 @@ BlockFloatCompander::BFPExpandCtrlPlane8AvxSnc(const CompressedData& dataIn, Exp
   constexpr int k_maxExpShift9 = 7;
   constexpr int k_maxExpShift10 = 6;
   constexpr int k_maxExpShift12 = 4;
+  constexpr int k_maxExpShift14 = 2;
 
   /// Total number of data bytes per compression block is (iqWidth * numElements / 8) + 1
   const auto totNumBytesPerBlock = ((BFP_CPlane_8_SNC::k_numDataElements * dataIn.iqWidth) >> 3) + 1;
@@ -447,6 +454,10 @@ BlockFloatCompander::BFPExpandCtrlPlane8AvxSnc(const CompressedData& dataIn, Exp
 
   case 12:
     BFP_CPlane_8_SNC::expandByAllocN<BlockFloatCompander::networkByteUnpack12b256Snc>(dataIn, dataOut, totNumBytesPerBlock, k_maxExpShift12);
+    break;
+
+  case 14:
+    BFP_CPlane_8_SNC::expandByAllocN<BlockFloatCompander::networkByteUnpack14b256Snc>(dataIn, dataOut, totNumBytesPerBlock, k_maxExpShift14);
     break;
   }
 }

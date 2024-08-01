@@ -17,14 +17,15 @@
 *******************************************************************************/
 
 /**
- * @brief xRAN BFP compression/decompression U-plane implementation and interface functions
+ * @brief xRAN BFP compression/decompression interface functions
  *
- * @file xran_compression.cpp
+ * @file xran_compression_snc.cpp
  * @ingroup group_source_xran
  * @author Intel Corporation
  **/
 #include "xran_compression.hpp"
 #include "xran_compression.h"
+#include "xran_fh_o_du.h"
 #include <complex>
 #include <algorithm>
 #include <immintrin.h>
@@ -57,6 +58,7 @@ xranlib_compress_avxsnc(const struct xranlib_compress_request *request,
         case 9:
         case 10:
         case 12:
+        case 14:
             com_fn = BlockFloatCompander::BFPCompressUserPlaneAvxSnc;
             break;
         default:
@@ -93,7 +95,7 @@ xranlib_compress_avxsnc(const struct xranlib_compress_request *request,
 
     response->len =  ((3 * expandedDataInput.iqWidth) + 1) * totalRBs;
 
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 
 int32_t
@@ -114,6 +116,7 @@ xranlib_decompress_avxsnc(const struct xranlib_decompress_request *request,
     case 9:
     case 10:
     case 12:
+    case 14:
         decom_fn = BlockFloatCompander::BFPExpandUserPlaneAvxSnc;
         break;
     default:
@@ -124,33 +127,39 @@ xranlib_decompress_avxsnc(const struct xranlib_decompress_request *request,
     compressedDataInput.iqWidth         =  request->iqWidth;
     compressedDataInput.numDataElements =  24;
 
-    while(remRBs) {
-        compressedDataInput.dataCompressed = (uint8_t*)&request->data_in[block_idx_bytes];
-        expandedDataOut.dataExpanded       = &response->data_out[len];
-        if(remRBs >= 16){
-            compressedDataInput.numBlocks = 16;
-            decom_fn(compressedDataInput, &expandedDataOut);
-            len  += 16*compressedDataInput.numDataElements;
-            block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)16);
-            remRBs -= 16;
-        }else if(remRBs >= 4){
-            compressedDataInput.numBlocks = 4;
-            decom_fn(compressedDataInput, &expandedDataOut);
-            len  += 4*compressedDataInput.numDataElements;
-            block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)4);
-            remRBs -=4;
-        }else if (remRBs >= 1){
-            compressedDataInput.numBlocks = 1;
-            decom_fn(compressedDataInput, &expandedDataOut);
-            len  += 1*compressedDataInput.numDataElements;
-            block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)1);
-            remRBs = remRBs - 1;
-        }
-    }
+    compressedDataInput.dataCompressed = (uint8_t*)request->data_in;
+    expandedDataOut.dataExpanded       = response->data_out;
+    compressedDataInput.numBlocks = remRBs;
+    decom_fn(compressedDataInput, &expandedDataOut);
+
+    // while(remRBs) {
+    //     compressedDataInput.dataCompressed = (uint8_t*)&request->data_in[block_idx_bytes];
+    //     expandedDataOut.dataExpanded       = &response->data_out[len];
+    //     if(remRBs >= 16){
+    //         compressedDataInput.numBlocks = 16;
+    //         decom_fn(compressedDataInput, &expandedDataOut);
+    //         len  += 16*compressedDataInput.numDataElements;
+    //         block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)16);
+    //         remRBs -= 16;
+    //     }else if(remRBs >= 4){
+    //         compressedDataInput.numBlocks = 4;
+    //         decom_fn(compressedDataInput, &expandedDataOut);
+    //         len  += 4*compressedDataInput.numDataElements;
+    //         block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)4);
+    //         remRBs -=4;
+    //     }else if (remRBs >= 1){
+    //         compressedDataInput.numBlocks = 1;
+    //         decom_fn(compressedDataInput, &expandedDataOut);
+    //         len  += 1*compressedDataInput.numDataElements;
+    //         block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)1);
+    //         remRBs = remRBs - 1;
+    //     }
+    // }
 
     response->len = totalRBs * compressedDataInput.numDataElements * sizeof(int16_t);
 
-    return 0;
+
+    return XRAN_STATUS_SUCCESS;
 }
 
 int32_t
@@ -163,7 +172,7 @@ xranlib_compress_avxsnc_bfw(const struct xranlib_compress_request *request,
 
     if (request->numRBs != 1){
         printf("Unsupported numRBs %d\n", request->numRBs);
-        return -1;
+        return XRAN_STATUS_FAIL;
     }
 
     switch (request->iqWidth) {
@@ -171,6 +180,7 @@ xranlib_compress_avxsnc_bfw(const struct xranlib_compress_request *request,
         case 9:
         case 10:
         case 12:
+        case 14:
         switch (request->numDataElements) {
             case 16:
                 com_fn = BlockFloatCompander::BFPCompressCtrlPlane8AvxSnc;
@@ -187,13 +197,13 @@ xranlib_compress_avxsnc_bfw(const struct xranlib_compress_request *request,
             case 24:
             default:
                 printf("Unsupported numDataElements %d\n", request->numDataElements);
-                return -1;
+                return XRAN_STATUS_FAIL;
                 break;
         }
         break;
     default:
         printf("Unsupported iqWidth %d\n", request->iqWidth);
-        return -1;
+        return XRAN_STATUS_FAIL;
         break;
     }
 
@@ -208,7 +218,7 @@ xranlib_compress_avxsnc_bfw(const struct xranlib_compress_request *request,
     response->len =  (((expandedDataInput.numDataElements  * expandedDataInput.iqWidth) >> 3) + 1)
                             * request->numRBs;
 
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 
 int32_t
@@ -221,7 +231,7 @@ xranlib_decompress_avxsnc_bfw(const struct xranlib_decompress_request *request,
 
     if (request->numRBs != 1){
         printf("Unsupported numRBs %d\n", request->numRBs);
-        return -1;
+        return XRAN_STATUS_FAIL;
     }
 
     switch (request->iqWidth) {
@@ -229,6 +239,7 @@ xranlib_decompress_avxsnc_bfw(const struct xranlib_decompress_request *request,
         case 9:
         case 10:
         case 12:
+        case 14:
         switch (request->numDataElements) {
             case 16:
                 decom_fn = BlockFloatCompander::BFPExpandCtrlPlane8AvxSnc;
@@ -245,13 +256,13 @@ xranlib_decompress_avxsnc_bfw(const struct xranlib_decompress_request *request,
             case 24:
             default:
                 printf("Unsupported numDataElements %d\n", request->numDataElements);
-                return -1;
+                return XRAN_STATUS_FAIL;
                 break;
         }
         break;
     default:
         printf("Unsupported iqWidth %d\n", request->iqWidth);
-        return -1;
+        return XRAN_STATUS_FAIL;
         break;
     }
 
@@ -265,6 +276,6 @@ xranlib_decompress_avxsnc_bfw(const struct xranlib_decompress_request *request,
 
     response->len = request->numRBs * compressedDataInput.numDataElements * sizeof(int16_t);
 
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 
