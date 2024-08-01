@@ -36,7 +36,7 @@
 #include <rte_mbuf.h>
 
 #include "xran_common.h"
-#include "ethdi.h"
+#include "xran_ethdi.h"
 #include "xran_pkt.h"
 #include "xran_dev.h"
 #include "xran_lib_mlog_tasks_id.h"
@@ -52,6 +52,10 @@
 //#define XRAN_OWD_DEBUG_MEAS_DB
 //#define XRAN_OWD_TIMING_MODS
 
+#if (RTE_VER_YEAR == 20)
+#define src_addr s_addr
+#define dst_addr d_addr
+#endif
 
     // Support for 1-way eCPRI delay measurement per section 3.2.4.6 of eCPRI Specification V2.0
 
@@ -115,59 +119,60 @@ void xran_ns_to_timespec(uint64_t ns, struct timespec *t)
 void xran_initialize_and_verify_owd_pl_length(void* handle)
 {
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    
-    if ((p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id].owdm_PlLength == 0)||(p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id].owdm_PlLength < MIN_OWDM_PL_LENGTH))
+    int appMode = xran_get_syscfg_appmode();
+
+    if((p_xran_dev_ctx->eowd_cmn[appMode].owdm_PlLength == 0)||(p_xran_dev_ctx->eowd_cmn[appMode].owdm_PlLength < MIN_OWDM_PL_LENGTH))
     {
          // Use default length value
-         p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id].owdm_PlLength = MIN_OWDM_PL_LENGTH;
+         p_xran_dev_ctx->eowd_cmn[appMode].owdm_PlLength = MIN_OWDM_PL_LENGTH;
     }
-    else if ( p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id].owdm_PlLength > MAX_OWDM_PL_LENGTH)
+    else if( p_xran_dev_ctx->eowd_cmn[appMode].owdm_PlLength > MAX_OWDM_PL_LENGTH)
     {
-         p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id].owdm_PlLength  = MAX_OWDM_PL_LENGTH;
+         p_xran_dev_ctx->eowd_cmn[appMode].owdm_PlLength  = MAX_OWDM_PL_LENGTH;
     }
-    
+
 }
 
 void xran_adjust_timing_parameters(void* Handle)
 {
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx*)Handle;
+    int appMode = xran_get_syscfg_appmode();
 #ifdef XRAN_OWD_TIMING_MODS
-    printf("delayAvg is %d and DELAY_THRESHOLD is %d \n", p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][0].delayAvg, DELAY_THRESHOLD);
+    printf("delayAvg is %d and DELAY_THRESHOLD is %d \n", p_xran_dev_ctx->eowd_port[appMode][0].delayAvg, DELAY_THRESHOLD);
 #endif
-    if (p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][0].delayAvg < DELAY_THRESHOLD )
+    if (p_xran_dev_ctx->eowd_port[appMode][0].delayAvg < DELAY_THRESHOLD )
         {
+            uint8_t mu = p_xran_dev_ctx->fh_cfg.mu_number[0];
             /* Modify the timing parameters */
-            if (p_xran_dev_ctx->fh_cfg.T1a_max_up >= ADJUSTMENT)
-                p_xran_dev_ctx->fh_cfg.T1a_max_up -= ADJUSTMENT;
-            if (p_xran_dev_ctx->fh_cfg.T2a_max_up >= ADJUSTMENT)
-                p_xran_dev_ctx->fh_cfg.T2a_max_up -= ADJUSTMENT;
-            if (p_xran_dev_ctx->fh_cfg.Ta3_min >= ADJUSTMENT)
-                p_xran_dev_ctx->fh_cfg.Ta3_min -= ADJUSTMENT;
-            if (p_xran_dev_ctx->fh_cfg.T1a_max_cp_dl >= ADJUSTMENT)
-                p_xran_dev_ctx->fh_cfg.T1a_max_cp_dl -= ADJUSTMENT;
-            if (p_xran_dev_ctx->fh_cfg.T1a_min_up >= ADJUSTMENT)
-                p_xran_dev_ctx->fh_cfg.T1a_min_up -= ADJUSTMENT;
-            if (p_xran_dev_ctx->fh_cfg.T1a_max_up >= ADJUSTMENT)
-                p_xran_dev_ctx->fh_cfg.T1a_max_up -= ADJUSTMENT;
-            if (p_xran_dev_ctx->fh_cfg.Ta4_min >= ADJUSTMENT)
-                p_xran_dev_ctx->fh_cfg.Ta4_min -= ADJUSTMENT;
-            if (p_xran_dev_ctx->fh_cfg.Ta4_max >= ADJUSTMENT)
-                p_xran_dev_ctx->fh_cfg.Ta4_max -= ADJUSTMENT;
+            if (p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_max_up >= ADJUSTMENT)
+                p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_max_up -= ADJUSTMENT;
+            if (p_xran_dev_ctx->fh_cfg.perMu[mu].T2a_max_up >= ADJUSTMENT)
+                p_xran_dev_ctx->fh_cfg.perMu[mu].T2a_max_up -= ADJUSTMENT;
+            if (p_xran_dev_ctx->fh_cfg.perMu[mu].Ta3_min >= ADJUSTMENT)
+                p_xran_dev_ctx->fh_cfg.perMu[mu].Ta3_min -= ADJUSTMENT;
+            if (p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_max_cp_dl >= ADJUSTMENT)
+                p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_max_cp_dl -= ADJUSTMENT;
+            if (p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_min_up >= ADJUSTMENT)
+                p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_min_up -= ADJUSTMENT;
+            if (p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_max_up >= ADJUSTMENT)
+                p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_max_up -= ADJUSTMENT;
+            if (p_xran_dev_ctx->fh_cfg.perMu[mu].Ta4_min >= ADJUSTMENT)
+                p_xran_dev_ctx->fh_cfg.perMu[mu].Ta4_min -= ADJUSTMENT;
+            if (p_xran_dev_ctx->fh_cfg.perMu[mu].Ta4_max >= ADJUSTMENT)
+                p_xran_dev_ctx->fh_cfg.perMu[mu].Ta4_max -= ADJUSTMENT;
 #ifdef XRAN_OWD_TIMING_MODS
-            printf("Mod T1a_max_up is %d\n",p_xran_dev_ctx->fh_cfg.T1a_max_up);
-            printf("Mod T2a_max_up is %d\n",p_xran_dev_ctx->fh_cfg.T2a_max_up);
-            printf("Mod Ta3_min is %d\n",p_xran_dev_ctx->fh_cfg.Ta3_min);
-            printf("Mod T1a_max_cp_dl is %d\n",p_xran_dev_ctx->fh_cfg.T1a_max_cp_dl);
-            printf("Mod T1a_min_up is %d\n",p_xran_dev_ctx->fh_cfg.T1a_min_up);
-            printf("Mod T1a_max_up is %d\n",p_xran_dev_ctx->fh_cfg.T1a_max_up);
-            printf("Mod Ta4_min is %d\n",p_xran_dev_ctx->fh_cfg.Ta4_min);
-            printf("Mod Ta4_max is %d\n",p_xran_dev_ctx->fh_cfg.Ta4_max);
+            printf("Mod T1a_max_up is %d\n",p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_max_up);
+            printf("Mod T2a_max_up is %d\n",p_xran_dev_ctx->fh_cfg.perMu[mu].T2a_max_up);
+            printf("Mod Ta3_min is %d\n",p_xran_dev_ctx->fh_cfg.perMu[mu].Ta3_min);
+            printf("Mod T1a_max_cp_dl is %d\n",p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_max_cp_dl);
+            printf("Mod T1a_min_up is %d\n",p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_min_up);
+            printf("Mod T1a_max_up is %d\n",p_xran_dev_ctx->fh_cfg.perMu[mu].T1a_max_up);
+            printf("Mod Ta4_min is %d\n",p_xran_dev_ctx->fh_cfg.perMu[mu].Ta4_min);
+            printf("Mod Ta4_max is %d\n",p_xran_dev_ctx->fh_cfg.perMu[mu].Ta4_max);
 #endif
         }
-   
+
 }
-
-
 
 void xran_compute_and_report_delay_estimate (struct xran_ecpri_del_meas_port *portData, uint16_t totalSamples, uint16_t id )
 {
@@ -197,7 +202,7 @@ int xran_get_delay_measurements_results (void* handle,  uint16_t port_id, uint8_
 {
     int ret_value = FAIL;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx*)handle;
-    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[id][port_id];
+    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->eowd_port[id][port_id];
     // Check is the one way delay measurement completed successfully
     if (powdp->msState == XRAN_OWDM_DONE)
     {
@@ -216,7 +221,7 @@ void xran_build_owd_meas_ecpri_hdr(char* mbuf,    struct xran_ecpri_del_meas_cmn
     tmp->bits.ecpri_resv          = 0;     // should be zero
     tmp->bits.ecpri_concat        = 0;
     tmp->bits.ecpri_mesg_type     = ECPRI_DELAY_MEASUREMENT;
-    tmp->bits.ecpri_payl_size	 = 10 + eowdcmn->owdm_PlLength;
+    tmp->bits.ecpri_payl_size	 = sizeof(struct xran_ecpri_delay_meas_pl) + eowdcmn->owdm_PlLength; // eowdcmn->owdm_PlLength correponds to  the dummy_bytes field which now allows the user to select the length for this field to be sent
     tmp->bits.ecpri_payl_size    = rte_cpu_to_be_16(tmp->bits.ecpri_payl_size);
 }
 
@@ -389,9 +394,10 @@ int xran_ecpri_one_way_delay_measurement_transmitter(uint16_t port_id, void* han
     // XRAN_RUNNING state (i.e. after having executed the xran_start())
     // The measurements run only once for the current release.
     int ret_value = FAIL;
+    int appMode = xran_get_syscfg_appmode();
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
-    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
+    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->eowd_cmn[appMode];
+    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->eowd_port[appMode][port_id];
 
     if (powdc->measState == OWDMTX_INIT)
     {
@@ -498,7 +504,7 @@ int xran_ecpri_one_way_delay_measurement_transmitter(uint16_t port_id, void* han
                 // Transmitter doesn't have to do anything in these states
                 break;
             default:
-                errx(1, "Exit 5 owdm tx port_id %d measId %d id %d state %d", port_id, powdc->measId, p_xran_dev_ctx->fh_init.io_cfg.id, powdp->msState );
+                errx(1, "Exit 5 owdm tx port_id %d measId %d id %d state %d", port_id, powdc->measId, appMode, powdp->msState );
 
         }
     }
@@ -530,22 +536,23 @@ int xran_generate_delay_meas(uint16_t port_id, void* handle, uint8_t actionType,
 {
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
     int pkt_len;
+    int appMode = xran_get_syscfg_appmode();
     struct rte_mbuf *mbuf;
     char* pChar;
     struct xran_ecpri_delay_meas_pl * pdm= NULL;
     uint64_t tcv1,tr2m,trm;
     struct timespec tr2, tr;
-    struct xran_io_cfg* cfg = &p_xran_dev_ctx->fh_init.io_cfg;
-    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
-    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
+    //struct xran_io_cfg* cfg = &p_xran_dev_ctx->fh_init.io_cfg;
+    struct xran_io_cfg *cfg = xran_get_sysiocfg();
+    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->eowd_cmn[appMode];
+    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->eowd_port[appMode][port_id];
     int32_t *port = &cfg->port[port_id];
     int ret_value = FAIL;
     struct rte_ether_addr addr;
     uint16_t ethertype = ETHER_TYPE_ECPRI;
 
-//    printf("in xran_generate_delay_meas for action_type %d\n", actionType);
+    pkt_len = sizeof(struct xran_ecpri_del_meas_pkt) + powdc->owdm_PlLength; // powdc->owdm_PlLength correponds to  the dummy_bytes field which now allows the user to select the length for this field to be sent
 
-    pkt_len = sizeof(struct xran_ecpri_del_meas_pkt);
     // Allocate a buffer from the pool
     mbuf =xran_ethdi_mbuf_alloc();
     if (mbuf == NULL)
@@ -572,17 +579,17 @@ int xran_generate_delay_meas(uint16_t port_id, void* handle, uint8_t actionType,
     PANIC_ON(h == NULL, "mbuf prepend of ether_hdr failed");
 
     /* Fill in the ethernet header. */
-    rte_eth_macaddr_get(port_id, &h->s_addr);          /* set source addr */
+    rte_eth_macaddr_get(port_id, &h->src_addr);          /* set source addr */
 
-    if (p_xran_dev_ctx->fh_init.io_cfg.id)
+    if(appMode == O_DU)
     {
-//        rte_ether_addr_copy( (struct rte_ether_addr *)p_xran_dev_ctx->fh_init.p_o_du_addr[port_id],&h->d_addr);
-        h->d_addr = ctx->entities[port_id][ID_O_DU];   /* set dst addr */
+//        rte_ether_addr_copy( (struct rte_ether_addr *)p_xran_dev_ctx->fh_init.p_o_du_addr[port_id],&h->dst_addr);
+        h->dst_addr = ctx->entities[port_id][ID_O_DU];   /* set dst addr */
     }
     else
     {
-        h->d_addr = ctx->entities[port_id][ID_O_RU];   /* set dst addr */
-//        rte_ether_addr_copy( (struct rte_ether_addr *)p_xran_dev_ctx->fh_init.p_o_ru_addr[port_id],&h->d_addr);
+        h->dst_addr = ctx->entities[port_id][ID_O_RU];   /* set dst addr */
+//        rte_ether_addr_copy( (struct rte_ether_addr *)p_xran_dev_ctx->fh_init.p_o_ru_addr[port_id],&h->dst_addr);
     }
 
     h->ether_type = rte_cpu_to_be_16(ethertype);       /* ethertype too */
@@ -738,7 +745,7 @@ int xran_generate_delay_meas(uint16_t port_id, void* handle, uint8_t actionType,
     // Retrieve Ethernet Header for the port and copy to the packet
     rte_eth_macaddr_get(port_id, &addr);
 #ifdef XRAN_OWD_DEBUG_PKTS
-    printf("id is %d\n", p_xran_dev_ctx->fh_init.io_cfg.id);
+    printf("id is %d\n", appMode);
     printf("Port %u SRC MAC: %02"PRIx8" %02"PRIx8" %02"PRIx8
         " %02"PRIx8" %02"PRIx8" %02"PRIx8"\n",
         (unsigned)port_id,
@@ -746,28 +753,28 @@ int xran_generate_delay_meas(uint16_t port_id, void* handle, uint8_t actionType,
         addr.addr_bytes[3], addr.addr_bytes[4], addr.addr_bytes[5]);
 #endif
 
-    if (p_xran_dev_ctx->fh_init.io_cfg.id)
+    if(appMode == O_DU)
     {
 #ifdef XRAN_OWD_DEBUG_PKTS
-        int8_t *pa = &p_xran_dev_ctx->fh_init.p_o_du_addr[0];
+        int8_t *pa = &p_xran_dev_ctx->p_o_du_addr[0];
         printf("DST_MAC: %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8"\n", pa[0],pa[1],pa[2],pa[3],pa[4],pa[5]);
 #endif
-        rte_ether_addr_copy((struct rte_ether_addr *)&p_xran_dev_ctx->fh_init.p_o_du_addr[0], (struct rte_ether_addr *)&h->d_addr.addr_bytes[0]);
+        rte_ether_addr_copy((struct rte_ether_addr *)&p_xran_dev_ctx->p_o_du_addr[0], (struct rte_ether_addr *)&h->dst_addr.addr_bytes[0]);
 
     }
     else
     {
 #ifdef XRAN_OWD_DEBUG_PKTS
-        int8_t *pb = &p_xran_dev_ctx->fh_init.p_o_ru_addr[0];
+        int8_t *pb = &p_xran_dev_ctx->p_o_ru_addr[0];
         printf("DST_MAC: %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8"\n", pb[0],pb[1],pb[2],pb[3],pb[4],pb[5]);
 #endif
-        rte_ether_addr_copy((struct rte_ether_addr *)&p_xran_dev_ctx->fh_init.p_o_ru_addr[0], (struct rte_ether_addr *)&h->d_addr.addr_bytes[0]);
+        rte_ether_addr_copy((struct rte_ether_addr *)&p_xran_dev_ctx->p_o_ru_addr[0], (struct rte_ether_addr *)&h->dst_addr.addr_bytes[0]);
 
     }
 #ifdef XRAN_OWD_DEBUG_PKTS
-    uint8_t *pc = &h->s_addr.addr_bytes[0];
+    uint8_t *pc = &h->src_addr.addr_bytes[0];
     printf(" Src MAC from packet: %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8"\n", pc[0],pc[1],pc[2],pc[3],pc[4],pc[5]);
-    uint8_t *pd = &h->d_addr.addr_bytes[0];
+    uint8_t *pd = &h->dst_addr.addr_bytes[0];
     printf(" Dst MAC from packet: %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8"\n", pd[0],pd[1],pd[2],pd[3],pd[4],pd[5]);
 #endif
     // Copy dest address from above
@@ -800,6 +807,7 @@ int xran_generate_delay_meas(uint16_t port_id, void* handle, uint8_t actionType,
 int xran_process_delmeas_request(struct rte_mbuf *pkt, void* handle, struct xran_ecpri_del_meas_pkt* ptr, uint16_t port_id)
 {
     int ret_value = FAIL;
+    int appMode = xran_get_syscfg_appmode();
     TimeStamp pt1;
     struct rte_mbuf* pkt1;
     //char* pchar;
@@ -807,13 +815,14 @@ int xran_process_delmeas_request(struct rte_mbuf *pkt, void* handle, struct xran
     struct xran_ecpri_del_meas_pkt *pdm= NULL;
     struct timespec tr, t2;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
-    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
+    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->eowd_cmn[appMode];
+    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->eowd_port[appMode][port_id];
     struct rte_ether_hdr *eth_hdr;
     struct rte_ether_addr addr;
     //struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
 //101620
-    struct xran_io_cfg* cfg = &p_xran_dev_ctx->fh_init.io_cfg;
+    struct xran_io_cfg *cfg = xran_get_sysiocfg();
+//    struct xran_io_cfg* cfg = &p_xran_dev_ctx->fh_init.io_cfg;
 //    struct xran_io_cfg *cfg = &ctx->io_cfg;
     int32_t *port = &cfg->port[port_id];
 
@@ -862,9 +871,9 @@ int xran_process_delmeas_request(struct rte_mbuf *pkt, void* handle, struct xran
     // 11) Fill the ethernet header properly by swapping src and dest addressed from the copied frame
     eth_hdr = rte_pktmbuf_mtod(pkt1, struct rte_ether_hdr *);
     /* Swap dest and src mac addresses. */
-    rte_ether_addr_copy(&eth_hdr->d_addr, &addr);
-    rte_ether_addr_copy(&eth_hdr->s_addr, &eth_hdr->d_addr);
-    rte_ether_addr_copy(&addr, &eth_hdr->s_addr);
+    rte_ether_addr_copy(&eth_hdr->dst_addr, &addr);
+    rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
+    rte_ether_addr_copy(&addr, &eth_hdr->src_addr);
     // Still need to check ol_flags state and update if necessary
     // Compute the delay td12 and save
     // Still need to define the DB to save the info and run averages
@@ -872,14 +881,14 @@ int xran_process_delmeas_request(struct rte_mbuf *pkt, void* handle, struct xran
     // 12) Send the response right away
 #ifdef XRAN_OWD_DEBUG_PKTS
     struct rte_ether_hdr *h = (struct rte_ether_hdr *)rte_pktmbuf_mtod(pkt1, struct rte_ether_hdr*);
-    uint8_t *pc = &h->s_addr.addr_bytes[0];
+    uint8_t *pc = &h->src_addr.addr_bytes[0];
     printf(" Src MAC from packet: %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8"\n", pc[0],pc[1],pc[2],pc[3],pc[4],pc[5]);
-    uint8_t *pd = &h->d_addr.addr_bytes[0];
+    uint8_t *pd = &h->dst_addr.addr_bytes[0];
     printf(" Dst MAC from packet: %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8" %02"PRIx8"\n", pd[0],pd[1],pd[2],pd[3],pd[4],pd[5]);
 //    printf("EtherType: %04"PRIx16" \n",&h->ether_type);
 #endif
     pdm  = (struct xran_ecpri_del_meas_pkt*)rte_pktmbuf_mtod_offset(pkt1, struct xran_ecpri_del_meas_pkt *, sizeof(struct rte_ether_hdr) );
-    pdm->cmnhdr.bits.ecpri_payl_size	 = 10 + powdc->owdm_PlLength; // 10 correponds to the xran_ecpri_delay_meas_pl minus the dummy_bytes field which now allows the user to select the length for this field to be sent
+    pdm->cmnhdr.bits.ecpri_payl_size	 = sizeof(struct xran_ecpri_delay_meas_pl) + powdc->owdm_PlLength; // powdc->owdm_PlLength correponds to  the dummy_bytes field which now allows the user to select the length for this field to be sent
     pdm->cmnhdr.bits.ecpri_payl_size    = rte_cpu_to_be_16(pdm->cmnhdr.bits.ecpri_payl_size);
     pdm->cmnhdr.bits.ecpri_mesg_type = ECPRI_DELAY_MEASUREMENT;
 #ifdef XRAN_OWD_DEBUG_TIME_STAMPS_INFO
@@ -894,14 +903,14 @@ int xran_process_delmeas_request(struct rte_mbuf *pkt, void* handle, struct xran
     // 13) Update measurements DB and check if completed
     powdp->delaySamples[powdp->numMeas]= td12 ;
 #ifdef XRAN_OWD_DEBUG_DELAY_INFO
-    printf("Computed delay is %08"PRIx64" MeasNum %d portId %d id is %d \n",powdp->delaySamples[powdp->numMeas],powdp->numMeas, port_id, p_xran_dev_ctx->fh_init.io_cfg.id);
+    printf("Computed delay is %08"PRIx64" MeasNum %d portId %d id is %d \n",powdp->delaySamples[powdp->numMeas],powdp->numMeas, port_id, xran_get_syscfg_appmode());
 #endif
 
     powdp->numMeas++;
 
     if (powdp->numMeas == powdc->numberOfSamples)
     {
-        xran_compute_and_report_delay_estimate(powdp, powdc->numberOfSamples, p_xran_dev_ctx->fh_init.io_cfg.id);
+        xran_compute_and_report_delay_estimate(powdp, powdc->numberOfSamples, xran_get_syscfg_appmode());
         powdp->msState = XRAN_OWDM_DONE;
         xran_if_current_state = XRAN_RUNNING;
     }
@@ -930,8 +939,8 @@ int xran_process_delmeas_request_w_fup(struct rte_mbuf *pkt, void* handle, struc
     struct xran_ecpri_del_meas_pkt* pdm= ptr;
     struct timespec tr;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    //struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
-    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
+    //struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->eowd_cmn[xran_get_syscfg_appmode()];
+    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->eowd_port[xran_get_syscfg_appmode()][port_id];
     //struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
     //struct xran_io_cfg *cfg = &ctx->io_cfg;
     //int32_t* port = &cfg->port[port_id];
@@ -967,11 +976,12 @@ int xran_process_delmeas_response(struct rte_mbuf *pkt, void* handle, struct xra
     int ret_value = 1;
     TimeStamp pt2;
     uint64_t tcv2,t2m;
+    int appMode = xran_get_syscfg_appmode();
     struct xran_ecpri_del_meas_pkt* pdm;
     //struct timespec t2;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
-    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
+    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->eowd_cmn[appMode];
+    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->eowd_port[appMode][port_id];
     //struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
     //struct xran_io_cfg *cfg = &ctx->io_cfg;
     //struct xran_io_cfg* cfg1 = &p_xran_dev_ctx->fh_init.io_cfg;
@@ -1008,16 +1018,14 @@ int xran_process_delmeas_response(struct rte_mbuf *pkt, void* handle, struct xra
 #endif
     powdp->delaySamples[powdp->numMeas]= (t2m-tcv2) -(powdp->t1 + powdp->delta);
 #ifdef XRAN_OWD_DEBUG_DELAY_INFO
-        printf("Computed delay is %08"PRIx64" MeasNum %d portId %d id is %d \n",powdp->delaySamples[powdp->numMeas],powdp->numMeas, port_id,p_xran_dev_ctx->fh_init.io_cfg.id );
+        printf("Computed delay is %08"PRIx64" MeasNum %d portId %d id is %d \n",powdp->delaySamples[powdp->numMeas],powdp->numMeas, port_id, appMode);
 #endif
 
     powdp->numMeas++;
 
-
-
     if (powdp->numMeas == powdc->numberOfSamples)
     {
-        xran_compute_and_report_delay_estimate(powdp, powdc->numberOfSamples,p_xran_dev_ctx->fh_init.io_cfg.id);
+        xran_compute_and_report_delay_estimate(powdp, powdc->numberOfSamples, appMode);
         powdp->msState = XRAN_OWDM_DONE;
         xran_if_current_state= XRAN_RUNNING;
     }
@@ -1049,14 +1057,15 @@ int xran_process_delmeas_rem_request(struct rte_mbuf *pkt, void* handle, struct 
     int ret_value = FAIL;
     struct rte_mbuf* pkt1;
     uint64_t tcv1,tr2m,trm;
+    int appMode = xran_get_syscfg_appmode();
     struct xran_ecpri_del_meas_pkt* pdm;
     //char* pchar;
     struct timespec tr2, tr;
     struct rte_ether_hdr *eth_hdr;
     struct rte_ether_addr addr;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
-    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
+    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->eowd_cmn[appMode];
+    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->eowd_port[appMode][port_id];
     struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
     struct xran_io_cfg *cfg = &ctx->io_cfg;
     int32_t* port = &cfg->port[port_id];
@@ -1100,12 +1109,12 @@ int xran_process_delmeas_rem_request(struct rte_mbuf *pkt, void* handle, struct 
     // 9) Fill the ethernet header properly by swapping src and dest addressed from the copied frame
     eth_hdr = rte_pktmbuf_mtod(pkt1, struct rte_ether_hdr *);
     /* Swap dest and src mac addresses. */
-    rte_ether_addr_copy(&eth_hdr->d_addr, &addr);
-    rte_ether_addr_copy(&eth_hdr->s_addr, &eth_hdr->d_addr);
-    rte_ether_addr_copy(&addr, &eth_hdr->s_addr);
+    rte_ether_addr_copy(&eth_hdr->dst_addr, &addr);
+    rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
+    rte_ether_addr_copy(&addr, &eth_hdr->src_addr);
     // 10) Send the response right away
     pdm  = (struct xran_ecpri_del_meas_pkt*)rte_pktmbuf_mtod_offset(pkt1, struct xran_ecpri_del_meas_pkt *, sizeof(struct rte_ether_hdr) );
-    pdm->cmnhdr.bits.ecpri_payl_size	 = 10 + powdc->owdm_PlLength; // 10 correponds to the xran_ecpri_delay_meas_pl minus the dummy_bytes field which now allows the user to select the length for this field to be sent
+    pdm->cmnhdr.bits.ecpri_payl_size	 = sizeof(struct xran_ecpri_delay_meas_pl) + powdc->owdm_PlLength; // powdc->owdm_PlLength correponds to  the dummy_bytes field which now allows the user to select the length for this field to be sent
     pdm->cmnhdr.bits.ecpri_payl_size    = rte_cpu_to_be_16(pdm->cmnhdr.bits.ecpri_payl_size);
     pdm->cmnhdr.bits.ecpri_mesg_type = ECPRI_DELAY_MEASUREMENT;
 #ifdef XRAN_OWD_DEBUG_MSG_FLOW
@@ -1125,14 +1134,15 @@ int xran_process_delmeas_rem_request(struct rte_mbuf *pkt, void* handle, struct 
 int xran_process_delmeas_rem_request_w_fup(struct rte_mbuf* pkt, void* handle, struct xran_ecpri_del_meas_pkt* ptr, uint16_t port_id)
 {
     int ret_value = FAIL;
+    int appMode = xran_get_syscfg_appmode();
     struct rte_mbuf* pkt1;
     struct rte_mbuf* pkt2;
     uint64_t tcv1,tsm,t1;
     struct rte_ether_hdr *eth_hdr;
     struct rte_ether_addr addr;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    //struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
-    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
+    //struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->eowd_cmn[appMode];
+    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->eowd_port[appMode][port_id];
     struct xran_ecpri_del_meas_pkt* pdm;
     struct timespec tr, ts;
     //char* pchar;
@@ -1177,9 +1187,9 @@ int xran_process_delmeas_rem_request_w_fup(struct rte_mbuf* pkt, void* handle, s
     // 7) Fill the ethernet header properly by swapping src and dest addressed from the copied frame
     eth_hdr = rte_pktmbuf_mtod(pkt1, struct rte_ether_hdr *);
     /* Swap dest and src mac addresses. */
-    rte_ether_addr_copy(&eth_hdr->d_addr, &addr);
-    rte_ether_addr_copy(&eth_hdr->s_addr, &eth_hdr->d_addr);
-    rte_ether_addr_copy(&addr, &eth_hdr->s_addr);
+    rte_ether_addr_copy(&eth_hdr->dst_addr, &addr);
+    rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
+    rte_ether_addr_copy(&addr, &eth_hdr->src_addr);
     // 8) Duplicate packet to be used for the follow up packet
     pkt2 = rte_pktmbuf_copy(pkt1, _eth_mbuf_pool, 0, UINT32_MAX);
     // 9) Record the current timestamp when the request with follow up is being sent
@@ -1227,6 +1237,7 @@ int xran_process_delmeas_rem_request_w_fup(struct rte_mbuf* pkt, void* handle, s
 int xran_process_delmeas_follow_up(struct rte_mbuf *pkt, void* handle, struct xran_ecpri_del_meas_pkt* ptr, uint16_t port_id)
 {
     int ret_value = FAIL;
+    int appMode = xran_get_syscfg_appmode();
     struct rte_mbuf *pkt1;
     //char* pChar= NULL;
     uint64_t tcv1,tr2m, tcv2, t1;
@@ -1236,8 +1247,8 @@ int xran_process_delmeas_follow_up(struct rte_mbuf *pkt, void* handle, struct xr
     struct rte_ether_addr addr;
     TimeStamp pt1;
     struct xran_device_ctx* p_xran_dev_ctx = (struct xran_device_ctx *)handle;
-    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->fh_init.io_cfg.eowd_cmn[p_xran_dev_ctx->fh_init.io_cfg.id];
-    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->fh_init.io_cfg.eowd_port[p_xran_dev_ctx->fh_init.io_cfg.id][port_id];
+    struct xran_ecpri_del_meas_cmn* powdc  = &p_xran_dev_ctx->eowd_cmn[appMode];
+    struct xran_ecpri_del_meas_port* powdp = &p_xran_dev_ctx->eowd_port[appMode][port_id];
     struct xran_ethdi_ctx *const ctx = xran_ethdi_get_ctx();
     struct xran_io_cfg *cfg = &ctx->io_cfg;
     int32_t *port = &cfg->port[0];
@@ -1283,11 +1294,11 @@ int xran_process_delmeas_follow_up(struct rte_mbuf *pkt, void* handle, struct xr
     // 9) Fill the ethernet header properly by swapping src and dest addressed from the copied frame
     eth_hdr = rte_pktmbuf_mtod(pkt1, struct rte_ether_hdr *);
     /* Swap dest and src mac addresses. */
-    rte_ether_addr_copy(&eth_hdr->d_addr, &addr);
-    rte_ether_addr_copy(&eth_hdr->s_addr, &eth_hdr->d_addr);
-    rte_ether_addr_copy(&addr, &eth_hdr->s_addr);
+    rte_ether_addr_copy(&eth_hdr->dst_addr, &addr);
+    rte_ether_addr_copy(&eth_hdr->src_addr, &eth_hdr->dst_addr);
+    rte_ether_addr_copy(&addr, &eth_hdr->src_addr);
     pdm  = (struct xran_ecpri_del_meas_pkt*)rte_pktmbuf_mtod_offset(pkt1, struct xran_ecpri_del_meas_pkt *, sizeof(struct rte_ether_hdr) );
-    pdm->cmnhdr.bits.ecpri_payl_size	 = 10 + powdc->owdm_PlLength; // 10 correponds to the xran_ecpri_delay_meas_pl minus the dummy_bytes field which now allows the user to select the length for this field to be sent
+    pdm->cmnhdr.bits.ecpri_payl_size	 = sizeof(struct xran_ecpri_delay_meas_pl) + powdc->owdm_PlLength; // powdc->owdm_PlLength correponds to  the dummy_bytes field which now allows the user to select the length for this field to be sent
     pdm->cmnhdr.bits.ecpri_payl_size    = rte_cpu_to_be_16(pdm->cmnhdr.bits.ecpri_payl_size);
     pdm->cmnhdr.bits.ecpri_mesg_type = ECPRI_DELAY_MEASUREMENT;
 
@@ -1298,13 +1309,13 @@ int xran_process_delmeas_follow_up(struct rte_mbuf *pkt, void* handle, struct xr
     // td= (t2-tcv2) - (t1+tcv1) where t1 and tcv1 have been stored previously for the same measurement ID
     powdp->delaySamples[powdp->numMeas]= (tr2m-tcv2) -(t1 + tcv1);
 #ifdef XRAN_OWD_DEBUG_DELAY_INFO
-    printf("Computed delay is %08"PRIx64" MeasNum %d portId %d id %d \n",powdp->delaySamples[powdp->numMeas],powdp->numMeas,port_id,p_xran_dev_ctx->fh_init.io_cfg.id);
+    printf("Computed delay is %08"PRIx64" MeasNum %d portId %d id %d \n",powdp->delaySamples[powdp->numMeas],powdp->numMeas,port_id, appMode);
 #endif
     powdp->numMeas++;
 
     if (powdp->numMeas == powdc->numberOfSamples)
     {
-        xran_compute_and_report_delay_estimate(powdp, powdc->numberOfSamples, p_xran_dev_ctx->fh_init.io_cfg.id);
+        xran_compute_and_report_delay_estimate(powdp, powdc->numberOfSamples, appMode);
         powdp->msState = XRAN_OWDM_DONE;
         xran_if_current_state = XRAN_RUNNING;
     }
@@ -1349,11 +1360,11 @@ int process_delay_meas(struct rte_mbuf *pkt,  void* handle, uint16_t port_id)
     //union  xran_ecpri_cmn_hdr * ecpricmn;
     int ret_value = FAIL;
 #ifdef XRAN_OWD_DEBUG_PKTS
-    printf("pdm Device is %d\n", p_xran_dev_ctx->fh_init.io_cfg.id);
+    printf("pdm Device is %d\n", xran_get_syscfg_appmode());
 #endif
 
     /* Process eCPRI cmn header. */
- //   (void *)rte_pktmbuf_adj(pkt, sizeof(*ecpricmn));
+    // (void *)rte_pktmbuf_adj(pkt, sizeof(*ecpricmn));
     ecpri_delmeas_pkt = (struct xran_ecpri_del_meas_pkt *)rte_pktmbuf_mtod(pkt,  struct xran_ecpri_del_meas_pkt *);
     // The processing of the delay measurement here corresponds to eCPRI sections 3.2.4.6.2 and 3.42.6.3
 
