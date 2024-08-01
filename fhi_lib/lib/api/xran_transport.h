@@ -60,17 +60,18 @@ struct xran_recv_packet_info {
 int xran_get_ecpri_hdr_size(void);
 void xran_update_ecpri_payload_size(struct rte_mbuf *mbuf, int size);
 
-uint16_t xran_compose_cid(uint8_t CU_Port_ID, uint8_t BandSector_ID, uint8_t CC_ID, uint8_t Ant_ID);
-void xran_decompose_cid(uint16_t cid, struct xran_eaxc_info *result);
+uint16_t xran_compose_cid(uint8_t oxu_port_id, uint8_t CU_Port_ID, uint8_t BandSector_ID, uint8_t CC_ID, uint8_t Ant_ID);
+void xran_decompose_cid(uint8_t oxu_port_id, uint16_t cid, struct xran_eaxc_info *result);
 
 int xran_build_ecpri_hdr(struct rte_mbuf *mbuf,
                         uint8_t CC_ID, uint8_t Ant_ID,
-                        uint8_t seq_id,
+                        uint8_t seq_id, uint8_t oxu_port_id,
                         struct xran_ecpri_hdr **ecpri_hdr);
 
-int xran_parse_ecpri_hdr(struct rte_mbuf *mbuf,
-                        struct xran_ecpri_hdr **ecpri_hdr,
-                        struct xran_recv_packet_info *pkt_info);
+int xran_parse_ecpri_hdr(uint8_t oxu_port_id,
+                         struct rte_mbuf *mbuf,
+                         struct xran_ecpri_hdr **ecpri_hdr,
+                         struct xran_recv_packet_info *pkt_info);
 
 #ifdef __cplusplus
 }

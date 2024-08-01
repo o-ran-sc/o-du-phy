@@ -45,7 +45,7 @@
         <!--  Number of cosumer threads, maximum 256 -->
         <TestCoreNum>6</TestCoreNum>
         <!--  The core index list of the consumer threads -->
-        <TestCoreList>5,45,6,46,7,47,8,48,20,52,4,44,5,45,22,23,24,25,6,26,7,27,8,28,9,29,10,30,11,31,12,32,13,33,13,34,15,35,16,36,17,37,18,38,19,39</TestCoreList>
+        <TestCoreList>5,6,7,8,9,10,44,45,46,47,48,49,50,51,52,17,37,18,38,19,39</TestCoreList>
         <!--  Number of cells to test, maximum 40 -->
         <TestCellNum>1</TestCellNum>
         <!--  The frame format of each cell: 0, FDD; 1, DDDSU; 2, DDDDDDDSUU -->

@@ -1,20 +1,8 @@
-/******************************************************************************
+/**********************************************************************
 *
-*   Copyright (c) 2021 Intel.
+* <COPYRIGHT_TAG>
 *
-*   Licensed under the Apache License, Version 2.0 (the "License");
-*   you may not use this file except in compliance with the License.
-*   You may obtain a copy of the License at
-*
-*       http://www.apache.org/licenses/LICENSE-2.0
-*
-*   Unless required by applicable law or agreed to in writing, software
-*   distributed under the License is distributed on an "AS IS" BASIS,
-*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*   See the License for the specific language governing permissions and
-*   limitations under the License.
-*
-*******************************************************************************/
+**********************************************************************/
 
 #ifndef __WLS_H__
 #define __WLS_H__
@@ -44,10 +32,10 @@
 #define WLS_ERROR(format, args...) printk(KERN_ERR "wls err: " format,##args)
 
 #ifdef _DEBUG_
-#define WLS_DEBUG(format, args...)            \
+#define WLS_DEBUG(format, args...)                  \
 do                                                  \
 {                                                   \
-    printk(KERN_INFO "wls debug: " format,##args); \
+    printk(KERN_INFO "wls debug: " format,##args);  \
 }while(0)
 #else /*_DEBUG_*/
 #define WLS_DEBUG(format, args...) do { } while(0)
@@ -111,6 +99,7 @@ enum {
 #define WLS_RUP2B(x)  (((x)+1)&(~1))
 
 #define WLS_US_CLIENTS_MAX 4
+#define WLS_US_CTX_MAX     20
 
 #define CACHE_LINE_SIZE 64                  /**< Cache line size. */
 #define CACHE_LINE_MASK (CACHE_LINE_SIZE-1) /**< Cache line mask. */
@@ -141,9 +130,10 @@ typedef struct hugepage_tabl_s
     uint64_t pagePa;
 }hugepage_tabl_t;
 
-#define DMA_MAP_MAX_BLOCK_SIZE 64*1024
+#define DMA_MAP_MAX_BLOCK_SIZE      64*1024
 #define MAX_N_HUGE_PAGES            32
-#define UL_FREE_BLOCK_QUEUE_SIZE    1200
+#define UL_FREE_BLOCK_QUEUE_SIZE_MIN 32
+#define UL_FREE_BLOCK_QUEUE_SIZE_MAX 1200
 
 #define WLS_GET_QUEUE_N_ELEMENTS    1024
 #define WLS_PUT_QUEUE_N_ELEMENTS    1024
@@ -167,11 +157,13 @@ typedef struct wls_sema_priv_s
     wls_wait_req_t            drv_block[FIFO_LEN];
     volatile unsigned int     drv_block_put;
     volatile unsigned int     drv_block_get;
+    uint32_t                  nWlsSemaWakeUp;
 } wls_sema_priv_t;
 
 typedef struct wls_us_priv_s
 {
     wls_sema_priv_t   sema;
+    wls_sema_priv_t   *sema_shared;
     U8                NeedToWakeUp;
     U8                isWait;
     volatile V32      pid;
@@ -199,17 +191,13 @@ typedef struct wls_us_ctx_s
     hugepage_tabl_t    hugepageTbl [MAX_N_HUGE_PAGES];
 
     FASTQUEUE          ul_free_block_pq;
-    uint64_t           ul_free_block_storage[UL_FREE_BLOCK_QUEUE_SIZE * sizeof(uint64_t)];
+    uint64_t           ul_free_block_storage[UL_FREE_BLOCK_QUEUE_SIZE_MAX * sizeof(uint64_t)];
 
     WLS_MSG_QUEUE  get_queue;
     WLS_MSG_HANDLE get_storage[WLS_GET_QUEUE_N_ELEMENTS];
 
     WLS_MSG_QUEUE  put_queue;
     WLS_MSG_HANDLE put_storage[WLS_PUT_QUEUE_N_ELEMENTS];
-
-    uint64_t           freePtrList[UL_FREE_BLOCK_QUEUE_SIZE * sizeof(uint64_t)];
-    uint32_t	       freeListIndex;
-    uint32_t         dualMode;
 
     // dst userspace context address (kernel va)
     uint64_t    dst_kernel_va;
@@ -222,7 +210,6 @@ typedef struct wls_us_ctx_s
     uint32_t nHugePage;
     wls_us_priv_t wls_us_private;
     uint32_t  mode;
-    uint32_t  secmode;
     char wls_dev_name[WLS_DEV_SHM_NAME_LEN];
     char wls_shm_name[WLS_DEV_SHM_NAME_LEN];
 }wls_us_ctx_t;
@@ -249,7 +236,9 @@ typedef struct wls_drv_ctx_s
     uint32_t            nWlsClients;
     uint32_t            nMacBufferSize;
     uint32_t            nPhyBufferSize;
-    pthread_mutex_t mng_mutex;
+    uint32_t            nWlsULEnqueueSize;
+    uint32_t            nWlsSemaWakeUp;
+    pthread_mutex_t     mng_mutex;
 }wls_drv_ctx_t;
 
 typedef struct wls_open_req_s {
