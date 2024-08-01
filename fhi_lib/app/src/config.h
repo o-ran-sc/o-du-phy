@@ -31,6 +31,20 @@
 #include "xran_fh_o_du.h"
 #include "xran_pkt.h"
 
+
+typedef struct ant_files_perMu
+{
+    char ant_file[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**<  file to use for test vector */
+    char prach_file[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**<  file to use for test vector */
+
+    char dl_bfw_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**< file with beamforming weights for DL streams */
+    char ul_bfw_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**< file with beamforming weights for UL streams */
+
+    char ul_srs_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR][512]; /**< file with SRS content for UL antenna elements */
+    char dl_csirs_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_CSIRS_PORTS][512]; /**< file with CSIRS content for CSI-RS ports */
+
+} ant_files_perMu;
+
 /** Run time configuration of application */
 typedef struct _RuntimeConfig
 {
@@ -54,42 +68,32 @@ typedef struct _RuntimeConfig
     struct rte_ether_addr o_ru_addr[XRAN_VF_MAX]; /**<  O-RU Ethernet Mac Address */
     struct rte_ether_addr tmp_addr; /**<  Temp Ethernet Mac Address */
 
-    uint32_t instance_id;  /**<  Instance ID of application */
-    uint32_t io_core;      /**<  Core used for IO */
-    uint64_t io_worker;           /**<  Mask for worker cores 0-63 */
-    uint64_t io_worker_64_127;    /**<  Mask for worker cores 64-127 */
-    int32_t  io_sleep;     /**< enable sleep on PMD cores */
-    uint32_t system_core;  /* house keeping core */
-    int      iova_mode;    /**< DPDK IOVA Mode */
-
     uint32_t mtu; /**< maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single
                        xRAN network layer transaction. supported 1500 bytes and 9600 bytes (Jumbo Frame) */
+    uint32_t nPuschUpMultiSectonSend; /**< multi-section pusch in one up message. Test pusch/pucch multi-section receiver used*/
     int numSlots;  /**< number of slots in IQ vector */
-    char ant_file[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**<  file to use for test vector */
-    char prach_file[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**<  file to use for test vector */
+    // char ant_file[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**<  file to use for test vector */
+    // char prach_file[XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**<  file to use for test vector */
+    ant_files_perMu ant_perMu[XRAN_MAX_NUM_MU];
+    // char dl_bfw_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**< file with beamforming weights for DL streams */
+    // char ul_bfw_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**< file with beamforming weights for UL streams */
 
-    char dl_bfw_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**< file with beamforming weights for DL streams */
-    char ul_bfw_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_ANTENNA_NR][512]; /**< file with beamforming weights for UL streams */
-
-    char ul_srs_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR][512]; /**< file with SRS content for UL antenna elements */
+    // char ul_srs_file [XRAN_MAX_SECTOR_NR*XRAN_MAX_ANT_ARRAY_ELM_NR][512]; /**< file with SRS content for UL antenna elements */
 
     /* prach config */
-    uint8_t enablePrach; /**<  enable PRACH */
     uint8_t prachOffset; /**< Sets the PRACH position in frequency / subcarrier position, n_PRBoffset^RA and is expressed as a physical resource block number.
                               Set by SIB2, prach-FreqOffset in E-UTRA. */
 
-    uint8_t prachConfigIndex;/**< TS36.211 - Table 5.7.1-2 : PRACH Configuration Index */
-    uint8_t prachConfigIndexLTE;/**< PRACH Configuration Index for LTE in dss case*/
     uint8_t iqswap;          /**< do swap of IQ before send to ETH */
     uint8_t nebyteorderswap; /**< do swap of byte order from host byte order to network byte order. ETH */
     uint8_t compression;     /**< enable use case with compression */
     uint8_t CompHdrType;     /**< dynamic or static compression header */
-    uint8_t prachCompMethod; /**< compression enable for PRACH */
-    uint8_t prachiqWidth;    /**< IQ width for PRACH */
+    uint8_t prachCompMethod;     /**< compression enable for PRACH */
+    uint8_t prachiqWidth;     /**< IQ width for PRACH */
 
     uint16_t totalBfWeights; /**< The total number of beamforming weights on RU */
-
-    uint8_t enableSrs; /**< enable SRS (valid for Cat B only) */
+    uint32_t DropPacketsUp; /**< enable droping the up channel packets if they miss timing window */
+    uint8_t  enableSrs;     /**< enable SRS (valid for Cat B only) */
     uint16_t srsSymMask;    /* deprecated */
     uint16_t srsSlot;       /**< SRS slot within TDD period (special slot), for O-RU emulation */
     uint8_t  srsNdmOffset;  /**< tti offset to delay the transmission of NDM SRS UP, for O-RU emulation */
@@ -100,28 +104,9 @@ typedef struct _RuntimeConfig
     uint8_t extType;
 
     uint16_t maxFrameId; /**< max value of frame id */
-
-    uint16_t Tadv_cp_dl;
-    uint16_t T2a_min_cp_dl;
-    uint16_t T2a_max_cp_dl;
-    uint16_t T2a_min_cp_ul;
-    uint16_t T2a_max_cp_ul;
-    uint16_t T2a_min_up;
-    uint16_t T2a_max_up;
-    uint16_t Ta3_min;
-    uint16_t Ta3_max;
-    uint16_t T1a_min_cp_dl;
-    uint16_t T1a_max_cp_dl;
-    uint16_t T1a_min_cp_ul;
-    uint16_t T1a_max_cp_ul;
-    uint16_t T1a_min_up;
-    uint16_t T1a_max_up;
-    uint16_t Ta4_min;
-    uint16_t Ta4_max;
+    xran_fh_per_mu_cfg perMu[XRAN_MAX_NUM_MU];
 
     uint8_t enableCP;    /**<  enable C-plane */
-    uint8_t cp_vlan_tag; /**<  C-plane vlan tag */
-    uint8_t up_vlan_tag; /**<  U-plane vlan tag */
 
     int32_t debugStop;
     int32_t debugStopCount;
@@ -130,22 +115,22 @@ typedef struct _RuntimeConfig
     int32_t GPS_Alpha;
     int32_t GPS_Beta;
 
-    uint8_t  mu_number;       /**< Mu numner as per 3GPP */
+    uint8_t  numMu;
+    uint8_t  mu_number[XRAN_MAX_NUM_MU];       /**< Mu number as per 3GPP */
     uint32_t nDLAbsFrePointA; /**< Abs Freq Point A of the Carrier Center Frequency for in KHz Value: 450000->52600000 */
     uint32_t nULAbsFrePointA; /**< Abs Freq Point A of the Carrier Center Frequency for in KHz Value: 450000->52600000 */
-    uint32_t nDLBandwidth;    /**< Carrier bandwidth for in MHz. Value: 5->400 */
-    uint32_t nULBandwidth;    /**< Carrier bandwidth for in MHz. Value: 5->400 */
-    uint32_t nDLFftSize;      /**< DL FFT size */
-    uint32_t nULFftSize;      /**< UL FFT size */
+    // uint32_t nDLBandwidth;    /**< Carrier bandwidth for in MHz. Value: 5->400 */
+    // uint32_t nULBandwidth;    /**< Carrier bandwidth for in MHz. Value: 5->400 */
 
 
     uint8_t nFrameDuplexType;
     uint8_t nTddPeriod;
     struct xran_slot_config sSlotConfig[XRAN_MAX_TDD_PERIODICITY];
 
-    struct xran_prb_map* p_PrbMapDl;
-    struct xran_prb_map* p_PrbMapUl;
+    struct xran_prb_map* p_PrbMapDl[XRAN_MAX_NUM_MU];
+    struct xran_prb_map* p_PrbMapUl[XRAN_MAX_NUM_MU];
     struct xran_prb_map* p_PrbMapSrs;
+    struct xran_prb_map* p_PrbMapCsiRs;
 
     uint8_t dssEnable;      /**< enable DSS (extension-9) */
     uint8_t dssPeriod;      /**< DSS pattern period for LTE/NR */
@@ -153,11 +138,16 @@ typedef struct _RuntimeConfig
 
     uint16_t SlotPrbCCmask[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTIONS_PER_SLOT];
     uint64_t SlotPrbAntCMask[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTIONS_PER_SLOT];
+
+    uint16_t SlotSrsPrbCCmask[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTIONS_PER_SLOT];
+    uint64_t SlotSrsPrbAntCMask[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTIONS_PER_SLOT];
+
     struct xran_prb_map* p_SlotPrbMap[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN];
+    struct xran_prb_map* p_SlotSrsPrbMap[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN];
 
     int32_t RunSlotPrbMapEnabled;
     struct xran_prb_map* p_RunSlotPrbMap[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
-    struct xran_prb_map* p_RunSrsSlotPrbMap[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANTENNA_NR];
+    struct xran_prb_map* p_RunSrsSlotPrbMap[XRAN_DIR_MAX][XRAN_N_FE_BUF_LEN][XRAN_MAX_SECTOR_NR][XRAN_MAX_ANT_ARRAY_ELM_NR];
 
     int32_t DU_Port_ID_bitwidth;
     int32_t BandSector_ID_bitwidth;
@@ -171,12 +161,26 @@ typedef struct _RuntimeConfig
     uint16_t max_sections_per_slot;
     uint16_t max_sections_per_symbol;
     int32_t RunSlotPrbMapBySymbolEnable;
+
+    /*NPRACH Parameters to use only in case of NB-IOT*/
+    uint8_t    nprachformat;
+    uint16_t   periodicity;
+    uint16_t   startTime;
+    uint8_t    suboffset;
+    uint8_t    numSubCarriers;
+    uint8_t    nRep; /*Repetitions*/
+
+    uint8_t  csirsEnable;     /**< enable CSI-RS (valid for Cat B only) */
+    uint8_t  nCsiPorts;
+
 } RuntimeConfig;
 
 /** use case configuration  */
 typedef struct _UsecaseConfig
 {
     uint8_t  oXuNum;        /**< Number of O-RU/O-DU connected to this instance */
+    uint8_t  numSecMu[XRAN_PORTS_NUM];         /**< Number of numerologies in mixedNumerology case */
+    uint8_t  mixedMu[XRAN_MAX_NUM_MU];
     uint8_t  appMode;       /**< Application mode: O-DU or O-RU  */
 
     uint32_t instance_id;  /**< Instance ID of application */
@@ -209,6 +213,7 @@ typedef struct _UsecaseConfig
     struct rte_ether_addr remote_o_xu_addr_copy[XRAN_VF_MAX];            /**<  Temp Ethernet Mac Address */
 
     char o_xu_cfg_file [XRAN_PORTS_NUM][512]; /**< file with config for each O-XU */
+    char o_xu_mixed_num_file[XRAN_PORTS_NUM][XRAN_MAX_NUM_MU][512]; /**< file for secondary numerologies*/
     char o_xu_pcie_bus_addr[XRAN_PORTS_NUM][XRAN_VF_MAX][512]; /**<  VFs used for each O-RU|O-DU */
 
 
@@ -219,6 +224,13 @@ typedef struct _UsecaseConfig
                                      will be spread across all allowed symbols and multiple cores to reduce burstiness */
     int32_t  bbu_offload;     /**< enable packet handling on BBU cores */
     int32_t  mlogxrandisable;  /**< set to 1 to disable mlog 0 - default mlog enabled */
+    
+    /* Config for IEEE 802.1Q Connectivity and fault management - LBM/LBR */
+    bool lbmEnable;
+    uint16_t numRetransmissions;
+    uint16_t LBRTimeOut;
+    uint16_t LBMPeriodicity;
+
 } UsecaseConfig;
 
 /**
