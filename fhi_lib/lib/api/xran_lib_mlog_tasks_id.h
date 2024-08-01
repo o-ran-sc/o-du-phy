@@ -30,25 +30,25 @@
 extern "C" {
 #endif
 
-#define RESOURCE_CORE_0                             0
-#define RESOURCE_CORE_1                             1
-#define RESOURCE_CORE_2                             2
-#define RESOURCE_CORE_3                             3
-#define RESOURCE_CORE_4                             4
-#define RESOURCE_CORE_5                             5
-#define RESOURCE_CORE_6                             6
-#define RESOURCE_CORE_7                             7
-#define RESOURCE_CORE_8                             8
-#define RESOURCE_CORE_9                             9
-#define RESOURCE_CORE_10                            10
-#define RESOURCE_CORE_11                            11
-#define RESOURCE_CORE_12                            12
-#define RESOURCE_CORE_13                            13
-#define RESOURCE_CORE_14                            14
-#define RESOURCE_CORE_15                            15
-#define RESOURCE_CORE_16                            16
+#define RESOURCE_CORE_0                         0
+#define RESOURCE_CORE_1                         1
+#define RESOURCE_CORE_2                         2
+#define RESOURCE_CORE_3                         3
+#define RESOURCE_CORE_4                         4
+#define RESOURCE_CORE_5                         5
+#define RESOURCE_CORE_6                         6
+#define RESOURCE_CORE_7                         7
+#define RESOURCE_CORE_8                         8
+#define RESOURCE_CORE_9                         9
+#define RESOURCE_CORE_10                        10
+#define RESOURCE_CORE_11                        11
+#define RESOURCE_CORE_12                        12
+#define RESOURCE_CORE_13                        13
+#define RESOURCE_CORE_14                        14
+#define RESOURCE_CORE_15                        15
+#define RESOURCE_CORE_16                        16
 
-#define RESOURCE_IA_CORE                            100
+#define RESOURCE_IA_CORE                        100
 
 //--------------------------------------------------------------------
 // XRAN
@@ -63,6 +63,10 @@ extern "C" {
 #define PID_XRAN_BBDEV_DL_POLL_DISPATCH         52
 #define PID_XRAN_BBDEV_UL_POLL                  53
 #define PID_XRAN_BBDEV_UL_POLL_DISPATCH         54
+#define PID_XRAN_BBDEV_SRS_FFT_POLL             55
+#define PID_XRAN_BBDEV_SRS_FFT_POLL_DISPATCH    56
+#define PID_XRAN_BBDEV_PRACH_IFFT_POLL             57
+#define PID_XRAN_BBDEV_PRACH_IFFT_POLL_DISPATCH    58
 
 #define PID_TTI_TIMER                           3100
 #define PID_TTI_CB                              3101
@@ -106,11 +110,11 @@ extern "C" {
 #define PID_UP_UL_HALF_DEAD_LINE_CB             3135
 #define PID_UP_UL_FULL_DEAD_LINE_CB             3136
 #define PID_UP_UL_USER_DEAD_LINE_CB             3137
-#define PID_PROCESS_UP_PKT                      3140
-#define PID_PROCESS_UP_PKT_SRS                  3141
-#define PID_PROCESS_UP_PKT_PARSE                3142
-#define PID_PROCESS_CP_PKT                      3143
-#define PID_PROCESS_DELAY_MEAS_PKT              3144
+#define PID_PROC_UP_PKT_PUSCH                   3140
+#define PID_PROC_UP_PKT_SRS                     3141
+#define PID_PROC_UP_PKT_PARSE                   3142
+#define PID_PROC_CP_PKT                         3143
+#define PID_PROC_DELAY_MEAS_PKT                 3144
 #define PID_UP_UL_ONE_FOURTHS_DEAD_LINE_CB      3145
 #define PID_UP_UL_THREE_FOURTHS_DEAD_LINE_CB    3146
 #define PID_UP_STATIC_SRS_DEAD_LINE_CB          3147
@@ -119,6 +123,16 @@ extern "C" {
 #define PID_TIME_ARM_USER_TIMER_DEADLINE        3151
 
 #define PID_REQUEUE_TX_SYM                      3160
+#define PID_PROCESS_UP_PKT_CSIRS                3161
+#define PID_PROCESS_TX_SYM_SRS_NDM              3162
+
+#define PID_PREPARE_TX_SYM                      3170
+
+#define PID_PROC_UP_BATCH_PKT_PUSCH             3180
+#define PID_PROC_UP_BATCH_PKT_SRS               3181
+#define PID_PROC_UP_BATCH_PKT_PARSE             3182
+#define PID_PROC_UP_BATCH_PKT_PRACH             3183
+
 
 #ifdef __cplusplus
 }
