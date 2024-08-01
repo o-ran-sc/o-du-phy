@@ -209,7 +209,7 @@ namespace BFP_CPlane_32
   inline void
   compress8_16RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    const __m512i exponents = computeExponent_16RB(dataIn, totShiftBits);
+    const auto exponents = computeExponent_16RB(dataIn, totShiftBits);
     const __m512i* dataInAddr = reinterpret_cast<const __m512i*>(dataIn.dataExpanded);
 #pragma unroll(16)
     for (int n = 0; n < 16; ++n)
@@ -222,7 +222,7 @@ namespace BFP_CPlane_32
   inline void
   compress8_4RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    const __m512i exponents = computeExponent_4RB(dataIn, totShiftBits);
+    const auto exponents = computeExponent_4RB(dataIn, totShiftBits);
     const __m512i* dataInAddr = reinterpret_cast<const __m512i*>(dataIn.dataExpanded);
 #pragma unroll(4)
     for (int n = 0; n < 4; ++n)
@@ -323,7 +323,7 @@ namespace BFP_CPlane_32
 #pragma unroll(k_numRegsPerBlock)
     for (int n = 0; n < k_numRegsPerBlock; ++n)
     {
-      const auto compData16 = _mm512_cvtepi8_epi16(rawDataIn[n]);
+      const auto compData16 = _mm512_cvtepi8_epi16(_mm256_loadu_si256(rawDataIn + n));
       const auto expData = _mm512_slli_epi16(compData16, *expAddr);
       _mm512_mask_storeu_epi64(dataOutAddr + n, k_WriteMask, expData);
     }

@@ -1,20 +1,6 @@
-###############################################################################
-#
-#   Copyright (c) 2021 Intel.
-#
-#   Licensed under the Apache License, Version 2.0 (the "License");
-#   you may not use this file except in compliance with the License.
-#   You may obtain a copy of the License at
-#
-#       http://www.apache.org/licenses/LICENSE-2.0
-#
-#   Unless required by applicable law or agreed to in writing, software
-#   distributed under the License is distributed on an "AS IS" BASIS,
-#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#   See the License for the specific language governing permissions and
-#   limitations under the License.
-#
-###############################################################################
+################################################################
+# <COPYRIGHT_TAG>
+################################################################
 
 MYCUSTOMTAB='     '
 MYCUSTOMSPACE='============================================================================================'
@@ -24,11 +10,11 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 #  Tools configuration
 ##############################################################
 ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
-CC  := icc
+    CC  := icc
     CPP := icpc
-AS := as
-AR := ar
-LD := icc
+    AS := as
+    AR := ar
+    LD := icc
 else ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
     CC  := icx
     CPP := icx
@@ -55,7 +41,6 @@ ifeq ($(TARGET_PROCESSOR),)
     $(error "Please define valid WIRELESS_SDK_TARGET_ISA environment variable $(WIRELESS_SDK_TARGET_ISA)")
 endif
 
-OBJDUMP := objdump
 MD := mkdir -p
 CP := cp -f
 RM := rm -rf
@@ -67,11 +52,11 @@ BUILDDIR := make
 PROJECT_BINARY := $(PROJECT_NAME)
 
 ifeq ($(RTE_SDK),)
-$(error "Please define RTE_SDK environment variable")
+    $(error "Please define RTE_SDK environment variable")
 endif
 
-RTE_LIBS := -Wl,--whole-archive -Wl,/usr/lib64/libnuma.so $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --static --libs libdpdk) -Wl,--no-whole-archive
-RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
+RTE_LIBS := -Wl,--whole-archive -Wl,/usr/lib64/libnuma.so $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --static --libs libdpdk) -Wl,--no-whole-archive
+RTE_INC := $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
 
 CC_SRC = pool.c \
 	testapp.c
@@ -88,7 +73,7 @@ INC :=  -I../ -I$(RTE_INC)
 DEF :=
 
 WLS_LIB_DIR=../
-LD_FLAGS += -L$(WLS_LIB_DIR) -lwls -lpthread -lhugetlbfs -lrt
+LD_FLAGS += -L$(WLS_LIB_DIR) -lwls -lpthread -lrt
 
 LD_FLAGS += $(RTE_LIBS)
 
@@ -96,15 +81,22 @@ ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
 LD_FLAGS += -Wl,-lstdc++
 endif
 
+#Add CodeCoverage option
+ifeq ($(CODE_COVERAGE),1)
+    CC_FLAGS += -fprofile-instr-generate -fcoverage-mapping
+    LD_FLAGS += -fprofile-instr-generate
+endif
+
 AS_FLAGS :=
 AR_FLAGS := rc
 
 PROJECT_OBJ_DIR := $(BUILDDIR)/obj
+PROJECT_DEP_DIR := $(PROJECT_OBJ_DIR)/$(PROJECT_NAME).dep.d
 
 CC_OBJS := $(patsubst %.c,%.o,$(CC_SRC))
 AS_OBJS := $(patsubst %.s,%.o,$(AS_SRC))
 OBJS    := $(CC_OBJS) $(AS_OBJS) $(LIBS)
-DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS))))
+DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS)))) $(PROJECT_DEP_DIR)
 
 CC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CC_OBJS))
 
@@ -114,9 +106,7 @@ CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
 
 AS_FLAGS := $(AS_FLAGS) $(INC)
 
-PROJECT_DEP_FILE := $(PROJECT_OBJ_DIR)/$(PROJECT_NAME).dep
-
-ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
+ifeq ($(wildcard $(PROJECT_DEP_DIR)),$(PROJECT_DEP_DIR))
 GENERATE_DEPS :=
 else
 
@@ -129,11 +119,11 @@ all : welcome_line 	$(PROJECT_BINARY)
 
 .PHONY : clear_dep
 clear_dep:
-	@$(RM) $(PROJECT_DEP_FILE)
-	@echo [DEP]   $(subst $(PROJECT_OBJ_DIR)/,,$(PROJECT_DEP_FILE))
+	@echo [DEP] rm $(PROJECT_DEP_DIR)/$(@F).dep
+	@$(RM) $(PROJECT_DEP_DIR)/$(@F).dep
 
-$(CC_DEPS) :
-	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CC_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
+$(CC_DEPS) : $(PROJECT_DEP_DIR)
+	@$(CC) $(CC_FLAGS_FULL) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) >> $(PROJECT_DEP_DIR)/$(@F).dep
 
 .PHONY : generate_deps
 generate_deps : clear_dep $(CC_DEPS)
@@ -146,17 +136,17 @@ echo_start_build :
 $(DIRLIST) :
 	-@$(MD) $@
 
-$(CC_OBJTARGETS) :
+$(CC_OBJTARGETS) : $(GENERATE_DEPS)
 	@echo [CC]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(CC) -c $(CC_FLAGS_FULL) -o"$@" $(patsubst %.o,%.c,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-$(AS_OBJTARGETS) :
+$(AS_OBJTARGETS) : $(CC_OBJTARGETS)
 	@echo [AS]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(AS) $(AS_FLAGS) -o"$@" $(patsubst %.o,%.s,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
+ifeq ($(wildcard $(PROJECT_DEP_DIR)),$(PROJECT_DEP_DIR))
 
-include $(PROJECT_DEP_FILE)
+include $(PROJECT_DEP_DIR)/*
 
 endif
 
@@ -166,7 +156,7 @@ clean:
 	@$(RM) $(CC_OBJTARGETS) $(AS_OBJTARGETS)
 ifneq ($(wildcard $(PROJECT_DIR)/$(PROJECT_MAKE)),)
 	@echo [CLEAN] : $(PROJECT_NAME)
-	@$(RM) $(PROJECT_BINARY) $(PROJECT_BINARY_LIB) $(PROJECT_DEP_FILE)
+	@$(RM) -rf $(PROJECT_BINARY) $(PROJECT_BINARY_LIB) $(PROJECT_DEP_DIR)
 endif
 
 xclean: clean
@@ -183,10 +173,9 @@ welcome_line :
 debug :  all
 release :  all
 
-$(PROJECT_BINARY): $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(AS_OBJTARGETS)
+$(PROJECT_BINARY): $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(CC_OBJTARGETS) $(AS_OBJTARGETS)
 	@echo "[LD] $@ "
 	@$(LD) -o $@ $(CC_OBJTARGETS) $(AS_OBJTARGETS) $(LD_FLAGS) -Wl,-L $(BUILDDIR)
 
 #@echo [APP]   $@
-#@$(OBJDUMP) -d $(PROJECT_BINARY) > $(PROJECT_BINARY).asm
 

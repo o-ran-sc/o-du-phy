@@ -22,22 +22,22 @@
 #include "xran_common.h"
 #include "xran_up_api.h"
 #include "xran_fh_o_du.h"
-#include "ethernet.h"
+#include "xran_ethernet.h"
 
 #include <stdint.h>
 
 const std::string module_name = "U-Plane";
 
     /*union xran_test {
-		struct {
+        struct {
             struct xran_cp_radioapp_common_header cmnhdr;
             struct xran_radioapp_udComp_header udComp;
             uint8_t     reserved;
-		}field;
-		struct {
-			uint32_t     data_one;
-			uint32_t     data_two;
-		}all_data;
+        }field;
+        struct {
+            uint32_t     data_one;
+            uint32_t     data_two;
+        }all_data;
     };*/
     void fucntional_dl(struct rte_mbuf *test_buffer, char * iq_offset)
     {
@@ -58,8 +58,10 @@ const std::string module_name = "U-Plane";
         uint8_t compMeth = 0;
         enum xran_comp_hdr_type staticEn = XRAN_COMP_HDR_TYPE_DYNAMIC;
         uint8_t iqWidth =  16;
+        uint8_t mu  =   1;
+        uint8_t oxu_port_id = 0;
 
-		
+
         prepare_symbol_ex(direction,
                                 section_id,
                                 test_buffer,
@@ -79,33 +81,34 @@ const std::string module_name = "U-Plane";
                                 do_copy,
                                 staticEn,
                                 num_sections,
-                                0);
-		
-		/*union xran_cp_radioapp_section_ext11 *ext11 = NULL;
-		struct xran_sectionext11_info *params = NULL;
-		int i;
-		ext11 = (union xran_cp_radioapp_section_ext11 *)(iq_offset);
-		params = (struct xran_sectionext11_info *)(iq_offset+100);
-		
-		params->RAD = 1;
-		params->disableBFWs = 1;
-		params->numBundPrb = 1;
-		params->bfwCompMeth = 2;
-		
+                                0, mu, false,
+                                oxu_port_id);
+
+        /*union xran_cp_radioapp_section_ext11 *ext11 = NULL;
+        struct xran_sectionext11_info *params = NULL;
+        int i;
+        ext11 = (union xran_cp_radioapp_section_ext11 *)(iq_offset);
+        params = (struct xran_sectionext11_info *)(iq_offset+100);
+
+        params->RAD = 1;
+        params->disableBFWs = 1;
+        params->numBundPrb = 1;
+        params->bfwCompMeth = 2;
+
         for(i = 0; i< 10000; i++)
-		{
-			ext11->data_field.data_field1 = (XRAN_CP_SECTIONEXTCMD_11 << 24) | (params->RAD << 7) | (params->disableBFWs << 8);
-			//ext11->data_field.data_field1 = (XRAN_CP_SECTIONEXTCMD_11 << 24)'
+        {
+            ext11->data_field.data_field1 = (XRAN_CP_SECTIONEXTCMD_11 << 24) | (params->RAD << 7) | (params->disableBFWs << 8);
+            //ext11->data_field.data_field1 = (XRAN_CP_SECTIONEXTCMD_11 << 24)'
             //ext11->all_bits.RAD          = params->RAD;
             //ext11->all_bits.disableBFWs  = params->disableBFWs;
-			ext11->data_field.data_field2 = (params->bfwCompMeth << 4) | params->numBundPrb;
+            ext11->data_field.data_field2 = (params->bfwCompMeth << 4) | params->numBundPrb;
             //ext11->all_bits.numBundPrb   = params->numBundPrb;
             //ext11->all_bits.bfwCompMeth  = params->bfwCompMeth;
-			
-		}*/
-		//printf("ext11->data_field.data_field1 is %d\n", ext11->data_field.data_field1);
+
+        }*/
+        //printf("ext11->data_field.data_field1 is %d\n", ext11->data_field.data_field1);
         //ASSERT_EQ(prep_bytes, 3168);
-    }    
+    }
 class U_planePerf : public KernelTests
 {
 
