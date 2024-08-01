@@ -22,7 +22,6 @@
 
 
 # This is simple configuration file. Use '#' sign for comments
-instanceId=1 # 0,1,2,... in case more than 1 application started on the same system
 appMode=1 # O-DU(0) | O-RU(1)
 xranMode=1 # Category A  (0) (precoder in O-DU) | Category B (1) (precoder in O-RU)
 ccNum=1 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 4)
@@ -188,7 +187,7 @@ antSrsC31=./usecase/cat_b/mu1_100mhz/ant_7.bin
 ###########################################################
 ##Section Settings
 DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used
-extType=1
+
 nPrbElemDl=6
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
 # weight base beams
@@ -199,13 +198,13 @@ PrbElemDl3=144,48,0,14,3,1,1,9,1
 PrbElemDl4=192,48,0,14,4,1,1,9,1
 PrbElemDl5=240,33,0,14,5,1,1,9,1
 # Extension Parameters for Beamforming weights
-# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth, extType
-ExtBfwDl0=2,24,0,0,9,1,1
-ExtBfwDl1=2,24,0,0,9,1,1
-ExtBfwDl2=2,24,0,0,9,1,1
-ExtBfwDl3=2,24,0,0,9,1,1
-ExtBfwDl4=2,24,0,0,9,1,1
-ExtBfwDl5=2,17,0,0,9,1,1
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwDl0=2,24,0,0,9,1
+ExtBfwDl1=2,24,0,0,9,1
+ExtBfwDl2=2,24,0,0,9,1
+ExtBfwDl3=2,24,0,0,9,1
+ExtBfwDl4=2,24,0,0,9,1
+ExtBfwDl5=2,17,0,0,9,1
 
 nPrbElemUl=6
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
@@ -217,18 +216,28 @@ PrbElemUl3=144,48,0,14,3,1,1,9,1
 PrbElemUl4=192,48,0,14,4,1,1,9,1
 PrbElemUl5=240,33,0,14,5,1,1,9,1
 # Extension Parameters for Beamforming weights
-# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth, extType
-ExtBfwUl0=2,24,0,0,9,1,1
-ExtBfwUl1=2,24,0,0,9,1,1
-ExtBfwUl2=2,24,0,0,9,1,1
-ExtBfwUl3=2,24,0,0,9,1,1
-ExtBfwUl4=2,24,0,0,9,1,1
-ExtBfwUl5=2,17,0,0,9,1,1
+# numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
+ExtBfwUl0=2,24,0,0,9,1
+ExtBfwUl1=2,24,0,0,9,1
+ExtBfwUl2=2,24,0,0,9,1
+ExtBfwUl3=2,24,0,0,9,1
+ExtBfwUl4=2,24,0,0,9,1
+ExtBfwUl5=2,17,0,0,9,1
 
 nPrbElemSrs=1
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
 PrbElemSrs0=0,273,13,1,0,0,1,9,0
 
+#CSI-RS config parameters
+csirsEnable=1
+nCSIports=8 #number of CSI-RS ports
+
+nPrbElemCsirs=4
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+PrbElemCsirs0=0,273,4,1,0,0,1,9,0
+PrbElemCsirs1=0,273,5,1,0,0,1,9,0
+PrbElemCsirs2=0,273,6,1,0,0,1,9,0
+PrbElemCsirs3=0,273,7,1,0,0,1,9,0
 ###########################################################
 
 ## control of IQ byte order

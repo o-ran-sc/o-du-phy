@@ -19,7 +19,7 @@
 /**
  * @brief xRAN BFP compression/decompression U-plane implementation and interface functions
  *
- * @file xran_compression.cpp
+ * @file xran_bfp_uplane_snc.cpp
  * @ingroup group_source_xran
  * @author Intel Corporation
  **/
@@ -27,7 +27,6 @@
 #include "xran_compression.hpp"
 #include "xran_bfp_utils.hpp"
 #include "xran_bfp_byte_packing_utils.hpp"
-#include "xran_compression.h"
 #include <complex>
 #include <algorithm>
 #include <immintrin.h>
@@ -116,7 +115,7 @@ namespace BFP_UPlane_SNC
     /// Get AVX512 pointer aligned to desired RB
     const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + numREOffset);
     /// Apply the exponent shift
-    const auto compData = _mm512_srai_epi16(*rawDataIn, thisExp);
+    const auto compData = _mm512_srai_epi16(_mm512_loadu_si512(rawDataIn), thisExp);
     /// Pack compressed data network byte order
     const auto compDataBytePacked = networkBytePack(compData);
     /// Store exponent first
@@ -198,7 +197,7 @@ namespace BFP_UPlane_SNC
     /// Get AVX512 pointer aligned to desired RB
     const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + numREOffset);
     /// Apply the exponent shift
-    const auto compData = _mm512_srai_epi16(*rawDataIn, thisExp);
+    const auto compData = _mm512_srai_epi16(_mm512_loadu_si512(rawDataIn), thisExp);
     /// Store exponent first
     dataOut->dataCompressed[thisRBExpAddr] = thisExp;
     /// Now have 1 RB worth of bytes separated into 3 chunks (1 per lane)
@@ -212,7 +211,7 @@ namespace BFP_UPlane_SNC
   void
   compress8_16RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    const __m512i exponents = computeExponent_16RB(dataIn, totShiftBits);
+    const auto exponents = computeExponent_16RB(dataIn, totShiftBits);
 #pragma unroll(16)
     for (int n = 0; n < 16; ++n)
     {
@@ -225,7 +224,7 @@ namespace BFP_UPlane_SNC
   void
   compress8_4RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    const __m512i exponents = computeExponent_4RB(dataIn, totShiftBits);
+    const auto exponents = computeExponent_4RB(dataIn, totShiftBits);
 #pragma unroll(4)
     for (int n = 0; n < 4; ++n)
     {
@@ -267,6 +266,7 @@ namespace BFP_UPlane_SNC
   /// Apply compression to 1 RB
   template<BlockFloatCompander::UnpackFunction networkByteUnpack>
   void
+  inline __attribute__((always_inline)) 
   applyExpansionN_1RB(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut,
                       const int expAddr, const int thisRBAddr, const int maxExpShift)
   {
@@ -286,28 +286,33 @@ namespace BFP_UPlane_SNC
   expandByAllocN(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut,
                  const int totNumBytesPerRB, const int maxExpShift)
   {
-    switch (dataIn.numBlocks)
-    {
-    case 16:
-#pragma unroll(16)
-      for (int n = 0; n < 16; ++n)
+  // #pragma unroll(4)
+      for (int n = 0; n < dataIn.numBlocks; ++n)
       {
         applyExpansionN_1RB<networkByteUnpack>(dataIn, dataOut, n * totNumBytesPerRB, n * k_numREReal, maxExpShift);
       }
-      break;
+//     switch (dataIn.numBlocks)
+//     {
+//     case 16:
+// #pragma unroll(16)
+//       for (int n = 0; n < 16; ++n)
+//       {
+//         applyExpansionN_1RB<networkByteUnpack>(dataIn, dataOut, n * totNumBytesPerRB, n * k_numREReal, maxExpShift);
+//       }
+//       break;
 
-    case 4:
-#pragma unroll(4)
-      for (int n = 0; n < 4; ++n)
-      {
-        applyExpansionN_1RB<networkByteUnpack>(dataIn, dataOut, n * totNumBytesPerRB, n * k_numREReal, maxExpShift);
-      }
-      break;
+//     case 4:
+// #pragma unroll(4)
+//       for (int n = 0; n < 4; ++n)
+//       {
+//         applyExpansionN_1RB<networkByteUnpack>(dataIn, dataOut, n * totNumBytesPerRB, n * k_numREReal, maxExpShift);
+//       }
+//       break;
 
-    case 1:
-      applyExpansionN_1RB<networkByteUnpack>(dataIn, dataOut, 0, 0, maxExpShift);
-      break;
-    }
+//     case 1:
+//       applyExpansionN_1RB<networkByteUnpack>(dataIn, dataOut, 0, 0, maxExpShift);
+//       break;
+//     }
   }
 
 
@@ -317,7 +322,7 @@ namespace BFP_UPlane_SNC
                       const int expAddr, const int thisRBAddr)
   {
     const __m256i* rawDataIn = reinterpret_cast<const __m256i*>(dataIn.dataCompressed + expAddr + 1);
-    const auto compData16 = _mm512_cvtepi8_epi16(*rawDataIn);
+    const auto compData16 = _mm512_cvtepi8_epi16(_mm256_loadu_si256(rawDataIn));
     const auto expData = _mm512_slli_epi16(compData16, *(dataIn.dataCompressed + expAddr));
     constexpr uint8_t k_rbMask64 = 0b00111111; // 64b write mask for 1RB (24 int16 values)
     _mm512_mask_storeu_epi64(dataOut->dataExpanded + thisRBAddr, k_rbMask64, expData);
@@ -328,28 +333,34 @@ namespace BFP_UPlane_SNC
   void
   expandByAlloc8(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut)
   {
-    switch (dataIn.numBlocks)
+
+    for (int n = 0; n < dataIn.numBlocks; ++n)
     {
-    case 16:
-#pragma unroll(16)
-      for (int n = 0; n < 16; ++n)
-      {
-        applyExpansion8_1RB(dataIn, dataOut, n * (k_numREReal + 1), n * k_numREReal);
-      }
-      break;
-
-    case 4:
-#pragma unroll(4)
-      for (int n = 0; n < 4; ++n)
-      {
-        applyExpansion8_1RB(dataIn, dataOut, n * (k_numREReal + 1), n * k_numREReal);
-      }
-      break;
-
-    case 1:
-      applyExpansion8_1RB(dataIn, dataOut, 0, 0);
-      break;
+      applyExpansion8_1RB(dataIn, dataOut, n * (k_numREReal + 1), n * k_numREReal);
     }
+
+//     switch (dataIn.numBlocks)
+//     {
+//     case 16:
+// #pragma unroll(16)
+//       for (int n = 0; n < 16; ++n)
+//       {
+//         applyExpansion8_1RB(dataIn, dataOut, n * (k_numREReal + 1), n * k_numREReal);
+//       }
+//       break;
+
+//     case 4:
+// #pragma unroll(4)
+//       for (int n = 0; n < 4; ++n)
+//       {
+//         applyExpansion8_1RB(dataIn, dataOut, n * (k_numREReal + 1), n * k_numREReal);
+//       }
+//       break;
+
+//     case 1:
+//       applyExpansion8_1RB(dataIn, dataOut, 0, 0);
+//       break;
+//     }
   }
 }
 
@@ -365,16 +376,19 @@ BlockFloatCompander::BFPCompressUserPlaneAvxSnc(const ExpandedData& dataIn, Comp
   const auto totShiftBits9 = _mm512_set1_epi32(24);
   const auto totShiftBits10 = _mm512_set1_epi32(23);
   const auto totShiftBits12 = _mm512_set1_epi32(21);
+  const auto totShiftBits14 = _mm512_set1_epi32(19);
 
   /// Total number of compressed bytes per RB for each iqWidth option
   constexpr int totNumBytesPerRB9 = 28;
   constexpr int totNumBytesPerRB10 = 31;
   constexpr int totNumBytesPerRB12 = 37;
+  constexpr int totNumBytesPerRB14 = 43;
 
   /// Compressed data write mask for each iqWidth option
   constexpr uint64_t rbWriteMask9 = 0x0000000007FFFFFF;
   constexpr uint64_t rbWriteMask10 = 0x000000003FFFFFFF;
   constexpr uint64_t rbWriteMask12 = 0x0000000FFFFFFFFF;
+  constexpr uint64_t rbWriteMask14 = 0x000003FFFFFFFFFF;
 
   switch (dataIn.iqWidth)
   {
@@ -393,6 +407,10 @@ BlockFloatCompander::BFPCompressUserPlaneAvxSnc(const ExpandedData& dataIn, Comp
   case 12:
     BFP_UPlane_SNC::compressByAllocN<BlockFloatCompander::networkBytePack12bSnc>(dataIn, dataOut, totShiftBits12, totNumBytesPerRB12, rbWriteMask12);
     break;
+
+  case 14:
+    BFP_UPlane_SNC::compressByAllocN<BlockFloatCompander::networkBytePack14bSnc>(dataIn, dataOut, totShiftBits14, totNumBytesPerRB14, rbWriteMask14);
+    break;
   }
 }
 
@@ -406,10 +424,12 @@ BlockFloatCompander::BFPExpandUserPlaneAvxSnc(const CompressedData& dataIn, Expa
   constexpr int k_totNumBytesPerRB9 = 28;
   constexpr int k_totNumBytesPerRB10 = 31;
   constexpr int k_totNumBytesPerRB12 = 37;
+  constexpr int k_totNumBytesPerRB14 = 43;
 
   constexpr int k_maxExpShift9 = 7;
   constexpr int k_maxExpShift10 = 6;
   constexpr int k_maxExpShift12 = 4;
+  constexpr int k_maxExpShift14 = 2;
 
   switch (dataIn.iqWidth)
   {
@@ -427,6 +447,10 @@ BlockFloatCompander::BFPExpandUserPlaneAvxSnc(const CompressedData& dataIn, Expa
 
   case 12:
     BFP_UPlane_SNC::expandByAllocN<BlockFloatCompander::networkByteUnpack12bSnc>(dataIn, dataOut, k_totNumBytesPerRB12, k_maxExpShift12);
+    break;
+
+  case 14:
+    BFP_UPlane_SNC::expandByAllocN<BlockFloatCompander::networkByteUnpack14bSnc>(dataIn, dataOut, k_totNumBytesPerRB14, k_maxExpShift14);
     break;
   }
 }
