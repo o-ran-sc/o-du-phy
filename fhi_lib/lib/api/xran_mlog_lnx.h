@@ -53,6 +53,14 @@ extern "C"
 #define MLogGetAvgStats(a, b, c, d) MLOG_FALSE
 #define MLogAddTestCase(a, b)       MLOG_FALSE
 #define MLogAddPowerStats(a, b, c, d, e) MLOG_FALSE
+#define MLogSetTaskCoreMap(a)    0
+
+enum MLogXranTasks {
+    TASK_3104,
+    TASK_3416,
+    TASK_3500, 
+    TASK_3501, 
+};
 
 #endif /* MLOG_ENABLED */
 

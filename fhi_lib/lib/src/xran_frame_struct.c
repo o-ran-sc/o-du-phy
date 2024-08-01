@@ -45,8 +45,8 @@ static uint16_t nNumRbsPerSymF1[3][13] =
 {
     //  5MHz    10MHz   15MHz   20 MHz  25 MHz  30 MHz  40 MHz  50MHz   60 MHz  70 MHz  80 MHz   90 MHz  100 MHz
         {25,    52,     79,     106,    133,    160,    216,    270,    0,         0,      0,      0,      0},         // Numerology 0 (15KHz)
-        {11,    24,     38,     51,     65,     78,     106,    133,    162,       0,    217,    245,    273},         // Numerology 1 (30KHz)
-        {0,     11,     18,     24,     31,     38,     51,     65,     79,        0,    107,    121,    135}          // Numerology 2 (60KHz)
+        {11,    24,     38,     51,     65,     78,     106,    133,    162,     189,    217,    245,    273},         // Numerology 1 (30KHz)
+        {0,     11,     18,     24,     31,     38,     51,     65,     79,       93,    107,    121,    135}          // Numerology 2 (60KHz)
 };
 
 // F2 Tables 38.101-2 Table 5.3.2-1. Maximum transmission bandwidth configuration NRB
@@ -57,24 +57,18 @@ static uint16_t nNumRbsPerSymF2[2][4] =
         {32,    66,     132,     264}       // Numerology 3 (120KHz)
 };
 
-// 38.211 - Table 4.2.1
-static uint16_t nSubCarrierSpacing[5] =
-{
-    15,     // mu = 0
-    30,     // mu = 1
-    60,     // mu = 2
-    120,    // mu = 3
-    240     // mu = 4
-};
 
 // TTI interval in us (slot duration)
-static uint16_t nTtiInterval[4] =
+static uint16_t nTtiInterval[6] =
 {
     1000,    // mu = 0
     500,     // mu = 1
     250,     // mu = 2
-    125     // mu = 3
+    125,     // mu = 3
+    0,    //    mu = 4, TTI = 62.5 Not used
+    1000    // mu for NB-IOT 15KHz. We are internally using mu value of 4 to refer to nbiot 15KHz
 };
+
 
 #if 0
 // F1 Tables 38.101-1 Table F.5.3. Window length for normal CP
@@ -96,21 +90,37 @@ static int16_t nCpSizeF2[2][4][2] =
 #endif
 
 
-static uint32_t xran_fs_max_slot_num[XRAN_PORTS_NUM] = {8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000};
-static uint32_t xran_fs_max_slot_num_SFN[XRAN_PORTS_NUM] = {20480,20480,20480,20480,20480,20480,20480,20480}; /* max slot number counted as SFN is 0-1023 */
+//static uint32_t xran_fs_max_slot_num[XRAN_PORTS_NUM] = {8000, 8000, 8000, 8000, 8000, 8000, 8000, 8000};
+//static uint32_t xran_fs_max_slot_num_SFN[XRAN_PORTS_NUM] = {20480,20480,20480,20480,20480,20480,20480,20480}; /* max slot number counted as SFN is 0-1023 */
+
+/* we are assuming that the tdd slot config is same for all numerologies. Hence following structures
+ * are kept unchanged wrt mixed numerology feature:
+ * xran_fs_num_slot_tdd_loop,
+ * xran_fs_num_dl_sym_sp,
+ * xran_fs_num_ul_sym_sp,
+ * xran_fs_slot_type,
+ * xran_fs_slot_symb_type
+ */
 static uint16_t xran_fs_num_slot_tdd_loop[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR] = {{ XRAN_NUM_OF_SLOT_IN_TDD_LOOP }};
 static uint16_t xran_fs_num_dl_sym_sp[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {{{0}}};
 static uint16_t xran_fs_num_ul_sym_sp[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {{{0}}};
 static uint8_t xran_fs_slot_type[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP] = {{{XRAN_SLOT_TYPE_INVALID}}};
 static uint8_t xran_fs_slot_symb_type[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR][XRAN_NUM_OF_SLOT_IN_TDD_LOOP][XRAN_NUM_OF_SYMBOL_PER_SLOT] = {{{{XRAN_SLOT_TYPE_INVALID}}}};
+
 static float xran_fs_ul_rate[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR] = {{0.0}};
 static float xran_fs_dl_rate[XRAN_PORTS_NUM][XRAN_MAX_SECTOR_NR] = {{0.0}};
 
+/* for mixed-mu */
+static uint32_t xran_fs_max_slot_num_mu[XRAN_MAX_NUM_MU] = {20480, 20480, 20480, 20480, 20480}; /* max slot number counted as SFN is 0-1023 */;
+
+/* -- for mixed-mu */
+
+
 extern uint16_t xran_max_frame;
 
-uint32_t xran_fs_get_tti_interval(uint8_t nMu)
+inline uint32_t xran_fs_get_tti_interval(uint8_t nMu)
 {
-    if (nMu < 4)
+    if (nMu < XRAN_MAX_NUM_MU)
     {
         return nTtiInterval[nMu];
     }
@@ -119,20 +129,6 @@ uint32_t xran_fs_get_tti_interval(uint8_t nMu)
         printf("ERROR: %s Mu[%d] is not valid, setting to 0\n",__FUNCTION__, nMu);
         return nTtiInterval[0];
     }
-}
-
-uint32_t xran_fs_get_scs(uint8_t nMu)
-{
-    if (nMu <= 3)
-    {
-        return nSubCarrierSpacing[nMu];
-    }
-    else
-    {
-        printf("ERROR: %s Mu[%d] is not valid\n",__FUNCTION__, nMu);
-    }
-
-    return 0;
 }
 
 //-------------------------------------------------------------------------------------------
@@ -309,31 +305,27 @@ uint32_t xran_fs_cal_nrarfcn(uint32_t nCenterFreq)
     return (nNRARFCN);
 }
 
-uint32_t  xran_fs_slot_limit_init(uint32_t PortId, int32_t tti_interval_us)
+/* Initialize the values for max number of slots per second for a given numerology for full sweep of radio frames [0-1023]*/
+uint32_t  xran_fs_slot_limit_init(uint8_t mu)
 {
-    xran_fs_max_slot_num[PortId] = (1000/tti_interval_us)*1000;
-    xran_fs_max_slot_num_SFN[PortId] = (1000/tti_interval_us)*(xran_max_frame+1)*10;
-    return xran_fs_max_slot_num[PortId];
+    xran_fs_max_slot_num_mu[mu] = (xran_max_frame + 1) * 10 * (1 << mu);
+    return xran_fs_max_slot_num_mu[mu];
 }
 
-uint32_t xran_fs_get_max_slot(uint32_t PortId)
+/* Returns maximum number of slots per second for a given numerology */
+uint32_t xran_fs_get_max_slot(uint8_t mu)
 {
-    return xran_fs_max_slot_num[PortId];
+    return xran_fs_max_slot_num_mu[mu];
 }
 
-uint32_t xran_fs_get_max_slot_SFN(uint32_t PortId)
-{
-    return xran_fs_max_slot_num_SFN[PortId];
-}
-
-int32_t xran_fs_slot_limit(uint32_t PortId, int32_t nSfIdx)
+int32_t xran_fs_slot_limit(uint32_t PortId, int32_t nSfIdx, uint8_t mu)
 {
     while (nSfIdx < 0) {
-        nSfIdx += xran_fs_max_slot_num[PortId];
+        nSfIdx += xran_fs_max_slot_num_mu[mu];
     }
 
-    while (nSfIdx >= xran_fs_max_slot_num[PortId]) {
-        nSfIdx -= xran_fs_max_slot_num[PortId];
+    while (nSfIdx >= xran_fs_max_slot_num_mu[mu]) {
+        nSfIdx -= xran_fs_max_slot_num_mu[mu];
     }
 
     return nSfIdx;
@@ -350,7 +342,7 @@ int32_t xran_fs_set_slot_type(uint32_t PortId, uint32_t nPhyInstanceId, uint32_t
 {
     uint32_t nSlotNum, nSymNum, nVal, i, j;
     uint32_t numDlSym, numUlSym, numGuardSym;
-    uint32_t numDlSlots = 0, numUlSlots = 0, numSpDlSlots = 0, numSpUlSlots = 0, numSpSlots = 0;
+    uint32_t numDlSlots = 0, numUlSlots = 0, numSpDlSlots = 0, numSpUlSlots = 0;// numSpSlots = 0;
 #ifdef PRINTF_DBG_OK
     char sSlotPattern[XRAN_SLOT_TYPE_LAST][10] = {"IN\0", "DL\0", "UL\0", "SP\0", "FD\0"};
 #endif
@@ -379,6 +371,7 @@ int32_t xran_fs_set_slot_type(uint32_t PortId, uint32_t nPhyInstanceId, uint32_t
             for(j = 0; j < XRAN_NUM_OF_SYMBOL_PER_SLOT; j++)
               xran_fs_slot_symb_type[PortId][nPhyInstanceId][i][j] = XRAN_SYMBOL_TYPE_FDD;
         }
+
         xran_fs_num_slot_tdd_loop[PortId][nPhyInstanceId] = 1;
         xran_fs_dl_rate[PortId][nPhyInstanceId] = 1.0;
         xran_fs_ul_rate[PortId][nPhyInstanceId] = 1.0;
@@ -426,7 +419,7 @@ int32_t xran_fs_set_slot_type(uint32_t PortId, uint32_t nPhyInstanceId, uint32_t
             else
             {
                 xran_fs_slot_type[PortId][nPhyInstanceId][nSlotNum] = XRAN_SLOT_TYPE_SP;
-                numSpSlots++;
+                //numSpSlots++;
                 print_dbg("XRAN_SLOT_TYPE_SP\n");
 
                 if (numDlSym)
@@ -441,7 +434,7 @@ int32_t xran_fs_set_slot_type(uint32_t PortId, uint32_t nPhyInstanceId, uint32_t
                 }
             }
             print_dbg("            numDlSlots[%d] numUlSlots[%d] numSpSlots[%d] numSpDlSlots[%d] numSpUlSlots[%d]\n", numDlSlots, numUlSlots, numSpSlots, numSpDlSlots, numSpUlSlots);
-        }
+        } /* for nTddPeriod */
 
         xran_fs_dl_rate[PortId][nPhyInstanceId] = (float)(numDlSlots + numSpDlSlots) / (float)nTddPeriod;
         xran_fs_ul_rate[PortId][nPhyInstanceId] = (float)(numUlSlots + numSpUlSlots) / (float)nTddPeriod;
@@ -479,11 +472,11 @@ int32_t xran_fs_set_slot_type(uint32_t PortId, uint32_t nPhyInstanceId, uint32_t
     return 0;
 }
 
-int32_t xran_fs_get_slot_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx, int32_t nType)
+int32_t xran_fs_get_slot_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx, int32_t nType, uint8_t mu)
 {
     int32_t nSfIdxMod, nSfType, ret = 0;
 
-    nSfIdxMod = xran_fs_slot_limit(PortId, nSlotdx) % ((xran_fs_num_slot_tdd_loop[PortId][nCellIdx] > 0) ? xran_fs_num_slot_tdd_loop[PortId][nCellIdx]: 1);
+    nSfIdxMod = xran_fs_slot_limit(PortId, nSlotdx, mu) % ((xran_fs_num_slot_tdd_loop[PortId][nCellIdx] > 0) ? xran_fs_num_slot_tdd_loop[PortId][nCellIdx]: 1);
     nSfType = xran_fs_slot_type[PortId][nCellIdx][nSfIdxMod];
 
     if (nSfType == nType)
@@ -510,11 +503,11 @@ int32_t xran_fs_get_slot_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx
     return ret;
 }
 
-int32_t xran_fs_get_symbol_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx,  int32_t nSymbIdx)
+int32_t xran_fs_get_symbol_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx,  int32_t nSymbIdx, uint8_t mu)
 {
     int32_t nSfIdxMod;
 
-    nSfIdxMod = xran_fs_slot_limit(PortId, nSlotdx) % ((xran_fs_num_slot_tdd_loop[PortId][nCellIdx] > 0) ? xran_fs_num_slot_tdd_loop[PortId][nCellIdx]: 1);
+    nSfIdxMod = xran_fs_slot_limit(PortId, nSlotdx, mu) % ((xran_fs_num_slot_tdd_loop[PortId][nCellIdx] > 0) ? xran_fs_num_slot_tdd_loop[PortId][nCellIdx]: 1);
 
     return xran_fs_slot_symb_type[PortId][nCellIdx][nSfIdxMod][nSymbIdx];
 }

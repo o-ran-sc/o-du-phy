@@ -23,6 +23,11 @@
 #include <time.h>
 #include <immintrin.h>
 #include <libgen.h>
+#include <wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #include "common.h"
 #include "xran_fh_o_du.h"
 #include "xran_pkt.h"
@@ -86,6 +91,35 @@ test_path_to_name(char *path, char *name)
 }
 
 
+int xran_run_external_app(char *command)
+{
+    pid_t id;
+    char *newenvp[] = { "PATH=/bin:/sbin:/usr/bin:/usr/sbin:", NULL };
+    char *newargv[] = { "/bin/sh", "-c", command, NULL };
+
+    id = fork();
+    if(id < 0)          /* Error */
+    {
+        printf("fork failed!\n");
+        return (-1);
+    }
+    else if(id == 0)    /* Child process */
+    {
+        if(execve(newargv[0], newargv, newenvp) < 0)
+        {
+            printf("Exec failed! (%s)\n", newargv[0]);
+            return (-1);
+        }
+        /* Context will be replaced from here */
+    }
+    else                /* Parent process */
+    {
+//        printf("Waiting for the finish of child process...\n");
+        wait(NULL);
+    }
+
+    return (0);
+}
 
 
 //-------------------------------------------------------------------------------------------
@@ -106,18 +140,24 @@ xran_init_mlog_stats(char *file, uint64_t nTscFreq)
 {
     char command[1024];
     FILE *pFile= NULL;
+    int fd;
 
-    pFile = fopen(file, "w");
-    if (pFile == NULL)
+    fd = open(file, O_CREAT | O_WRONLY | O_TRUNC, S_IRWXU);
+    if(fd != -1)
+    {
+        pFile = fdopen(fd, "w");
+    }
+    if(fd == -1 || pFile == NULL)
     {
         printf("1: Cannot open %s to write in phydi_init_mlog_stats\n", file);
         return -1;
     }
+
     fprintf(pFile, "------------------------------------------------------------------------------------------------------------\n");
     fprintf(pFile, "SYSTEM_PARAMS:\n");
     fprintf(pFile, "TSC_FREQ: %ld\n", nTscFreq);
 
-#ifdef BBDEV_FEC_ACCL_NR5G
+#if defined(BBDEV_FEC_ACCL_NR5G) || defined(BBDEB_FEC_ACCL)
     PPHYCFG_VARS pPhyCfgVars = phycfg_get_ctx();
 
     if (pPhyCfgVars->dpdkBasebandFecMode == 0)
@@ -145,11 +185,15 @@ xran_init_mlog_stats(char *file, uint64_t nTscFreq)
     pFile = NULL;
     usleep(100000);
     sprintf(command, "lscpu >> %s", file);
-    system(command);
-    usleep(100000);
+    xran_run_external_app(command);
 
-    pFile = fopen(file, "a");
-    if (pFile == NULL)
+    usleep(100000);
+    fd = open(file, O_APPEND | O_WRONLY, S_IRWXU);
+    if(fd != -1)
+    {
+        pFile = fdopen(fd, "w");
+    }
+    if(fd == -1 || pFile == NULL)
     {
         printf("2: Cannot open %s to write in %s\n", file, __FUNCTION__);
         return -1;
@@ -160,7 +204,7 @@ xran_init_mlog_stats(char *file, uint64_t nTscFreq)
 
     usleep(100000);
     sprintf(command, "cat /proc/cmdline >> %s", file);
-    system(command);
+    xran_run_external_app(command);
     usleep(100000);
 
     pFile = fopen(file, "a");
@@ -176,7 +220,7 @@ xran_init_mlog_stats(char *file, uint64_t nTscFreq)
 
     usleep(100000);
     sprintf(command, "dmidecode -t memory >> %s", file);
-    system(command);
+    xran_run_external_app(command);
     usleep(100000);
 
     pFile = fopen(file, "a");
@@ -190,9 +234,8 @@ xran_init_mlog_stats(char *file, uint64_t nTscFreq)
     fclose(pFile);
     pFile = NULL;
     usleep(100000);
-    sprintf(command, "turbostat --num_iterations 1 --interval 1 -q >> %s", file);
-
-    system(command);
+    sprintf(command, "chrt -f 99 turbostat --num_iterations 1 --interval 1 -q >> %s", file);
+    xran_run_external_app(command);
     usleep(100000);
 
     pFile = fopen(file, "a");
@@ -228,7 +271,8 @@ xran_get_mlog_stats(char *usecase, UsecaseConfig *puConf, RuntimeConfig *psConf[
     MLogPrint((char *)MLogGetFileName());
 
     MLogGetStats(PID_TTI_TIMER, &tti.cnt, &tti.max, &tti.min, &tti.avg);
-    if (tti.cnt != 0) {
+    if (tti.cnt != 0)
+    {
         sprintf(stats_file, "%s-%s-%s", XRAN_REPORT_FILE, (puConf->appMode == APP_O_DU)? "o-du" : "o-ru", usecase);
         printf("xran report file: %s\n", stats_file);
         ret = xran_init_mlog_stats(stats_file, mlog_times_p->ticks_per_usec);
@@ -247,18 +291,18 @@ xran_get_mlog_stats(char *usecase, UsecaseConfig *puConf, RuntimeConfig *psConf[
             goto exit;
         }
 
-        for (i = 0; i < psConf[0]->mu_number; i++)
+        for (i = 0; i < psConf[0]->mu_number[0]; i++)
             ttiDuration = ttiDuration >> 1;
 
         fprintf(pFile, "All data in this sheet are presented in usecs\n");
         fprintf(pFile, "ORANTest: %s-%s (Num Cells: %d) (Num TTI: %d) (nNumerology: %d) (ttiDuration: %d usecs) (testStats: %d %ld %ld)\n",
-            (puConf->appMode == APP_O_DU)? "O-DU" : "O-RU", usecase, puConf->oXuNum * psConf[0]->numCC, tti.cnt, psConf[0]->mu_number, ttiDuration, puConf->appMode, mlog_times_p->xran_total_time, mlog_times_p->mlog_total_time);
+            (puConf->appMode == APP_O_DU)? "O-DU" : "O-RU", usecase, puConf->oXuNum * psConf[0]->numCC, tti.cnt, psConf[0]->mu_number[0], ttiDuration, puConf->appMode, mlog_times_p->xran_total_time, mlog_times_p->mlog_total_time);
 
         double xran_task_type_sum[XRAN_TASK_TYPE_MAX] = {0, 0, 0, 0, 0, 0};
         char * xran_task_type_name[XRAN_TASK_TYPE_MAX] =
             { "GNB", "BBDEV", "Timer", "Radio", "CP", "UP" };
 #define NUM_GNB_TASKS           (5)
-#define NUM_BBDEV_TASKS         (4)
+#define NUM_BBDEV_TASKS         (8)
 #define NUM_TIMER_TASKS         (7)
 #define NUM_RADIO_TASKS         (2)
 #define NUM_CP_TASKS            (7)
@@ -275,6 +319,10 @@ xran_get_mlog_stats(char *usecase, UsecaseConfig *puConf, RuntimeConfig *psConf[
             {PID_XRAN_BBDEV_DL_POLL_DISPATCH, XRAN_TASK_TYPE_BBDEV,"BBDEV_DL_POLL_DISPATCH              \0"},
             {PID_XRAN_BBDEV_UL_POLL, XRAN_TASK_TYPE_BBDEV,         "BBDEV_UL_POLL                       \0"},
             {PID_XRAN_BBDEV_UL_POLL_DISPATCH, XRAN_TASK_TYPE_BBDEV,"BBDEV_UL_POLL_DISPATCH              \0"},
+            {PID_XRAN_BBDEV_SRS_FFT_POLL, XRAN_TASK_TYPE_BBDEV,         "BBDEV_SRS_FFT_POLL             \0"},
+            {PID_XRAN_BBDEV_SRS_FFT_POLL_DISPATCH, XRAN_TASK_TYPE_BBDEV,"BBDEV_SRS_FFT_POLL_DISPATCH    \0"},
+            {PID_XRAN_BBDEV_PRACH_IFFT_POLL, XRAN_TASK_TYPE_BBDEV,         "BBDEV_PRACH_IFFT_POLL             \0"},
+            {PID_XRAN_BBDEV_PRACH_IFFT_POLL_DISPATCH, XRAN_TASK_TYPE_BBDEV,"BBDEV_PRACH_IFFT_POLL_DISPATCH    \0"},
 
             {PID_TTI_TIMER, XRAN_TASK_TYPE_TIMER,                  "TTI_TIMER                           \0"},
             {PID_TTI_CB, XRAN_TASK_TYPE_TIMER,                     "TTI_CB                              \0"},
@@ -293,13 +341,13 @@ xran_get_mlog_stats(char *usecase, UsecaseConfig *puConf, RuntimeConfig *psConf[
             {PID_CP_UL_CB, XRAN_TASK_TYPE_CP,                      "PID_CP_UL_CB                        \0"},
             {PID_SYM_OTA_CB, XRAN_TASK_TYPE_CP,                    "SYM_OTA_CB                          \0"},
             {PID_TTI_CB_TO_PHY, XRAN_TASK_TYPE_CP,                 "TTI_CB_TO_PHY                       \0"},
-            {PID_PROCESS_CP_PKT, XRAN_TASK_TYPE_CP,                "PROCESS_CP_PKT                      \0"},
+            {PID_PROC_CP_PKT, XRAN_TASK_TYPE_CP,                   "PROC_CP_PKT                         \0"},
 
             {PID_UP_UL_HALF_DEAD_LINE_CB, XRAN_TASK_TYPE_UP,       "UP_UL_HALF_DEAD_LINE_CB             \0"},
             {PID_UP_UL_FULL_DEAD_LINE_CB, XRAN_TASK_TYPE_UP,       "UP_UL_FULL_DEAD_LINE_CB             \0"},
             {PID_UP_UL_USER_DEAD_LINE_CB, XRAN_TASK_TYPE_UP,       "UP_UL_USER_DEAD_LINE_CB             \0"},
-            {PID_PROCESS_UP_PKT, XRAN_TASK_TYPE_UP,                "PROCESS_UP_PKT                      \0"},
-            {PID_PROCESS_UP_PKT_SRS, XRAN_TASK_TYPE_UP,            "PROCESS_UP_PKT_SRS                  \0"},
+            {PID_PROC_UP_PKT_PUSCH, XRAN_TASK_TYPE_UP,             "PROC_UP_PKT_PUSCH                   \0"},
+            {PID_PROC_UP_PKT_SRS, XRAN_TASK_TYPE_UP,               "PROC_UP_PKT_SRS                     \0"},
         };
 
 #if 1

@@ -286,7 +286,7 @@ int checkPass(ErrorData& err, int testType)
   else
   {
     //std::cout << err.errorAccum / err.errorCount;
-    if (err.errorAccum / err.errorCount < 0.1)
+    if (err.errorCount == 0 || err.errorAccum / err.errorCount < 0.1)
     {
       /*std::cout << " PASS ";*/
       return 0;
@@ -435,16 +435,8 @@ int runTest(const int runMode, const int iqWidth, const int numRB, const int num
           BlockFloatCompander::BFPExpandCtrlPlane8Avx512(compressedDataRef, &expandedDataKern);
           break;
         case 24:
-          if ((iqWidth == 9) && (numRB == 16))
-          {
-            BlockFloatCompander::BFPCompressUserPlaneAvx512_9b16RB(expandedDataInput, &compressedDataKern);
-            BlockFloatCompander::BFPExpandUserPlaneAvx512_9b16RB(compressedDataRef, &expandedDataKern);
-          }
-          else
-          {
-            BlockFloatCompander::BFPCompressUserPlaneAvx512(expandedDataInput, &compressedDataKern);
-            BlockFloatCompander::BFPExpandUserPlaneAvx512(compressedDataRef, &expandedDataKern);
-          }
+          BlockFloatCompander::BFPCompressUserPlaneAvx512(expandedDataInput, &compressedDataKern);
+          BlockFloatCompander::BFPExpandUserPlaneAvx512(compressedDataRef, &expandedDataKern);
           break;
         case 32:
           BlockFloatCompander::BFPCompressCtrlPlane16Avx512(expandedDataInput, &compressedDataKern);
@@ -558,26 +550,13 @@ int runTest(const int runMode, const int iqWidth, const int numRB, const int num
       timeThis(BlockFloatCompander::BFPExpandCtrlPlane8Avx512, compressedDataRef, &expandedDataKern);
       break;
     case 24:
-      if ((iqWidth == 9) && (numRB == 16))
-      {
-          //std::cout << "Timing User Plane (AVX512)...\n";
-          //std::cout << "Compression: ";
-          printf("BFPCompressUserPlaneAvx512_9b16RB   iqWidth %2d numRB %2d numDataElements %3d ",iqWidth, numRB, numDataElements);
-          timeThis(BlockFloatCompander::BFPCompressUserPlaneAvx512_9b16RB, expandedDataInput, &compressedDataKern);
-          //std::cout << "Expansion  : ";
-          printf("BFPExpandUserPlaneAvx512_9b16RB     iqWidth %2d numRB %2d numDataElements %3d ",iqWidth, numRB, numDataElements);
-          timeThis(BlockFloatCompander::BFPExpandUserPlaneAvx512_9b16RB, compressedDataRef, &expandedDataKern);
-      }
-      else
-      {
-          //std::cout << "Timing User Plane (AVX512)...\n";
-          //std::cout << "Compression: ";
-          printf("BFPCompressUserPlaneAvx512          iqWidth %2d numRB %2d numDataElements %3d ",iqWidth, numRB, numDataElements);
-          timeThis(BlockFloatCompander::BFPCompressUserPlaneAvx512, expandedDataInput, &compressedDataKern);
-          //std::cout << "Expansion  : ";
-          printf("BFPExpandUserPlaneAvx512            iqWidth %2d numRB %2d numDataElements %3d ",iqWidth, numRB, numDataElements);
-          timeThis(BlockFloatCompander::BFPExpandUserPlaneAvx512, compressedDataRef, &expandedDataKern);
-      }
+      //std::cout << "Timing User Plane (AVX512)...\n";
+      //std::cout << "Compression: ";
+      printf("BFPCompressUserPlaneAvx512          iqWidth %2d numRB %2d numDataElements %3d ",iqWidth, numRB, numDataElements);
+      timeThis(BlockFloatCompander::BFPCompressUserPlaneAvx512, expandedDataInput, &compressedDataKern);
+      //std::cout << "Expansion  : ";
+      printf("BFPExpandUserPlaneAvx512            iqWidth %2d numRB %2d numDataElements %3d ",iqWidth, numRB, numDataElements);
+      timeThis(BlockFloatCompander::BFPExpandUserPlaneAvx512, compressedDataRef, &expandedDataKern);
       break;
     case 32:
       //std::cout << "Timing Control Plane 16 Antennas (AVX512)...\n";
@@ -660,7 +639,7 @@ TEST_P(BfpCheck, AVX512_bfp_main)
 TEST_P(BfpCheck, AVXSNC_bfp_main)
 {
   int resSum = 0;
-  int iqWidth[4] = { 8, 9, 10, 12 };
+  int iqWidth[5] = { 8, 9, 10, 12, 14 };
   int numRB[3] = { 1, 4, 16 };
   int numDataElementsUPlane = 24;
   int numDataElementsCPlane8 = 16;
@@ -674,7 +653,7 @@ TEST_P(BfpCheck, AVXSNC_bfp_main)
   if(_may_i_use_cpu_feature(_FEATURE_AVX512IFMA52) == 0)
      return;
 
-  for (int iqw = 0; iqw < 4; ++iqw)
+  for (int iqw = 0; iqw < 5; ++iqw)
   {
     for (int nrb = 0; nrb < 3; ++nrb)
     {
@@ -794,7 +773,7 @@ TEST_P(BfpCheck, AVXSNC_sweep_xranlib)
     int16_t len = 0;
 
     int16_t compMethod = XRAN_COMPMETHOD_BLKFLOAT;
-    int16_t iqWidth[]    = {8, 9, 10, 12};
+    int16_t iqWidth[]    = {8, 9, 10, 12, 14};
 
     int16_t numRBs[] = {16, 18, 32, 36, 48, 70, 113, 273};
     struct xranlib_decompress_request  bfp_decom_req;
@@ -967,7 +946,7 @@ TEST_P(BfpCheck, AVXSNC_cp_sweep_xranlib)
     int16_t len = 0;
 
     int16_t compMethod = XRAN_COMPMETHOD_BLKFLOAT;
-    int16_t iqWidth[]    = {8, 9, 10, 12};
+    int16_t iqWidth[]    = {8, 9, 10, 12, 14};
     int16_t numRB = 1;
     int16_t antElm[] = {8, 16, 32, 64};
 
@@ -1052,21 +1031,25 @@ TEST_P(BfpCheck, AVXSNC_cp_sweep_xranlib)
 
 TEST_P(BfpPerfEx, AVX512_Comp)
 {
+  if(bfp_com_req.iqWidth != 14)   /* need to skip 14bit for non-SNC since test configuration are shared */
      performance("AVX512", module_name, xranlib_compress_avx512, &bfp_com_req, &bfp_com_rsp);
 }
 
 TEST_P(BfpPerfEx, AVX512_DeComp)
 {
+  if(bfp_com_req.iqWidth != 14)   /* need to skip 14bit for non-SNC since test configuration are shared */
      performance("AVX512", module_name, xranlib_decompress_avx512, &bfp_decom_req, &bfp_decom_rsp);
 }
 
 TEST_P(BfpPerfCp, AVX512_CpComp)
 {
+  if(bfp_com_req.iqWidth != 14)   /* need to skip 14bit for non-SNC since test configuration are shared */
      performance("AVX512", module_name, xranlib_compress_avx512_bfw, &bfp_com_req, &bfp_com_rsp);
 }
 
 TEST_P(BfpPerfCp, AVX512_CpDeComp)
 {
+  if(bfp_com_req.iqWidth != 14)   /* need to skip 14bit for non-SNC since test configuration are shared */
      performance("AVX512", module_name, xranlib_decompress_avx512_bfw, &bfp_decom_req, &bfp_decom_rsp);
 }
 

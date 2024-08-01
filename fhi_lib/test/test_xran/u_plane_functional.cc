@@ -20,7 +20,7 @@
 #include "xran_common.h"
 #include "xran_up_api.h"
 #include "xran_fh_o_du.h"
-#include "ethernet.h"
+#include "xran_ethernet.h"
 
 #include <stdint.h>
 
@@ -76,13 +76,15 @@ TEST_P(U_planeCheck, Test_DLUL)
     uint8_t compMeth = 0;
     enum xran_comp_hdr_type staticEn = XRAN_COMP_HDR_TYPE_DYNAMIC;
     uint8_t iqWidth =  16;
+    uint8_t mu  =   1;
+    uint8_t oxu_port_id = 0;
 
     int32_t prep_bytes;
-    struct xran_ecpri_hdr *ecpri_hdr = NULL;
-    struct radio_app_common_hdr *app_hdr = NULL;
-    struct data_section_hdr *section_hdr = NULL;
+    struct xran_ecpri_hdr *ecpri_hdr;
+    struct radio_app_common_hdr *app_hdr;
+    struct data_section_hdr *section_hdr;
 
-    char *pChar = NULL;
+    char *pChar;
     uint16_t payl_size = 0;
     struct data_section_hdr res_sect;
 
@@ -105,7 +107,8 @@ TEST_P(U_planeCheck, Test_DLUL)
                                 do_copy,
                                 staticEn,
                                 num_sections,
-                                0);
+                                0, mu, false,
+                                oxu_port_id);
 
     ASSERT_EQ(prep_bytes, 3168);
 
@@ -127,7 +130,7 @@ TEST_P(U_planeCheck, Test_DLUL)
 
     res_sect.fields.all_bits = rte_be_to_cpu_32(section_hdr->fields.all_bits);
     ASSERT_EQ(res_sect.fields.num_prbu, prb_num);
-    ASSERT_EQ(res_sect.fields.sect_id, section_id);
+    ASSERT_EQ(XRAN_MU_SECT_ID_TO_BASE_SECT_ID(res_sect.fields.sect_id), section_id);
 
     {
         /* UL direction */
@@ -144,6 +147,7 @@ TEST_P(U_planeCheck, Test_DLUL)
 
         uint8_t compMeth = 0;
         uint8_t iqWidth = 0;
+        uint8_t oxu_port_id = 0;
 
 
         uint16_t num_prbu;
@@ -174,7 +178,8 @@ TEST_P(U_planeCheck, Test_DLUL)
                                 0,
                                 XRAN_COMP_HDR_TYPE_DYNAMIC,
                                 &compMeth,
-                                &iqWidth);
+                                &iqWidth,
+                                oxu_port_id);
 
         ASSERT_EQ(num_bytes, 3182);
         ASSERT_EQ(prb_num, 66);

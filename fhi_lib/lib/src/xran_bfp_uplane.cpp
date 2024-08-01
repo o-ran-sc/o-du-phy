@@ -19,7 +19,7 @@
 /**
  * @brief xRAN BFP compression/decompression U-plane implementation and interface functions
  *
- * @file xran_compression.cpp
+ * @file xran_bfp_uplane.cpp
  * @ingroup group_source_xran
  * @author Intel Corporation
  **/
@@ -27,7 +27,6 @@
 #include "xran_compression.hpp"
 #include "xran_bfp_utils.hpp"
 #include "xran_bfp_byte_packing_utils.hpp"
-#include "xran_compression.h"
 #include <complex>
 #include <algorithm>
 #include <immintrin.h>
@@ -116,7 +115,7 @@ namespace BFP_UPlane
     /// Get AVX512 pointer aligned to desired RB
     const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + numREOffset);
     /// Apply the exponent shift
-    const auto compData = _mm512_srai_epi16(*rawDataIn, thisExp);
+    const auto compData = _mm512_srai_epi16(_mm512_loadu_si512(rawDataIn), thisExp);
     /// Pack compressed data network byte order
     const auto compDataBytePacked = networkBytePack(compData);
     /// Store exponent first
@@ -201,7 +200,7 @@ namespace BFP_UPlane
     /// Get AVX512 pointer aligned to desired RB
     const __m512i* rawDataIn = reinterpret_cast<const __m512i*>(dataIn.dataExpanded + numREOffset);
     /// Apply the exponent shift
-    const auto compData = _mm512_srai_epi16(*rawDataIn, thisExp);
+    const auto compData = _mm512_srai_epi16(_mm512_loadu_si512(rawDataIn), thisExp);
     /// Store exponent first
     dataOut->dataCompressed[thisRBExpAddr] = thisExp;
     /// Now have 1 RB worth of bytes separated into 3 chunks (1 per lane)
@@ -215,7 +214,7 @@ namespace BFP_UPlane
   void
   compress8_16RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    const __m512i exponents = computeExponent_16RB(dataIn, totShiftBits);
+    const auto exponents = computeExponent_16RB(dataIn, totShiftBits);
 #pragma unroll(16)
     for (int n = 0; n < 16; ++n)
     {
@@ -228,7 +227,7 @@ namespace BFP_UPlane
   void
   compress8_4RB(const BlockFloatCompander::ExpandedData& dataIn, BlockFloatCompander::CompressedData* dataOut, const __m512i totShiftBits)
   {
-    const __m512i exponents = computeExponent_4RB(dataIn, totShiftBits);
+    const auto exponents = computeExponent_4RB(dataIn, totShiftBits);
 #pragma unroll(4)
     for (int n = 0; n < 4; ++n)
     {
@@ -320,7 +319,7 @@ namespace BFP_UPlane
                       const int expAddr, const int thisRBAddr)
   {
     const __m256i* rawDataIn = reinterpret_cast<const __m256i*>(dataIn.dataCompressed + expAddr + 1);
-    const auto compData16 = _mm512_cvtepi8_epi16(*rawDataIn);
+    const auto compData16 = _mm512_cvtepi8_epi16(_mm256_loadu_si256(rawDataIn));
     const auto expData = _mm512_slli_epi16(compData16, *(dataIn.dataCompressed + expAddr));
     constexpr uint8_t k_rbMask64 = 0b00111111; // 64b write mask for 1RB (24 int16 values)
     _mm512_mask_storeu_epi64(dataOut->dataExpanded + thisRBAddr, k_rbMask64, expData);

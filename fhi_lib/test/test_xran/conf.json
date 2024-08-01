@@ -14,9 +14,7 @@
             "dpdkMemorySize":       8192,
             "mtu":                  9600,
             "o_du_macaddr":         "00:11:22:33:44:66",
-            "o_ru_macaddr":         "00:11:22:33:44:55",
-            "cp_vlan_tag":          1,
-            "up_vlan_tag":          2
+            "o_ru_macaddr":         "00:11:22:33:44:55"
             },
 
         "eAxCId_cfg": {
@@ -123,7 +121,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -153,7 +150,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -192,7 +188,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -231,7 +226,6 @@
             "symbol_start": 6,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -310,7 +304,6 @@
             "symbol_start": 5,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -369,7 +362,6 @@
             "symbol_start": 5,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -508,7 +500,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -537,7 +528,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -566,7 +556,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -615,7 +604,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -674,7 +662,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -721,7 +708,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -760,7 +746,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -799,7 +784,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -838,7 +822,6 @@
             "symbol_start": 0,
             "comp_method":  1,
             "iq_width":     9,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -877,7 +860,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -921,7 +903,6 @@
             "symbol_start": 0,
             "comp_method":  1,
             "iq_width":     9,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -972,7 +953,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -1066,7 +1046,6 @@
             "fft_size":     10,
             "scs":          3,
             "cp_length":    0,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    1,
@@ -1096,7 +1075,6 @@
             "symbol_start": 0,
             "comp_method":  0,
             "iq_width":     16,
-            "interval":     500,
             "sections": [
                 {
                 "sectionId":    0,
@@ -1351,8 +1329,6 @@
         "Ta4_max": 0,
         "enableCP": 1,
         "prachEnable": 1,
-        "cp_vlan_tag": 2,
-        "up_vlan_tag": 1,
         "debugStop": 0,
         "debugStopCount": 0,
         "DynamicSectionEna": 0
@@ -1367,6 +1343,7 @@
         "Numerology": 1,
         "FrameDuplexType": 0,
         "loglevel": 1,
+        "nULRBs": 273,
         "PrachConfIdx": 189,
         "PrachFreqStart": 0,
         "PrachFreqOffset": 0,
@@ -1389,7 +1366,7 @@
         "startPrbc": 0,
         "numPrbc": 12,
         "timeOffset": 216,
-        "freqOffset": 0,
+        "freqOffset": -3276,
         "x_value": 1,
         "nrofPrachInSlot": 1,
         "y_value": [ 0, 0 ],
@@ -1400,7 +1377,7 @@
         "prach_start_symbol": 0,
         "prach_last_symbol": 13,
         "m_params_timeOffset": 124,
-          "id": 0
+        "id": 0
       }
     }
   ],
@@ -1590,6 +1567,34 @@
       "parameters": {
         "AntElm": 64,
         "iqWidth": 12
+      }
+    },
+    {
+      "name": "AntElm_8_IQ_14",
+      "parameters": {
+        "AntElm": 8,
+        "iqWidth": 14
+      }
+    },
+    {
+      "name": "AntElm_16_IQ_14",
+      "parameters": {
+        "AntElm": 16,
+        "iqWidth": 14
+      }
+    },
+    {
+      "name": "AntElm_32_IQ_14",
+      "parameters": {
+        "AntElm": 32,
+        "iqWidth": 14
+      }
+    },
+    {
+      "name": "AntElm_64_IQ_14",
+      "parameters": {
+        "AntElm": 64,
+        "iqWidth": 14
       }
     }
   ],

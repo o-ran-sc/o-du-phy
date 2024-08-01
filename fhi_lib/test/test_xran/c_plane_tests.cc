@@ -21,8 +21,8 @@
 #include "xran_lib_wrap.hpp"
 #include "xran_common.h"
 #include "xran_fh_o_du.h"
-#include "ethdi.h"
-#include "ethernet.h"
+#include "xran_ethdi.h"
+#include "xran_ethernet.h"
 #include "xran_transport.h"
 #include "xran_cp_api.h"
 
@@ -48,7 +48,7 @@ extern "C"
 
 /* wrapper function for performace tests to reset mbuf */
 int xran_ut_prepare_cp(struct xran_cp_gen_params *params,
-                        uint8_t cc_id, uint8_t ant_id, uint8_t seq_id, uint16_t start_sect_id)
+                        uint8_t cc_id, uint8_t ant_id, uint8_t seq_id, uint16_t start_sect_id, uint8_t mu, uint8_t oxu_port_id)
 {
     int ret;
     struct rte_mbuf *mbuf;
@@ -59,7 +59,7 @@ int xran_ut_prepare_cp(struct xran_cp_gen_params *params,
         return (-1);
         }
 
-    ret = xran_prepare_ctrl_pkt(mbuf, params, cc_id, ant_id, seq_id, start_sect_id);
+    ret = xran_prepare_ctrl_pkt(mbuf, params, cc_id, ant_id, seq_id, start_sect_id, mu, oxu_port_id);
     rte_pktmbuf_free(mbuf);
 
     return (ret);
@@ -135,6 +135,7 @@ protected:
     uint8_t     m_dir;
     std::string m_dirStr;
     uint8_t     m_sectionType;
+    uint8_t     m_mu;
 
     uint8_t     m_ccId, m_antId;
     uint8_t     m_seqId;
@@ -165,8 +166,11 @@ protected:
     uint8_t     *m_pBfwIQ_ext = nullptr;
     int16_t     *m_pBfw_src[XRAN_MAX_SET_BFWS];
     int16_t     m_pBfw_rx[XRAN_MAX_SET_BFWS][MAX_RX_LEN];
+#ifdef XRAN_CP_BF_WEIGHT_STRUCT_OPT
+    struct xran_ext11_bfw_set_info m_bfwInfo[1];
+#else
     struct xran_ext11_bfw_info m_bfwInfo[XRAN_MAX_SET_BFWS];
-
+#endif
     void SetUp() override
     {
         int i, j;
@@ -179,6 +183,7 @@ protected:
         m_dirStr        = get_input_parameter<std::string>("direction");
 
         memset(&m_xran_dev_ctx, 0, sizeof(struct xran_device_ctx));
+        m_xran_dev_ctx.perMu=(xran_device_per_mu_fields*)malloc(XRAN_MAX_NUM_MU3*sizeof(xran_device_per_mu_fields));
         m_srs_cfg = &m_xran_dev_ctx.srs_cfg;
         m_fh_cfg  = &m_xran_dev_ctx.fh_cfg;
 
@@ -198,8 +203,8 @@ protected:
         m_compMethod    = get_input_parameter<uint8_t>("comp_method");
         m_iqWidth       = get_input_parameter<uint8_t>("iq_width");
 
-        m_xran_dev_ctx.interval_us_local = get_input_parameter<uint8_t>("interval");
-        m_srs_cfg->eAxC_offset = XRAN_MAX_ANTENNA_NR;//m_antId + 4;
+        // m_xran_dev_ctx.interval_us_local = get_input_parameter<uint8_t>("interval");
+        m_srs_cfg->srsEaxcOffset = XRAN_MAX_ANTENNA_NR;//m_antId + 4;
         m_fh_cfg->neAxc        = m_antId + 1;
 
         switch(m_sectionType) {
@@ -274,8 +279,9 @@ protected:
                         m_extcfgs[i].u.ext1.bfwCompMeth = get_input_parameter<uint8_t> ("extensions", i, "bfwCompMeth");
                         m_extcfgs[i].u.ext1.bfwIqWidth  = get_input_parameter<uint8_t> ("extensions", i, "bfwIqWidth");
                         m_antElmTRx                     = get_input_parameter<uint8_t> ("extensions", i, "antelm_trx");
-                        struct xran_device_ctx * p_xran_dev_ctx = xran_dev_get_ctx();
-                        p_xran_dev_ctx->numSetBFWs_arr[0] = m_numSections;
+                        struct xran_device_ctx * p_xran_dev_ctx = XRAN_GET_DEV_CTX;
+                        p_xran_dev_ctx->perMu=(xran_device_per_mu_fields*)malloc(XRAN_MAX_NUM_MU3*sizeof(xran_device_per_mu_fields));
+                        p_xran_dev_ctx->perMu[m_mu].numSetBFWs_arr[0] = m_numSections;
                         break;
                     }
                     case XRAN_CP_SECTIONEXTCMD_2:
@@ -388,7 +394,7 @@ protected:
 
                         /* Allocate buffers */
                         m_extcfgs[i].u.ext11.maxExtBufSize  = MAX_RX_LEN;
-                        m_pBfwIQ_ext = (uint8_t *)xran_malloc(m_extcfgs[i].u.ext11.maxExtBufSize);
+                        m_pBfwIQ_ext = (uint8_t *)xran_malloc(NULL,m_extcfgs[i].u.ext11.maxExtBufSize, 64);
                         m_extcfgs[i].u.ext11.pExtBuf = m_pBfwIQ_ext;
 
                         for(j = 0; j < XRAN_MAX_SET_BFWS; j++) {
@@ -396,11 +402,17 @@ protected:
                             memset(m_pBfw_src[j], j+1, XRAN_MAX_BFW_N);
                             }
 
+#ifdef XRAN_CP_BF_WEIGHT_STRUCT_OPT
+                        for(j=0; j < m_extcfgs[i].u.ext11.numSetBFWs; j++) {
+                            m_bfwInfo[0].pBFWs[j]  = (uint8_t *)(m_pBfw_src[j]);
+                            m_bfwInfo[0].beamId[j] = beamIDs[j];
+                            }
+#else
                         for(j=0; j < m_extcfgs[i].u.ext11.numSetBFWs; j++) {
                             m_bfwInfo[j].pBFWs  = (uint8_t *)(m_pBfw_src[j]);
                             m_bfwInfo[j].beamId = beamIDs[j];
                             }
-
+#endif
                         /* Initialize Shared information for external buffer */
                         m_extSharedInfo.free_cb     = NULL;
                         m_extSharedInfo.fcb_opaque  = NULL;
@@ -427,7 +439,6 @@ protected:
 
                     default:
                        FAIL() << "Invalid Section Type Extension - " << ext_type << std::endl;
-                       continue;
                     } /* switch(ext_type) */
 
                 m_extcfgs[i].type   = ext_type;
@@ -877,7 +888,12 @@ void C_plane::verify_sections(void)
 
                         EXPECT_TRUE(ext11_result->numSetBFWs    == ext11_params->numSetBFWs);
                         for(k=0; k < ext11_result->numSetBFWs; k++) {
+#ifdef XRAN_CP_BF_WEIGHT_STRUCT_OPT
+                            EXPECT_TRUE(ext11_result->bundInfo[k].beamId    == m_bfwInfo[0].beamId[k]);
+
+#else
                             EXPECT_TRUE(ext11_result->bundInfo[k].beamId    == m_bfwInfo[k].beamId);
+#endif
 #if 0
                             EXPECT_TRUE(ext11_result->bundInfo[k].BFWSize   == ext11_params->BFWSize);
 
@@ -963,7 +979,7 @@ void C_plane::test_ext1(void)
 #endif
 
     if(loc_pSectGenInfo->info->type == XRAN_CP_SECTIONTYPE_1) {
-        ext_buf  = ext_buf_init = (int8_t*) xran_malloc(ext_len);
+        ext_buf  = ext_buf_init = (int8_t*) xran_malloc(NULL,ext_len,64);
         if (ext_buf) {
             ptr = m_p_bfw_iq_src;
 
@@ -980,7 +996,7 @@ void C_plane::test_ext1(void)
                         sizeof(struct xran_ecpri_hdr) +
                         sizeof(struct xran_cp_radioapp_common_header));
 
-            m_prb_ele = (xran_prb_elm *) xran_malloc(sizeof(struct xran_prb_elm));
+            m_prb_ele = (xran_prb_elm *) xran_malloc(NULL,sizeof(struct xran_prb_elm),64);
 
             m_prb_ele->bf_weight.bfwIqWidth  = iqWidth;
             m_prb_ele->bf_weight.bfwCompMeth = compMethod;
@@ -1026,11 +1042,11 @@ void C_plane::test_ext1(void)
 
             ASSERT_TRUE(idRb == numSections);
 
-            mbuf = xran_attach_cp_ext_buf(0, ext_buf_init, ext_buf, ext_sec_total, &share_data);
+            mbuf = xran_attach_cp_ext_buf(ext_buf_init, ext_buf, ext_sec_total, &share_data);
             m_params.numSections    = numSections;
 
             /* Generating C-Plane packet */
-            ASSERT_TRUE(xran_prepare_ctrl_pkt(/*m_pTestBuffer*/mbuf, &m_params, m_ccId, m_antId, m_seqId, 0) == XRAN_STATUS_SUCCESS);
+            ASSERT_TRUE(xran_prepare_ctrl_pkt(/*m_pTestBuffer*/mbuf, &m_params, m_ccId, m_antId, m_seqId, 0,m_mu, XRAN_GET_OXU_PORT_ID(&m_xran_dev_ctx)) == XRAN_STATUS_SUCCESS);
             EXPECT_TRUE(xran_parse_cp_pkt(/*m_pTestBuffer*/mbuf, &m_result, &m_pktInfo, (void *)&m_xran_dev_ctx, &mb_free) == XRAN_STATUS_SUCCESS);
             }
         else {
@@ -1087,7 +1103,7 @@ TEST_P(C_plane, CPacketGen)
 
     xran_cp_init_sectiondb((void *)&m_xran_dev_ctx);
     /* Generating C-Plane packet */
-    ASSERT_TRUE(xran_prepare_ctrl_pkt(m_pTestBuffer, &m_params, m_ccId, m_antId, m_seqId, 0) == XRAN_STATUS_SUCCESS);
+    ASSERT_TRUE(xran_prepare_ctrl_pkt(m_pTestBuffer, &m_params, m_ccId, m_antId, m_seqId, 0, m_mu, XRAN_GET_OXU_PORT_ID(&m_xran_dev_ctx)) == XRAN_STATUS_SUCCESS);
 
     /* Linearize data in the chain of mbufs to parse generated packet*/
     ASSERT_TRUE(rte_pktmbuf_linearize(m_pTestBuffer) == 0);
@@ -1115,7 +1131,7 @@ TEST_P(C_plane, Perf)
     xran_cp_init_sectiondb((void *)&m_xran_dev_ctx);
     /* using wrapper function to reset mbuf */
     performance("C", module_name,
-            &xran_ut_prepare_cp, &m_params, m_ccId, m_antId, m_seqId, 0);
+            &xran_ut_prepare_cp, &m_params, m_ccId, m_antId, m_seqId, 0, m_mu, XRAN_GET_OXU_PORT_ID(&m_xran_dev_ctx));
 }
 
 

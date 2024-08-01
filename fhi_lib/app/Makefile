@@ -24,11 +24,11 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 #  Tools configuration
 ##############################################################
 ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
-CC  := icc
-CPP := icpc
-AS := as
-AR := ar
-LD := icc
+    CC  := icc
+    CPP := icpc
+    AS := as
+    AR := ar
+    LD := icc
 else ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
     CC  := icx
     CPP := icpx
@@ -38,7 +38,6 @@ else ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
 else
     $(error "Please define WIRELESS_SDK_TOOLCHAIN environment variable")
 endif
-OBJDUMP := objdump
 
 ifeq ($(SHELL),cmd.exe)
 MD := mkdir.exe -p
@@ -67,10 +66,11 @@ ifeq ($(RTE_SDK),)
 endif
 
 RTE_TARGET ?= x86_64-native-linuxapp-gcc
-RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
+RTE_INC := $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
 
 API_DIR := $(XRAN_DIR)/lib/api
 OWD_DIR := $(XRAN_DIR)/lib/src
+ETHDI_DIR := $(XRAN_DIR)/lib/ethernet
 SRC_DIR := $(PROJECT_DIR)/src
 
 ifeq ($(MLOG),1)
@@ -116,7 +116,7 @@ CC_FLAGS += -wd1786 -xcore-avx512
 endif
 
 ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
-CC_FLAGS += -xcore-avx512 -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
+CC_FLAGS += -march=skylake-avx512 -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
 endif
 
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe -no-prec-div \
@@ -132,7 +132,7 @@ ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
 CPP_FLAGS +=  -fp-model fast -march=icelake-server -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
 endif
 
-INC :=  -I$(API_DIR) -I$(RTE_INC) -I$(OWD_DIR)
+INC :=  -I$(API_DIR) -I$(RTE_INC) -I$(OWD_DIR) -I$(ETHDI_DIR)
 DEF :=
 
 ifeq ($(MLOG),1)
@@ -155,20 +155,27 @@ else
 	DEF += -UXRAN_O_RU_BUILD
 endif
 
+ifeq ($(POLL_EBBU_OFFLOAD),1)
+	DEF += -DPOLL_EBBU_OFFLOAD
+else
+	DEF += -UPOLL_EBBU_OFFLOAD
+endif
+
+DEF += -DXRAN_SAMPLEAPP_BUILD
 
 ifeq ($(ORU),1)
 	XRAN_LIB_DIR=$(XRAN_DIR)/lib/build-oru
 	LD_FLAGS += -L$(XRAN_LIB_DIR) -lxran-oru
 else
-XRAN_LIB_DIR=$(XRAN_DIR)/lib/build
-LD_FLAGS += -L$(XRAN_LIB_DIR) -lxran
+	XRAN_LIB_DIR=$(XRAN_DIR)/lib/build
+	LD_FLAGS += -L$(XRAN_LIB_DIR) -lxran
 endif
 
-RTE_LIBS = $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --static --libs libdpdk)
+RTE_LIBS = $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --static --libs libdpdk)
 LD_FLAGS += $(RTE_LIBS)
 
 ifeq ($(MLOG),1)
-	LD_FLAGS +=  -L$(MLOG_DIR)/bin -lmlog
+LD_FLAGS +=  -L$(MLOG_DIR)/bin -lmlog
 endif
 
 ifeq ($(FWK),1)
@@ -183,12 +190,13 @@ AS_FLAGS :=
 AR_FLAGS := rc
 
 PROJECT_OBJ_DIR := $(BUILDDIR)/obj
+PROJECT_DEP_DIR := $(PROJECT_OBJ_DIR)/$(PROJECT_NAME).dep.d
 
 CC_OBJS := $(patsubst %.c,%.o,$(CC_SRC))
 CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
 AS_OBJS := $(patsubst %.s,%.o,$(AS_SRC))
 OBJS    := $(CC_OBJS) $(CPP_OBJS) $(AS_OBJS) $(LIBS)
-DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS))))
+DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS)))) $(PROJECT_DEP_DIR)
 
 CC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CC_OBJS))
 CPP_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS))
@@ -200,9 +208,7 @@ CPP_FLAGS_FULL := $(CPP_FLAGS) $(INC) $(DEF)
 
 AS_FLAGS := $(AS_FLAGS) $(INC)
 
-PROJECT_DEP_FILE := $(PROJECT_OBJ_DIR)/$(PROJECT_NAME).dep
-
-ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
+ifeq ($(wildcard $(PROJECT_DEP_DIR)),$(PROJECT_DEP_DIR))
 GENERATE_DEPS :=
 else
 
@@ -211,19 +217,28 @@ CPP_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CPP_SRC)))
 GENERATE_DEPS := generate_deps
 endif
 
+#Add CodeCoverage option
+ifeq ($(CODE_COVERAGE),1)
+    CC_FLAGS += -fprofile-instr-generate -fcoverage-mapping
+    CXX_FLAGS += -fprofile-instr-generate -fcoverage-mapping
+    LD_FLAGS += -fprofile-instr-generate
+endif
+
 all : welcome_line 	$(PROJECT_BINARY)
 	@echo $(PROJECT_BINARY)
 
 .PHONY : clear_dep
 clear_dep:
-	@$(RM) $(PROJECT_DEP_FILE)
-	@echo [DEP]   $(subst $(PROJECT_OBJ_DIR)/,,$(PROJECT_DEP_FILE))
+	@echo [DEP] rm $(PROJECT_DEP_DIR)/$(@F).dep
+	@$(RM) $(PROJECT_DEP_DIR)/$(@F).dep
 
-$(CC_DEPS) :
-	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CC_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
+$(CC_DEPS) : $(PROJECT_DEP_DIR)
+	@echo [DEP] $(subst __up__,../,$(subst __dep__,,$@))
+	@$(CC) $(CC_FLAGS_FULL) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) >> $(PROJECT_DEP_DIR)/$(@F).dep
 
-$(CPP_DEPS) :
-	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPP_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
+$(CPP_DEPS) : $(PROJECT_DEP_DIR)
+	@echo [DEP] $(subst __up__,../,$(subst __dep__,,$@))
+	@$(CPP) $(CPP_FLAGS_FULL) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) >> $(PROJECT_DEP_DIR)/$(@F).dep
 
 .PHONY : generate_deps
 generate_deps : clear_dep $(CC_DEPS) $(CPP_DEPS)
@@ -236,21 +251,21 @@ echo_start_build :
 $(DIRLIST) :
 	-@$(MD) $@
 
-$(CC_OBJTARGETS) :
+$(CC_OBJTARGETS) : $(GENERATE_DEPS)
 	@echo [CC]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(CC) -c $(CC_FLAGS_FULL) -o"$@" $(patsubst %.o,%.c,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-$(CPP_OBJTARGETS) :
+$(CPP_OBJTARGETS) : $(GENERATE_DEPS)
 	@echo [CPP]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(CPP) -c $(CPP_FLAGS_FULL) -o"$@" $(patsubst %.o,%.cpp,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-$(AS_OBJTARGETS) :
+$(AS_OBJTARGETS) : $(CC_OBJTARGETS) $(CPP_OBJTARGETS)
 	@echo [AS]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(AS) $(AS_FLAGS) -o"$@" $(patsubst %.o,%.s,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
+ifeq ($(wildcard $(PROJECT_DEP_DIR)),$(PROJECT_DEP_DIR))
 
-include $(PROJECT_DEP_FILE)
+include $(PROJECT_DEP_DIR)/*
 
 endif
 
@@ -262,7 +277,7 @@ clean:
 xclean: clean
 ifneq ($(wildcard $(PROJECT_DIR)/$(PROJECT_MAKE)),)
 	@echo [XCLEAN] : $(PROJECT_NAME)
-	@$(RM) $(PROJECT_BINARY) $(PROJECT_BINARY_LIB) $(PROJECT_DEP_FILE)
+	@$(RM) -rf $(PROJECT_BINARY) $(PROJECT_BINARY_LIB) $(PROJECT_DEP_DIR)
 endif
 
 .PHONY : welcome_line
@@ -278,10 +293,9 @@ welcome_line :
 debug :  all
 release :  all
 
-$(PROJECT_BINARY): $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
+$(PROJECT_BINARY): $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS)
 	@$(MD) $(BUILDDIR)
 	@echo "[LD] $@ "
 	@$(LD) -o $@ $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(AS_OBJTARGETS) $(LD_FLAGS) -Wl,-L $(BUILDDIR) -lrt -lpthread
 
 #@echo [APP]   $@
-#@$(OBJDUMP) -d $(PROJECT_BINARY) > $(PROJECT_BINARY).asm

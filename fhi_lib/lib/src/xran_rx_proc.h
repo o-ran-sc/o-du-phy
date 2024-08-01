@@ -62,7 +62,9 @@ int32_t xran_process_rx_sym(void *arg,
                         uint32_t *mb_free,
                         int8_t   expect_comp,
                         uint8_t compMeth,
-                        uint8_t iqWidth);
+                        uint8_t iqWidth,
+                        uint8_t mu,
+                        uint16_t nSectionIdx);
 
 int32_t xran_process_prach_sym(void *arg,
                         struct rte_mbuf *mbuf,
@@ -79,7 +81,8 @@ int32_t xran_process_prach_sym(void *arg,
                         uint16_t sym_inc,
                         uint16_t rb,
                         uint16_t sect_id,
-                        uint32_t *mb_free);
+                        uint32_t *mb_free,
+                        uint8_t mu);
 
 int32_t xran_process_srs_sym(void *arg,
                         struct rte_mbuf *mbuf,
@@ -99,7 +102,30 @@ int32_t xran_process_srs_sym(void *arg,
                         uint32_t *mb_free,
                         int8_t  expect_comp,
                         uint8_t compMeth,
-                        uint8_t iqWidth);
+                        uint8_t iqWidth,
+                        uint8_t mu);
+
+int32_t xran_process_csirs_sym(void *arg,
+                        struct rte_mbuf *mbuf,
+                        void *iq_data_start,
+                        uint16_t size,
+                        uint8_t CC_ID,
+                        uint8_t Ant_ID,
+                        uint8_t frame_id,
+                        uint8_t subframe_id,
+                        uint8_t slot_id,
+                        uint8_t symb_id,
+                        uint16_t num_prbu,
+                        uint16_t start_prbu,
+                        uint16_t sym_inc,
+                        uint16_t rb,
+                        uint16_t sect_id,
+                        uint32_t *mb_free,
+                        int8_t  expect_comp,
+                        uint8_t compMeth,
+                        uint8_t iqWidth,
+                        uint8_t mu);
+
 
 #ifdef __cplusplus
 }

@@ -21,8 +21,8 @@
 #include "xran_lib_wrap.hpp"
 #include "xran_common.h"
 #include "xran_fh_o_du.h"
-#include "ethdi.h"
-#include "ethernet.h"
+#include "xran_ethdi.h"
+#include "xran_ethernet.h"
 #include "xran_transport.h"
 #include "xran_cp_api.h"
 
@@ -41,7 +41,7 @@ extern "C"
 /* external functions in xRAN library */
 void tx_cp_dl_cb(struct rte_timer *tim, void *arg);
 void tx_cp_ul_cb(struct rte_timer *tim, void *arg);
-int xran_process_tx_sym(void *arg);
+int xran_process_tx_sym(void *arg, uint8_t mu);
 int process_mbuf(struct rte_mbuf *pkt, void *arg, struct xran_eaxc_info *p_cid);
 
 
@@ -49,19 +49,19 @@ int process_mbuf(struct rte_mbuf *pkt, void *arg, struct xran_eaxc_info *p_cid);
 void xran_ut_tx_cp_dl()
 {
     xranlib->update_tti();
-    tx_cp_dl_cb(nullptr, xranlib->get_timer_ctx());
+    tx_cp_dl_cb(nullptr, xranlib->get_perMu_ctx());
 }
 
 void xran_ut_tx_cp_ul()
 {
     xranlib->update_tti();
-    tx_cp_ul_cb(nullptr, xranlib->get_timer_ctx());
+    tx_cp_ul_cb(nullptr, xranlib->get_perMu_ctx());
 }
 
 void xran_ut_tx_up_dl()
 {
     xranlib->update_symbol_index();
-    xran_process_tx_sym(xranlib->get_timer_ctx());
+    xran_process_tx_sym(xranlib->get_timer_ctx(), xranlib->get_numerology());
 }
 
 void xran_ut_tx_cpup_dl()
@@ -69,9 +69,9 @@ void xran_ut_tx_cpup_dl()
     xranlib->update_symbol_index();
 
     if(xranlib->get_symbol_index() == 3)
-        tx_cp_dl_cb(nullptr, xranlib->get_timer_ctx());
+        tx_cp_dl_cb(nullptr, xranlib->get_perMu_ctx());
 
-    xran_process_tx_sym(xranlib->get_timer_ctx());
+    xran_process_tx_sym(xranlib->get_timer_ctx(), xranlib->get_numerology());
 }
 
 #if 0   /* TBD */
@@ -140,8 +140,8 @@ class TestChain: public KernelTests
 protected:
     struct xran_fh_config   m_xranConf;
     struct xran_fh_init     m_xranInit;
-
     bool m_bSub6;
+    uint8_t m_mu = 0;
 
 
     void SetUp() override
@@ -165,12 +165,13 @@ protected:
             m_xranConf.ru_conf.xranCat = XRAN_CATEGORY_A;
             }
 
-        m_xranConf.frame_conf.nNumerology = get_input_parameter<int>("mu");
-        if(m_xranConf.frame_conf.nNumerology > 3) {
-            std::cout << "*** Invalid Numerology [" << m_xranConf.frame_conf.nNumerology << "] !!!" << std::endl;
-            m_xranConf.frame_conf.nNumerology   = 0;
-            std::cout << "Set it to " << m_xranConf.frame_conf.nNumerology << "..." << std::endl;
-            }
+        m_xranConf.mu_number[0] = get_input_parameter<int>("mu");
+        m_mu = m_xranConf.mu_number[0];
+        if(m_mu > 3) {
+            std::cout << "*** Invalid Numerology [" << m_xranConf.mu_number[0] << "] !!!" << std::endl;
+            m_xranConf.mu_number[0]   = 1; m_mu = 1;
+            std::cout << "Set it to " << m_xranConf.mu_number[0] << "..." << std::endl;
+        }
 
         tmpstr = get_input_parameter<std::string>("duplex");
         if(tmpstr == "FDD")
@@ -179,7 +180,7 @@ protected:
             m_xranConf.frame_conf.nFrameDuplexType  = 1;
 
             tmpstr = get_input_parameter<std::string>("slot_config");
-            temp = xranlib->get_slot_config(tmpstr, &m_xranConf.frame_conf);
+            xranlib->get_slot_config(tmpstr, &m_xranConf.frame_conf);
             }
         else {
             std::cout << "*** Invalid Duplex type [" << tmpstr << "] !!!" << std::endl;
@@ -202,13 +203,13 @@ protected:
 
         m_bSub6     = get_input_parameter<bool>("sub6");
         temp = get_input_parameter<int>("chbw_dl");
-        m_xranConf.nDLRBs = xranlib->get_num_rbs(m_xranConf.frame_conf.nNumerology, temp, m_bSub6);
+        m_xranConf.perMu[m_mu].nDLRBs = xranlib->get_num_rbs(m_mu, temp, m_bSub6);
         temp = get_input_parameter<int>("chbw_ul");
-        m_xranConf.nULRBs = xranlib->get_num_rbs(m_xranConf.frame_conf.nNumerology, temp, m_bSub6);
+        m_xranConf.perMu[m_mu].nULRBs = xranlib->get_num_rbs(m_mu, temp, m_bSub6);
 
         m_xranConf.nAntElmTRx = get_input_parameter<int>("antelm_trx");
-        m_xranConf.nDLFftSize = get_input_parameter<int>("fftsize_dl");
-        m_xranConf.nULFftSize = get_input_parameter<int>("fftsize_ul");
+        m_xranConf.perMu[m_mu].nDLFftSize = get_input_parameter<int>("fftsize_dl");
+        m_xranConf.perMu[m_mu].nULFftSize = get_input_parameter<int>("fftsize_ul");
 
 
         m_xranConf.ru_conf.iqWidth  = get_input_parameter<int>("iq_width");
@@ -266,7 +267,7 @@ TEST_P(TestChain, UPlaneDLPerf)
     bool flag_cpen;
 
     xranlib->Init(0, &m_xranConf);
-
+    interval_us = xran_fs_get_tti_interval(xranlib->get_numerology());
     /* save current CP enable flag */
     flag_cpen = xranlib->is_cpenable()?true:false;
 

@@ -62,13 +62,13 @@ struct xran_cp_radioapp_common_header {     /* 6bytes, first 4bytes need the con
     union {
         uint32_t all_bits;
         struct {
-    uint32_t    startSymbolId:6;        /**< 5.4.4.7 start symbol identifier */
-    uint32_t    slotId:6;               /**< 5.4.4.6 slot identifier */
-    uint32_t    subframeId:4;           /**< 5.4.4.5 subframe identifier */
-    uint32_t    frameId:8;              /**< 5.4.4.4 frame identifier */
-    uint32_t    filterIndex:4;          /**< 5.4.4.3 filter index, XRAN_FILTERINDEX_xxxx */
-    uint32_t    payloadVer:3;           /**< 5.4.4.2 payload version, should be 1 */
-    uint32_t    dataDirection:1;        /**< 5.4.4.1 data direction (gNB Tx/Rx) */
+            uint32_t    startSymbolId:6;        /**< 5.4.4.7 start symbol identifier */
+            uint32_t    slotId:6;               /**< 5.4.4.6 slot identifier */
+            uint32_t    subframeId:4;           /**< 5.4.4.5 subframe identifier */
+            uint32_t    frameId:8;              /**< 5.4.4.4 frame identifier */
+            uint32_t    filterIndex:4;          /**< 5.4.4.3 filter index, XRAN_FILTERINDEX_xxxx */
+            uint32_t    payloadVer:3;           /**< 5.4.4.2 payload version, should be 1 */
+            uint32_t    dataDirection:1;        /**< 5.4.4.1 data direction (gNB Tx/Rx) */
         };
     } field;
     uint8_t     numOfSections;          /**< 5.4.4.8 number of sections */
@@ -133,11 +133,11 @@ struct xran_cp_radioapp_section_header {    /* 8bytes, need the conversion for b
     union {
         uint32_t second_4byte;
         struct {
-    uint32_t    numPrbc:8;              /**< 5.4.5.6 number of contiguous PRBs per control section  0000 0000b = all PRBs */
-    uint32_t    startPrbc:10;           /**< 5.4.5.4 starting PRB of control section */
-    uint32_t    symInc:1;               /**< 5.4.5.3 symbol number increment command XRAN_SYMBOLNUMBER_xxxx */
-    uint32_t    rb:1;                   /**< 5.4.5.2 resource block indicator, XRAN_RBIND_xxx */
-    uint32_t    sectionId:12;           /**< 5.4.5.1 section identifier */
+            uint32_t    numPrbc:8;              /**< 5.4.5.6 number of contiguous PRBs per control section  0000 0000b = all PRBs */
+            uint32_t    startPrbc:10;           /**< 5.4.5.4 starting PRB of control section */
+            uint32_t    symInc:1;               /**< 5.4.5.3 symbol number increment command XRAN_SYMBOLNUMBER_xxxx */
+            uint32_t    rb:1;                   /**< 5.4.5.2 resource block indicator, XRAN_RBIND_xxx */
+            uint32_t    sectionId:12;           /**< 5.4.5.1 section identifier */
             } common;
         } u1;
     } __attribute__((__packed__));
@@ -236,23 +236,23 @@ struct xran_cp_radioapp_section_ext2 {
 union xran_cp_radioapp_section_ext3_first {
     /* 16 bytes, need to convert byte order for two parts - 8/8 bytes */
     struct{
-    uint64_t    reserved1:8;
-    uint64_t    crsSymNum:4;        /**< 5.4.7.3.6 CRS symbol number indication */
-    uint64_t    reserved0:3;
-    uint64_t    crsShift:1;         /**< 5.4.7.3.7 CRS shift used for DL transmission */
-    uint64_t    crsReMask:12;       /**< 5.4.7.3.5 CRS resource element mask */
-    uint64_t    txScheme:4;         /**< 5.4.7.3.3 transmission scheme */
-    uint64_t    numLayers:4;        /**< 5.4.7.3.4 number of layers used for DL transmission */
-    uint64_t    layerId:4;          /**< 5.4.7.3.2 Layer ID for DL transmission */
-    uint64_t    codebookIndex:8;    /**< 5.4.7.3.1 precoder codebook used for transmission */
-    uint64_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
-    uint64_t    extType:7;          /**< 5.4.6.1 extension type */
-    uint64_t    ef:1;               /**< 5.4.6.2 extension flag */
+        uint64_t    reserved1:8;
+        uint64_t    crsSymNum:4;        /**< 5.4.7.3.6 CRS symbol number indication */
+        uint64_t    reserved0:3;
+        uint64_t    crsShift:1;         /**< 5.4.7.3.7 CRS shift used for DL transmission */
+        uint64_t    crsReMask:12;       /**< 5.4.7.3.5 CRS resource element mask */
+        uint64_t    txScheme:4;         /**< 5.4.7.3.3 transmission scheme */
+        uint64_t    numLayers:4;        /**< 5.4.7.3.4 number of layers used for DL transmission */
+        uint64_t    layerId:4;          /**< 5.4.7.3.2 Layer ID for DL transmission */
+        uint64_t    codebookIndex:8;    /**< 5.4.7.3.1 precoder codebook used for transmission */
+        uint64_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+        uint64_t    extType:7;          /**< 5.4.6.1 extension type */
+        uint64_t    ef:1;               /**< 5.4.6.2 extension flag */
 
-    uint64_t    beamIdAP1:16;       /**< 5.4.7.3.8 beam id to be used for antenna port 1 */
-    uint64_t    beamIdAP2:16;       /**< 5.4.7.3.9 beam id to be used for antenna port 2 */
-    uint64_t    beamIdAP3:16;       /**< 5.4.7.3.10 beam id to be used for antenna port 3 */
-    uint64_t    reserved2:16;
+        uint64_t    beamIdAP1:16;       /**< 5.4.7.3.8 beam id to be used for antenna port 1 */
+        uint64_t    beamIdAP2:16;       /**< 5.4.7.3.9 beam id to be used for antenna port 2 */
+        uint64_t    beamIdAP3:16;       /**< 5.4.7.3.10 beam id to be used for antenna port 3 */
+        uint64_t    reserved2:16;
     }all_bits;
 
     struct{
@@ -287,16 +287,16 @@ union xran_cp_radioapp_section_ext3_first {
 union xran_cp_radioapp_section_ext3_non_first {
     uint32_t data_field;
     struct {
-    /* 4 bytes, need to convert byte order at once */
-    uint32_t    numLayers:4;        /**< 5.4.7.3.4 number of layers used for DL transmission */
-    uint32_t    layerId:4;          /**< 5.4.7.3.2 Layer ID for DL transmission */
-    uint32_t    codebookIndex:8;    /**< 5.4.7.3.1 precoder codebook used for transmission */
+        /* 4 bytes, need to convert byte order at once */
+        uint32_t    numLayers:4;        /**< 5.4.7.3.4 number of layers used for DL transmission */
+        uint32_t    layerId:4;          /**< 5.4.7.3.2 Layer ID for DL transmission */
+        uint32_t    codebookIndex:8;    /**< 5.4.7.3.1 precoder codebook used for transmission */
 
-    uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
-    uint32_t    extType:7;          /**< 5.4.6.1 extension type */
-    uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
+        uint32_t    extLen:8;           /**< 5.4.6.3 extension length, in 32bits words */
+        uint32_t    extType:7;          /**< 5.4.6.1 extension type */
+        uint32_t    ef:1;               /**< 5.4.6.2 extension flag */
     }all_bits;
-    } __attribute__((__packed__));
+} __attribute__((__packed__));
 
 /**
  * @ingroup xran_cp_pkt
@@ -458,7 +458,7 @@ union xran_cp_radioapp_section_ext11 {
         uint8_t     bfwCompMeth:4;      /**< 5.4.7.11.1 Beamforming weight Compression method (5.4.7.1.1) */
         uint8_t     bfwIqWidth:4;       /**< 5.4.7.11.1 Beamforming weight IQ bit width (5.4.7.1.1) */
     } __attribute__((__packed__)) all_bits;
-    struct{
+    struct {
         uint32_t    data_field1;
         uint16_t    data_field2;
     } __attribute__((__packed__)) data_field;

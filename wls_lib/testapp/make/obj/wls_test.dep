@@ -1,0 +1,11 @@
+make/obj/pool.o: pool.c pool.h ../ttypes.h
+make/obj/testapp.o: testapp.c ../ttypes.h ../wls_lib.h pool.h \
+  /home/ashwini/v23.03/wireless_dpdk_ae/config/rte_config.h \
+  /home/ashwini/v23.03/wireless_dpdk_ae/build/rte_build_config.h \
+  /home/ashwini/v23.03/wireless_dpdk_ae/lib/eal/include/rte_common.h \
+  /home/ashwini/v23.03/wireless_dpdk_ae/lib/eal/linux/include/rte_os.h \
+  /home/ashwini/v23.03/wireless_dpdk_ae/lib/eal/include/rte_eal.h \
+  /home/ashwini/v23.03/wireless_dpdk_ae/lib/eal/include/rte_compat.h \
+  /home/ashwini/v23.03/wireless_dpdk_ae/lib/eal/include/rte_per_lcore.h \
+  /home/ashwini/v23.03/wireless_dpdk_ae/lib/eal/include/rte_uuid.h \
+  /home/ashwini/v23.03/wireless_dpdk_ae/lib/eal/include/rte_pci_dev_feature_defs.h

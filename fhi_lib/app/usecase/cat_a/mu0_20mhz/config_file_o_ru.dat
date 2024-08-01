@@ -18,7 +18,6 @@
 
 
 # This is simple configuration file. Use '#' sign for comments
-instanceId=1 # 0,1,2,... in case more than 1 application started on the same system
 appMode=1 # O-DU(0) | O-RU(1)
 xranMode=0 # Category A  (0) (precoder in lls-CU) | Category B (1) (precoder in RU)
 ccNum=1 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 12)
@@ -42,7 +41,6 @@ MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protoco
 Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
 
-ioCore=10
 # Eth 0
 duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
 ruMac0=00:11:22:33:44:55 # O-RU VF for O-RU app
@@ -108,9 +106,7 @@ debugStop=1 #stop app on 1pps boundary (gps_second % 30)
 debugStopCount=0 #if this value is >0 then stop app after x transmission packets, otherwise app will stop at 1pps boundary
 bbdevMode=-1 #bbdev mode, -1 = not use bbdev, 0: use software mode, 1: use hardware mode
 
-CPenable=1 #(1) C-Plane is enabled| (0) C-Plane is disabled
-c_plane_vlan_tag=1 #VLAN Tag used for C-Plane
-u_plane_vlan_tag=2 #VLAN Tag used for U-Plane
+CPenable=0 #(1) C-Plane is enabled| (0) C-Plane is disabled
 
 ##RU Settings
 totalBFWeights=32 # Total number of Beamforming Weights on RU

@@ -240,6 +240,7 @@ app_bbu_pool_task_dl_config(void *pCookies)
     int32_t nSymbMask = 0b11111111111111;
     RuntimeConfig *p_o_xu_cfg = NULL;
     uint16_t nLayerStart = 0, nLayer = 0;
+    uint8_t mu = pEventCtrl->mu;
 
     if(psXranIoIf == NULL)
         rte_panic("psXranIoIf == NULL");
@@ -251,6 +252,8 @@ app_bbu_pool_task_dl_config(void *pCookies)
         return EBBUPOOL_CORRECT;
     }
     psIoCtrl = app_io_xran_if_ctrl_get(xran_port);
+    if(psIoCtrl == NULL)
+        rte_panic("psIoCtrl is null (port%d)", xran_port);
     pXranConf = &app_io_xran_fh_config[xran_port];
     if(pXranConf == NULL)
         rte_panic("pXranConf");
@@ -270,14 +273,15 @@ app_bbu_pool_task_dl_config(void *pCookies)
 
     mlog_start = MLogTick();
 
-    if(LAYER_SPLIT == pTaskPara->eSplitType) {
-        // iSplit = pTaskPara->nSplitIndex;
-        nLayerStart = pTaskPara->nLayerStart;
-        nLayer      = pTaskPara->nLayerNum;
-        //printf("\nsf %d nSymbStart %d nSymb %d iSplit %d", nSfIdx, nSymbStart, nSymb, iSplit);
-    } else {
+    if(LAYER_SPLIT != pTaskPara->eSplitType) {
         rte_panic("LAYER_SPLIT == pTaskPara->eSplitType");
     }
+
+
+    // iSplit = pTaskPara->nSplitIndex;
+    nLayerStart = pTaskPara->nLayerStart;
+    nLayer      = pTaskPara->nLayerNum;
+    //printf("\nsf %d nSymbStart %d nSymb %d iSplit %d", nSfIdx, nSymbStart, nSymb, iSplit);
 
     if(p_o_xu_cfg->p_buff) {
         p_iq = p_o_xu_cfg->p_buff;
@@ -298,10 +302,10 @@ app_bbu_pool_task_dl_config(void *pCookies)
             }
             for(sym_id = 0; sym_id < XRAN_NUM_OF_SYMBOL_PER_SLOT; sym_id++) {
                 if(((1 << sym_id) & nSymbMask)) {
-                    if ((status = app_io_xran_iq_content_init_cp_tx(p_o_xu_cfg->appMode, pXranConf,
+                    if ((status = app_io_xran_iq_content_init_dl_cp(p_o_xu_cfg->appMode, pXranConf,
                                                     psXranIoIf, psIoCtrl, p_iq,
-                                                    cc_id, ant_id, sym_id, tti, flowId)) != 0) {
-                        rte_panic("app_io_xran_iq_content_init_cp_tx");
+                                                    cc_id, ant_id, sym_id, tti, flowId, mu)) != 0) {
+                        rte_panic("app_io_xran_iq_content_init_dl_cp");
                     }
                 }
             }
@@ -309,21 +313,21 @@ app_bbu_pool_task_dl_config(void *pCookies)
     }
 
     xran_prepare_cp_dl_slot(xran_port, nSfIdx, nRuCcidx, /*psXranIoIf->num_cc_per_port[xran_port]*/ 1, nSymbMask, nLayerStart,
-                            nLayer, 0, XRAN_NUM_OF_SYMBOL_PER_SLOT);
+                            nLayer, 0, XRAN_NUM_OF_SYMBOL_PER_SLOT, mu);
 
     if (mlogVariablesCnt)
         MLogAddVariables((uint32_t)mlogVariablesCnt, (uint32_t *)mlogVariables, mlog_start);
 
     //unlock the next task
     next_event_unlock(pCookies);
-    MLogTask(PCID_GNB_DL_CFG_CC0+nCellIdx, mlog_start, MLogTick());
+    MLogTask(PCID_NR5G_DL_CFG_CC0+nCellIdx, mlog_start, MLogTick());
 
     return EBBUPOOL_CORRECT;
 }
 
 int32_t
 app_io_xran_dl_pack_func(uint16_t nCellIdx, uint32_t nSfIdx, uint32_t nSymMask,
-    uint32_t nAntStart, uint32_t nAntNum, uint32_t nSymStart, uint32_t nSymNum)
+    uint32_t nAntStart, uint32_t nAntNum, uint32_t nSymStart, uint32_t nSymNum, uint8_t mu)
 {
     xran_status_t status;
     uint32_t nSlotIdx = get_dl_sf_idx(nSfIdx, nCellIdx);
@@ -379,7 +383,7 @@ app_io_xran_dl_pack_func(uint16_t nCellIdx, uint32_t nSfIdx, uint32_t nSymMask,
                 if(((1 << sym_id) & nSymMask)) {
                     if ((status = app_io_xran_iq_content_init_up_tx(p_o_xu_cfg->appMode, pXranConf,
                                                     psXranIoIf, psIoCtrl, p_iq,
-                                                    cc_id, ant_id, sym_id, tti, flowId)) != 0) {
+                                                    cc_id, ant_id, sym_id, tti, flowId, mu)) != 0) {
                         rte_panic("app_io_xran_iq_content_init_up_tx");
                     }
                 }
@@ -387,12 +391,31 @@ app_io_xran_dl_pack_func(uint16_t nCellIdx, uint32_t nSfIdx, uint32_t nSymMask,
         }
     }
 
-    xran_prepare_up_dl_sym(xran_port, nSlotIdx, nRuCcidx, 1, nSymMask, nAntStart, nAntNum, nSymStart, nSymNum);
+    /* CSIRS IQ content init */
+    if(pXranConf->ru_conf.xranCat == XRAN_CATEGORY_B && p_o_xu_cfg->appMode == APP_O_DU && p_o_xu_cfg->csirsEnable && nAntStart == 0) { //required to avoid repeated CSI-RS transmission with different splitgroups
+        for(cc_id = nRuCcidx; cc_id < psXranIoIf->num_cc_per_port[xran_port]; cc_id++) {
+            for(ant_id = 0; ant_id < p_o_xu_cfg->nCsiPorts; ant_id++) {
+                flowId = p_o_xu_cfg->nCsiPorts*cc_id + ant_id;
+                for(sym_id = 0; sym_id < XRAN_NUM_OF_SYMBOL_PER_SLOT; sym_id++) {
+                    if(((1 << sym_id) & nSymMask)) {
+                        if ((status = app_io_xran_iq_content_init_up_csirs(p_o_xu_cfg->appMode, pXranConf,
+                                                        psXranIoIf, psIoCtrl, p_iq,
+                                                        cc_id, ant_id, sym_id, tti, flowId, mu)) != 0) {
+                            rte_panic("app_io_xran_iq_content_init_up_csirs");
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    xran_prepare_up_dl_sym(xran_port, nSlotIdx, nRuCcidx, 1, nSymMask, nAntStart, nAntNum, nSymStart, nSymNum, mu);
     return SUCCESS;
 }
 
 int32_t
-app_io_xran_dl_post_func(uint16_t nCellIdx, uint32_t nSfIdx, uint32_t nSymMask,  uint32_t nAntStart, uint32_t nAntNum)
+app_io_xran_dl_post_func(uint16_t nCellIdx, uint32_t nSfIdx, uint32_t nSymMask,  uint32_t nAntStart,
+        uint32_t nAntNum, uint8_t mu)
 {
     uint16_t phyInstance = nCellIdx;
     // uint32_t Ntx_antennas;
@@ -417,9 +440,9 @@ app_io_xran_dl_post_func(uint16_t nCellIdx, uint32_t nSfIdx, uint32_t nSymMask, 
     // pXranConf = &app_io_xran_fh_config[xran_port];
 //    Ntx_antennas = pXranConf->neAxc;
 
-    app_io_xran_dl_pack_func(nCellIdx, nSfIdx, nSymMask, nAntStart, nAntNum, 0, XRAN_NUM_OF_SYMBOL_PER_SLOT);
+    app_io_xran_dl_pack_func(nCellIdx, nSfIdx, nSymMask, nAntStart, nAntNum, 0, XRAN_NUM_OF_SYMBOL_PER_SLOT, mu);
 
-    MLogTask(PCID_GNB_DL_IQ_COMPRESS_CC0 + phyInstance, tTotal, MLogTick());
+    MLogTask(PCID_FH_DL_IQ_COMPRESS_CC0 + phyInstance, tTotal, MLogTick());
 
     return SUCCESS;
 }
@@ -447,6 +470,7 @@ int32_t app_bbu_pool_task_dl_post(void *pCookies)
     uint32_t mlogVar[10];
     uint32_t mlogVarCnt = 0;
     uint16_t nLayerStart = 0, nLayer = 0;
+    uint8_t mu = pEventCtrl->mu;
     mlog_start = MLogTick();
 
     if(LAYER_SPLIT == pTaskPara->eSplitType) {
@@ -469,7 +493,7 @@ int32_t app_bbu_pool_task_dl_post(void *pCookies)
     for(iOfdmSymb = nSymbStart; iOfdmSymb < (nSymbStart + nSymb); iOfdmSymb ++)
         nSymMask |= (1 << iOfdmSymb);
 
-    app_io_xran_dl_post_func(pEventCtrl->nCellIdx, pEventCtrl->nSlotIdx, /*0x3FFF*/ nSymMask, nLayerStart, nLayer);
+    app_io_xran_dl_post_func(pEventCtrl->nCellIdx, pEventCtrl->nSlotIdx, /*0x3FFF*/ nSymMask, nLayerStart, nLayer, mu);
 
 #if 1
     {
@@ -488,7 +512,7 @@ int32_t app_bbu_pool_task_dl_post(void *pCookies)
     //unlock the next task
     next_event_unlock(pCookies);
 
-    MLogTask(PCID_GNB_DL_POST_CC0+nCellIdx, mlog_start, MLogTick());
+    MLogTask(PCID_NR5G_DL_POST_CC0+nCellIdx, mlog_start, MLogTick());
     return EBBUPOOL_CORRECT;
 }
 

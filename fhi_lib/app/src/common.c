@@ -31,14 +31,16 @@
 
 #include "xran_mlog_lnx.h"
 
+//#define DEBUG_GEN_BIN_FILES /**< enable write IQ files as .bin along with .txt */
+
 extern enum app_state state;
 struct o_xu_buffers* p_o_xu_buff[XRAN_PORTS_NUM] = {NULL, NULL, NULL, NULL};
 
 // F1 Tables 38.101-1 Table 5.3.2-1. Maximum transmission bandwidth configuration NRB
-uint16_t nLteNumRbsPerSymF1[1][4] =
+uint16_t nLteNumRbsPerSymF1[1][6] =
 {
-    //  5MHz    10MHz   15MHz   20 MHz
-        {25,    50,     75,     100},         // Numerology 0 (15KHz)
+    //  1.4MHz   3MHz    5MHz   10MHz   15MHz   20 MHz
+        {6,      15,     25,    50,     75,     100},         // Numerology 0 (15KHz)
 };
 
 // F1 Tables 38.101-1 Table 5.3.2-1. Maximum transmission bandwidth configuration NRB
@@ -46,8 +48,8 @@ uint16_t nNumRbsPerSymF1[3][13] =
 {
     //  5MHz    10MHz   15MHz   20 MHz  25 MHz  30 MHz  40 MHz  50MHz   60 MHz  70 MHz  80 MHz   90 MHz  100 MHz
         {25,    52,     79,     106,    133,    160,    216,    270,    0,         0,      0,      0,      0},         // Numerology 0 (15KHz)
-        {11,    24,     38,     51,     65,     78,     106,    133,    162,       0,    217,    245,    273},         // Numerology 1 (30KHz)
-        {0,     11,     18,     24,     31,     38,     51,     65,     79,        0,    107,    121,    135}          // Numerology 2 (60KHz)
+        {11,    24,     38,     51,     65,     78,     106,    133,    162,     189,    217,    245,    273},         // Numerology 1 (30KHz)
+        {0,     11,     18,     24,     31,     38,     51,     65,     79,       93,    107,    121,    135}          // Numerology 2 (60KHz)
 };
 
 // F2 Tables 38.101-2 Table 5.3.2-1. Maximum transmission bandwidth configuration NRB
@@ -59,22 +61,25 @@ uint16_t nNumRbsPerSymF2[2][4] =
 };
 
 // 38.211 - Table 4.2.1
-uint16_t nSubCarrierSpacing[5] =
+uint16_t nSubCarrierSpacing[6] =
 {
     15,     // mu = 0
     30,     // mu = 1
     60,     // mu = 2
     120,    // mu = 3
-    240     // mu = 4
+    240,     // mu = 4 -Not supported
+    15,     //  for NB-IOT
 };
 
 // TTI interval in us (slot duration)
-uint16_t nTtiInterval[4] =
+uint16_t nTtiInterval[6] =
 {
     1000,     // mu = 0
     500,     // mu = 1
     250,     // mu = 2
     125,     // mu = 3
+    0,      // mu = 4, Not supported 62.5 us TTI
+    1000,     // mu = 0, using this index for Nb-IOT
 };
 
 
@@ -106,7 +111,7 @@ float g_DlRate[XRAN_MAX_SECTOR_NR] = {0.0};
 
 uint32_t app_xran_get_tti_interval(uint8_t nMu)
 {
-    if (nMu < 4)
+    if (nMu < XRAN_MAX_NUM_MU)
     {
         return nTtiInterval[nMu];
     }
@@ -153,24 +158,34 @@ uint16_t app_xran_get_num_rbs(uint8_t ranTech, uint32_t nNumerology, uint32_t nB
 {
     uint32_t error = 1;
     uint16_t numRBs = 0;
+    if(nNumerology == XRAN_NBIOT_MU) /*NB-IOt test case: use configs for mu = 0*/
+        nNumerology = 0;
 
     if (ranTech == XRAN_RAN_LTE) {
         switch(nBandwidth)
         {
+            case PHY_BW_1_4_0_MHZ:
+                numRBs = nLteNumRbsPerSymF1[0][0];
+                error = 0;
+            break;
+            case PHY_BW_3_0_MHZ:
+                numRBs = nLteNumRbsPerSymF1[0][1];
+                error = 0;
+            break;
             case PHY_BW_5_0_MHZ:
-                numRBs = nLteNumRbsPerSymF1[nNumerology][0];
+                numRBs = nLteNumRbsPerSymF1[0][2];
                 error = 0;
             break;
             case PHY_BW_10_0_MHZ:
-                numRBs = nLteNumRbsPerSymF1[nNumerology][1];
+                numRBs = nLteNumRbsPerSymF1[0][3];
                 error = 0;
             break;
             case PHY_BW_15_0_MHZ:
-                numRBs = nLteNumRbsPerSymF1[nNumerology][2];
+                numRBs = nLteNumRbsPerSymF1[0][4];
                 error = 0;
             break;
             case PHY_BW_20_0_MHZ:
-                numRBs = nLteNumRbsPerSymF1[nNumerology][3];
+                numRBs = nLteNumRbsPerSymF1[0][5];
                 error = 0;
             break;
             default:
@@ -269,6 +284,67 @@ uint16_t app_xran_get_num_rbs(uint8_t ranTech, uint32_t nNumerology, uint32_t nB
                 break;
             }
         }
+        else if (nNumerology < 3)
+        {
+            switch(nBandwidth)
+            {
+                case PHY_BW_5_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][0];
+                    error = 0;
+                break;
+                case PHY_BW_10_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][1];
+                    error = 0;
+                break;
+                case PHY_BW_15_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][2];
+                    error = 0;
+                break;
+                case PHY_BW_20_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][3];
+                    error = 0;
+                break;
+                case PHY_BW_25_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][4];
+                    error = 0;
+                break;
+                case PHY_BW_30_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][5];
+                    error = 0;
+                break;
+                case PHY_BW_40_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][6];
+                    error = 0;
+                break;
+                case PHY_BW_50_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][7];
+                    error = 0;
+                break;
+                case PHY_BW_60_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][8];
+                    error = 0;
+                break;
+                case PHY_BW_70_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][9];
+                    error = 0;
+                break;
+                case PHY_BW_80_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][10];
+                    error = 0;
+                break;
+                case PHY_BW_90_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][11];
+                    error = 0;
+                break;
+                case PHY_BW_100_0_MHZ:
+                    numRBs = nNumRbsPerSymF1[nNumerology][12];
+                    error = 0;
+                break;
+                default:
+                    error = 1;
+                break;
+            }
+        }
     }
 
 
@@ -355,7 +431,7 @@ int32_t app_xran_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexTyp
 {
     uint32_t nSlotNum, nSymNum, nVal, i;
     uint32_t numDlSym, numUlSym, numGuardSym;
-    uint32_t numDlSlots = 0, numUlSlots = 0, numSpDlSlots = 0, numSpUlSlots = 0, numSpSlots = 0;
+    uint32_t numDlSlots = 0, numUlSlots = 0, numSpDlSlots = 0, numSpUlSlots = 0;// numSpSlots = 0;
     char sSlotPattern[XRAN_SLOT_TYPE_LAST][10] = {"IN\0", "DL\0", "UL\0", "SP\0", "FD\0"};
 
     // nPhyInstanceId    Carrier ID
@@ -422,7 +498,7 @@ int32_t app_xran_set_slot_type(uint32_t nPhyInstanceId, uint32_t nFrameDuplexTyp
             else
             {
                 g_SlotType[nPhyInstanceId][nSlotNum] = XRAN_SLOT_TYPE_SP;
-                numSpSlots++;
+                //numSpSlots++;
 
                 if (numDlSym)
                 {
@@ -510,6 +586,9 @@ int32_t app_xran_get_slot_type(int32_t nCellIdx, int32_t nSlotdx, int32_t nType)
 
 void sys_save_buf_to_file(char *filename, char *bufname, unsigned char *pBuffer, unsigned int size, unsigned int buffers_num)
 {
+#ifndef DEBUG_GEN_BIN_FILES
+    return ;
+#endif
     if (size)
     {
         if (filename && bufname)
@@ -523,11 +602,10 @@ void sys_save_buf_to_file(char *filename, char *bufname, unsigned char *pBuffer,
             }
             else
             {
-                uint32_t             num;
-                num = fwrite(pBuffer, buffers_num, size, file);
+                fwrite(pBuffer, buffers_num, size, file);
                 fflush(file);
                 fclose(file);
-                printf("from addr (0x%lx) size (%d) bytes num (%d)", (uint64_t)pBuffer, size, num);
+                // printf("from addr (0x%lx) size (%d) bytes num (%d)", (uint64_t)pBuffer, size, num);
             }
             printf(" \n");
         }
@@ -570,12 +648,12 @@ int sys_load_file_to_buff(char *filename, char *bufname, unsigned char *pBuffer,
                 if ((file_size > size) || (file_size == 0))
                     file_size = size;
 
-                printf("Reading IQ samples from file: File Size: %d [Buffer Size: %d]\n", file_size, size);
+                // printf("Reading IQ samples from file: File Size: %d [Buffer Size: %d]\n", file_size, size);
 
                 num = fread(pBuffer, buffers_num, size, file);
                 fflush(file);
                 fclose(file);
-                printf("from addr (0x%lx) size (%d) bytes num (%d)", (uint64_t)pBuffer, file_size, num);
+                // printf("from addr (0x%lx) size (%d) bytes num (%d)", (uint64_t)pBuffer, file_size, num);
             }
             printf(" \n");
 
@@ -593,7 +671,7 @@ int sys_load_file_to_buff(char *filename, char *bufname, unsigned char *pBuffer,
 }
 
 
-void sys_save_buf_to_file_txt(char *filename, char *bufname, unsigned char *pBuffer, unsigned int size, unsigned int buffers_num)
+void sys_save_buf_to_file_txt(char *filename, char *bufname, unsigned char *pBuffer, unsigned int size, unsigned int buffers_num, unsigned int bitwidth)
 {
     unsigned int i;
     int ret = 0;
@@ -614,36 +692,55 @@ void sys_save_buf_to_file_txt(char *filename, char *bufname, unsigned char *pBuf
             }
             else
             {
-                uint32_t num = 0;
+                // uint32_t num = 0;
 
-                signed short *ptr = (signed short*)pBuffer;
-                for (i = 0; i < (size/((unsigned int)sizeof(signed short) /** 2 * 2 * 2*/)); i = i + 2)
+                if(bitwidth == 2)
                 {
-#ifndef CSCOPE_DEBUG
-                    ret = fprintf(file,"%d %d\n", ptr[i], ptr[i + 1]);
-#else
-                    ret = fprintf(file,"%d %d ", ptr[i], ptr[i + 1]);
-                    /*      I data => Ramp data, from 1 to 792.
-                            Q data => Contains time information of the current symbol:
-                            Bits [15:14] = Antenna-ID
-                            Bits [13:12] = “00”
-                            Bits [11:8]  = Subframe-ID
-                            Bits [7:4]   = Slot-ID
-                            Bits [3:0]   = Symbol-ID */
-                            fprintf(file, "0x%04x: ant %d Subframe-ID %d Slot-ID %d Symbol-ID %d\n",
-                                        ptr[i + 1], (ptr[i + 1]>>14) & 0x3,  (ptr[i + 1]>>8) & 0xF,  (ptr[i + 1]>>4) & 0xF, (ptr[i + 1]>>0) & 0xF);
-#endif
-                    if (ret < 0)
+                    signed short *ptr = (signed short*)pBuffer;
+                    for (i = 0; i < (size/((unsigned int)sizeof(signed short) /** 2 * 2 * 2*/)); i = i + 2)
                     {
-                        printf("fprintf %d\n", ret);
-                        fclose(file);
-                        break;
+    #ifndef CSCOPE_DEBUG
+                        ret = fprintf(file,"%d %d\n", ptr[i], ptr[i + 1]);
+    #else
+                        ret = fprintf(file,"%d %d ", ptr[i], ptr[i + 1]);
+                        /*      I data => Ramp data, from 1 to 792.
+                                Q data => Contains time information of the current symbol:
+                                Bits [15:14] = Antenna-ID
+                                Bits [13:12] = ï¿½00ï¿½
+                                Bits [11:8]  = Subframe-ID
+                                Bits [7:4]   = Slot-ID
+                                Bits [3:0]   = Symbol-ID */
+                                fprintf(file, "0x%04x: ant %d Subframe-ID %d Slot-ID %d Symbol-ID %d\n",
+                                            ptr[i + 1], (ptr[i + 1]>>14) & 0x3,  (ptr[i + 1]>>8) & 0xF,  (ptr[i + 1]>>4) & 0xF, (ptr[i + 1]>>0) & 0xF);
+    #endif
+                        if (ret < 0)
+                        {
+                            printf("fprintf %d\n", ret);
+                            break;
+                        }
+                        //num++;
                     }
-                    num++;
                 }
+                else if(bitwidth == 1)
+                {
+                    int8_t *ptr = (int8_t *)pBuffer;
+                    for (i = 0; i < size/2; i += 2)
+                    {
+                        ret = fprintf(file,"%d %d\n", ptr[i], ptr[i + 1]);
+                        if (ret < 0)
+                        {
+                            printf("fprintf %d\n", ret);
+                            break;
+                        }
+                        // num++;
+                    }
+                }
+                else
+                    printf("Invalid bitwidth configuration! [%d]\n", bitwidth);
+
                 fflush(file);
                 fclose(file);
-                printf("from addr (0x%lx) size (%d) IQ num (%d)", (uint64_t)pBuffer, size, num);
+                // printf("from addr (0x%lx) size (%d) IQ num (%d)", (uint64_t)pBuffer, size, num);
             }
             printf(" \n");
         }
@@ -658,3 +755,31 @@ void sys_save_buf_to_file_txt(char *filename, char *bufname, unsigned char *pBuf
     }
 }
 
+void app_print_xran_antenna_stats(uint8_t app_mode, int o_xu_id, struct xran_common_counters *x_counters)
+{
+
+    uint8_t ant_id;
+    uint8_t ant_id_max =  8 ;
+    /** UP Stats **/
+    printf("[%s Stats:]\n",(app_mode == APP_O_DU) ? "PUSCH" : "PDSCH");
+
+    for( ant_id = 0 ; ant_id < ant_id_max ; ant_id++)
+    {
+        printf("Ant-%hhu\t\t",ant_id);
+
+        if(ant_id+1 == ant_id_max)
+            printf("\n");
+    }
+
+    for(ant_id = 0 ; ant_id < ant_id_max ; ant_id++)
+    {
+        printf("%lu\t\t",x_counters->rx_pusch_packets[ant_id]);
+
+        if(ant_id+1 == ant_id_max)
+            printf("\n");
+    }
+
+    printf("\n");
+
+    return;
+}

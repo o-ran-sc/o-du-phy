@@ -70,6 +70,8 @@ struct xranlib_decompress_request {
     int16_t csf; /*!< 1-bit constellation shift flag defined in section 5.4.7.4  */
     uint16_t ScaleFactor; /*!< Scale factor as defined in section A.5*/
     int32_t len; /*!< Length of input data. */
+    int16_t SprEnable;     /*!< whether enable spr data cvt int16 to fp16 ,0 - disable/1 - enable */
+    float fScale;     /*!< Scale of the spr data cvt */
 };
 
 /*!
@@ -156,8 +158,14 @@ xranlib_decompress_avx512_bfw(const struct xranlib_decompress_request *request,
 int32_t
 xranlib_decompress_avxsnc_bfw(const struct xranlib_decompress_request *request,
      struct xranlib_decompress_response *response);
+int32_t
+xranlib_decompress_5gisa(const struct xranlib_decompress_request *request,
+    struct xranlib_decompress_response *response);
 
 //! @}
+
+extern int gCpuCapability;
+#define XRANLIB_COMPAND_CHECK_CPU_CAPABILITY() ((gCpuCapability == 1) || (gCpuCapability == 2))
 
 #ifdef __cplusplus
 }

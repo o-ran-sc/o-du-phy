@@ -117,7 +117,7 @@ const xRANPrachConfigTableStruct gxranPrachDataTable_sub6_fdd[XRAN_PRACH_CONFIG_
     { 83, { 3 }, 1, { 0 }, { 3, 6, 9 }, 3, 0, 0, 0, 0 },
     { 84, { 3 }, 1, { 0 }, { 0, 2, 4, 6, 8 }, 5, 0, 0, 0, 0 },
     { 85, { 3 }, 1, { 0 }, { 1, 3, 5, 7, 9 }, 5, 0, 0, 0, 0 },
-    { 86, { 3 }, 1, { 0 }, { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, 10, 0, 0, 0, 0 },
+    { 86, { 3 }, 1, { 0 }, { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, 10, 7, 0, 0, 0 },
     { 87, { FORMAT_A1 }, 16, { 0 }, { 4, 9 }, 2, 0, 1, 6, 2 },
     { 88, { FORMAT_A1 }, 16, { 1 }, { 4 }, 1, 0, 2, 6, 2 },
     { 89, { FORMAT_A1 }, 8, { 0 }, { 4, 9 }, 2, 0, 1, 6, 2 },
@@ -857,5 +857,89 @@ const xRANPrachPreambleLRAStruct gxranPreambleforLRA[13] =
     {FORMAT_B4, 139,  15, 12,  936 },
     {FORMAT_C0, 139,  15, 1 ,  1240},
     {FORMAT_C2, 139,  15, 4 ,  2048}
+};
+
+
+/* 3GPP 36.211-a70 Table - 5.7.1-2 */
+const struct xran_lte_prach_config_table gxranPrachDataTable_lte_fs1[XRAN_LTE_PRACH_CONFIG_TABLE_SIZE] =
+{
+    /*    Format    System Frame Number   Sub frame Number              */
+    /*                                    0  1  2  3  4  5  6  7  8  9  */
+    {  0, FORMAT_0, PRACH_EVEN_FRAME,   { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    {  1, FORMAT_0, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    {  2, FORMAT_0, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    {  3, FORMAT_0, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    {  4, FORMAT_0, PRACH_ANY_FRAME,    { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    {  5, FORMAT_0, PRACH_ANY_FRAME,    { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    {  6, FORMAT_0, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 0, 0, 1, 0, 0, 0 } },
+    {  7, FORMAT_0, PRACH_ANY_FRAME,    { 0, 0, 1, 0, 0, 0, 0, 1, 0, 0 } },
+    {  8, FORMAT_0, PRACH_ANY_FRAME,    { 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 } },
+    {  9, FORMAT_0, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 1, 0, 0, 1, 0, 0 } },
+    { 10, FORMAT_0, PRACH_ANY_FRAME,    { 0, 0, 1, 0, 0, 1, 0, 0, 1, 0 } },
+    { 11, FORMAT_0, PRACH_ANY_FRAME,    { 0, 0, 0, 1, 0, 0, 1, 0, 0, 1 } },
+    { 12, FORMAT_0, PRACH_ANY_FRAME,    { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0 } },
+    { 13, FORMAT_0, PRACH_ANY_FRAME,    { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1 } },
+    { 14, FORMAT_0, PRACH_ANY_FRAME,    { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 } },
+    { 15, FORMAT_0, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } },
+    { 16, FORMAT_1, PRACH_EVEN_FRAME,   { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { 17, FORMAT_1, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    { 18, FORMAT_1, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    { 19, FORMAT_1, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { 20, FORMAT_1, PRACH_ANY_FRAME,    { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    { 21, FORMAT_1, PRACH_ANY_FRAME,    { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    { 22, FORMAT_1, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 0, 0, 1, 0, 0, 0 } },
+    { 23, FORMAT_1, PRACH_ANY_FRAME,    { 0, 0, 1, 0, 0, 0, 0, 1, 0, 0 } },
+    { 24, FORMAT_1, PRACH_ANY_FRAME,    { 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 } },
+    { 25, FORMAT_1, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 1, 0, 0, 1, 0, 0 } },
+    { 26, FORMAT_1, PRACH_ANY_FRAME,    { 0, 0, 1, 0, 0, 1, 0, 0, 1, 0 } },
+    { 27, FORMAT_1, PRACH_ANY_FRAME,    { 0, 0, 0, 1, 0, 0, 1, 0, 0, 1 } },
+    { 28, FORMAT_1, PRACH_ANY_FRAME,    { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0 } },
+    { 29, FORMAT_1, PRACH_ANY_FRAME,    { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1 } },
+    { -1, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    /*                                    0  1  2  3  4  5  6  7  8  9  */
+    { 31, FORMAT_1, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } },
+    { 32, FORMAT_2, PRACH_EVEN_FRAME,   { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { 33, FORMAT_2, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    { 34, FORMAT_2, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    { 35, FORMAT_2, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { 36, FORMAT_2, PRACH_ANY_FRAME,    { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    { 37, FORMAT_2, PRACH_ANY_FRAME,    { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    { 38, FORMAT_2, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 0, 0, 1, 0, 0, 0 } },
+    { 39, FORMAT_2, PRACH_ANY_FRAME,    { 0, 0, 1, 0, 0, 0, 0, 1, 0, 0 } },
+    { 40, FORMAT_2, PRACH_ANY_FRAME,    { 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 } },
+    { 41, FORMAT_2, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 1, 0, 0, 1, 0, 0 } },
+    { 42, FORMAT_2, PRACH_ANY_FRAME,    { 0, 0, 1, 0, 0, 1, 0, 0, 1, 0 } },
+    { 43, FORMAT_2, PRACH_ANY_FRAME,    { 0, 0, 0, 1, 0, 0, 1, 0, 0, 1 } },
+    { 44, FORMAT_2, PRACH_ANY_FRAME,    { 1, 0, 1, 0, 1, 0, 1, 0, 1, 0 } },
+    { 45, FORMAT_2, PRACH_ANY_FRAME,    { 0, 1, 0, 1, 0, 1, 0, 1, 0, 1 } },
+    { -1, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    /*                                    0  1  2  3  4  5  6  7  8  9  */
+    { 47, FORMAT_2, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } },
+    { 48, FORMAT_3, PRACH_EVEN_FRAME,   { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { 49, FORMAT_3, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    { 50, FORMAT_3, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    { 51, FORMAT_3, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { 52, FORMAT_3, PRACH_ANY_FRAME,    { 0, 0, 0, 0, 1, 0, 0, 0, 0, 0 } },
+    { 53, FORMAT_3, PRACH_ANY_FRAME,    { 0, 0, 0, 0, 0, 0, 0, 1, 0, 0 } },
+    { 54, FORMAT_3, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 0, 0, 1, 0, 0, 0 } },
+    { 55, FORMAT_3, PRACH_ANY_FRAME,    { 0, 0, 1, 0, 0, 0, 0, 1, 0, 0 } },
+    { 56, FORMAT_3, PRACH_ANY_FRAME,    { 0, 0, 0, 1, 0, 0, 0, 0, 1, 0 } },
+    { 57, FORMAT_3, PRACH_ANY_FRAME,    { 0, 1, 0, 0, 1, 0, 0, 1, 0, 0 } },
+    { 58, FORMAT_3, PRACH_ANY_FRAME,    { 0, 0, 1, 0, 0, 1, 0, 0, 1, 0 } },
+    { 59, FORMAT_3, PRACH_ANY_FRAME,    { 0, 0, 0, 1, 0, 0, 1, 0, 0, 1 } },
+    { -1, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { -1, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { -1, 0, 0, { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 } },
+    { 63, FORMAT_3, PRACH_EVEN_FRAME,   { 0, 0, 0, 0, 0, 0, 0, 0, 0, 1 } },
+};
+
+const struct xran_lte_prach_preambleformat_table gxranLtePreambleFormat[5] =
+{
+    /* Format    Tcp     Tseq   Nzc   fRA */
+    { FORMAT_0,  3168,   24576, 839, 1500 }, 
+    { FORMAT_1, 21024,   24576, 839, 1500 }, 
+    { FORMAT_2,  6240, 2*24576, 839, 1500 }, 
+    { FORMAT_3, 21024, 2*24576, 839, 1500 }, 
+    { FORMAT_4,   448,    4096, 139, 7500 }
 };
 

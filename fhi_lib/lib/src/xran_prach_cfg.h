@@ -37,6 +37,12 @@ extern "C" {
 #define XRAN_PRACH_CANDIDATE_SLOT        (40)
 #define XRAN_PRACH_CONFIG_TABLE_SIZE     (256)
 #define XRAN_PRACH_PREAMBLE_FORMAT_OF_ABC (9)
+#define XRAN_LTE_PRACH_CONFIG_TABLE_SIZE    (64)
+#define XRAN_LTE_MAX_PRACH_PREAMBLE_FORMAT  (4)
+
+#if !(defined(SUBFRAMES_PER_SYSTEMFRAME))
+#define  SUBFRAMES_PER_SYSTEMFRAME 10
+#endif
 
 typedef enum
 {
@@ -53,8 +59,15 @@ typedef enum
     FORMAT_B4,
     FORMAT_C0,
     FORMAT_C2,
+    FORMAT_4,
     FORMAT_LAST
 }PreambleFormatEnum;
+
+enum
+{
+    PRACH_ANY_FRAME     = 1,
+    PRACH_EVEN_FRAME    = 2,
+};
 
 /* add PRACH used config table, same structure as used in refPHY */
 typedef struct
@@ -80,6 +93,24 @@ typedef struct
     uint16_t   nRaCp;
 }xRANPrachPreambleLRAStruct;
 
+struct xran_lte_prach_config_table
+{
+    int16_t     prachConfigIdx; /* 0 ~ 63, -1 means N/A */
+    uint8_t     preambleFmrt;   /* FORMAT_X */
+    uint8_t     frameNum;       /* PRACH_XXX_FRAME */
+
+    uint8_t     sfnNum[SUBFRAMES_PER_SYSTEMFRAME]; /* 0 or 1 */
+};
+
+struct xran_lte_prach_preambleformat_table
+{
+    uint16_t    preambleFmrt;
+    uint16_t    Tcp;
+    uint32_t    Tseq;
+    uint16_t    Nzc;
+    uint16_t    fRA;
+};
+
 struct xran_prach_cp_config
 {
     uint8_t    filterIdx;
@@ -94,13 +125,25 @@ struct xran_prach_cp_config
     uint8_t    x;
     uint8_t    y[XRAN_PRACH_CANDIDATE_Y];
     uint8_t    isPRACHslot[XRAN_PRACH_CANDIDATE_SLOT];
-    uint8_t    eAxC_offset;  /**< starting eAxC for PRACH stream */
+	uint8_t    duration;
+    uint16_t   prachEaxcOffset;  /**< starting eAxC for PRACH stream */
+    /*Parameters for NB-IOT*/
+    uint8_t    nprachformat;
+    uint16_t   periodicity;
+    uint16_t   startTime;
+    uint8_t    suboffset;
+    uint8_t    numSubCarriers;
+    uint8_t    nRep; /*Repetitions*/
+    /* -- end of Parameters fo NB-IOT */
 };
 
 extern const xRANPrachConfigTableStruct gxranPrachDataTable_sub6_fdd[XRAN_PRACH_CONFIG_TABLE_SIZE];
 extern const xRANPrachConfigTableStruct gxranPrachDataTable_sub6_tdd[XRAN_PRACH_CONFIG_TABLE_SIZE];
 extern const xRANPrachConfigTableStruct gxranPrachDataTable_mmw[XRAN_PRACH_CONFIG_TABLE_SIZE];
 extern const xRANPrachPreambleLRAStruct gxranPreambleforLRA[13];
+
+extern const struct xran_lte_prach_config_table gxranPrachDataTable_lte_fs1[XRAN_LTE_PRACH_CONFIG_TABLE_SIZE];
+extern const struct xran_lte_prach_preambleformat_table gxranLtePreambleFormat[5];
 
 #ifdef __cplusplus
 }

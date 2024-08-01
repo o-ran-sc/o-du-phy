@@ -1,20 +1,8 @@
-/******************************************************************************
-*
-*   Copyright (c) 2021 Intel.
-*
-*   Licensed under the Apache License, Version 2.0 (the "License");
-*   you may not use this file except in compliance with the License.
-*   You may obtain a copy of the License at
-*
-*       http://www.apache.org/licenses/LICENSE-2.0
-*
-*   Unless required by applicable law or agreed to in writing, software
-*   distributed under the License is distributed on an "AS IS" BASIS,
-*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*   See the License for the specific language governing permissions and
-*   limitations under the License.
-*
-*******************************************************************************/
+/*******************************************************************************
+ *
+ * <COPYRIGHT_TAG>
+ *
+ *******************************************************************************/
 
 /**
  * WLS interface test application
@@ -43,11 +31,11 @@
 #include <rte_eal.h>
 
 
-#define HANDLE	PVOID
+#define HANDLE  PVOID
 
 
-#define K 			1024
-#define M			(K*K)
+#define K           1024
+#define M           (K*K)
 
 #define   DEFAULT_TEST_MEMORY_SIZE      256*M
 #define   DEFAUTL_TEST_BLOCK_SIZE       16*K
@@ -356,7 +344,7 @@ static U32 ICC_CRC32(U8 *pData, U32 size)
     if (!size)
         return CRC32_INIT_VAL; // mean CRC error
     do {
-        retval ^= *pData++;
+        retval ^= (U32)(*pData++);  //Add type conversion to fix Klocwork CWARN.BITOP.SIZE issue.
         for (i = 8; i > 0; --i) {
             tmp = retval & 0x01;
             retval >>= 1;
@@ -396,17 +384,17 @@ static unsigned long long app_GetMessageCRC(void* h, unsigned int *MsgSize, unsi
     U64 pMsgPa = WLS_Get(h, MsgSize, MsgTypeID, Flags);
 
     if (pMsgPa) {
-    U64 pMsg = (U64) WlsPaToVa((void*) pMsgPa);
+        U64 pMsg = (U64) WlsPaToVa((void*) pMsgPa);
 
-    if (pMsg) {
-        U32 size = *MsgSize;
-        U32 crc = ICC_CRC32((U8*) pMsg, size);
+        if (pMsg) {
+            U32 size = *MsgSize;
+            U32 crc = ICC_CRC32((U8*) pMsg, size);
 
-        if (crc != 0) {
+            if (crc != 0) {
                 nCRC_Fail++;
-            printf("CRC error detected for message %p, size_%lu\n", (void*) pMsg, (long) size);
-            ShowData((U8*) pMsg, size);
-        }
+                printf("CRC error detected for message %p, size_%lu\n", (void*) pMsg, (long) size);
+                ShowData((U8*) pMsg, size);
+            }
             else {
                 if (nCRC_Pass == 0) {
                     printf("Example of Msg Size and Content being sent: %d\n", size);
@@ -424,17 +412,17 @@ static unsigned long long app_WGetMessageCRC(void* h, unsigned int *MsgSize, uns
     U64 pMsgPa = WLS_WGet(h, MsgSize, MsgTypeID, Flags);
 
     if (pMsgPa) {
-    U64 pMsg = (U64) WlsPaToVa((void*) pMsgPa);
+        U64 pMsg = (U64) WlsPaToVa((void*) pMsgPa);
 
-    if (pMsg) {
-        U32 size = *MsgSize;
-        U32 crc = ICC_CRC32((U8*) pMsg, size);
+        if (pMsg) {
+            U32 size = *MsgSize;
+            U32 crc = ICC_CRC32((U8*) pMsg, size);
 
-        if (crc != 0) {
+            if (crc != 0) {
                 nCRC_Fail++;
-            printf("CRC error detected for message %p, size_%lu\n", (void*) pMsg, (long) size);
-            ShowData((U8*) pMsg, size);
-        }
+                printf("CRC error detected for message %p, size_%lu\n", (void*) pMsg, (long) size);
+                ShowData((U8*) pMsg, size);
+            }
             else {
                 if (nCRC_Pass == 0) {
                     printf("Example of Msg Size and Content being sent: %d\n", size);
@@ -456,11 +444,11 @@ static void CreateMessage(PAPP_MESSAGE p, U32 size)
 static void CheckMessage(PAPP_MESSAGE p, U32 size)
 {
     if (AppContext.RxCnt && p->id != AppContext.RxCnt) {
-        //		char buf[8*K];
+        //      char buf[8*K];
         printf("rx message(id_%llu)_%lx error expected_%lu, received_%lu\n", (long long) AppContext.nRxMsgs, (U64) p, (long) AppContext.RxCnt, (long) p->id);
         ShowData(p, size);
-        //		if (TL_GetStatistics(AppContext.hWls, buf, sizeof(buf)))
-        //		printf("%s", buf);
+        //      if (TL_GetStatistics(AppContext.hWls, buf, sizeof(buf)))
+        //      printf("%s", buf);
     }
 
     AppContext.RxCnt = p->id;
@@ -607,7 +595,7 @@ static void app_SanityTestTransmitter(HANDLE hWls)
  * @description
  *    The routine takes received messages and checks the sanity incremental
  * counter to confirm the order. In case the counter does not correspond to
- * expected counter (misordered message or incorrect message) an error is
+ * expected counter (misordered message or incorrect message) an Err is
  * printed to STDOUT.
  *
  * @references
@@ -626,7 +614,6 @@ static void app_SanityTestReceiver(HANDLE hWls)
     U8 TempBuf[16 * K];
     unsigned short MsgTypeID;
     unsigned short Flags;
-    U32 nBlocksSlave = 0;
 
     // handle RX receiver
     while (((pMsgPa = (U8 *) AppContext.wls_get(AppContext.hWls, &MsgSize, &MsgTypeID, &Flags)) != NULL)) {
@@ -661,9 +648,7 @@ static void app_SanityTestReceiver(HANDLE hWls)
                 void* pBlock = App_Alloc(AppContext.hWls, DEFAUTL_TEST_BLOCK_SIZE);
                 if (pBlock) {
                     res = WLS_EnqueueBlock(AppContext.hWls, (U64) WlsVaToPa(pBlock));
-                    if (res)
-                        nBlocksSlave++;
-                    else
+                    if (res == 0)
                         App_Free(AppContext.hWls, pBlock);
                 } else
                     res = FALSE;
@@ -732,24 +717,24 @@ static void app_UpdateStatistics(void)
 static void app_Help(void)
 {
     char help_content[] =  \
-			"WLS test application\n\n"\
-			"Usage: testapp [-c <test>] [-r <rxid>] [-t <txid>] [-n <msgcount>]\n\n"\
-			"supports the following parameters:\n\n"
+            "WLS test application\n\n"\
+            "Usage: testapp [-c <test>] [-r <rxid>] [-t <txid>] [-n <msgcount>]\n\n"\
+            "supports the following parameters:\n\n"
                         "-c | --testcase <test number>     0 - default sanity test\n"\
-			"                                  1 - misaligned pointers test\n"\
-			"                                  2 - aligned 4 pointers test\n"\
-			"                                  3 - random pools test\n"\
-			"                                  4 - ping-pong (ZBC test)\n"\
-			"                                  5 - invalid messages test\n\n"\
-			"--trusted                    switches WLS  to trusted mode\n"\
-			"-r | --rxid <id>             used to specify RxTypeID\n"\
-			"-t | --txid <id>             used to specify TxTypeID\n"\
-			"-n | --msgcount <count>      used to specify number of messages per timeframe\n"\
-			"-l | --minsize  <size>       specifies MIN message size in bytes\n"\
-			"-s | --maxsize  <size>       specifies MAX message size in bytes\n"\
-			"--crc                        enables CRC generation and checking\n"\
-			"--debug                      increases sleep interval to 1 second\n"\
-			"-m | --master                set predefined rxid and txid\n";
+            "                                  1 - misaligned pointers test\n"\
+            "                                  2 - aligned 4 pointers test\n"\
+            "                                  3 - random pools test\n"\
+            "                                  4 - ping-pong (ZBC test)\n"\
+            "                                  5 - invalid messages test\n\n"\
+            "--trusted                    switches WLS  to trusted mode\n"\
+            "-r | --rxid <id>             used to specify RxTypeID\n"\
+            "-t | --txid <id>             used to specify TxTypeID\n"\
+            "-n | --msgcount <count>      used to specify number of messages per timeframe\n"\
+            "-l | --minsize  <size>       specifies MIN message size in bytes\n"\
+            "-s | --maxsize  <size>       specifies MAX message size in bytes\n"\
+            "--crc                        enables CRC generation and checking\n"\
+            "--debug                      increases sleep interval to 1 second\n"\
+            "-m | --master                set predefined rxid and txid\n";
 
     printf("%s", help_content);
 }
@@ -1110,7 +1095,7 @@ int main(int argc, char* argv[])
 
     AppContext.InitQueueSize = APP_QUEUE_SIZE;
 
-    AppContext.hWls = WLS_Open(params.wls_dev_name, !AppContext.master, &nWlsMacMemorySize, &nWlsPhyMemorySize);
+    AppContext.hWls = WLS_Open(params.wls_dev_name, !AppContext.master, &nWlsMacMemorySize, &nWlsPhyMemorySize, 0);
 
     if (!AppContext.hWls) {
         printf("could not register WLS client\n");
@@ -1171,7 +1156,7 @@ int main(int argc, char* argv[])
     }
 
     app_ReleaseAllocatedBuffers();
-    printf("deregistering WLS  (TxTotal_%lld, RxTotal_%lld)\n", (long long) AppContext.nTxMsgs, (long long) AppContext.nRxMsgs);
+    printf("deregistering WLS  (TxTotal_%lu, RxTotal_%lu)\n", (uint64_t) AppContext.nTxMsgs, (uint64_t) AppContext.nRxMsgs);
     if (params.crc)
     {
         printf("Number of CRC Pass %d\n", nCRC_Pass);

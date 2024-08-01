@@ -1,0 +1,170 @@
+#******************************************************************************
+#
+#   Copyright (c) 2019 Intel.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+#
+#******************************************************************************/
+
+# This is simple configuration file. Use '#' sign for comments
+appMode=1 # O-DU(0) | O-RU(1)
+xranMode=0 # Category A  (0) (precoder in O-DU) | Category B (1) (precoder in RU)
+ccNum=3 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 12)
+antNum=4 # Number of Antennas per CC (default: 4) or number of Digital streams for Category B
+
+##Numerology
+mu=1 #30Khz Sub Carrier Spacing
+
+ttiPeriod=500 # in us TTI period (30Khz default 500us)
+
+nDLAbsFrePointA=3568160 #nAbsFrePointA - Abs Freq Point A of the Carrier Center Frequency for in KHz Value: 450000->52600000
+nULAbsFrePointA=3568160 #nAbsFrePointA - Abs Freq Point A of the Carrier Center Frequency for in KHz Value: 450000->52600000
+nDLBandwidth=20 #Carrier bandwidth for in MHz. Value: 5->400
+nULBandwidth=20 #Carrier bandwidth for in MHz. Value: 5->400
+nDLFftSize=1024
+nULFftSize=1024
+
+nFrameDuplexType=0 # 0 - FDD 1 - TDD
+
+MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single
+ #xRAN network layer transaction. supported 1500 bytes and 9600 bytes (Jumbo Frame)
+Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
+Gps_Beta=0
+
+
+
+numSlots=20 #number of slots per IQ files
+
+antC0=./usecase/cat_a/mu1_20mhz/ant_0.bin    #CC0
+antC1=./usecase/cat_a/mu1_20mhz/ant_1.bin    #CC0
+antC2=./usecase/cat_a/mu1_20mhz/ant_2.bin    #CC0
+antC3=./usecase/cat_a/mu1_20mhz/ant_3.bin    #CC0
+antC4=./usecase/cat_a/mu1_20mhz/ant_0.bin    #CC1
+antC5=./usecase/cat_a/mu1_20mhz/ant_1.bin    #CC1
+antC6=./usecase/cat_a/mu1_20mhz/ant_2.bin    #CC1
+antC7=./usecase/cat_a/mu1_20mhz/ant_3.bin    #CC1
+antC8=./usecase/cat_a/mu1_20mhz/ant_0.bin    #CC2
+antC9=./usecase/cat_a/mu1_20mhz/ant_1.bin    #CC2
+antC10=./usecase/cat_a/mu1_20mhz/ant_2.bin   #CC2
+antC11=./usecase/cat_a/mu1_20mhz/ant_3.bin   #CC2
+antC12=./usecase/cat_a/mu1_20mhz/ant_0.bin   #CC3
+antC13=./usecase/cat_a/mu1_20mhz/ant_1.bin   #CC3
+antC14=./usecase/cat_a/mu1_20mhz/ant_2.bin   #CC3
+antC15=./usecase/cat_a/mu1_20mhz/ant_3.bin   #CC3
+antC16=./usecase/cat_a/mu1_20mhz/ant_0.bin   #CC4
+antC17=./usecase/cat_a/mu1_20mhz/ant_1.bin   #CC4
+antC18=./usecase/cat_a/mu1_20mhz/ant_2.bin   #CC4
+antC19=./usecase/cat_a/mu1_20mhz/ant_3.bin   #CC4
+antC20=./usecase/cat_a/mu1_20mhz/ant_0.bin   #CC5
+antC21=./usecase/cat_a/mu1_20mhz/ant_1.bin   #CC5
+antC22=./usecase/cat_a/mu1_20mhz/ant_2.bin   #CC5
+antC23=./usecase/cat_a/mu1_20mhz/ant_3.bin   #CC5
+
+antPrachC0=./usecase/cat_a/mu1_20mhz/ant_0.bin
+antPrachC1=./usecase/cat_a/mu1_20mhz/ant_1.bin
+antPrachC2=./usecase/cat_a/mu1_20mhz/ant_2.bin
+antPrachC3=./usecase/cat_a/mu1_20mhz/ant_3.bin
+antPrachC4=./usecase/cat_a/mu1_20mhz/ant_0.bin
+antPrachC5=./usecase/cat_a/mu1_20mhz/ant_1.bin
+antPrachC6=./usecase/cat_a/mu1_20mhz/ant_2.bin
+antPrachC7=./usecase/cat_a/mu1_20mhz/ant_3.bin
+antPrachC8=./usecase/cat_a/mu1_20mhz/ant_0.bin
+antPrachC9=./usecase/cat_a/mu1_20mhz/ant_1.bin
+antPrachC10=./usecase/cat_a/mu1_20mhz/ant_2.bin
+antPrachC11=./usecase/cat_a/mu1_20mhz/ant_3.bin
+antPrachC12=./usecase/cat_a/mu1_20mhz/ant_0.bin
+antPrachC13=./usecase/cat_a/mu1_20mhz/ant_1.bin
+antPrachC14=./usecase/cat_a/mu1_20mhz/ant_2.bin
+antPrachC15=./usecase/cat_a/mu1_20mhz/ant_3.bin
+antPrachC16=./usecase/cat_a/mu1_20mhz/ant_0.bin
+antPrachC17=./usecase/cat_a/mu1_20mhz/ant_1.bin
+antPrachC18=./usecase/cat_a/mu1_20mhz/ant_2.bin
+antPrachC19=./usecase/cat_a/mu1_20mhz/ant_3.bin
+antPrachC20=./usecase/cat_a/mu1_20mhz/ant_0.bin
+antPrachC21=./usecase/cat_a/mu1_20mhz/ant_1.bin
+antPrachC22=./usecase/cat_a/mu1_20mhz/ant_2.bin
+antPrachC23=./usecase/cat_a/mu1_20mhz/ant_3.bin
+
+
+rachEnable=1 # Enable (1)| disable (0) PRACH configuration
+prachConfigIndex=19 # PRACH config index as per TS36.211 - Table 5.7.1-2 : PRACH Configuration Index
+
+###########################################################
+##Section Settings
+DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used
+
+nPrbElemDl=1
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+# weight base beams
+PrbElemDl0=0,51,0,14,1,1,1,9,1,0,0
+
+
+nPrbElemUl=1
+#nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
+# weight base beams
+PrbElemUl0=0,51,0,14,1,1,1,9,1,0,0
+
+###########################################################
+
+## control of IQ byte order
+iqswap=0 #do swap of IQ before send buffer to eth
+nebyteorderswap=1 #do swap of byte order for each I and Q from CPU byte order to network byte order
+compression=1 # (1) compression enabled (0) compression disabled
+
+##Debug
+debugStop=1 #stop app on 1pps boundary (gps_second % 30)
+debugStopCount=0 #if this value is >0 then stop app after x transmission packets, otherwise app will stop at 1pps boundary
+bbdevMode=-1 #bbdev mode, -1 = not use bbdev, 0: use software mode, 1: use hardware mode
+
+CPenable=0 #(1) C-Plane is enabled| (0) C-Plane is disabled
+
+##O-RU Settings
+Tadv_cp_dl=25 # in us
+              # C-Plane messages must arrive at the RU some amount of time in advance (Tcp_adv_dl) of the corresponding U-Plane messages
+#Reception Window C-plane DL
+T2a_min_cp_dl=285 # 285.42us
+T2a_max_cp_dl=429 # 428.12us
+
+#Reception Window C-plane UL
+T2a_min_cp_ul=285 # 285.42us
+T2a_max_cp_ul=429 # 428.12us
+
+#Reception Window U-plane
+T2a_min_up=71  # 71.35in us
+T2a_max_up=428 # 428.12us
+
+#Transmission Window
+Ta3_min=20 # in us
+Ta3_max=32 # in us
+
+###########################################################
+##O-DU Settings
+#C-plane
+#Transmission Window Fast C-plane DL
+T1a_min_cp_dl=285
+T1a_max_cp_dl=392
+
+##Transmission Window Fast C-plane UL
+T1a_min_cp_ul=285
+T1a_max_cp_ul=300
+
+#U-plane
+##Transmission Window
+T1a_min_up=50  #71 + 25 us
+T1a_max_up=75 #71 + 25 us
+
+#Reception Window
+Ta4_min=0  # in us
+Ta4_max=70 # in us
+###########################################################
+

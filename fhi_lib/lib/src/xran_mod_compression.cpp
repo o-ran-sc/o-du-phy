@@ -18,6 +18,8 @@
 #include <stdio.h>
 #include <immintrin.h>
 #include "xran_mod_compression.h"
+#include "xran_compression.h"
+#include "xran_fh_o_du.h"
 
 #ifdef C_Module_Used
 void
@@ -737,9 +739,9 @@ int xranlib_5gnr_mod_compression_snc(const struct xranlib_5gnr_mod_compression_r
       break;
       default:
           printf("Error invalid modulation compression request\n");
-          return -1;
+          return XRAN_STATUS_FAIL;
     }
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 
 int xranlib_5gnr_mod_compression(const struct xranlib_5gnr_mod_compression_request* request,
@@ -747,7 +749,7 @@ int xranlib_5gnr_mod_compression(const struct xranlib_5gnr_mod_compression_reque
 #ifdef C_Module_Used
     return (xranlib_5gnr_mod_compression_c(request, response));
 #else
-    if(_may_i_use_cpu_feature(_FEATURE_AVX512IFMA52))
+    if(XRANLIB_COMPAND_CHECK_CPU_CAPABILITY())
         return (xranlib_5gnr_mod_compression_snc(request, response));
     else
         return (xranlib_5gnr_mod_compression_avx512(request, response));
@@ -774,9 +776,9 @@ int xranlib_5gnr_mod_compression_c(const struct xranlib_5gnr_mod_compression_req
       break;
       default:
           printf("Error invalid modulation compression request\n");
-          return -1;
+          return XRAN_STATUS_FAIL;
     }
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 #endif
 int xranlib_5gnr_mod_compression_avx512(const struct xranlib_5gnr_mod_compression_request* request,
@@ -798,9 +800,9 @@ int xranlib_5gnr_mod_compression_avx512(const struct xranlib_5gnr_mod_compressio
       break;
       default:
           printf("Error invalid modulation compression request\n");
-          return -1;
+          return XRAN_STATUS_FAIL;
     }
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 
 void
@@ -933,9 +935,9 @@ int xranlib_5gnr_mod_decompression(const struct xranlib_5gnr_mod_decompression_r
       break;
       default:
           printf("Error invalid modulation compression request\n");
-          return -1;
+          return XRAN_STATUS_FAIL;
     }
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 
 

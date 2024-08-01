@@ -24,11 +24,11 @@ MYCUSTOMSPACE1='------------------------------------------------------------'
 #  Tools configuration
 ##############################################################
 ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
-CC  := icc
-CPP := icpc
-AS := as
-AR := ar
-LD := icc
+    CC  := icc
+    CPP := icpc
+    AS := as
+    AR := ar
+    LD := icc
 else ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
     CC  := icx
     CPP := icpx
@@ -39,7 +39,14 @@ else
     $(error "Please define WIRELESS_SDK_TOOLCHAIN environment variable")
 endif
 
-OBJDUMP := objdump
+ifeq ($(WIRELESS_SDK_TARGET_ISA),avx512)
+    TARGET_PROCESSOR := -march=skylake-avx512
+else ifeq ($(WIRELESS_SDK_TARGET_ISA),snc)
+    TARGET_PROCESSOR := -march=icelake-server
+else ifeq ($(WIRELESS_SDK_TARGET_ISA),spr)
+    TARGET_PROCESSOR := -march=sapphirerapids
+endif
+
 
 ifeq ($(SHELL),cmd.exe)
 MD := mkdir.exe -p
@@ -55,7 +62,7 @@ ifeq ($(ORU),1)
 	PROJECT_NAME := libxran-oru
 	BUILDDIR := build-oru
 else
-PROJECT_NAME := libxran
+	PROJECT_NAME := libxran
 	BUILDDIR := build
 endif
 PROJECT_TYPE := lib
@@ -72,7 +79,7 @@ ifeq ($(RTE_SDK),)
 endif
 
 RTE_TARGET ?= x86_64-native-linux-icc
-RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
+RTE_INC := $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
 
 API_DIR := $(PROJECT_DIR)/api
 SRC_DIR := $(PROJECT_DIR)/src
@@ -84,16 +91,16 @@ ifeq ($(MLOG_DIR),)
 endif
 endif
 
-CC_SRC = $(ETH_DIR)/ethdi.c \
-	$(ETH_DIR)/ethernet.c \
+CC_SRC = $(ETH_DIR)/xran_ethdi.c \
+	$(ETH_DIR)/xran_ethernet.c \
 	$(SRC_DIR)/xran_up_api.c \
 	$(SRC_DIR)/xran_sync_api.c \
 	$(SRC_DIR)/xran_timer.c \
-	$(SRC_DIR)/xran_cp_api.c 	\
-	$(SRC_DIR)/xran_transport.c 	\
-	$(SRC_DIR)/xran_common.c        \
-	$(SRC_DIR)/xran_ul_tables.c     \
-	$(SRC_DIR)/xran_frame_struct.c  \
+	$(SRC_DIR)/xran_cp_api.c \
+	$(SRC_DIR)/xran_transport.c \
+	$(SRC_DIR)/xran_common.c \
+	$(SRC_DIR)/xran_ul_tables.c \
+	$(SRC_DIR)/xran_frame_struct.c \
 	$(SRC_DIR)/xran_dev.c \
 	$(SRC_DIR)/xran_rx_proc.c \
 	$(SRC_DIR)/xran_tx_proc.c \
@@ -109,7 +116,6 @@ CPP_SRC = $(SRC_DIR)/xran_compression.cpp \
 	$(SRC_DIR)/xran_bfp_cplane16.cpp \
 	$(SRC_DIR)/xran_bfp_cplane32.cpp \
 	$(SRC_DIR)/xran_bfp_cplane64.cpp \
-	$(SRC_DIR)/xran_bfp_uplane_9b16rb.cpp \
 	$(SRC_DIR)/xran_bfp_uplane.cpp \
 	$(SRC_DIR)/xran_mod_compression.cpp
 
@@ -118,13 +124,14 @@ CPP_SRC_SNC = $(SRC_DIR)/xran_compression_snc.cpp \
 	$(SRC_DIR)/xran_bfp_cplane16_snc.cpp \
 	$(SRC_DIR)/xran_bfp_cplane32_snc.cpp \
 	$(SRC_DIR)/xran_bfp_cplane64_snc.cpp \
-	$(SRC_DIR)/xran_bfp_uplane_snc.cpp
+	$(SRC_DIR)/xran_bfp_uplane_snc.cpp \
+	$(SRC_DIR)/xran_bfp_uplane_spr.cpp
 
 CC_FLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations  \
 	-fdata-sections \
 	-ffunction-sections \
 	-g \
-        -fPIC \
+	-fPIC \
 	-Wall \
 	-Wimplicit-function-declaration \
 	-g -O3 -mcmodel=large
@@ -134,7 +141,11 @@ CC_FLAGS += -wd1786 -restrict
 endif
 
 ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
-CC_FLAGS += -march=icelake-server -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
+CC_FLAGS += -mintrinsic-promote $(TARGET_PROCESSOR) -Wno-unused-function -Wno-intrinsic-promote -Wno-error
+endif
+
+ifeq ($(WIRELESS_SDK_TARGET_ISA),spr)
+    CC_FLAGS += -D_BBLIB_SPR_ -qopt-zmm-usage=high
 endif
 
 CPP_FLAGS := -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe \
@@ -146,9 +157,12 @@ CPP_FLAGS +=  -fp-model fast=2 -no-prec-div -no-prec-sqrt -fast-transcendentals 
 endif
 
 ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
-CPP_FLAGS +=  -fp-model fast -march=icelake-server -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
+CPP_FLAGS +=  -fp-model fast $(TARGET_PROCESSOR) -mintrinsic-promote -Wno-unused-function -Wno-intrinsic-promote -Wno-error
 endif
 
+ifeq ($(WIRELESS_SDK_TARGET_ISA),spr)
+    CPP_FLAGS += -D_BBLIB_SPR_ -qopt-zmm-usage=high
+endif
 
 INC :=  -I$(API_DIR) -I$(ETH_DIR) -I$(SRC_DIR) -I$(RTE_INC)
 DEF :=
@@ -165,20 +179,30 @@ else
 	DEF += -UXRAN_O_RU_BUILD
 endif
 
-#DEF += -DFCN_ADAPT
-#DEF += -DFCN_1_2_6_EARLIER
+ifeq ($(SAMPLEAPP),1)
+	DEF += -DXRAN_SAMPLEAPP_BUILD
+else
+	DEF += -UXRAN_SAMPLEAPP_BUILD
+endif
+
+ifeq ($(POLL_EBBU_OFFLOAD),1)
+	DEF += -DPOLL_EBBU_OFFLOAD
+else
+	DEF += -UPOLL_EBBU_OFFLOAD
+endif
 
 AS_FLAGS :=
 AR_FLAGS := rc
 
 PROJECT_OBJ_DIR := $(BUILDDIR)/obj
+PROJECT_DEP_DIR := $(PROJECT_OBJ_DIR)/$(PROJECT_NAME).dep.d
 
 CC_OBJS := $(patsubst %.c,%.o,$(CC_SRC))
 CPP_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC))
 CPP_OBJS_SNC := $(patsubst %.cpp,%.o,$(CPP_SRC_SNC))
 AS_OBJS := $(patsubst %.s,%.o,$(AS_SRC))
 OBJS    := $(CC_OBJS) $(CPP_OBJS) $(CPP_OBJS_SNC) $(AS_OBJS) $(LIBS)
-DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS))))
+DIRLIST := $(addprefix $(PROJECT_OBJ_DIR)/,$(sort $(dir $(OBJS)))) $(PROJECT_DEP_DIR)
 
 CC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CC_OBJS))
 CPP_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS))
@@ -186,17 +210,15 @@ CPP_SNC_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(CPP_OBJS_SNC))
 
 AS_OBJTARGETS := $(addprefix $(PROJECT_OBJ_DIR)/,$(AS_OBJS))
 #-qopt-report=5 -qopt-matmul -qopt-report-phase=all
-CPP_COMP       := -O3 -DNDEBUG  -xcore-avx512 -fPIE -fasm-blocks
-CPP_COMP_SNC   := -O3 -DNDEBUG -march=icelake-server -fPIE -fasm-blocks
+CPP_COMP       := -O3 -DNDEBUG  -fPIE -fasm-blocks
+CPP_COMP_SNC   := -O3 -DNDEBUG -fPIE -fasm-blocks
 CC_FLAGS_FULL  := $(CC_FLAGS)  $(INC) $(DEF)
 CPP_FLAGS_FULL := $(CPP_FLAGS) $(CPP_COMP) $(INC) $(DEF)
 CPP_FLAGS_FULL_SNC := $(CPP_FLAGS) $(CPP_COMP_SNC) $(INC) $(DEF)
 
 AS_FLAGS := $(AS_FLAGS) $(INC)
 
-PROJECT_DEP_FILE := $(PROJECT_OBJ_DIR)/$(PROJECT_NAME).dep
-
-ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
+ifeq ($(wildcard $(PROJECT_DEP_DIR)),$(PROJECT_DEP_DIR))
 GENERATE_DEPS :=
 else
 
@@ -206,22 +228,32 @@ CPP_SNC_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CPP_SRC_SNC)))
 GENERATE_DEPS := generate_deps
 endif
 
+#Add CodeCoverage option
+ifeq ($(CODE_COVERAGE),1)
+    CC_FLAGS += -fprofile-instr-generate -fcoverage-mapping
+    CXX_FLAGS += -fprofile-instr-generate -fcoverage-mapping
+    LD_FLAGS += -fprofile-instr-generate
+endif
+
 all : welcome_line 	$(PROJECT_BINARY)
 	@echo $(PROJECT_BINARY)
 
 .PHONY : clear_dep
 clear_dep:
-	@$(RM) $(PROJECT_DEP_FILE)
-	@echo [DEP]   $(subst $(PROJECT_OBJ_DIR)/,,$(PROJECT_DEP_FILE))
+	@echo [DEP] rm $(PROJECT_DEP_DIR)/$(@F).dep
+	@$(RM) $(PROJECT_DEP_DIR)/$(@F).dep
 
-$(CC_DEPS) :
-	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CC_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
+$(CC_DEPS) : $(PROJECT_DEP_DIR)
+	@echo [DEP] $(subst __up__,../,$(subst __dep__,,$@))
+	@$(CC) $(CC_FLAGS_FULL) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) >> $(PROJECT_DEP_DIR)/$(@F).dep
 
-$(CPP_DEPS) :
-	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPP_FLAGS_FULL) >> $(PROJECT_DEP_FILE)
+$(CPP_DEPS) : $(PROJECT_DEP_DIR)
+	@echo [DEP] $(subst __up__,../,$(subst __dep__,,$@))
+	@$(CPP) $(CPP_FLAGS_FULL) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) >> $(PROJECT_DEP_DIR)/$(@F).dep
 
-$(CPP_SNC_DEPS) :
-	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPP_FLAGS_FULL_SNC) >> $(PROJECT_DEP_FILE)
+$(CPP_SNC_DEPS) : $(PROJECT_DEP_DIR)
+	@echo [DEP] $(subst __up__,../,$(subst __dep__,,$@))
+	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(PROJECT_OBJ_DIR)/$(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPP_FLAGS_FULL_SNC) >> $(PROJECT_DEP_DIR)/$(@F).dep
 
 .PHONY : generate_deps
 generate_deps : clear_dep $(CC_DEPS) $(CPP_DEPS) $(CPP_SNC_DEPS)
@@ -234,25 +266,25 @@ echo_start_build :
 $(DIRLIST) :
 	-@$(MD) $@
 
-$(CC_OBJTARGETS) :
+$(CC_OBJTARGETS) : $(GENERATE_DEPS)
 	@echo [CC]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(CC) -c $(CC_FLAGS_FULL) -o"$@" $(patsubst %.o,%.c,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-$(CPP_OBJTARGETS) :
+$(CPP_OBJTARGETS) : $(GENERATE_DEPS)
 	@echo [CPP]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(CPP) -c $(CPP_FLAGS_FULL) -o"$@" $(patsubst %.o,%.cpp,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-$(CPP_SNC_OBJTARGETS) :
+$(CPP_SNC_OBJTARGETS) : $(GENERATE_DEPS)
 	@echo [CPP-SNC]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(CPP) -c $(CPP_FLAGS_FULL_SNC) -o"$@" $(patsubst %.o,%.cpp,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-$(AS_OBJTARGETS) :
+$(AS_OBJTARGETS) : $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(CPP_SNC_OBJTARGETS)
 	@echo [AS]    $(subst $(PROJECT_OBJ_DIR)/,,$@)
 	@$(AS) $(AS_FLAGS) -o"$@" $(patsubst %.o,%.s,$(subst $(PROJECT_OBJ_DIR)/,,$@))
 
-ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
+ifeq ($(wildcard $(PROJECT_DEP_DIR)),$(PROJECT_DEP_DIR))
 
-include $(PROJECT_DEP_FILE)
+include $(PROJECT_DEP_DIR)/*
 
 endif
 
@@ -264,13 +296,14 @@ clean:
 xclean: clean
 ifneq ($(wildcard $(PROJECT_DIR)/$(PROJECT_MAKE)),)
 	@echo [XCLEAN] : $(PROJECT_NAME)
-	@$(RM) $(PROJECT_BINARY) $(PROJECT_BINARY_LIB) $(PROJECT_DEP_FILE)
+	@$(RM) -rf $(PROJECT_BINARY) $(PROJECT_BINARY_LIB) $(PROJECT_DEP_DIR)
 endif
 
 .PHONY : welcome_line
 welcome_line :
 	@echo $(MYCUSTOMSPACE)
 	@echo Building  $(PROJECT_BINARY)
+	@echo $(MYCUSTOMTAB)TARGET_PROCESSOR = $(TARGET_PROCESSOR)
 	@echo $(MYCUSTOMTAB)RTE_TARGET           = $(RTE_TARGET)
 	@echo $(MYCUSTOMSPACE)
 
@@ -280,7 +313,7 @@ welcome_line :
 debug :  all
 release :  all
 
-$(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(PRE_BUILD) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(CPP_SNC_OBJTARGETS) $(AS_OBJTARGETS)
+$(PROJECT_BINARY) : $(DIRLIST) echo_start_build $(GENERATE_DEPS) $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(CPP_SNC_OBJTARGETS) $(AS_OBJTARGETS)
 	@echo [AR]    $(subst $(BUILDDIR)/,,$@)
 ifeq ($(XRAN_LIB_SO),)
 	@$(AR) $(AR_FLAGS) $@ $(CC_OBJTARGETS) $(CPP_OBJTARGETS) $(CPP_SNC_OBJTARGETS) $(AS_OBJTARGETS)
