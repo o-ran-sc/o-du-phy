@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "2b7615a1_0f62b411",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 1
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 1002378
+      },
+      "writtenOn": "2024-08-01T21:47:21Z",
+      "side": 1,
+      "message": "The PR looks good to me",
+      "revId": "a5c1c2e4b99d27ad22b810d592908be5bdda6a4d",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "e9fae711_c749df17",
+        "filename": "fhi_lib/app/gen_test.m",
+        "patchSetId": 1
+      },
+      "lineNbr": 17,
+      "author": {
+        "id": 1002378
+      },
+      "writtenOn": "2024-08-01T21:47:21Z",
+      "side": 1,
+      "message": "We can add comments",
+      "revId": "a5c1c2e4b99d27ad22b810d592908be5bdda6a4d",
+      "serverId": "84e4e190-e623-4c37-9eda-58b1937c1b53"
+    }
+  ]
+}
