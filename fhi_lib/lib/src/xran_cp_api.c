@@ -29,20 +29,68 @@
 #include <rte_branch_prediction.h>
 #include <rte_malloc.h>
 
-#include "ethdi.h"
+#include "xran_ethdi.h"
 #include "xran_common.h"
 #include "xran_transport.h"
 #include "xran_cp_api.h"
 #include "xran_printf.h"
 #include "xran_compression.h"
 #include "xran_dev.h"
+#include "xran_frame_struct.h"
 
-PSECTION_DB_TYPE p_sectiondb[XRAN_PORTS_NUM] = {NULL, NULL, NULL, NULL,NULL, NULL, NULL, NULL};
+/* For every port and for every numerology - allocate for section db that is shared between cplane and uplane */
+PSECTION_DB_TYPE p_sectiondb[XRAN_PORTS_NUM][XRAN_MAX_NUM_MU] = {{NULL}};
 
 static const uint8_t zeropad[XRAN_SECTIONEXT_ALIGN] = { 0, 0, 0, 0 };
 static const uint8_t bitmask[] = { 0x00, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xff };
 
+// 38.211 - Table 4.2.1
+static uint16_t nSubCarrierSpacing[XRAN_MAX_NUM_MU] =
+{
+    15,     // mu = 0
+    30,     // mu = 1
+    60,     // mu = 2
+    120,    // mu = 3
+    240,    // mu = 4
+    15,     // mu = 5  NB-IOT
+};
 
+/* MAC to PHY API prach numerology (nPrachSubcSpacing) 0-4  0:15kHz  1:30kHz  2:60kHz  3:120kHz  4:1.25kHz, currently 5kHz not used*/
+static float nPrach_SubCarrierSpacing[XRAN_MAX_NUM_PRACH_MU] =
+{
+   15,      // PrachMu = 0
+   30,      // PrachMu = 1
+   60,      // PrachMu = 2
+   120,     // PrachMu = 3
+   1.25     // PrachMu = 4
+};
+
+xran_status_t xran_alloc_sectioninfo_db(int mu, int32_t nCC, int32_t nAnt, PSECTION_DB_TYPE p_sec_db){
+
+    int32_t ctx, dir, cc, ant;
+    struct xran_sectioninfo_db* p_sec_db_elm = NULL;
+
+    for (ctx = 0; ctx < XRAN_MAX_SECTIONDB_CTX; ctx++) {
+        for (dir = 0; dir < XRAN_DIR_MAX; dir++){
+            for (cc = 0; cc < nCC && cc < XRAN_COMPONENT_CARRIERS_MAX; cc++){
+                for (ant = 0; ant < nAnt && ant < (XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR); ant++) {
+                     p_sec_db_elm = (struct xran_sectioninfo_db*)xran_zmalloc(NULL,sizeof(struct xran_sectioninfo_db), 0);
+
+                     if(unlikely(p_sec_db_elm == NULL)){
+                        print_err("Failed to allocate memory CP section DB: ctx %d dir %d cc %d ant %d",ctx, dir, cc, ant);
+                        return XRAN_STATUS_RESOURCE;
+                     }
+                     else{
+                        p_sec_db_elm->cur_index = 0;
+                        p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant] = p_sec_db_elm;
+                     }
+                } // ant
+            } // cc
+        } // dir
+    } //ctx
+
+    return XRAN_STATUS_SUCCESS;
+}
 /**
  * @brief Initialize section database.
  *   Allocate required memory space to store section information.
@@ -60,12 +108,10 @@ static const uint8_t bitmask[] = { 0x00, 0x03, 0x07, 0x0f, 0x1f, 0x3f, 0x7f, 0xf
 int32_t
 xran_cp_init_sectiondb(void *pHandle)
 {
-    int32_t ctx, dir, cc, ant;
     struct xran_device_ctx* p_dev = NULL;
     uint8_t xran_port_id = 0;
     PSECTION_DB_TYPE p_sec_db =  NULL;
-    struct xran_sectioninfo_db* p_sec_db_elm = NULL;
-
+    xran_status_t ret;
     if(pHandle) {
         p_dev = (struct xran_device_ctx* )pHandle;
         xran_port_id = p_dev->xran_port_id;
@@ -74,45 +120,72 @@ xran_cp_init_sectiondb(void *pHandle)
         return (XRAN_STATUS_FAIL);
     }
 
-    if (p_sectiondb[xran_port_id] == NULL){
-        p_sec_db = rte_zmalloc(NULL,sizeof(SECTION_DB_TYPE), 0);
-        if(p_sec_db){
-            p_sectiondb[xran_port_id] = p_sec_db;
-            memset(p_sec_db, 0, sizeof(SECTION_DB_TYPE));
-            print_dbg("xran_port_id %d %p\n",xran_port_id,  p_sectiondb[xran_port_id]);
-            for (ctx = 0; ctx < XRAN_MAX_SECTIONDB_CTX; ctx++) {
-                for (dir = 0; dir < XRAN_DIR_MAX; dir++) {
-                    for (cc = 0; cc < p_dev->fh_cfg.nCC && cc < XRAN_COMPONENT_CARRIERS_MAX; cc++) {
-                        for (ant = 0; ant < (p_dev->fh_cfg.neAxc*2 + p_dev->fh_cfg.nAntElmTRx) && ant < (XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR); ant++) {
-                            p_sec_db_elm = (struct xran_sectioninfo_db*)rte_zmalloc(NULL,sizeof(struct xran_sectioninfo_db), 0);
-                            if(p_sec_db_elm) {
-                                memset(p_sec_db_elm, 0, sizeof(struct xran_sectioninfo_db));
-                                p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant] = p_sec_db_elm;
-                            } else {
-                                print_err("Memory Allocation Failed [port %d sz %ld]\n", xran_port_id, sizeof(struct xran_sectioninfo_db));
-                                return (XRAN_STATUS_RESOURCE);
-                            }
-                        }
-                    }
+    for(int i=0; i<p_dev->fh_cfg.numMUs;i++)
+    {
+        if (p_sectiondb[xran_port_id][p_dev->fh_cfg.mu_number[i]] == NULL){
+            p_sec_db = xran_zmalloc(NULL,sizeof(SECTION_DB_TYPE), 0);
+            if(p_sec_db){
+                p_sectiondb[xran_port_id][p_dev->fh_cfg.mu_number[i]] = p_sec_db;
+                print_dbg("xran_port_id %d %p\n",xran_port_id,  p_sectiondb[xran_port_id][p_dev->fh_cfg.mu_number[i]]);
+
+                ret = xran_alloc_sectioninfo_db(i, p_dev->fh_cfg.nCC, p_dev->fh_cfg.neAxc*4 + p_dev->fh_cfg.nAntElmTRx, p_sec_db);
+
+                if(ret != XRAN_STATUS_SUCCESS){
+                    print_err("Memory Allocation Failed [port %d sz %ld]\n", xran_port_id, sizeof(struct xran_sectioninfo_db));
+                    return XRAN_STATUS_FAIL;
                 }
+            } else {
+                print_err("Memory Allocation Failed [port %d sz %ld]\n", xran_port_id, sizeof(SECTION_DB_TYPE));
+                return (XRAN_STATUS_RESOURCE);
+            }
+        }
+    }
+
+    return (XRAN_STATUS_SUCCESS);
+} /* xran_cp_init_sectiondb */
+
+
+/* vMu uses same section DB as actual Mu */
+int32_t
+xran_cp_init_vMu_sectiondb(void *pHandle, uint8_t vMu, int32_t nAnt)
+{
+    struct xran_device_ctx* p_dev = NULL;
+    uint8_t xran_port_id = 0;
+    PSECTION_DB_TYPE p_sec_db =  NULL;
+    xran_status_t ret;
+    if(pHandle) {
+        p_dev = (struct xran_device_ctx* )pHandle;
+        xran_port_id = p_dev->xran_port_id;
+    } else {
+        print_err("Invalid pHandle - %p", pHandle);
+        return (XRAN_STATUS_FAIL);
+    }
+
+    if (p_sectiondb[xran_port_id][vMu] == NULL){
+        p_sec_db = xran_zmalloc(NULL,sizeof(SECTION_DB_TYPE), 0);
+        if(p_sec_db){
+            p_sectiondb[xran_port_id][vMu] = p_sec_db;
+            print_dbg("xran_port_id %d %p\n",xran_port_id,  p_sectiondb[xran_port_id][vMu]);
+
+            ret = xran_alloc_sectioninfo_db(vMu, p_dev->fh_cfg.nCC, nAnt, p_sec_db);
+
+            if(ret != XRAN_STATUS_SUCCESS){
+                print_err("Memory Allocation Failed [port %d sz %ld]\n", xran_port_id, sizeof(struct xran_sectioninfo_db));
+                return XRAN_STATUS_FAIL;
             }
         } else {
             print_err("Memory Allocation Failed [port %d sz %ld]\n", xran_port_id, sizeof(SECTION_DB_TYPE));
             return (XRAN_STATUS_RESOURCE);
         }
-    }else {
-        p_sec_db = p_sectiondb[xran_port_id];
+    }
+    else{
+        print_err("vMu DB expected to be NULL, but already allocated");
+        return XRAN_STATUS_FATAL;
     }
 
-    for(ctx=0; ctx < XRAN_MAX_SECTIONDB_CTX; ctx++)
-        for(dir=0; dir < XRAN_DIR_MAX; dir++)
-            for (cc = 0; cc < p_dev->fh_cfg.nCC && cc < XRAN_COMPONENT_CARRIERS_MAX; cc++)
-                for (ant = 0; ant < (p_dev->fh_cfg.neAxc*2 + p_dev->fh_cfg.nAntElmTRx) && ant < (XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR); ant++)
-                    if(p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant])
-                        p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant]->cur_index = 0;
-
     return (XRAN_STATUS_SUCCESS);
-}
+} /* xran_cp_init_sectiondb */
+
 
 /**
  * @brief Release and free section database
@@ -140,32 +213,53 @@ xran_cp_free_sectiondb(void *pHandle)
         return (XRAN_STATUS_FAIL);
     }
 
-    if (p_sectiondb[xran_port_id] == NULL){
-        return (XRAN_STATUS_INVALID_PARAM);
-    } else {
-        p_sec_db = p_sectiondb[xran_port_id];
-        for (ctx = 0; ctx < XRAN_MAX_SECTIONDB_CTX; ctx++) {
-            for (dir = 0; dir < XRAN_DIR_MAX; dir++) {
-                for (cc = 0; cc < XRAN_COMPONENT_CARRIERS_MAX; cc++) {
-                    for (ant = 0; ant < (XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR); ant++) {
-                        if(p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant])
-                            rte_free(p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant]);
+    for(int i=0;i<p_dev->fh_cfg.numMUs;i++)
+    {
+        p_sec_db = p_sectiondb[xran_port_id][p_dev->fh_cfg.mu_number[i]];
+        if(p_sec_db){
+            for (ctx = 0; ctx < XRAN_MAX_SECTIONDB_CTX; ctx++) {
+                for (dir = 0; dir < XRAN_DIR_MAX; dir++) {
+                    for (cc = 0; cc < XRAN_COMPONENT_CARRIERS_MAX; cc++) {
+                        for (ant = 0; ant < (XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR); ant++) {
+                            if(p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant])
+                                xran_free(p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant]);
+                        }
                     }
                 }
             }
         }
-        rte_free(p_sec_db);
-        p_sectiondb[xran_port_id] = NULL;
+        xran_free(p_sec_db);
+        p_sectiondb[xran_port_id][p_dev->fh_cfg.mu_number[i]] = NULL;
     }
+
+    // Free DB for SSB
+    if(p_dev->vMuInfo.ssbInfo.ssbMu == 4 && p_dev->fh_cfg.numMUs == 1 && p_dev->fh_cfg.mu_number[0] == 3){
+        p_sec_db = p_sectiondb[xran_port_id][p_dev->vMuInfo.ssbInfo.ssbMu];
+        if(p_sec_db){
+            for (ctx = 0; ctx < XRAN_MAX_SECTIONDB_CTX; ctx++) {
+                for (dir = 0; dir < XRAN_DIR_MAX; dir++) {
+                    for (cc = 0; cc < XRAN_COMPONENT_CARRIERS_MAX; cc++) {
+                        for (ant = 0; ant < (XRAN_MAX_ANTENNA_NR*2 + XRAN_MAX_ANT_ARRAY_ELM_NR); ant++) {
+                            if(p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant])
+                                xran_free(p_sec_db->p_sectiondb_elm[ctx][dir][cc][ant]);
+                        }
+                    }
+                }
+            }
+        }
+        xran_free(p_sec_db);
+        p_sectiondb[xran_port_id][p_dev->vMuInfo.ssbInfo.ssbMu] = NULL;
+    }
+
 
     return (XRAN_STATUS_SUCCESS);
 }
 
 static inline struct xran_sectioninfo_db *
 xran_get_section_db(void *pHandle,
-        uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id)
+        uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id, uint8_t mu)
 {
-  struct xran_sectioninfo_db *ptr;
+    struct xran_sectioninfo_db *ptr;
     struct xran_device_ctx* p_dev = NULL;
     uint8_t xran_port_id = 0;
     PSECTION_DB_TYPE p_sec_db =  NULL;
@@ -183,11 +277,11 @@ xran_get_section_db(void *pHandle,
         return (NULL);
     }
 
-    if (p_sectiondb[xran_port_id] == NULL){
-        print_err("p_sectiondb xran_port %d\n", xran_port_id);
+    if (p_sectiondb[xran_port_id][mu] == NULL){
+        // print_err("p_sectiondb xran_port %d, mu=%u\n", xran_port_id, mu);
         return (NULL);
     }else {
-        p_sec_db = p_sectiondb[xran_port_id];
+        p_sec_db = p_sectiondb[xran_port_id][mu];
     }
     if(unlikely(ctx_id >= XRAN_MAX_SECTIONDB_CTX)) {
         print_err("Invalid Context id - %d", ctx_id);
@@ -220,10 +314,10 @@ xran_get_section_info(struct xran_sectioninfo_db *ptr, uint16_t index)
     if(unlikely(ptr == NULL))
         return (NULL);
 
-    if(unlikely(index > XRAN_MAX_NUM_SECTIONS)) {
+    if(unlikely(index >= XRAN_MAX_NUM_SECTIONS)) {
         print_err("Index is out of range - %d", index);
         return (NULL);
-        }
+    }
 
     return(&(ptr->list[index]));
 }
@@ -251,12 +345,13 @@ xran_get_section_info(struct xran_sectioninfo_db *ptr, uint16_t index)
  *  XRAN_STATUS_RESOURCE, if no more space to add on database
  */
 int32_t
-xran_cp_add_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id, struct xran_section_info *info)
+xran_cp_add_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id,
+        uint8_t ctx_id, struct xran_section_info *info, uint8_t mu)
 {
-  struct xran_sectioninfo_db *ptr;
-  struct xran_section_info *list;
+    struct xran_sectioninfo_db *ptr;
+    struct xran_section_info *list;
 
-    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id);
+    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id, mu);
     if(unlikely(ptr == NULL)) {
         return (XRAN_STATUS_INVALID_PARAM);
         }
@@ -282,12 +377,36 @@ xran_cp_add_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t rupo
 
 
 struct xran_section_info *
-xran_cp_get_section_info_ptr(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id)
+xran_cp_check_db_entry(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id, uint8_t mu, uint32_t prb_id)
+{
+    struct xran_sectioninfo_db *ptr;
+    struct xran_section_info *list;
+    int db_idx = 0;
+    uint32_t db_id = 0;
+    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id, mu);
+    if(unlikely(ptr == NULL)) {
+        return NULL;
+    }
+
+    for(db_idx = (ptr->cur_index - 1); db_idx >= 0; db_idx--){
+        list = xran_get_section_info(ptr, db_idx);
+        if(list){
+            db_id = (list->startPrbc*100 + list->id);
+            if(db_id == prb_id){
+                return list;
+            }
+        }
+    }
+    return NULL;
+}
+
+struct xran_section_info *
+xran_cp_get_section_info_ptr(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id, uint8_t mu)
 {
     struct xran_sectioninfo_db *ptr;
     struct xran_section_info *list;
 
-    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id);
+    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id, mu);
     if(unlikely(ptr == NULL)) {
         return NULL;
         }
@@ -312,45 +431,6 @@ xran_cp_get_section_info_ptr(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t 
 }
 
 
-
-int32_t
-xran_cp_add_multisection_info(void *pHandle, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id, struct xran_cp_gen_params *gen_info)
-{
-    int32_t i;
-  uint8_t dir, num_sections;
-  struct xran_sectioninfo_db *ptr;
-  struct xran_section_info *list;
-
-    dir             = gen_info->dir;
-    num_sections    = gen_info->numSections;
-
-    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id);
-    if(unlikely(ptr == NULL)) {
-        return (XRAN_STATUS_INVALID_PARAM);
-        }
-
-    if(unlikely(ptr->cur_index+num_sections >= XRAN_MAX_NUM_SECTIONS)) {
-        print_err("No more space to add section information!");
-        return (XRAN_STATUS_RESOURCE);
-        }
-
-    list = xran_get_section_info(ptr, ptr->cur_index);
-    if (list)
-    {
-    for(i=0; i<num_sections; i++) {
-            memcpy(&list[i], gen_info->sections[i].info, sizeof(struct xran_section_info));
-        ptr->cur_index++;
-        }
-    }
-    else
-    {
-        print_err("Null list in section db\n!");
-        return (XRAN_STATUS_INVALID_PARAM);
-    }
-
-    return (XRAN_STATUS_SUCCESS);
-}
-
 /**
  * @brief Find a section information of C-Plane from database
  *   by given information
@@ -374,94 +454,20 @@ xran_cp_add_multisection_info(void *pHandle, uint8_t cc_id, uint8_t ruport_id, u
  *  NULL if failed to find matched section
  */
 struct xran_section_info *
-xran_cp_find_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id, uint16_t section_id)
+xran_cp_find_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id,
+        uint16_t section_id, uint8_t mu)
 {
-  struct xran_sectioninfo_db *ptr;
+    struct xran_sectioninfo_db *ptr;
 
-    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id);
+    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id, mu);
     if(unlikely(ptr == NULL))
         return (NULL);
 
-    if(section_id > ptr->cur_index || section_id < 0)
+    if(section_id > ptr->cur_index)
     {
         print_err("No section ID in the list - %d, ptr->cur_index is %d", section_id, ptr->cur_index);
-            }
+    }
     return (xran_get_section_info(ptr, section_id));
-}
-
-/**
- * @brief Iterate each section information of C-Plane
- *  from the database of eAxC by given information
- *
- * @ingroup xran_cp_pkt
- *
- * @param pHandle
- *  handle for xRAN interface, currently not being used
- * @param dir
- *  The direction of the section to find
- * @param cc_id
- *  The CC ID of the section to find
- * @param ruport_id
- *  RU port ID of the section to find
- * @param ctx_id
- *  Context index for the section database
- * @param next
- *  The pointer to store the position of next entry
- * @return
- *  The pointer of section information in the list
- *  NULL if reached at the end of the list
- */
-struct xran_section_info *
-xran_cp_iterate_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id, uint32_t *next)
-{
-    int32_t index;
-  struct xran_sectioninfo_db *ptr;
-
-    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id);
-    if(unlikely(ptr == NULL))
-        return (NULL);
-
-    index = *next;
-    if(*next < ptr->cur_index) {
-        (*next)++;
-        return (xran_get_section_info(ptr, index));
-        }
-    else {
-        print_dbg("No more sections in the list");
-        return (NULL);
-        }
-}
-
-/**
- * @brief Get the size of stored entries
- *  for the database of eAxC by given information
- *
- * @ingroup xran_cp_pkt
- *
- * @param pHandle
- *  handle for xRAN interface, currently not being used
- * @param dir
- *  The direction of the section to find
- * @param cc_id
- *  The CC ID of the section to find
- * @param ruport_id
- *  RU port ID of the section to find
- * @param ctx_id
- *  Context index for the section database
- * @return
- *  The size of stored entries
- *  -1 if failed to find matched database
- */
-int32_t
-xran_cp_getsize_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id)
-{
-  struct xran_sectioninfo_db *ptr;
-
-    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id);
-    if(unlikely(ptr == NULL))
-        return (-1);
-
-    return (ptr->cur_index);
 }
 
 /**
@@ -484,14 +490,14 @@ xran_cp_getsize_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t 
  *  XRAN_STATUS_INVALID_PARM if failed to find matched database
  */
 int32_t
-xran_cp_reset_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id)
+xran_cp_reset_section_info(void *pHandle, uint8_t dir, uint8_t cc_id, uint8_t ruport_id, uint8_t ctx_id, uint8_t mu)
 {
-  struct xran_sectioninfo_db *ptr;
+    struct xran_sectioninfo_db *ptr;
 
-    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id);
+    ptr = xran_get_section_db(pHandle, dir, cc_id, ruport_id, ctx_id, mu);
     if(unlikely(ptr == NULL)) {
         return (XRAN_STATUS_INVALID_PARAM);
-        }
+    }
 
     ptr->cur_index = 0;
 
@@ -508,9 +514,7 @@ int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination 
     int32_t parm_size   = 0;
     int32_t bfw_iq_bits = 0;
     int32_t total_len   = 0;
-    uint16_t idxSection  = 0;
     int32_t section_len = 0;
-    int16_t numCPSections = (p_pRbMapElm->bf_weight.numSetBFWs == 0 ? 1 : p_pRbMapElm->bf_weight.numSetBFWs);
 
     int16_t cur_ext_len = 0;
     int8_t  *p_ext1_dst_cur = NULL;
@@ -518,12 +522,6 @@ int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination 
     uint8_t   bfwiqWidth = p_pRbMapElm->bf_weight.bfwIqWidth;
     uint8_t   bfwCompMeth = p_pRbMapElm->bf_weight.bfwCompMeth;
     struct xran_cp_radioapp_section1 *p_section1;
-
-    struct xranlib_compress_request  bfp_com_req;
-    struct xranlib_compress_response bfp_com_rsp;
-
-    memset(&bfp_com_req, 0, sizeof(struct xranlib_compress_request));
-    memset(&bfp_com_rsp, 0, sizeof(struct xranlib_compress_response));
 
     print_dbg("%s comp %d\n", __FUNCTION__, bfwCompMeth);
     print_dbg("bfwNumPerRb %d bfwiqWidth %d\n", bfwNumPerRb, bfwiqWidth);
@@ -533,141 +531,129 @@ int32_t xran_cp_populate_section_ext_1(int8_t  *p_ext1_dst,    /**< destination 
     else
         return (XRAN_STATUS_INVALID_PARAM);
 
-    /* create section for each PRB bundle */
-    for (idxSection = 0; idxSection < numCPSections ; idxSection++) {
-        print_dbg("%s Section %d\n", __FUNCTION__, idxSection);
+    p_section1 = (struct xran_cp_radioapp_section1 *)p_ext1_dst_cur;
+    if(p_section1 == NULL) {
+        print_err("p_section is null!\n");
+        return (XRAN_STATUS_INVALID_PARAM);
+    }
 
-        if(total_len >= ext1_dst_len){
-            print_err("p_ext1_dst overflow\n");
-            return XRAN_STATUS_RESOURCE;
-        }
+    section_len = sizeof(struct xran_cp_radioapp_section1);
 
-        cur_ext_len = 0;
-        p_section1 = (struct xran_cp_radioapp_section1 *)p_ext1_dst_cur;
-        if(p_section1 == NULL) {
-            print_err("p_section is null!\n");
-            return (XRAN_STATUS_INVALID_PARAM);
-        }
+    p_ext1_dst_cur = p_ext1_dst_cur + section_len;
+    total_len += section_len;
 
-        section_len = sizeof(struct xran_cp_radioapp_section1);
-        
-        p_ext1_dst_cur = p_ext1_dst_cur + section_len;
-        total_len += section_len;
+    parm_size = sizeof(struct xran_cp_radioapp_section_ext1);
+    p_ext1 = (struct xran_cp_radioapp_section_ext1 *)p_ext1_dst_cur;
+    if(p_ext1 == NULL) {
+        print_err("p_ext1 is null!\n");
+        return (XRAN_STATUS_INVALID_PARAM);
+    }
 
-        parm_size = sizeof(struct xran_cp_radioapp_section_ext1);
-        p_ext1 = (struct xran_cp_radioapp_section_ext1 *)p_ext1_dst_cur;
-        if(p_ext1 == NULL) {
-            print_err("p_ext1 is null!\n");
-            return (XRAN_STATUS_INVALID_PARAM);
-        }
+    if (p_ext1->bfwCompMeth != XRAN_BFWCOMPMETHOD_NONE){ //5.4.7.1.1
+        printf("Compression not supported for section extension type 1\n");
+        return XRAN_STATUS_FAIL;
+    }
+    cur_ext_len = parm_size;
 
+    p_ext1->extType       = XRAN_CP_SECTIONEXTCMD_1;
+    p_ext1->ef            = XRAN_EF_F_LAST; //only one ext-1 per CP section
+    p_ext1->bfwCompMeth   = bfwCompMeth;
+    p_ext1->bfwIqWidth    = XRAN_CONVERT_BFWIQWIDTH(bfwiqWidth);
+
+    p_bfw_content = (uint8_t *)(p_ext1+1);
+    /* bfwCompParam is absent for no compression case */
+
+    if(p_bfw_content == NULL) {
+        print_err("Fail to allocate the space for section extension 1");
+        return (XRAN_STATUS_RESOURCE);
+    }
+
+    bfw_iq_bits = bfwNumPerRb* bfwiqWidth * 2;
+
+    parm_size = bfw_iq_bits>>3;
+    if(bfw_iq_bits%8)
+        parm_size++;
+
+    print_dbg("copy BF W %p -> %p size %d \n", p_bfw_iq_src, p_bfw_content, parm_size);
+
+    memcpy(p_bfw_content, p_bfw_iq_src, parm_size);
+
+    p_bfw_content = (uint8_t *)(p_bfw_content + parm_size);
+
+    cur_ext_len += parm_size;
+    parm_size = cur_ext_len % XRAN_SECTIONEXT_ALIGN;
+    if(parm_size) {
+        parm_size = XRAN_SECTIONEXT_ALIGN - parm_size;
+        memcpy(p_bfw_content, zeropad, RTE_MIN(parm_size, sizeof(zeropad)));
         cur_ext_len += parm_size;
+        print_dbg("zeropad %d cur_ext_len %d\n", parm_size, cur_ext_len);
+    }
 
-        p_ext1->extType       = XRAN_CP_SECTIONEXTCMD_1;
-        p_ext1->ef            = XRAN_EF_F_LAST; //only one ext-1 per CP section
-        p_ext1->bfwCompMeth   = bfwCompMeth;
-        p_ext1->bfwIqWidth    = XRAN_CONVERT_BFWIQWIDTH(bfwiqWidth);
+    if(cur_ext_len % XRAN_SECTIONEXT_ALIGN)
+        rte_panic("ext1 should be aligned on 4-bytes boundary");
 
-        switch(bfwCompMeth) {
-            case XRAN_BFWCOMPMETHOD_BLKFLOAT:
-                p_bfw_content = (uint8_t *)(p_ext1+1);
-                if(p_bfw_content == NULL) {
-                    print_err("Fail to allocate the space for section extension 1");
-                    return (XRAN_STATUS_RESOURCE);
-                }
-                bfp_com_req.data_in         = (int16_t*)p_bfw_iq_src;
-                bfp_com_req.numRBs          = 1;
-                bfp_com_req.numDataElements = bfwNumPerRb*2;
-                bfp_com_req.len             = bfwNumPerRb*4;
-                bfp_com_req.compMethod      = p_ext1->bfwCompMeth;
-                bfp_com_req.iqWidth         = p_ext1->bfwIqWidth;
+    p_ext1->extLen = cur_ext_len / XRAN_SECTIONEXT_ALIGN;
+    print_dbg("%p iq %p p_ext1->extLen %d\n",p_ext1, p_ext1+1,  p_ext1->extLen);
 
-                print_dbg("req 0x%08p iqWidth %d\n",bfp_com_req.data_in, bfp_com_req.iqWidth);
-
-                parm_size = 1; /* (reserved + exponent) as part of bfwCompParam 1 octet */
-                break;
-            case XRAN_BFWCOMPMETHOD_BLKSCALE:
-                rte_panic("XRAN_BFWCOMPMETHOD_BLKSCALE");
-                break;
-
-            case XRAN_BFWCOMPMETHOD_ULAW:
-                rte_panic("XRAN_BFWCOMPMETHOD_ULAW");
-                break;
-
-            case XRAN_BFWCOMPMETHOD_BEAMSPACE:
-                rte_panic("XRAN_BFWCOMPMETHOD_BEAMSPACE");
-                break;
-
-            case XRAN_BFWCOMPMETHOD_NONE:
-            default:
-                p_bfw_content = (uint8_t *)(p_ext1+1);
-                /* bfwCompParam is absent for no compression case */
-                parm_size = 0;
-        }
-
-        if(p_bfw_content == NULL) {
-            print_err("Fail to allocate the space for section extension 1");
-            return (XRAN_STATUS_RESOURCE);
-            }
-
-        bfw_iq_bits = bfwNumPerRb* bfwiqWidth * 2;
-
-        parm_size += bfw_iq_bits>>3;
-        if(bfw_iq_bits%8)
-            parm_size++;
-
-        print_dbg("copy BF W %p -> %p size %d \n", p_bfw_iq_src, p_bfw_content, parm_size);
-
-        if (p_ext1->bfwCompMeth == XRAN_BFWCOMPMETHOD_NONE){ //5.4.7.1.1 
-            memcpy(p_bfw_content, p_bfw_iq_src, parm_size);
-        } else {
-            bfp_com_rsp.data_out = (int8_t*)p_bfw_content;
-            if(xranlib_compress_bfw(&bfp_com_req, &bfp_com_rsp) == 0){
-                print_dbg("comp_len %d parm_size %d\n", bfp_com_rsp.len, parm_size);
-            } else {
-                print_err("compression failed\n");
-                return (XRAN_STATUS_FAIL);
-            }
-        }
-
-        p_bfw_content = (uint8_t *)(p_bfw_content + parm_size);
-
-        cur_ext_len += parm_size;
-        parm_size = cur_ext_len % XRAN_SECTIONEXT_ALIGN;
-        if(parm_size) {
-            parm_size = XRAN_SECTIONEXT_ALIGN - parm_size;
-            memcpy(p_bfw_content, zeropad, RTE_MIN(parm_size, sizeof(zeropad)));
-            p_bfw_content += parm_size;
-            cur_ext_len += parm_size;
-            print_dbg("zeropad %d cur_ext_len %d\n", parm_size, cur_ext_len);
-        }
-
-        if(cur_ext_len % XRAN_SECTIONEXT_ALIGN)
-            rte_panic("ext1 should be aligned on 4-bytes boundary");
-
-        p_ext1->extLen = cur_ext_len / XRAN_SECTIONEXT_ALIGN;
-        print_dbg("%p iq %p p_ext1->extLen %d\n",p_ext1, p_ext1+1,  p_ext1->extLen);
-
-        /* update for next RB */
-        p_ext1_dst_cur += cur_ext_len;
-        p_bfw_iq_src   = p_bfw_iq_src + bfwNumPerRb*2;
-
-        total_len += cur_ext_len;
-    } /*for(idxSection < numCPSections */
+    total_len += cur_ext_len;
 
     print_dbg("total_len %d\n", total_len);
     return (total_len);
 }
 
-// TODO: Need to decide to add calculation or not
-// Frequency offset 5.4.5.11
-//   frequency_offset = freqOffset * SCS * 0.5
-//    i.e freqOffset = (frequency_offset *2 )/ SCS ?
-inline int32_t
-xran_get_freqoffset(int32_t freqOffset, int32_t scs)
+
+//-------------------------------------------------------------------------------------------
+/** @ingroup group_source_nr5g_common
+*   @param[in]   pConf - xran fronthaul config pointer
+*   @param[in]   mu - fronthaul config primary numerology
+*   @param[in]   prachNumerology - from xran_init_prach: pPRACHConfig->nPrachSubcSpacing
+*   @param[in]   prachStartPrb   - from xran_init_prach: pPRACHConfig->nPrachFreqStart
+*
+*   @param[out]  freqOffset for PRACH C-Plane packet(unit: 0.5 x PRACH SCS), compliant with the ORAN spec.
+*
+*
+*   @description:
+*   JIRA SCSY-191289
+**/
+//-------------------------------------------------------------------------------------------
+int32_t
+xran_get_prach_freqoffset(struct xran_fh_config* pConf, uint8_t mu, uint8_t prachMu, uint16_t prachStartPrb)
 {
-    return (freqOffset);
+    int32_t prach_freqoffset = 0;
+    int32_t half_bandwidth;
+    int32_t startprb_offset;
+    uint32_t pusch_scspacing;
+    float prach_scspacing;
+
+    if(mu >= XRAN_MAX_NUM_MU)
+    {
+        printf("ERROR: xran_get_prach_freqoffset Mu[%d] is not valid, in this case prach_freqoffset set to 0 \n", mu);
+        return 0;
+    }
+
+    if(prachMu >= XRAN_MAX_NUM_PRACH_MU)
+    {
+        printf("ERROR: xran_get_prach_freqoffset prachMu[%d] is not valid, in this case prach_freqoffset set to 0 \n", prachMu);
+        return 0;
+    }
+
+    /* convert from PUSCH numerology (0,1,2,3,4) to specific frequency value (15/30/60/120/240 (khz)) */
+    pusch_scspacing = nSubCarrierSpacing[mu];
+
+    /* convert from PRACH numerology (0,1,2,3,4) to specific frequency value (15/30/60/120/1.25 (khz)) */
+    prach_scspacing = nPrach_SubCarrierSpacing[prachMu];
+
+    /* centerFreq = pointA + (bandwidth/2),  ORAN spec:
+     * freqOffset indicate the location of lowest RE's center in the lowest RB defined by frameStructure, with respect to center-of-channel-bandwidth
+     * prachStartPrb (nPrachFreqStart) from mac2phy API, range 0 - 272
+     * ORAN prach freqoffset (in 0.5 x PRACH SCS) = 0 - (bandwidth/2) + startprb_offset
+     * MAC does not config additional PRACH FreqOffset */
+    half_bandwidth  = pConf->perMu[mu].nULRBs * N_SC_PER_PRB * (pusch_scspacing / prach_scspacing);
+    startprb_offset = prachStartPrb * N_SC_PER_PRB * (pusch_scspacing / prach_scspacing) * 2;
+    prach_freqoffset = 0 - half_bandwidth + startprb_offset;
+    return (prach_freqoffset);
 }
+
 
 static int32_t
 xran_append_sectionext_1(struct rte_mbuf *mbuf, struct xran_sectionext1_info *params, int32_t last_flag)
@@ -692,11 +678,11 @@ xran_append_sectionext_1(struct rte_mbuf *mbuf, struct xran_sectionext1_info *pa
 static int32_t
 xran_prepare_sectionext_2(struct rte_mbuf *mbuf, struct xran_sectionext2_info *params, int32_t last_flag)
 {
-  struct xran_cp_radioapp_section_ext2 *ext2;
-  uint8_t *data;
+    struct xran_cp_radioapp_section_ext2 *ext2;
+    uint8_t *data;
     int32_t total_len;
     int32_t parm_size;
-  uint32_t val, shift_val;
+    uint32_t val, shift_val;
     int32_t val_size, pad_size;
 
     total_len = 0;
@@ -706,7 +692,7 @@ xran_prepare_sectionext_2(struct rte_mbuf *mbuf, struct xran_sectionext2_info *p
     if(ext2 == NULL) {
         print_err("Fail to allocate the space for section extension 2");
         return (XRAN_STATUS_RESOURCE);
-        }
+    }
     total_len += parm_size;
 
     ext2->extType           = XRAN_CP_SECTIONEXTCMD_2;
@@ -750,7 +736,7 @@ xran_prepare_sectionext_2(struct rte_mbuf *mbuf, struct xran_sectionext2_info *p
     if(val) {
         val = val << shift_val;
         val = rte_cpu_to_be_32(val);
-        }
+    }
 
     val_size = 4 - (shift_val/8);   /* ceil(total bit/8) */
     parm_size = val_size + 1;       /* additional 1 byte for bfxxSI */
@@ -768,7 +754,7 @@ xran_prepare_sectionext_2(struct rte_mbuf *mbuf, struct xran_sectionext2_info *p
     if(data == NULL) {
         print_err("Fail to allocate the space for section extension 2");
         return (XRAN_STATUS_RESOURCE);
-        }
+    }
 
     memcpy(data, &val, val_size);
     data += val_size;
@@ -802,7 +788,7 @@ xran_prepare_sectionext_3(struct rte_mbuf *mbuf, struct xran_sectionext3_info *p
         if(ext3_f == NULL) {
             print_err("Fail to allocate the space for section extension 3");
             return (XRAN_STATUS_RESOURCE);
-            }
+        }
 
         /*ext3_f->data_field.data_field1 = _mm_setzero_si128();
 
@@ -840,7 +826,7 @@ xran_prepare_sectionext_3(struct rte_mbuf *mbuf, struct xran_sectionext3_info *p
             data_third_byte = (params->beamIdAP2 << 16) | params->beamIdAP3;
             extLen = 4;
             adj = 0;
-            }
+        }
 
         data_first_byte  = (params->txScheme << xran_cp_radioapp_sec_ext3_TxScheme)
                          | (params->crsReMask << xran_cp_radioapp_sec_ext3_CrcReMask)
@@ -897,7 +883,7 @@ xran_prepare_sectionext_3(struct rte_mbuf *mbuf, struct xran_sectionext3_info *p
 static int32_t
 xran_prepare_sectionext_4(struct rte_mbuf *mbuf, struct xran_sectionext4_info *params, int32_t last_flag)
 {
-  struct xran_cp_radioapp_section_ext4 *ext4;
+    struct xran_cp_radioapp_section_ext4 *ext4;
     int32_t parm_size;
 
     parm_size = sizeof(struct xran_cp_radioapp_section_ext4);
@@ -905,15 +891,15 @@ xran_prepare_sectionext_4(struct rte_mbuf *mbuf, struct xran_sectionext4_info *p
     if(ext4 == NULL) {
         print_err("Fail to allocate the space for section extension 4");
         return(XRAN_STATUS_RESOURCE);
-        }
+    }
 
-        ext4->extType       = XRAN_CP_SECTIONEXTCMD_4;
-        ext4->ef            = last_flag;
-        ext4->modCompScaler = params->modCompScaler;
-        ext4->csf           = params->csf?1:0;
+    ext4->extType       = XRAN_CP_SECTIONEXTCMD_4;
+    ext4->ef            = last_flag;
+    ext4->modCompScaler = params->modCompScaler;
+    ext4->csf           = params->csf?1:0;
     ext4->extLen        = parm_size / XRAN_SECTIONEXT_ALIGN;
 
-        *(uint32_t *)ext4 = rte_cpu_to_be_32(*(uint32_t*)ext4);
+    *(uint32_t *)ext4 = rte_cpu_to_be_32(*(uint32_t*)ext4);
 
     return (parm_size);
 }
@@ -936,7 +922,7 @@ xran_prepare_sectionext_9(struct rte_mbuf *mbuf, struct xran_sectionext9_info * 
     ext9->extLen        = parm_size / XRAN_SECTIONEXT_ALIGN;
     ext9->technology    = params->technology;
     ext9->reserved      = params->reserved;
-    
+
     *(uint32_t *)ext9 = rte_cpu_to_be_32(*(uint32_t*)ext9);
 
     return (parm_size);
@@ -945,11 +931,11 @@ xran_prepare_sectionext_9(struct rte_mbuf *mbuf, struct xran_sectionext9_info * 
 static int32_t
 xran_prepare_sectionext_5(struct rte_mbuf *mbuf, struct xran_sectionext5_info *params, int32_t last_flag)
 {
-  struct xran_cp_radioapp_section_ext_hdr *ext_hdr;
-  struct xran_cp_radioapp_section_ext5 ext5;
+    struct xran_cp_radioapp_section_ext_hdr *ext_hdr;
+    struct xran_cp_radioapp_section_ext5 ext5;
     int32_t padding;
     int32_t total_len;
-  uint8_t *data;
+    uint8_t *data;
     int32_t i;
 
     if(params->num_sets > XRAN_MAX_MODCOMP_ADDPARMS) {
@@ -1155,10 +1141,10 @@ xran_cp_estimate_max_set_bfws(uint8_t numBFWs, uint8_t iqWidth, uint8_t compMeth
 
     /* Exclude headers can be present */
     avail_len = mtu - ( RTE_PKTMBUF_HEADROOM \
-                        + sizeof(struct xran_ecpri_hdr)                    \
+                        + sizeof(struct xran_ecpri_hdr)                     \
                         + sizeof(struct xran_cp_radioapp_section1_header)   \
-                        + sizeof(struct xran_cp_radioapp_section1)         \
-                        + sizeof(union xran_cp_radioapp_section_ext6)     \
+                        + sizeof(struct xran_cp_radioapp_section1)          \
+                        + sizeof(union xran_cp_radioapp_section_ext6)       \
                         + sizeof(union xran_cp_radioapp_section_ext10) );
 
     /* Calculate the size of BFWs I/Q in bytes */
@@ -1217,10 +1203,17 @@ xran_cp_get_hdroffset_section1(uint32_t exthdr_size)
  *  XRAN_STATUS_SUCCESS on success
  *  XRAN_STATUS_RESOURCE, if destination memory is not enough to store all BFWs
  */
+#ifdef XRAN_CP_BF_WEIGHT_STRUCT_OPT
+int32_t xran_cp_prepare_ext11_bfws(uint8_t numSetBFW, uint8_t numBFW,
+                        uint8_t iqWidth, uint8_t compMeth,
+                        uint8_t *dst, int16_t dst_maxlen,
+                        struct xran_ext11_bfw_set_info bfwInfo [])
+#else
 int32_t xran_cp_prepare_ext11_bfws(uint8_t numSetBFW, uint8_t numBFW,
                         uint8_t iqWidth, uint8_t compMeth,
                         uint8_t *dst, int16_t dst_maxlen,
                         struct xran_ext11_bfw_info bfwInfo[])
+#endif
 {
     int32_t   i;
     int32_t   iq_bitsize, iq_size;
@@ -1260,11 +1253,19 @@ int32_t xran_cp_prepare_ext11_bfws(uint8_t numSetBFW, uint8_t numBFW,
     switch(compMeth) {
         /* No compression */
         case XRAN_BFWCOMPMETHOD_NONE:
+#ifdef XRAN_CP_BF_WEIGHT_STRUCT_OPT
+            for(i = 0; i < numSetBFW; i++) {
+                *((uint16_t *)ptr) = rte_cpu_to_be_16((bfwInfo->beamId[i] & 0x7fff));
+                memcpy((ptr + 2), bfwInfo->pBFWs[i], iq_size);
+                ptr += iq_size + 2; /* beam ID + IQ size */
+            }
+#else
             for(i = 0; i < numSetBFW; i++) {
                 *((uint16_t *)ptr) = rte_cpu_to_be_16((bfwInfo[i].beamId & 0x7fff));
                 memcpy((ptr + 2), bfwInfo[i].pBFWs, iq_size);
                 ptr += iq_size + 2; /* beam ID + IQ size */
             }
+#endif
             break;
 
         /* currently only supports BFP compression */
@@ -1278,7 +1279,11 @@ int32_t xran_cp_prepare_ext11_bfws(uint8_t numSetBFW, uint8_t numBFW,
                 bfpComp_req.len             = numBFW*2*2;
                 bfpComp_req.compMethod      = compMeth;
                 bfpComp_req.iqWidth         = iqWidth;
+#ifdef XRAN_CP_BF_WEIGHT_STRUCT_OPT
+                bfpComp_req.data_in         = (int16_t *)(bfwInfo->pBFWs[i]);
+#else
                 bfpComp_req.data_in         = (int16_t *)bfwInfo[i].pBFWs;
+#endif
                 bfpComp_rsp.data_out        = (int8_t*)(ptr + 2);   /* exponent will be stored at first byte */
 
                 if(xranlib_compress_bfw(&bfpComp_req, &bfpComp_rsp) == 0) {
@@ -1291,7 +1296,11 @@ int32_t xran_cp_prepare_ext11_bfws(uint8_t numSetBFW, uint8_t numBFW,
                 *ptr = *(ptr + 2);
 
                 /* beamId */
+#ifdef XRAN_CP_BF_WEIGHT_STRUCT_OPT
+                *((uint16_t *)(ptr+1)) = rte_cpu_to_be_16(((bfwInfo->beamId[i]) & 0x7fff));
+#else
                 *((uint16_t *)(ptr+1)) = rte_cpu_to_be_16((bfwInfo[i].beamId & 0x7fff));
+#endif
                 ptr += iq_size + 3;
             }
             break;
@@ -1315,7 +1324,7 @@ int32_t xran_cp_prepare_ext11_bfws(uint8_t numSetBFW, uint8_t numBFW,
 }
 
 
-static void free_ext_buf(void *addr, void *opaque)
+static void free_ext_buf(void *addr __rte_unused, void *opaque __rte_unused)
 {
     /* free is not required for external buffers */
 }
@@ -1340,6 +1349,7 @@ int32_t xran_cp_attach_ext_buf(struct rte_mbuf *mbuf,
 
     /* Update shared information */
     shinfo->free_cb = free_ext_buf;
+    shinfo->fcb_opaque = NULL;
     rte_mbuf_ext_refcnt_update(shinfo, 1);
 
     extbuf_iova = rte_malloc_virt2iova(extbuf_start);
@@ -1497,7 +1507,7 @@ int32_t xran_append_section_extensions(struct rte_mbuf *mbuf, struct xran_sectio
  *  XRAN_STATUS_INVALID_PARM if the number of symbol is invalid
  */
 static int32_t
-xran_prepare_section0(struct xran_cp_radioapp_section0 *section, struct xran_section_gen_info *params)
+xran_prepare_section0(struct xran_cp_radioapp_section0 *section, struct xran_section_gen_info *params, uint8_t mu)
 {
 #if (XRAN_STRICT_PARM_CHECK)
     if(unlikely(params->info->numSymbol > XRAN_SYMBOLNUMBER_MAX)) {
@@ -1506,7 +1516,7 @@ xran_prepare_section0(struct xran_cp_radioapp_section0 *section, struct xran_sec
         }
 #endif
 
-    section->hdr.u1.common.sectionId      = params->info->id;
+    section->hdr.u1.common.sectionId      = XRAN_BASE_SECT_ID_TO_MU_SECT_ID(params->info->id, mu);
     section->hdr.u1.common.rb             = params->info->rb;
     section->hdr.u1.common.symInc         = params->info->symInc;
     section->hdr.u1.common.startPrbc      = params->info->startPrbc;
@@ -1534,7 +1544,7 @@ xran_prepare_section0(struct xran_cp_radioapp_section0 *section, struct xran_sec
  */
 static int32_t
 xran_prepare_section0_hdr( struct xran_cp_radioapp_section0_header *s0hdr,
-                struct xran_cp_gen_params *params)
+                           struct xran_cp_gen_params *params)
 {
     s0hdr->timeOffset               = rte_cpu_to_be_16(params->hdr.timeOffset);
     s0hdr->frameStructure.fftSize   = params->hdr.fftSize;
@@ -1559,7 +1569,7 @@ xran_prepare_section0_hdr( struct xran_cp_radioapp_section0_header *s0hdr,
  */
 static int32_t
 xran_prepare_section1(struct xran_cp_radioapp_section1 *section,
-                struct xran_section_gen_info *params)
+                      struct xran_section_gen_info *params, uint8_t mu)
 {
 #if (XRAN_STRICT_PARM_CHECK)
     if(unlikely(params->info->numSymbol > XRAN_SYMBOLNUMBER_MAX)) {
@@ -1568,22 +1578,11 @@ xran_prepare_section1(struct xran_cp_radioapp_section1 *section,
         }
 #endif
 
-    /*section->hdr.u1.common.sectionId      = params->info->id;
-    section->hdr.u1.common.rb             = params->info->rb;
-    section->hdr.u1.common.symInc         = params->info->symInc;
-    section->hdr.u1.common.startPrbc      = params->info->startPrbc;
-    section->hdr.u1.common.numPrbc        = XRAN_CONVERT_NUMPRBC(params->info->numPrbc);
-
-    section->hdr.u.s1.reMask    = params->info->reMask;
-    section->hdr.u.s1.numSymbol = params->info->numSymbol;
-    section->hdr.u.s1.beamId    = params->info->beamId;
-    section->hdr.u.s1.ef        = params->info->ef;*/
-
     section->hdr.u.first_4byte   = (params->info->reMask << xran_cp_radioapp_sec_hdr_sc_ReMask)
                                  | (params->info->numSymbol << xran_cp_radioapp_sec_hdr_sc_NumSym)
                                  | (params->info->ef << xran_cp_radioapp_sec_hdr_sc_Ef)
                                  | (params->info->beamId << xran_cp_radioapp_sec_hdr_sc_BeamID);
-    section->hdr.u1.second_4byte = (params->info->id << xran_cp_radioapp_sec_hdr_c_SecId)
+    section->hdr.u1.second_4byte = (XRAN_BASE_SECT_ID_TO_MU_SECT_ID(params->info->id, mu) << xran_cp_radioapp_sec_hdr_c_SecId)
                                  | (params->info->rb << xran_cp_radioapp_sec_hdr_c_RB)
                                  | (params->info->symInc << xran_cp_radioapp_sec_hdr_c_SymInc)
                                  | (params->info->startPrbc << xran_cp_radioapp_sec_hdr_c_StartPrbc)
@@ -1607,7 +1606,7 @@ xran_prepare_section1(struct xran_cp_radioapp_section1 *section,
  */
 static int32_t
 xran_prepare_section1_hdr(struct xran_cp_radioapp_section1_header *s1hdr,
-                struct xran_cp_gen_params *params)
+                          struct xran_cp_gen_params *params)
 {
     s1hdr->udComp.udIqWidth         = params->hdr.iqWidth;
     s1hdr->udComp.udCompMeth        = params->hdr.compMeth;
@@ -1630,7 +1629,7 @@ xran_prepare_section1_hdr(struct xran_cp_radioapp_section1_header *s1hdr,
  */
 static int32_t
 xran_prepare_section3(struct xran_cp_radioapp_section3 *section,
-                struct xran_section_gen_info *params)
+                      struct xran_section_gen_info *params, uint8_t mu)
 {
 #if (XRAN_STRICT_PARM_CHECK)
     if(unlikely(params->info->numSymbol > XRAN_SYMBOLNUMBER_MAX)) {
@@ -1639,7 +1638,7 @@ xran_prepare_section3(struct xran_cp_radioapp_section3 *section,
         }
 #endif
 
-    /*section->hdr.u1.common.sectionId      = params->info->id;
+    /*section->hdr.u1.common.sectionId      = XRAN_BASE_SECT_ID_TO_MU_SECT_ID(params->info->id, mu);
     section->hdr.u1.common.rb             = params->info->rb;
     section->hdr.u1.common.symInc         = params->info->symInc;
     section->hdr.u1.common.startPrbc      = params->info->startPrbc;
@@ -1654,7 +1653,7 @@ xran_prepare_section3(struct xran_cp_radioapp_section3 *section,
                                  | (params->info->numSymbol << xran_cp_radioapp_sec_hdr_sc_NumSym)
                                  | (params->info->ef << xran_cp_radioapp_sec_hdr_sc_Ef)
                                  | (params->info->beamId << xran_cp_radioapp_sec_hdr_sc_BeamID);
-    section->hdr.u1.second_4byte = (params->info->id << xran_cp_radioapp_sec_hdr_c_SecId)
+    section->hdr.u1.second_4byte = (XRAN_BASE_SECT_ID_TO_MU_SECT_ID(params->info->id, mu) << xran_cp_radioapp_sec_hdr_c_SecId)
                                  | (params->info->rb << xran_cp_radioapp_sec_hdr_c_RB)
                                  | (params->info->symInc << xran_cp_radioapp_sec_hdr_c_SymInc)
                                  | (params->info->startPrbc << xran_cp_radioapp_sec_hdr_c_StartPrbc)
@@ -1681,7 +1680,7 @@ xran_prepare_section3(struct xran_cp_radioapp_section3 *section,
  */
 static int32_t
 xran_prepare_section3_hdr(struct xran_cp_radioapp_section3_header *s3hdr,
-                struct xran_cp_gen_params *params)
+                          struct xran_cp_gen_params *params)
 {
     s3hdr->timeOffset               = rte_cpu_to_be_16(params->hdr.timeOffset);
     s3hdr->frameStructure.fftSize   = params->hdr.fftSize;
@@ -1707,29 +1706,30 @@ xran_prepare_section3_hdr(struct xran_cp_radioapp_section3_header *s3hdr,
  *  XRAN_STATUS_RESOURCE if failed to allocate the space to packet buffer
  */
 int32_t
-xran_append_control_section(struct rte_mbuf *mbuf, struct xran_cp_gen_params *params,uint16_t start_sect_id)
+xran_append_control_section(struct rte_mbuf *mbuf, struct xran_cp_gen_params *params,
+        uint16_t start_sect_id, uint8_t mu)
 {
     int32_t i, ret;
-  uint32_t totalen;
-  void *section;
+    uint32_t totalen;
+    void *section;
     int32_t section_size;
-    int32_t (*xran_prepare_section_func)(void *section, void *params);
+    int32_t (*xran_prepare_section_func)(void *section, void *params, uint8_t mu);
 
     totalen = 0;
     switch(params->sectionType) {
         case XRAN_CP_SECTIONTYPE_0: /* Unused RB or Symbols in DL or UL, not supportted */
             section_size                = sizeof(struct xran_cp_radioapp_section0);
-            xran_prepare_section_func   = (int32_t (*)(void *, void *))xran_prepare_section0;
+            xran_prepare_section_func   = (int32_t (*)(void *, void *, uint8_t))xran_prepare_section0;
             break;
 
         case XRAN_CP_SECTIONTYPE_1: /* Most DL/UL Radio Channels */
             section_size                = sizeof(struct xran_cp_radioapp_section1);
-            xran_prepare_section_func   = (int32_t (*)(void *, void *))xran_prepare_section1;
+            xran_prepare_section_func   = (int32_t (*)(void *, void *, uint8_t))xran_prepare_section1;
             break;
 
         case XRAN_CP_SECTIONTYPE_3: /* PRACH and Mixed-numerology Channels */
             section_size                = sizeof(struct xran_cp_radioapp_section3);
-            xran_prepare_section_func   = (int32_t (*)(void *, void *))xran_prepare_section3;
+            xran_prepare_section_func   = (int32_t (*)(void *, void *, uint8_t))xran_prepare_section3;
             break;
 
         case XRAN_CP_SECTIONTYPE_5: /* UE scheduling information, not supported */
@@ -1755,7 +1755,7 @@ xran_append_control_section(struct rte_mbuf *mbuf, struct xran_cp_gen_params *pa
         }
         print_dbg("%s %d ef %d\n", __FUNCTION__, i, params->sections[i].info->ef);
         ret = xran_prepare_section_func((void *)section,
-                            (void *)&params->sections[i]);
+                            (void *)&params->sections[i], mu);
         if(ret < 0){
             print_err("%s %d\n", __FUNCTION__, ret);
             return (ret);
@@ -1788,7 +1788,7 @@ xran_append_control_section(struct rte_mbuf *mbuf, struct xran_cp_gen_params *pa
  */
 static inline int32_t
 xran_prepare_radioapp_common_header(struct xran_cp_radioapp_common_header *apphdr,
-                struct xran_cp_gen_params *params)
+                                    struct xran_cp_gen_params *params)
 {
 
 #if (XRAN_STRICT_PARM_CHECK)
@@ -1924,6 +1924,12 @@ xran_append_radioapp_header(struct rte_mbuf *mbuf, struct xran_cp_gen_params *pa
  *  Antenna ID(RU Port ID) for this C-Plane message
  * @param seq_id
  *  Sequence ID for this C-Plane message
+ * @param start_sect_id
+ *  Starting section ID for the CP packet
+ * @param mu
+ *  Numerology
+ * @param oxu_port_id
+ *  O-DU/RU port ID
  * @return
  *  XRAN_STATUS_SUCCESS on success
  *  XRAN_STATUS_RESOURCE if failed to allocate the space to packet buffer
@@ -1934,13 +1940,13 @@ xran_prepare_ctrl_pkt(struct rte_mbuf *mbuf,
                         struct xran_cp_gen_params *params,
                         uint8_t CC_ID, uint8_t Ant_ID,
                         uint8_t seq_id,
-                        uint16_t start_sect_id)
+                        uint16_t start_sect_id, uint8_t mu, uint8_t oxu_port_id)
 {
     int32_t ret;
-  uint32_t payloadlen;
-  struct xran_ecpri_hdr *ecpri_hdr;
+    uint32_t payloadlen;
+    struct xran_ecpri_hdr *ecpri_hdr;
 
-    payloadlen = xran_build_ecpri_hdr(mbuf, CC_ID, Ant_ID, seq_id, &ecpri_hdr);
+    payloadlen = xran_build_ecpri_hdr(mbuf, CC_ID, Ant_ID, seq_id, oxu_port_id, &ecpri_hdr);
 
     ret = xran_append_radioapp_header(mbuf, params);
     if(ret < 0) {
@@ -1949,7 +1955,7 @@ xran_prepare_ctrl_pkt(struct rte_mbuf *mbuf,
     }
     payloadlen += ret;
 
-    ret = xran_append_control_section(mbuf, params,start_sect_id);
+    ret = xran_append_control_section(mbuf, params, start_sect_id, mu);
     if(ret < 0) {
         print_err("%s %d\n", __FUNCTION__, ret);
         return (ret);
@@ -1969,11 +1975,11 @@ xran_parse_section_ext1(void *ext, struct xran_sectionext1_info *extinfo)
 {
     int32_t len;
     int32_t total_len;
-  struct xran_cp_radioapp_section_ext1 *ext1;
-  uint8_t *data;
+    struct xran_cp_radioapp_section_ext1 *ext1;
+    uint8_t *data;
     int32_t parm_size = 0, iq_size, iq_size_bytes;
     int32_t N;
-  void *pHandle;
+    void *pHandle;
 
     pHandle = NULL;
     N = xran_get_conf_num_bfweights(pHandle);
@@ -2053,10 +2059,10 @@ xran_parse_section_ext2(void *ext, struct xran_sectionext2_info *extinfo)
 {
     int32_t len;
     int32_t total_len;
-  struct xran_cp_radioapp_section_ext2 *ext2;
-  uint8_t *data;
+    struct xran_cp_radioapp_section_ext2 *ext2;
+    uint8_t *data;
     int32_t parm_size;
-  uint32_t val;
+    uint32_t val;
     int32_t val_size;
 
     ext2 = (struct xran_cp_radioapp_section_ext2 *)ext;
@@ -2199,7 +2205,7 @@ int32_t
 xran_parse_section_ext4(void *ext, struct xran_sectionext4_info *extinfo)
 {
     int32_t len;
-  struct xran_cp_radioapp_section_ext4 *ext4;
+    struct xran_cp_radioapp_section_ext4 *ext4;
     int32_t total_len;
 
     ext4 = (struct xran_cp_radioapp_section_ext4 *)ext;
@@ -2224,12 +2230,12 @@ int32_t
 xran_parse_section_ext5(void *ext,
                 struct xran_sectionext5_info *extinfo)
 {
-  struct xran_cp_radioapp_section_ext_hdr *ext_hdr;
-  struct xran_cp_radioapp_section_ext5 ext5;
+    struct xran_cp_radioapp_section_ext_hdr *ext_hdr;
+    struct xran_cp_radioapp_section_ext5 ext5;
     int32_t parm_size;
     int32_t total_len;
-  uint8_t *data;
-  uint16_t i;
+    uint8_t *data;
+    uint16_t i;
 
     ext_hdr = (struct xran_cp_radioapp_section_ext_hdr *)ext;
     *(uint16_t *)ext_hdr = rte_be_to_cpu_16(*(uint16_t *)ext_hdr);
@@ -2262,7 +2268,7 @@ xran_parse_section_ext5(void *ext,
         i++;
 
         data += sizeof(struct xran_cp_radioapp_section_ext5);
-        }
+    }
 
     /* check the values of last set
      * due to alignment, it cannot be identified by the length that 3 or 4, 11 or 12 and etc
@@ -2319,7 +2325,7 @@ xran_parse_section_ext9(void *ext,
     *(uint32_t *)ext9 = rte_be_to_cpu_32(*(uint32_t *)ext9);
 
     total_len = ext9->extLen * XRAN_SECTIONEXT_ALIGN;
-    
+
     if(result) {
         dssSlot = result->tti % result->dssPeriod;
         presumed_technology = result->technology_arr[dssSlot];
@@ -2345,9 +2351,7 @@ xran_parse_section_ext9(void *ext,
 }
 
 
-int32_t
-xran_parse_section_ext10(void *ext,
-                struct xran_sectionext10_info *extinfo)
+int32_t xran_parse_section_ext10(void *ext, struct xran_sectionext10_info *extinfo)
 {
     int32_t len, padding;
     int32_t i;
@@ -2373,6 +2377,8 @@ xran_parse_section_ext10(void *ext,
 
         ptr = (uint16_t *)&ext10->all_bits.reserved;
         for(i=0; i < extinfo->numPortc; i++)
+            // Operation purposeful, to stay compliant with ORAN WG4 7.7.10.1-1 Ext 10 definition.
+            // coverity[OVERRUN]
             extinfo->beamID[i] = rte_be_to_cpu_16(ptr[i]);
         }
 
@@ -2486,10 +2492,10 @@ xran_parse_section_extension(struct rte_mbuf *mbuf,
 {
     struct xran_section_recv_info *section = &result->sections[section_idx];
     int32_t total_len, len, numext;
-  uint8_t *ptr;
+    uint8_t *ptr;
     int32_t flag_last;
     int32_t ext_type;
-    int32_t i;
+//    int32_t i;
 
     total_len = 0;
     ptr = (uint8_t *)ext;
@@ -2497,7 +2503,7 @@ xran_parse_section_extension(struct rte_mbuf *mbuf,
     numext = 0;
 
     flag_last = 1;
-    i = 0;
+    // i = 0;
     while(flag_last) {
         /* check ef */
         flag_last = (*ptr & 0x80);
@@ -2542,7 +2548,7 @@ xran_parse_section_extension(struct rte_mbuf *mbuf,
         section->exts[numext].size = len;
         ptr += len; total_len += len;
 
-        i++;
+        // i++;
         if(++numext < XRAN_MAX_NUM_EXTENSIONS) continue;
 
         /* exceeds maximum number of extensions */
@@ -2575,8 +2581,8 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                     struct xran_cp_recv_params *result,
                     struct xran_recv_packet_info *pkt_info, void* handle, uint32_t *mb_free)
 {
-  struct xran_ecpri_hdr *ecpri_hdr;
-  struct xran_cp_radioapp_common_header *apphdr;
+    struct xran_ecpri_hdr *ecpri_hdr;
+    struct xran_cp_radioapp_common_header *apphdr;
     struct xran_common_counters* pCnt = NULL;
     struct xran_prb_map *pRbMap = NULL;
     struct xran_prb_map *pRbMap_desc = NULL;
@@ -2585,32 +2591,34 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
     int32_t i, j, ret, extlen;
     int tti = 0,interval = 0;
     uint8_t idx = 0, ctx_id = 0;
-    struct xran_device_ctx * p_dev_ctx = NULL;
     struct xran_device_ctx * p_xran_dev_ctx = (struct xran_device_ctx *)handle;
+
     if(unlikely(p_xran_dev_ctx == NULL)){
         print_err("p_xran_dev_ctx is NULL\n");
         return XRAN_STATUS_INVALID_PARAM;
     }
-    p_dev_ctx = xran_dev_get_ctx();
-    ret = xran_parse_ecpri_hdr(mbuf, &ecpri_hdr, pkt_info);
+    ret = xran_parse_ecpri_hdr(XRAN_GET_OXU_PORT_ID(p_xran_dev_ctx),mbuf, &ecpri_hdr, pkt_info);
     struct xran_eaxc_info eaxc = pkt_info->eaxc;
     struct xran_section_info *info = NULL;
+    uint8_t mu;
+    uint16_t eaxcOffset = 0;
+
     if(ret < 0 && ecpri_hdr == NULL)
         return (XRAN_STATUS_INVALID_PACKET);
 
     /* Process radio header. */
     apphdr = (void *)rte_pktmbuf_adj(mbuf, sizeof(struct xran_ecpri_hdr));
     if(unlikely(apphdr == NULL)) {
-        print_err("Invalid packet - radio app header!");
+        print_dbg("Invalid packet - radio app header!");
         return (XRAN_STATUS_INVALID_PACKET);
-        }
+    }
 
     *((uint32_t *)apphdr) = rte_be_to_cpu_32(*((uint32_t *)apphdr));
 
     if(apphdr->field.payloadVer != XRAN_PAYLOAD_VER) {
-        print_err("Invalid Payload version - %d", apphdr->field.payloadVer);
+        print_dbg("Invalid Payload version - %d", apphdr->field.payloadVer);
         ret = XRAN_STATUS_INVALID_PACKET;
-        }
+    }
 
     result->dir             = apphdr->field.dataDirection;
     result->hdr.filterIdx   = apphdr->field.filterIndex;
@@ -2621,11 +2629,16 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
     result->sectionType     = apphdr->sectionType;
     result->numSections     = apphdr->numOfSections;
     result->ext1count       = 0;
+    mu = p_xran_dev_ctx->fh_cfg.mu_number[0];
+    if(likely(XRAN_CP_SECTIONTYPE_3 != result->sectionType))
+    {
+        interval = xran_fs_get_tti_interval(p_xran_dev_ctx->fh_cfg.mu_number[0]);
+        tti = apphdr->field.frameId * SLOTS_PER_SYSTEMFRAME(interval) + apphdr->field.subframeId * SLOTNUM_PER_SUBFRAME(interval) + apphdr->field.slotId;
+        result->tti = tti;
+        ctx_id      = tti % XRAN_MAX_SECTIONDB_CTX;
+    }
+    /* Derive numerology and interval from framestructure attribute in section-type-3 header */
 
-    interval = p_xran_dev_ctx->interval_us_local;
-    tti = apphdr->field.frameId * SLOTS_PER_SYSTEMFRAME(interval) + apphdr->field.subframeId * SLOTNUM_PER_SUBFRAME(interval) + apphdr->field.slotId;
-    result->tti = tti;
-    ctx_id      = tti % XRAN_MAX_SECTIONDB_CTX;
 #if 0
     printf("[CP%5d] eAxC[%d:%d:%02d:%02d] %s seq[%03d-%03d-%d] sec[%d-%d] frame[%3d-%2d-%2d] sym%02d\n",
         pkt_info->payload_len,
@@ -2655,14 +2668,14 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
 
                 section = (void *)rte_pktmbuf_adj(mbuf, sizeof(struct xran_cp_radioapp_section0_header));
                 if(section == NULL) {
-                    print_err("Invalid packet: section type0 - radio app hedaer!");
+                    print_dbg("Invalid packet: section type0 - radio app header!");
                     return (XRAN_STATUS_INVALID_PACKET);
-                    }
+                }
                 for(i=0; i<result->numSections; i++) {
                     *((uint64_t *)section) = rte_be_to_cpu_64(*((uint64_t *)section));
 
                     result->sections[i].info.type       = apphdr->sectionType;
-                    result->sections[i].info.id         = section->hdr.u1.common.sectionId;
+                    result->sections[i].info.id         = XRAN_MU_SECT_ID_TO_BASE_SECT_ID(section->hdr.u1.common.sectionId);
                     result->sections[i].info.rb         = section->hdr.u1.common.rb;
                     result->sections[i].info.symInc     = section->hdr.u1.common.symInc;
                     result->sections[i].info.startPrbc  = section->hdr.u1.common.startPrbc;
@@ -2673,13 +2686,13 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
 
                     section = (void *)rte_pktmbuf_adj(mbuf, sizeof(struct xran_cp_radioapp_section0));
                     if(section == NULL) {
-                        print_err("Invalid packet: section type0 - number of section [%d:%d]!",
+                        print_dbg("Invalid packet: section type0 - number of section [%d:%d]!",
                                     result->numSections, i);
                         result->numSections = i;
                         ret = XRAN_STATUS_INVALID_PACKET;
                         break;
-                        }
                     }
+                }
             }
             break;
 
@@ -2687,6 +2700,7 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
             {
             struct xran_cp_radioapp_section1_header *hdr;
             struct xran_cp_radioapp_section1 *section;
+            eaxcOffset = p_xran_dev_ctx->perMu[mu].eaxcOffset;
 
                 hdr = (struct xran_cp_radioapp_section1_header*)apphdr;
 
@@ -2695,15 +2709,15 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
 
                 section = (void *)rte_pktmbuf_adj(mbuf, sizeof(struct xran_cp_radioapp_section1_header));
                 if(unlikely(section == NULL)) {
-                    print_err("Invalid packet: section type1 - radio app hedaer!");
+                    print_dbg("Invalid packet: section type1 - radio app header!");
                     return (XRAN_STATUS_INVALID_PACKET);
-                    }
+                }
 
                 for(i=0; i<result->numSections; i++) {
                     *((uint64_t *)section) = rte_be_to_cpu_64(*((uint64_t *)section));
 
                     result->sections[i].info.type       = apphdr->sectionType;
-                    result->sections[i].info.id         = section->hdr.u1.common.sectionId;
+                    result->sections[i].info.id         = XRAN_MU_SECT_ID_TO_BASE_SECT_ID(section->hdr.u1.common.sectionId);
                     result->sections[i].info.rb         = section->hdr.u1.common.rb;
                     result->sections[i].info.symInc     = section->hdr.u1.common.symInc;
                     result->sections[i].info.startPrbc  = section->hdr.u1.common.startPrbc;
@@ -2716,33 +2730,48 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                     section = (void *)rte_pktmbuf_adj(mbuf,
                                     sizeof(struct xran_cp_radioapp_section1));
                     if(unlikely(section == NULL)) {
-                        print_err("Invalid packet: section type1 - number of section [%d:%d]!",
+                        print_dbg("Invalid packet: section type1 - number of section [%d:%d]!",
                                     result->numSections, i);
                         result->numSections = i;
                         ret = XRAN_STATUS_INVALID_PACKET;
                         break;
-                        }
-                    if (eaxc.ruPortId < p_xran_dev_ctx->srs_cfg.eAxC_offset)
+                    }
+
+                    if (eaxc.ruPortId >= eaxcOffset && eaxc.ruPortId < (eaxcOffset+xran_get_num_eAxc(p_xran_dev_ctx)) )
                     {
+                        /*TODOMIXED: logic to get numerology and identify NBIOT based on eAxCID*/
+                        int32_t ant_id = eaxc.ruPortId - eaxcOffset;
                         struct xran_flat_buffer *pBuffer = NULL;
-                        if(result->dir == 1)
-                            pBuffer = p_xran_dev_ctx->sFHCpRxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][eaxc.ruPortId].sBufferList.pBuffers;
-                        else if(result->dir == 0)
-                            pBuffer = p_xran_dev_ctx->sFHCpTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][eaxc.ruPortId].sBufferList.pBuffers;
+                        if(result->dir == XRAN_DIR_DL)
+                        {
+                            pBuffer = p_xran_dev_ctx->perMu[mu].sFHCpRxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers;
+                        }
+                        else if(result->dir == XRAN_DIR_UL)
+                        {
+                            pBuffer = p_xran_dev_ctx->perMu[mu].sFHCpTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers;
+                        }
+
                         if(pBuffer)
+                        {
                             pRbMap = (struct xran_prb_map *)pBuffer->pData;
-                        if(p_xran_dev_ctx->sFrontHaulTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][eaxc.ruPortId].sBufferList.pBuffers)
-                            pRbMap_desc = (struct xran_prb_map *) p_xran_dev_ctx->sFrontHaulTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][eaxc.ruPortId].sBufferList.pBuffers->pData;
+                        }
 
-                        if(i == 0){
-                            if((pRbMap_desc != NULL) && (pRbMap_desc->nPrbElm <= p_xran_dev_ctx->sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId])){
-                                p_xran_dev_ctx->sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]=0;
-                                xran_cp_reset_section_info(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id);
+                        if(p_xran_dev_ctx->perMu[mu].sFrontHaulTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers)
+                            pRbMap_desc = (struct xran_prb_map *) p_xran_dev_ctx->perMu[mu].sFrontHaulTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers->pData;
+
+                        if(i == 0)
+                        {
+                            if((pRbMap_desc != NULL) && (pRbMap_desc->nPrbElm <= p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]))
+                            {
+                                p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId] = 0;
+                                xran_cp_reset_section_info(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
                             }
-                            idx = p_xran_dev_ctx->sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]++;  
 
-                            if(p_dev_ctx){
-                                result->numSetBFW = p_dev_ctx->numSetBFWs_arr[idx];
+                            idx = p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]++;
+
+                            if(likely(p_xran_dev_ctx)){
+                                result->numSetBFW = p_xran_dev_ctx->perMu[mu].numSetBFWs_arr[idx];
+
                                 if(likely(pRbMap!=NULL)){
                                     prbMapElm = &pRbMap->prbMap[idx];
                                     mb = prbMapElm->bf_weight.p_ext_start;
@@ -2755,7 +2784,8 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                                 }
                             }
                         }
-                        info = xran_cp_get_section_info_ptr(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id);
+
+                        info = xran_cp_get_section_info_ptr(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
                         if(likely(info != NULL))
                         {
                             info->prbElemBegin = (i == 0 ) ?  1 : 0;
@@ -2770,7 +2800,7 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                             info->id           = result->sections[i].info.id;
                             info->rb           = XRAN_RBIND_EVERY;
                             info->numSymbol    = result->sections[i].info.numSymbol;
-                            info->reMask       = 0xfff;
+                            info->reMask       = result->sections[i].info.reMask;
                             info->beamId       = result->sections[i].info.beamId;
                             info->symInc       = XRAN_SYMBOLNUMBER_NOTINC;
 
@@ -2779,13 +2809,13 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                                 prbMapElm = &pRbMap_desc->prbMap[idx];
                                 for(loc_sym = 0; loc_sym < XRAN_NUM_OF_SYMBOL_PER_SLOT; loc_sym++)
                                 {
-                                    struct xran_section_desc *p_sec_desc =  &prbMapElm->sec_desc[loc_sym][0];
+                                    struct xran_section_desc *p_sec_desc =  &prbMapElm->sec_desc[loc_sym];
 
                                     if(likely(p_sec_desc!=NULL))
                                     {
                                         info->sec_desc[loc_sym].iq_buffer_offset = p_sec_desc->iq_buffer_offset;
                                         info->sec_desc[loc_sym].iq_buffer_len    = p_sec_desc->iq_buffer_len;
-                                        
+
                                         p_sec_desc->section_id   = info->id;
                                     }
                                     else
@@ -2796,36 +2826,99 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                             }
                         }
 
-                    if(result->sections[i].info.ef) {
+                        if(result->sections[i].info.ef) {
                             result->dssPeriod = p_xran_dev_ctx->dssPeriod;
                             for( j=0; j< p_xran_dev_ctx->dssPeriod; j++) {
                                 result->technology_arr[j] = p_xran_dev_ctx->technology[j];
                             }
                             extlen = xran_parse_section_extension(mbuf, (void *)section, result, i);
-                        if(extlen > 0) {
-                            section = (void *)rte_pktmbuf_adj(mbuf, extlen);
+                            if(extlen > 0) {
+                                section = (void *)rte_pktmbuf_adj(mbuf, extlen);
                                 if(unlikely(section == NULL)) {
-                                print_err("Invalid packet: section type1 - section extension [%d]!", i);
-                                ret = XRAN_STATUS_INVALID_PACKET;
-                                break;
+                                    print_dbg("Invalid packet: section type1 - section extension [%d]!", i);
+                                    ret = XRAN_STATUS_INVALID_PACKET;
+                                    break;
                                 }
                             }
                         }
-                    else extlen = 0;
+                        else extlen = 0;
                     }
-                    else if((eaxc.ruPortId >= p_xran_dev_ctx->srs_cfg.eAxC_offset) && p_xran_dev_ctx->fh_cfg.srsEnable){
-                        int32_t ant_id = ((eaxc.ruPortId - p_xran_dev_ctx->srs_cfg.eAxC_offset) & 0x3F); /*Klocwork fix*/
-                        if(p_xran_dev_ctx->sFHSrsRxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers){
-                            pRbMap_desc = (struct xran_prb_map *) p_xran_dev_ctx->sFHSrsRxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers->pData;
+                    else if((eaxc.ruPortId >= p_xran_dev_ctx->srs_cfg.srsEaxcOffset) &&
+                            (eaxc.ruPortId < (p_xran_dev_ctx->srs_cfg.srsEaxcOffset + xran_get_num_ant_elm(p_xran_dev_ctx)) )
+                            && p_xran_dev_ctx->fh_cfg.srsEnable && result->dir == XRAN_DIR_UL)
+                    {
+                        int32_t ant_id = ((eaxc.ruPortId - p_xran_dev_ctx->srs_cfg.srsEaxcOffset) & 0x3F); /*Klocwork fix*/
+                        if(p_xran_dev_ctx->perMu[mu].sFHSrsRxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers){
+                            pRbMap_desc = (struct xran_prb_map *) p_xran_dev_ctx->perMu[mu].sFHSrsRxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers->pData;
                         }
                         if(i == 0){
-                            if((pRbMap_desc != NULL) && (pRbMap_desc->nPrbElm <= p_xran_dev_ctx->sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId])){
-                                p_xran_dev_ctx->sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]=0;
-                                xran_cp_reset_section_info(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id);
+                            if((pRbMap_desc != NULL) && (pRbMap_desc->nPrbElm <= p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId])){
+                                p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]=0;
+                                xran_cp_reset_section_info(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
                             }
-                            idx = p_xran_dev_ctx->sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]++;  
+                            idx = p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]++;
                         }
-                        info = xran_cp_get_section_info_ptr(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id);
+                        info = xran_cp_get_section_info_ptr(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
+                        if(likely(info != NULL))
+                        {
+                            info->prbElemBegin = (i == 0 ) ?  1 : 0;
+                            info->prbElemEnd   = (i == (result->numSections -1)) ?  1 : 0;
+                            info->ef           = result->sections[i].info.ef;
+                            info->type         = result->sections[i].info.type;
+                            info->startSymId   = result->hdr.startSymId;
+                            info->iqWidth      = result->hdr.iqWidth;
+                            info->compMeth     = result->hdr.compMeth;
+                            info->id           = result->sections[i].info.id;
+                            info->rb           = XRAN_RBIND_EVERY;
+                            info->numSymbol    = result->sections[i].info.numSymbol;
+                            info->reMask       = result->sections[i].info.reMask;
+                            info->beamId       = result->sections[i].info.beamId;
+                            info->symInc       = XRAN_SYMBOLNUMBER_NOTINC;
+                            int loc_sym=0;
+                            if(likely(pRbMap_desc != NULL)){
+                                prbMapElm = &pRbMap_desc->prbMap[idx];
+                                info->startPrbc    = prbMapElm->nRBStart;
+                                info->numPrbc      = prbMapElm->nRBSize;
+
+                                struct xran_section_desc *p_sec_desc = NULL;
+                                for(loc_sym = 0; loc_sym < XRAN_NUM_OF_SYMBOL_PER_SLOT; loc_sym++)
+                                {
+                                    p_sec_desc =  &prbMapElm->sec_desc[loc_sym];
+
+                                    if(likely(p_sec_desc!=NULL))
+                                    {
+                                        info->sec_desc[loc_sym].iq_buffer_offset = p_sec_desc->iq_buffer_offset;
+                                        info->sec_desc[loc_sym].iq_buffer_len    = p_sec_desc->iq_buffer_len;
+                                        p_sec_desc->section_id   = info->id;
+                                    }
+                                    else
+                                    {
+                                        print_err("section desc is NULL\n");
+                                    }
+                                } /* for(loc_sym = 0; loc_sym < XRAN_NUM_OF_SYMBOL_PER_SLOT; loc_sym++) */
+                            }
+                        }
+                        /*Assuming SRS CP will not have extension, removed the ef flag check and extension processing*/
+                    }
+                    /*Disabling the database update for CSI-RS packets on RU side as CSI-RS packets are not sent from RU.
+                      CSI-RS is downlink only traffic.*/
+#if 0
+                    else if((eaxc.ruPortId >= p_xran_dev_ctx->csirs_cfg.csirsEaxcOffset) &&
+                            (eaxc.ruPortId < (p_xran_dev_ctx->csirs_cfg.csirsEaxcOffset + XRAN_MAX_CSIRS_PORTS))
+                            && p_xran_dev_ctx->fh_cfg.csirsEnable && result->dir == XRAN_DIR_DL)
+                    {
+                        int32_t ant_id = ((eaxc.ruPortId - p_xran_dev_ctx->csirs_cfg.csirsEaxcOffset) & 0x3F); /*Klocwork fix*/
+                        if(p_xran_dev_ctx->perMu[mu].sFHCsirsTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers){
+                            pRbMap_desc = (struct xran_prb_map *) p_xran_dev_ctx->perMu[mu].sFHCsirsTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers->pData;
+                        }
+                        if(i == 0){
+                            if((pRbMap_desc != NULL) && (pRbMap_desc->nPrbElm <= p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId])){
+                                p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]=0;
+                                xran_cp_reset_section_info(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
+                            }
+                            idx = p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]++;
+                        }
+                        info = xran_cp_get_section_info_ptr(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
                         if(likely(info != NULL))
                         {
                             info->prbElemBegin = (i == 0 ) ?  1 : 0;
@@ -2855,7 +2948,239 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                                     if(likely(p_sec_desc!=NULL))
                                     {
                                         info->sec_desc[loc_sym].iq_buffer_offset = p_sec_desc->iq_buffer_offset;
-                                        info->sec_desc[loc_sym].iq_buffer_len    = p_sec_desc->iq_buffer_len;                                    
+                                        info->sec_desc[loc_sym].iq_buffer_len    = p_sec_desc->iq_buffer_len;
+                                        p_sec_desc->section_id   = info->id;
+                                    }
+                                    else
+                                    {
+                                        print_err("section desc is NULL\n");
+                                    }
+                                } /* for(loc_sym = 0; loc_sym < XRAN_NUM_OF_SYMBOL_PER_SLOT; loc_sym++) */
+                            }
+                        }
+                        /*CSI-RS CP will not have extension, No ef flag check and extension processing*/
+                    }
+#endif
+                } //numSections
+
+                pCnt = &p_xran_dev_ctx->fh_counters;
+                /* SRS should not have extension */
+                if(pCnt && (result->sections[0].info.ef) && (result->sections[0].exts[0].type == 1) && (result->numSections != result->numSetBFW) && (result->ext1count != result->numSetBFW)){
+                    print_dbg("extension 1 is not Valid! [%d:%d:%d]", result->numSections, result->numSetBFW, result->ext1count);
+                    pCnt->rx_invalid_ext1_packets++;
+                }
+            }
+            break;
+
+        case XRAN_CP_SECTIONTYPE_3: // PRACH and Mixed-numerology Channels
+        {
+            struct xran_cp_radioapp_section3_header *hdr;
+            struct xran_cp_radioapp_section3 *section;
+            uint16_t sect_id = 0;
+
+            hdr = (struct xran_cp_radioapp_section3_header*)apphdr;
+
+            result->hdr.timeOffset  = rte_be_to_cpu_16(hdr->timeOffset);
+            result->hdr.scs         = hdr->frameStructure.uScs;
+            result->hdr.fftSize     = hdr->frameStructure.fftSize;
+            result->hdr.cpLength    = rte_be_to_cpu_16(hdr->cpLength);
+            result->hdr.iqWidth     = hdr->udComp.udIqWidth;
+            result->hdr.compMeth    = hdr->udComp.udCompMeth;
+
+            section = (void *)rte_pktmbuf_adj(mbuf, sizeof(struct xran_cp_radioapp_section3_header));
+            if(section == NULL) {
+                print_dbg("Invalid packet: section type3 - radio app header!");
+                return (XRAN_STATUS_INVALID_PACKET);
+            }
+            eaxcOffset = p_xran_dev_ctx->perMu[mu].eaxcOffset;
+
+            for(i=0; i<result->numSections; i++)
+            {
+                *((uint64_t *)section) = rte_be_to_cpu_64(*((uint64_t *)section));
+
+                result->sections[i].info.type       = apphdr->sectionType;
+                result->sections[i].info.id         = XRAN_MU_SECT_ID_TO_BASE_SECT_ID(section->hdr.u1.common.sectionId);
+                sect_id                             = section->hdr.u1.common.sectionId;
+                result->sections[i].info.rb         = section->hdr.u1.common.rb;
+                result->sections[i].info.symInc     = section->hdr.u1.common.symInc;
+                result->sections[i].info.startPrbc  = section->hdr.u1.common.startPrbc;
+                result->sections[i].info.numPrbc    = section->hdr.u1.common.numPrbc,
+                result->sections[i].info.numSymbol  = section->hdr.u.s3.numSymbol;
+                result->sections[i].info.reMask     = section->hdr.u.s3.reMask;
+                result->sections[i].info.beamId     = section->hdr.u.s3.beamId;
+                result->sections[i].info.ef         = section->hdr.u.s3.ef;
+                result->sections[i].info.freqOffset = ((int32_t)rte_be_to_cpu_32(section->freqOffset))>>8;
+
+                if(section->reserved) {
+                    print_dbg("Invalid packet: section type3 - section[%d] reserved[%d]", i, section->reserved);
+                    ret = XRAN_STATUS_INVALID_PACKET;
+                }
+
+                section = (void *)rte_pktmbuf_adj(mbuf, sizeof(struct xran_cp_radioapp_section3));
+                if(unlikely(section == NULL))
+                {
+                    print_dbg("Invalid packet: section type3 - number of section [%d:%d]!",
+                            result->numSections, i);
+                    result->numSections = i;
+                    ret = XRAN_STATUS_INVALID_PACKET;
+                    break;
+                }
+
+                bool isPusch = false;
+                switch(result->hdr.filterIdx)
+                {
+                case XRAN_FILTERINDEX_STANDARD:
+                case XRAN_FILTERINDEX_NPUSCH_15:
+                case XRAN_FILTERINDEX_NPUSCH_375:
+                    isPusch = true;
+                    break;
+                default:
+                    isPusch = false;
+                    break;
+                }
+
+                if(isPusch)
+                {
+                    mu = XRAN_GET_MU_FROM_SECT_ID(sect_id); //xran_fs_get_mu_from_scs(hdr->frameStructure.uScs);
+                    if(xran_validate_sectionId(p_xran_dev_ctx,mu) == XRAN_STATUS_FAIL)
+                        break;
+                    eaxcOffset = p_xran_dev_ctx->perMu[mu].eaxcOffset;
+                    int32_t ant_id = eaxc.ruPortId - eaxcOffset;
+
+                    if (eaxc.ruPortId >= eaxcOffset && eaxc.ruPortId < (eaxcOffset+xran_get_num_eAxc(p_xran_dev_ctx)))
+                    { //pusch
+                        struct xran_flat_buffer *pBuffer = NULL;
+                        if(result->dir == XRAN_DIR_DL)
+                        {
+                            pBuffer = p_xran_dev_ctx->perMu[mu].sFHCpRxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers;
+                        }
+                        else if(result->dir == XRAN_DIR_UL)
+                        {
+                            pBuffer = p_xran_dev_ctx->perMu[mu].sFHCpTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers;
+                        }
+
+                        if(pBuffer)
+                        {
+                            pRbMap = (struct xran_prb_map *)pBuffer->pData;
+                        }
+
+                        if(p_xran_dev_ctx->perMu[mu].sFrontHaulTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers)
+                            pRbMap_desc = (struct xran_prb_map *) p_xran_dev_ctx->perMu[mu].sFrontHaulTxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers->pData;
+
+                        if(i == 0)
+                        {
+                            if((pRbMap_desc != NULL) && (pRbMap_desc->nPrbElm <= p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]))
+                            {
+                                p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId] = 0;
+                                xran_cp_reset_section_info(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
+                            }
+
+                            idx = p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]++;
+
+                            if(p_xran_dev_ctx){
+                                result->numSetBFW = p_xran_dev_ctx->perMu[mu].numSetBFWs_arr[idx];
+
+                                if(likely(pRbMap!=NULL)){
+                                    prbMapElm = &pRbMap->prbMap[idx];
+                                    mb = prbMapElm->bf_weight.p_ext_start;
+                                    if(mb){
+                                        rte_pktmbuf_free(mb);
+                                    }
+                                    prbMapElm->bf_weight.p_ext_start = mbuf;
+                                    prbMapElm->bf_weight.p_ext_section = (void *)section;
+                                    *mb_free = MBUF_KEEP;
+                                }
+                            }
+                        }
+
+                        info = xran_cp_get_section_info_ptr(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
+                        if(likely(info != NULL))
+                        {
+                            info->prbElemBegin = (i == 0 ) ?  1 : 0;
+                            info->prbElemEnd   = (i == (result->numSections -1)) ?  1 : 0;
+                            info->ef           = result->sections[i].info.ef;
+                            info->startPrbc    = result->sections[i].info.startPrbc;
+                            info->numPrbc      = result->sections[i].info.numPrbc;
+                            info->type         = result->sections[i].info.type;
+                            info->startSymId   = result->hdr.startSymId;
+                            info->iqWidth      = result->hdr.iqWidth;
+                            info->compMeth     = result->hdr.compMeth;
+                            info->id           = result->sections[i].info.id;
+                            info->rb           = XRAN_RBIND_EVERY;
+                            info->numSymbol    = result->sections[i].info.numSymbol;
+                            info->reMask       = result->sections[i].info.reMask;
+                            info->beamId       = result->sections[i].info.beamId;
+                            info->symInc       = XRAN_SYMBOLNUMBER_NOTINC;
+
+                            int loc_sym=0;
+                            if(likely(pRbMap_desc != NULL)){
+                                prbMapElm = &pRbMap_desc->prbMap[idx];
+                                for(loc_sym = 0; loc_sym < XRAN_NUM_OF_SYMBOL_PER_SLOT; loc_sym++)
+                                {
+                                    struct xran_section_desc *p_sec_desc =  &prbMapElm->sec_desc[loc_sym];
+
+                                    if(likely(p_sec_desc!=NULL))
+                                    {
+                                        info->sec_desc[loc_sym].iq_buffer_offset = p_sec_desc->iq_buffer_offset;
+                                        info->sec_desc[loc_sym].iq_buffer_len    = p_sec_desc->iq_buffer_len;
+
+                                        p_sec_desc->section_id   = info->id;
+                                    }
+                                    else
+                                    {
+                                        print_err("section desc is NULL\n");
+                                    }
+                                } /* for(loc_sym = 0; loc_sym < XRAN_NUM_OF_SYMBOL_PER_SLOT; loc_sym++) */
+                            }
+                        }
+                    } //pusch
+                    else if((eaxc.ruPortId >= p_xran_dev_ctx->srs_cfg.srsEaxcOffset) &&
+                            (eaxc.ruPortId < (p_xran_dev_ctx->srs_cfg.srsEaxcOffset + xran_get_num_ant_elm(p_xran_dev_ctx)) )
+                            && p_xran_dev_ctx->fh_cfg.srsEnable)
+                    {
+                        int32_t ant_id = ((eaxc.ruPortId - p_xran_dev_ctx->srs_cfg.srsEaxcOffset) & 0x3F); /*Klocwork fix*/
+                        if(p_xran_dev_ctx->perMu[mu].sFHSrsRxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers){
+                            pRbMap_desc = (struct xran_prb_map *) p_xran_dev_ctx->perMu[mu].sFHSrsRxPrbMapBbuIoBufCtrl[tti % XRAN_N_FE_BUF_LEN][eaxc.ccId][ant_id].sBufferList.pBuffers->pData;
+                        }
+                        if(i == 0){
+                            if((pRbMap_desc != NULL) && (pRbMap_desc->nPrbElm <= p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId])){
+                                p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]=0;
+                                xran_cp_reset_section_info(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
+                            }
+                            idx = p_xran_dev_ctx->perMu[mu].sectiondb_elm[ctx_id][result->dir][eaxc.ccId][eaxc.ruPortId]++;
+                        }
+                        info = xran_cp_get_section_info_ptr(handle, result->dir, eaxc.ccId, eaxc.ruPortId, ctx_id, mu);
+                        if(likely(info != NULL))
+                        {
+                            info->prbElemBegin = (i == 0 ) ?  1 : 0;
+                            info->prbElemEnd   = (i == (result->numSections -1)) ?  1 : 0;
+                            info->ef           = result->sections[i].info.ef;
+                            info->type         = result->sections[i].info.type;
+                            info->startSymId   = result->hdr.startSymId;
+                            info->iqWidth      = result->hdr.iqWidth;
+                            info->compMeth     = result->hdr.compMeth;
+                            info->id           = result->sections[i].info.id;
+                            info->rb           = XRAN_RBIND_EVERY;
+                            info->numSymbol    = result->sections[i].info.numSymbol;
+                            info->reMask       = result->sections[i].info.reMask;
+                            info->beamId       = result->sections[i].info.beamId;
+                            info->symInc       = XRAN_SYMBOLNUMBER_NOTINC;
+                            int loc_sym=0;
+                            if(likely(pRbMap_desc != NULL))
+                            {
+                                prbMapElm = &pRbMap_desc->prbMap[idx];
+                                info->startPrbc    = prbMapElm->nRBStart;
+                                info->numPrbc      = prbMapElm->nRBSize;
+
+                                struct xran_section_desc *p_sec_desc = NULL;
+                                for(loc_sym = 0; loc_sym < XRAN_NUM_OF_SYMBOL_PER_SLOT; loc_sym++)
+                                {
+                                    p_sec_desc =  &prbMapElm->sec_desc[loc_sym];
+
+                                    if(likely(p_sec_desc!=NULL))
+                                    {
+                                        info->sec_desc[loc_sym].iq_buffer_offset = p_sec_desc->iq_buffer_offset;
+                                        info->sec_desc[loc_sym].iq_buffer_len    = p_sec_desc->iq_buffer_len;
                                         p_sec_desc->section_id   = info->id;
                                     }
                                     else
@@ -2866,81 +3191,25 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
                             }
                         }
                         /*Assuming SRS CP will not have extension, removed the ef flag check and extension processing*/
-                    }    
-                }  
-                pCnt = &p_xran_dev_ctx->fh_counters;
-                /* SRS should not have extension */
-                if(pCnt && (result->sections[0].info.ef) && (result->sections[0].exts[0].type == 1) && (result->numSections != result->numSetBFW) && (result->ext1count != result->numSetBFW)){
-                    print_err("extension 1 is not Valid! [%d:%d:%d]", result->numSections, result->numSetBFW, result->ext1count);
-                    pCnt->rx_invalid_ext1_packets++;
+                    } // srs
+                } /*if( result->hdr.filterIdx != XRAN_FILTERINDEX_PRACH_ABC)*/
+
+                if(result->sections[i].info.ef) {
+                    // parse section extension
+                    extlen = xran_parse_section_extension(mbuf, (void *)section, result, i);
+                    if(extlen > 0) {
+                        section = (void *)rte_pktmbuf_adj(mbuf, extlen);
+                        if(unlikely(section == NULL)) {
+                            print_dbg("Invalid packet: section type3 - section extension [%d]!", i);
+                            ret = XRAN_STATUS_INVALID_PACKET;
+                            break;
+                        }
+                    }
                 }
-            }
-            break;
+                else extlen = 0;
+            } //numSections
 
-        case XRAN_CP_SECTIONTYPE_3: // PRACH and Mixed-numerology Channels
-            {
-            struct xran_cp_radioapp_section3_header *hdr;
-            struct xran_cp_radioapp_section3 *section;
-
-                hdr = (struct xran_cp_radioapp_section3_header*)apphdr;
-
-                result->hdr.timeOffset  = rte_be_to_cpu_16(hdr->timeOffset);
-                result->hdr.scs         = hdr->frameStructure.uScs;
-                result->hdr.fftSize     = hdr->frameStructure.fftSize;
-                result->hdr.cpLength    = rte_be_to_cpu_16(hdr->cpLength);
-                result->hdr.iqWidth     = hdr->udComp.udIqWidth;
-                result->hdr.compMeth    = hdr->udComp.udCompMeth;
-
-                section = (void *)rte_pktmbuf_adj(mbuf, sizeof(struct xran_cp_radioapp_section3_header));
-                if(section == NULL) {
-                    print_err("Invalid packet: section type3 - radio app hedaer!");
-                    return (XRAN_STATUS_INVALID_PACKET);
-                    }
-
-                for(i=0; i<result->numSections; i++) {
-                    *((uint64_t *)section) = rte_be_to_cpu_64(*((uint64_t *)section));
-
-                    result->sections[i].info.type       = apphdr->sectionType;
-                    result->sections[i].info.id         = section->hdr.u1.common.sectionId;
-                    result->sections[i].info.rb         = section->hdr.u1.common.rb;
-                    result->sections[i].info.symInc     = section->hdr.u1.common.symInc;
-                    result->sections[i].info.startPrbc  = section->hdr.u1.common.startPrbc;
-                    result->sections[i].info.numPrbc    = section->hdr.u1.common.numPrbc,
-                    result->sections[i].info.numSymbol  = section->hdr.u.s3.numSymbol;
-                    result->sections[i].info.reMask     = section->hdr.u.s3.reMask;
-                    result->sections[i].info.beamId     = section->hdr.u.s3.beamId;
-                    result->sections[i].info.ef         = section->hdr.u.s3.ef;
-                    result->sections[i].info.freqOffset = ((int32_t)rte_be_to_cpu_32(section->freqOffset))>>8;
-
-                    if(section->reserved) {
-                        print_err("Invalid packet: section type3 - section[%d] reserved[%d]", i, section->reserved);
-                        ret = XRAN_STATUS_INVALID_PACKET;
-                        }
-
-                    section = (void *)rte_pktmbuf_adj(mbuf, sizeof(struct xran_cp_radioapp_section3));
-                    if(section == NULL) {
-                        print_err("Invalid packet: section type3 - number of section [%d:%d]!",
-                                    result->numSections, i);
-                        result->numSections = i;
-                        ret = XRAN_STATUS_INVALID_PACKET;
-                        break;
-                        }
-
-                    if(result->sections[i].info.ef) {
-                        // parse section extension
-                        extlen = xran_parse_section_extension(mbuf, (void *)section, result, i);
-                        if(extlen > 0) {
-                            section = (void *)rte_pktmbuf_adj(mbuf, extlen);
-                            if(section == NULL) {
-                                print_err("Invalid packet: section type3 - section extension [%d]!", i);
-                                ret = XRAN_STATUS_INVALID_PACKET;
-                                break;
-                                }
-                            }
-                        }
-                    else extlen = 0;
-                    }
-            }
+        } /* XRAN_CP_SECTIONTYPE_3 */
             break;
 
         case XRAN_CP_SECTIONTYPE_5: // UE scheduling information, not supported
@@ -2948,7 +3217,7 @@ xran_parse_cp_pkt(struct rte_mbuf *mbuf,
         case XRAN_CP_SECTIONTYPE_7: // LAA, not supported
         default:
             ret = XRAN_STATUS_INVALID_PARAM;
-            print_err("Non-supported Section Type - %d", apphdr->sectionType);
+            print_dbg("Non-supported Section Type - %d", apphdr->sectionType);
         }
 
 #if 0
