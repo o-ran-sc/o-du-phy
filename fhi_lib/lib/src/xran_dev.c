@@ -17,7 +17,7 @@
 *******************************************************************************/
 
 /**
- * @brief XRAN library device (O-RU or O-DU) specific context and coresponding methods
+ * @brief XRAN library device (O-RU or O-DU) specific context and corresponding methods
  * @file xran_dev.c
  * @ingroup group_source_xran
  * @author Intel Corporation
@@ -38,6 +38,7 @@
 #include <immintrin.h>
 #include <rte_common.h>
 #include <rte_eal.h>
+#include <rte_ethdev.h>
 #include <rte_errno.h>
 #include <rte_lcore.h>
 #include <rte_cycles.h>
@@ -50,44 +51,91 @@
 
 #include "xran_fh_o_du.h"
 #include "xran_dev.h"
-#include "ethdi.h"
+#include "xran_ethdi.h"
+#include "xran_ethernet.h"
 #include "xran_printf.h"
 
-static struct xran_device_ctx *g_xran_dev_ctx[XRAN_PORTS_NUM] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL};
+struct xran_device_ctx *g_xran_dev_ctx[XRAN_PORTS_NUM]={NULL};
+struct xran_system_config gSysCfg;
 
-int32_t
-xran_dev_create_ctx(uint32_t xran_ports_num)
+int xran_dev_add_usedcore(int core_id)
+{
+    uint32_t num;
+
+    num = xran_get_systemcfg()->cores_Num;
+    if(num < XRAN_MAX_LIST_USEDCORE)
+    {
+        xran_get_systemcfg()->cores_List[num] = core_id;
+        xran_get_systemcfg()->cores_Num = num + 1;
+
+        return (0);
+    }
+    else
+    {
+        print_err("Exceed Maximum number of cores - [%d]", num);
+        return (-1);
+    }
+}
+
+int xran_dev_get_num_usedcores(void)
+{
+    return (xran_get_systemcfg()->cores_Num);
+}
+
+uint32_t *xran_dev_get_list_usedcores(void)
+{
+    return (xran_get_systemcfg()->cores_List);
+}
+
+int xran_dev_init_num_usedcores(void)
+{
+    int i;
+    xran_get_systemcfg()->cores_Num = 0;
+    for(i=0; i <  XRAN_MAX_LIST_USEDCORE; i++)
+    {
+        xran_get_systemcfg()->cores_List[i] = 0;
+    }
+    return (0);
+}
+
+
+int32_t xran_dev_create_ctx(uint32_t xran_ports_num)
 {
     int32_t i = 0;
     struct xran_device_ctx * pCtx = NULL;
 
     if (xran_ports_num > XRAN_PORTS_NUM)
-        return -1;
+        return(-1);
 
-    pCtx = (struct xran_device_ctx *) _mm_malloc(sizeof(struct xran_device_ctx)*xran_ports_num, 64);
-    if(pCtx){
-        for(i = 0; i < xran_ports_num; i++){
+    pCtx = (struct xran_device_ctx *)xran_malloc("xran_dev_ctx", sizeof(struct xran_device_ctx)*xran_ports_num, 64);
+    if(pCtx)
+    {
+        for(i = 0; i < xran_ports_num; i++)
+        {
             g_xran_dev_ctx[i] = pCtx;
             pCtx++;
         }
-    } else {
-        return -1;
     }
-    return 0;
+    else
+        return(-1);
+
+    return (0);
 }
 
-int32_t
-xran_dev_destroy_ctx(void)
+int32_t xran_dev_destroy_ctx(void)
 {
-    if (g_xran_dev_ctx[0])
-        free(g_xran_dev_ctx[0]);
+    if(g_xran_dev_ctx[0])
+        xran_free(g_xran_dev_ctx[0]);
 
     return 0;
 }
-struct xran_device_ctx *xran_dev_get_ctx(void)
+
+#ifdef POLL_EBBU_OFFLOAD
+struct xran_device_ctx *xran_dev_get_ctx_ebbu_offload(void)
 {
     return g_xran_dev_ctx[0];
 }
+#endif
 
 struct xran_device_ctx **xran_dev_get_ctx_addr(void)
 {
@@ -114,13 +162,11 @@ static inline struct xran_fh_config *xran_lib_get_ctx_fhcfg(void *pHandle)
  *
  * @return the pointer of configuration
  */
-struct xran_eaxcid_config *xran_get_conf_eAxC(void *pHandle)
+struct xran_eaxcid_config *xran_get_conf_eAxC(uint8_t oxu_port_id)
 {
-    struct xran_device_ctx * p_dev_ctx = pHandle;
-    if(p_dev_ctx == NULL)
-        p_dev_ctx = xran_dev_get_ctx();
+    struct xran_device_ctx * p_dev_ctx = xran_dev_get_ctx_by_id(oxu_port_id);
 
-    if(p_dev_ctx == NULL)
+    if(unlikely(p_dev_ctx == NULL))
         return NULL;
     return (&(p_dev_ctx->eAxc_id_cfg));
 }
@@ -134,12 +180,12 @@ uint8_t xran_get_conf_num_bfweights(void *pHandle)
 {
     struct xran_device_ctx * p_dev_ctx = pHandle;
     if(p_dev_ctx == NULL)
-        p_dev_ctx = xran_dev_get_ctx();
+        p_dev_ctx = XRAN_GET_DEV_CTX;
 
     if(p_dev_ctx == NULL)
         return 0;
 
-    return (p_dev_ctx->fh_init.totalBfWeights);
+    return (p_dev_ctx->totalBfWeights);
 }
 
 /**
@@ -147,9 +193,9 @@ uint8_t xran_get_conf_num_bfweights(void *pHandle)
  *
  * @return subcarrier spacing value for PRACH
  */
-uint8_t xran_get_conf_prach_scs(void *pHandle)
+uint8_t xran_get_conf_prach_scs(void *pHandle, uint8_t mu)
 {
-    return (xran_lib_get_ctx_fhcfg(pHandle)->prach_conf.nPrachSubcSpacing);
+    return (xran_lib_get_ctx_fhcfg(pHandle)->perMu[mu].prach_conf.nPrachSubcSpacing);
 }
 
 /**
@@ -157,19 +203,24 @@ uint8_t xran_get_conf_prach_scs(void *pHandle)
  *
  * @return FFT size value for RU
  */
-uint8_t xran_get_conf_fftsize(void *pHandle)
+uint8_t xran_get_conf_fftsize(void *pHandle, uint8_t mu)
 {
-    return (xran_lib_get_ctx_fhcfg(pHandle)->ru_conf.fftSize);
+    return (xran_lib_get_ctx_fhcfg(pHandle)->ru_conf.fftSize[mu]);
 }
 
-/**
- * @brief Get the configuration of nummerology
- *
- * @return Configured numerology
- */
-uint8_t xran_get_conf_numerology(void *pHandle)
+uint8_t xran_get_conf_highest_numerology(void *pHandle)
 {
-    return (xran_lib_get_ctx_fhcfg(pHandle)->frame_conf.nNumerology);
+    uint8_t highestMu=0, i=0;
+    while(i < xran_lib_get_ctx_fhcfg(pHandle)->numMUs)
+    {
+        if(highestMu < xran_lib_get_ctx_fhcfg(pHandle)->mu_number[i])
+        {
+            highestMu = xran_lib_get_ctx_fhcfg(pHandle)->mu_number[i];
+        }
+        i++;
+    }
+
+    return highestMu;
 }
 
 /**
@@ -246,29 +297,32 @@ uint8_t xran_get_num_ant_elm(void *pHandle)
     return (xran_lib_get_ctx_fhcfg(pHandle)->nAntElmTRx);
 }
 
+
 int32_t xran_get_common_counters(void *pXranLayerHandle, struct xran_common_counters *pStats)
 {
-    int32_t  o_xu_id        = 0;
-    int32_t  xran_port_num  = 0;
     struct xran_device_ctx* pDev = (struct xran_device_ctx*)pXranLayerHandle;
     struct xran_ethdi_ctx *ctx = xran_ethdi_get_ctx();
     uint16_t port, qi;
 
     if(pStats && pDev) {
-        xran_port_num  = pDev->fh_init.xran_ports;
-        for(o_xu_id = 0; o_xu_id < XRAN_PORTS_NUM;o_xu_id++ ){
-            if(o_xu_id < xran_port_num ){
-                pStats[o_xu_id] =  pDev->fh_counters;
-            }
-            pDev++;
-        }
-        if (ctx->io_cfg.id == 0 && ctx->io_cfg.num_rxq > 1) {
+        *pStats = pDev->fh_counters;
+
+        if (ctx->io_cfg.num_rxq > 1) {
             for (port = 0; port < ctx->io_cfg.num_vfs; port++) {
-                printf("vf %d: ", port);
+                //nic_stats_display(port);
+                printf("vf %d: nQueues %d\n", port, ctx->rxq_per_port[port]);
                 for (qi = 0; qi < ctx->rxq_per_port[port]; qi++){
-                    printf("%6ld ", ctx->rx_vf_queue_cnt[port][qi]);
+                    printf("%9ld ", ctx->rx_vf_queue_cnt[port][qi]);
+                    if(qi % (16/ctx->io_cfg.nEthLinePerPort) == 0)
+                        printf("\n");
                 }
                 printf("\n");
+            }
+        }
+        else
+        {
+            for (port = 0; port < ctx->io_cfg.num_vfs; port++) {
+                //nic_stats_display(port);
             }
         }
 
@@ -332,11 +386,12 @@ xran_set_map_ecpriPcid_to_vf(struct xran_device_ctx *p_dev_ctx,  int32_t dir, in
 const char *
 xran_pcid_str_type(struct xran_device_ctx* p_dev, int ant)
 {
+    uint8_t num_prach = (p_dev->fh_cfg.srs_conf.srsEaxcOffset - xran_get_num_eAxcUl(p_dev)); /* +PRACH */
     if(ant < xran_get_num_eAxcUl(p_dev))
         return "PUSCH";
-    else if (ant >= xran_get_num_eAxcUl(p_dev) && ant < 2*xran_get_num_eAxcUl(p_dev))
+    else if (ant >= xran_get_num_eAxcUl(p_dev) && ant < xran_get_num_eAxcUl(p_dev) + num_prach)
         return "PRACH";
-    else if ( ant >= xran_get_num_eAxcUl(p_dev) * 2 && ant < 2*xran_get_num_eAxcUl(p_dev) + xran_get_num_ant_elm(p_dev))
+    else if ( ant >= (xran_get_num_eAxcUl(p_dev) + num_prach) && ant < (xran_get_num_eAxcUl(p_dev) + num_prach) + xran_get_num_ant_elm(p_dev))
         return " SRS ";
     else
         return " N/A ";
@@ -359,6 +414,7 @@ xran_init_vf_rxq_to_pcid_mapping(void *pHandle)
 
     int32_t dir = XRAN_DIR_UL;
     uint8_t num_eAxc = 0;
+    uint8_t num_prach = 0;
     uint8_t num_cc   = 0;
 
     if(pHandle) {
@@ -370,18 +426,16 @@ xran_init_vf_rxq_to_pcid_mapping(void *pHandle)
     }
 
     num_cc = xran_get_num_cc(p_dev);
+    num_eAxc = xran_get_num_eAxcUl(p_dev);
 
-    if(xran_get_ru_category(pHandle) == XRAN_CATEGORY_A)
-        num_eAxc = xran_get_num_eAxc(p_dev);
-    else
-        num_eAxc = xran_get_num_eAxcUl(p_dev);
-
-    num_eAxc *= 2; /* +PRACH */
-    num_eAxc += xran_get_num_ant_elm(p_dev); /* +SRS */
+    num_prach = (p_dev->fh_cfg.srs_conf.srsEaxcOffset - num_eAxc); /* +PRACH */
+    printf("srsEaxcOffset %d num_prach %d\n",p_dev->fh_cfg.srs_conf.srsEaxcOffset,  num_prach);
+    num_eAxc += num_prach;
+    // num_eAxc += xran_get_num_ant_elm(p_dev); /* +SRS */
 
     for(cc = 0; cc < num_cc; cc++) {
         for(ant = 0; ant < num_eAxc; ant++) {
-            pc_id_be = xran_compose_cid(0, 0, cc, ant);
+            pc_id_be = xran_compose_cid(xran_port_id, 0, 0, cc, ant);
             vf_id    = xran_map_ecpriPcid_to_vf(p_dev, dir, cc, ant);
 
             /* don't use queue 0 for eCpri Flows */
@@ -391,19 +445,19 @@ xran_init_vf_rxq_to_pcid_mapping(void *pHandle)
             p_dev->p_iq_flow[p_dev->iq_flow_cnt] = generate_ecpri_flow(vf_id, rx_q[vf_id], pc_id_be, &error);
             eth_ctx->vf_and_q2pc_id[vf_id][rx_q[vf_id]] = rte_be_to_cpu_16(pc_id_be);
 
-            xran_decompose_cid((uint16_t)pc_id_be, &eth_ctx->vf_and_q2cid[vf_id][rx_q[vf_id]]);
+            xran_decompose_cid(XRAN_GET_OXU_PORT_ID(p_dev),(uint16_t)pc_id_be, &eth_ctx->vf_and_q2cid[vf_id][rx_q[vf_id]]);
 
             eth_ctx->vf_and_q2cid[vf_id][rx_q[vf_id]].bandSectorId = vf_id;
             eth_ctx->vf_and_q2cid[vf_id][rx_q[vf_id]].cuPortId     = rx_q[vf_id];
 
-            printf("%s: p %d vf %d qi %d 0x%016p UP: dir %d cc %d (%d) ant %d (%d) type %s", __FUNCTION__, xran_port_id, vf_id, rx_q[vf_id], &eth_ctx->vf_and_q2cid[vf_id][rx_q[vf_id]], dir,
+            printf("%s: p %d vf %d qi %d 0x%p UP: dir %d cc %d (%d) ant %d (%d) type %s", __FUNCTION__, xran_port_id, vf_id, rx_q[vf_id], &eth_ctx->vf_and_q2cid[vf_id][rx_q[vf_id]], dir,
                 cc, eth_ctx->vf_and_q2cid[vf_id][rx_q[vf_id]].ccId,  ant, eth_ctx->vf_and_q2cid[vf_id][rx_q[vf_id]].ruPortId, xran_pcid_str_type(p_dev, ant));
 
             printf("     queue_id %d flow_id %d pc_id 0x%04x\n",rx_q[vf_id], p_dev->iq_flow_cnt, pc_id_be);
             p_dev->iq_flow_cnt++;
             rx_q[vf_id]++;
 
-            if(rx_q[vf_id] > eth_ctx->io_cfg.num_rxq)
+            if(rx_q[vf_id] > p_dev->numRxq)
                 rte_panic("Not enough RX Queues\n");
             eth_ctx->rxq_per_port[vf_id] = rx_q[vf_id];
         }
@@ -477,4 +531,101 @@ xran_init_vfs_mapping(void *pHandle)
     }
 
     return (XRAN_STATUS_SUCCESS);
+}
+
+extern inline struct xran_system_config *xran_get_systemcfg(void);
+extern inline int xran_get_syscfg_totalnumru(void);
+extern inline struct xran_io_cfg *xran_get_sysiocfg(void);
+extern inline int xran_get_syscfg_appmode(void);
+extern inline int xran_get_syscfg_bbuoffload(void);
+extern inline int xran_get_syscfg_iosleep(void);
+
+extern inline int32_t xran_set_active_ru(uint32_t ru_id);
+extern inline int32_t xran_set_deactive_ru(uint32_t ru_id);
+
+extern inline int32_t xran_isactive_ru(void *pHandle);
+extern inline int32_t xran_isactive_ru_byid(uint32_t ru_id);
+extern inline int32_t xran_isactive_cc(void *pHandle, uint32_t cc_id);
+extern inline int32_t xran_get_numactiveccs_ru(void *pHandle);
+
+
+int xran_get_memstat(struct xran_memstat *stat)
+{
+    int i, j;
+
+    if(stat == NULL)
+        return (-1);
+
+    if(socket_direct_pool)
+    {
+        stat->socket_direct[XRAN_MEMSTAT_MAXNUM]= xran_ethdi_get_ctx()->io_cfg.num_mbuf_alloc;
+        stat->socket_direct[XRAN_MEMSTAT_AVAIL] = rte_mempool_avail_count(socket_direct_pool);
+        stat->socket_direct[XRAN_MEMSTAT_INUSE] = rte_mempool_in_use_count(socket_direct_pool);
+    }
+    else
+    {
+        stat->socket_direct[XRAN_MEMSTAT_MAXNUM]= 0;
+        stat->socket_direct[XRAN_MEMSTAT_AVAIL] = 0;
+        stat->socket_direct[XRAN_MEMSTAT_INUSE] = 0;
+    }
+
+    if(socket_indirect_pool)
+    {
+        stat->socket_indirect[XRAN_MEMSTAT_MAXNUM]  = xran_ethdi_get_ctx()->io_cfg.num_mbuf_vf_alloc;
+        stat->socket_indirect[XRAN_MEMSTAT_AVAIL]   = rte_mempool_avail_count(socket_indirect_pool);
+        stat->socket_indirect[XRAN_MEMSTAT_INUSE]   = rte_mempool_in_use_count(socket_indirect_pool);
+    }
+    else
+    {
+        stat->socket_indirect[XRAN_MEMSTAT_MAXNUM]  = 0;
+        stat->socket_indirect[XRAN_MEMSTAT_AVAIL]   = 0;
+        stat->socket_indirect[XRAN_MEMSTAT_INUSE]   = 0;
+    }
+
+    if(_eth_mbuf_pkt_gen)
+    {
+        stat->pktgen[XRAN_MEMSTAT_MAXNUM]   = xran_ethdi_get_ctx()->io_cfg.num_mbuf_alloc;
+        stat->pktgen[XRAN_MEMSTAT_AVAIL]    = rte_mempool_avail_count(_eth_mbuf_pkt_gen);
+        stat->pktgen[XRAN_MEMSTAT_INUSE]    = rte_mempool_in_use_count(_eth_mbuf_pkt_gen);
+    }
+    else
+    {
+        stat->pktgen[XRAN_MEMSTAT_MAXNUM]   = 0;
+        stat->pktgen[XRAN_MEMSTAT_AVAIL]    = 0;
+        stat->pktgen[XRAN_MEMSTAT_INUSE]    = 0;
+    }
+
+    for(i=0; i<16; i++)
+    {
+        if(_eth_mbuf_pool_vf_small[i])
+        {
+            stat->vf_small[i][XRAN_MEMSTAT_MAXNUM]  = xran_ethdi_get_ctx()->io_cfg.num_mbuf_vf_alloc;
+            stat->vf_small[i][XRAN_MEMSTAT_AVAIL]   = rte_mempool_avail_count(_eth_mbuf_pool_vf_small[i]);
+            stat->vf_small[i][XRAN_MEMSTAT_INUSE]   = rte_mempool_in_use_count(_eth_mbuf_pool_vf_small[i]);
+        }
+        else
+        {
+            stat->vf_small[i][XRAN_MEMSTAT_MAXNUM]  = 0;
+            stat->vf_small[i][XRAN_MEMSTAT_AVAIL]   = 0;
+            stat->vf_small[i][XRAN_MEMSTAT_INUSE]   = 0;
+        }
+
+        for(j=0; j<RTE_MAX_QUEUES_PER_PORT; j++)
+        {
+            if(_eth_mbuf_pool_vf_rx[i][j])
+            {
+                stat->vf_rx[i][j][XRAN_MEMSTAT_MAXNUM]  = xran_ethdi_get_ctx()->io_cfg.num_mbuf_alloc;
+                stat->vf_rx[i][j][XRAN_MEMSTAT_AVAIL]   = rte_mempool_avail_count(_eth_mbuf_pool_vf_rx[i][j]);
+                stat->vf_rx[i][j][XRAN_MEMSTAT_INUSE]   = rte_mempool_in_use_count(_eth_mbuf_pool_vf_rx[i][j]);
+            }
+            else
+            {
+                stat->vf_rx[i][j][XRAN_MEMSTAT_MAXNUM]  = 0;
+                stat->vf_rx[i][j][XRAN_MEMSTAT_AVAIL]   = 0;
+                stat->vf_rx[i][j][XRAN_MEMSTAT_INUSE]   = 0;
+            }
+        }
+    }
+
+    return(0);
 }
