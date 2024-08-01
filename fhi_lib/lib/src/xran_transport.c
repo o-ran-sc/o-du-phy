@@ -63,15 +63,15 @@ int xran_get_ecpri_hdr_size(void)
  * @param Ant_ID RU Port ID (antenna ID)
  * @return uint16_t composed ecpriRtcid/ecpriPcid (network byte order)
  */
-uint16_t xran_compose_cid(uint8_t CU_Port_ID, uint8_t BandSector_ID, uint8_t CC_ID, uint8_t Ant_ID)
+uint16_t xran_compose_cid(uint8_t oxu_port_id, uint8_t CU_Port_ID, uint8_t BandSector_ID, uint8_t CC_ID, uint8_t Ant_ID)
 {
   uint16_t cid;
   struct xran_eaxcid_config *conf;
 
-    conf = xran_get_conf_eAxC(NULL);
+    conf = xran_get_conf_eAxC(oxu_port_id);
 
-    if(conf == NULL)
-      rte_panic("conf == NULL");
+    if(unlikely(conf == NULL))
+        rte_panic("conf == NULL");
 
     cid = ((CU_Port_ID      << conf->bit_cuPortId)      & conf->mask_cuPortId)
         | ((BandSector_ID   << conf->bit_bandSectorId)  & conf->mask_bandSectorId)
@@ -90,14 +90,14 @@ uint16_t xran_compose_cid(uint8_t CU_Port_ID, uint8_t BandSector_ID, uint8_t CC_
  * @param result the pointer of the structure to store decomposed values
  * @return none
  */
-void xran_decompose_cid(uint16_t cid, struct xran_eaxc_info *result)
+void xran_decompose_cid(uint8_t oxu_port_id, uint16_t cid, struct xran_eaxc_info *result)
 {
-  struct xran_eaxcid_config *conf;
+    struct xran_eaxcid_config *conf;
 
-    conf = xran_get_conf_eAxC(NULL);
+    conf = xran_get_conf_eAxC(oxu_port_id);
     cid = rte_be_to_cpu_16(cid);
 
-    if(conf == NULL)
+    if(unlikely(conf == NULL))
       rte_panic("conf == NULL");
 
     result->cuPortId        = (cid&conf->mask_cuPortId)     >> conf->bit_cuPortId;
@@ -140,6 +140,8 @@ inline void xran_update_ecpri_payload_size(struct rte_mbuf *mbuf, int size)
  *  Antenna ID(RU Port ID) for this C-Plane message
  * @param seq_id
  *  Sequence ID for this C-Plane message
+ * @param oxu_port_id
+ *  O-DU/RU port ID
  * @param ecpri_hdr
  *  The pointer to ECPRI header
  * @return
@@ -148,7 +150,7 @@ inline void xran_update_ecpri_payload_size(struct rte_mbuf *mbuf, int size)
  */
 int xran_build_ecpri_hdr(struct rte_mbuf *mbuf,
                         uint8_t CC_ID, uint8_t Ant_ID,
-                        uint8_t seq_id,
+                        uint8_t seq_id, uint8_t oxu_port_id,
                         struct xran_ecpri_hdr **ecpri_hdr)
 {
   uint32_t payloadlen;
@@ -168,7 +170,7 @@ int xran_build_ecpri_hdr(struct rte_mbuf *mbuf,
 
     tmp->cmnhdr.data.data_num_1 = (XRAN_ECPRI_VER << xran_ecpri_cmn_hdr_bitfield_EcpriVer)
                                 | (ECPRI_RT_CONTROL_DATA << xran_ecpri_cmn_hdr_bitfield_EcpriMsgType);
-    tmp->ecpri_xtc_id               = xran_compose_cid(0, 0, CC_ID, Ant_ID);
+    tmp->ecpri_xtc_id           = xran_compose_cid(oxu_port_id, 0, 0, CC_ID, Ant_ID);
 
     /* TODO: Transport layer fragmentation is not supported */
     //tmp->ecpri_seq_id.bits.seq_id        = seq_id;
@@ -200,7 +202,8 @@ int xran_build_ecpri_hdr(struct rte_mbuf *mbuf,
  *  XRAN_STATUS_SUCCESS on success
  *  XRAN_STATUS_INVALID_PACKET if failed to parse the packet
  */
-int xran_parse_ecpri_hdr(struct rte_mbuf *mbuf,
+int xran_parse_ecpri_hdr(uint8_t oxu_port_id,
+                    struct rte_mbuf *mbuf,
                     struct xran_ecpri_hdr **ecpri_hdr,
                     struct xran_recv_packet_info *pkt_info)
 {
@@ -208,13 +211,13 @@ int xran_parse_ecpri_hdr(struct rte_mbuf *mbuf,
 
     *ecpri_hdr = rte_pktmbuf_mtod(mbuf, void *);
     if(*ecpri_hdr == NULL) {
-        print_err("Invalid packet - eCPRI hedaer!");
+        print_dbg("Invalid packet - eCPRI hedaer!");
         return (XRAN_STATUS_INVALID_PACKET);
-        }
+    }
 
     if(((*ecpri_hdr)->cmnhdr.bits.ecpri_ver != XRAN_ECPRI_VER) || ((*ecpri_hdr)->cmnhdr.bits.ecpri_resv != 0)){
-        print_err("Invalid eCPRI version - %d", (*ecpri_hdr)->cmnhdr.bits.ecpri_ver);
-        print_err("Invalid reserved field - %d", (*ecpri_hdr)->cmnhdr.bits.ecpri_resv);
+        print_dbg("Invalid eCPRI version - %d", (*ecpri_hdr)->cmnhdr.bits.ecpri_ver);
+        print_dbg("Invalid reserved field - %d", (*ecpri_hdr)->cmnhdr.bits.ecpri_resv);
         return (XRAN_STATUS_INVALID_PACKET);
     }
 
@@ -238,7 +241,7 @@ int xran_parse_ecpri_hdr(struct rte_mbuf *mbuf,
         pkt_info->seq_id        = (*ecpri_hdr)->ecpri_seq_id.bits.seq_id;
         pkt_info->subseq_id     = (*ecpri_hdr)->ecpri_seq_id.bits.sub_seq_id;
         pkt_info->ebit          = (*ecpri_hdr)->ecpri_seq_id.bits.e_bit;
-        xran_decompose_cid((*ecpri_hdr)->ecpri_xtc_id, &(pkt_info->eaxc));
+        xran_decompose_cid(oxu_port_id,(*ecpri_hdr)->ecpri_xtc_id, &(pkt_info->eaxc));
         }
 
     return (ret);
