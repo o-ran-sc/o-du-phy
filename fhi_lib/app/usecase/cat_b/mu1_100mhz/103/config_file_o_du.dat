@@ -20,16 +20,15 @@
 
 
 # This is simple configuration file. Use '#' sign for comments
-instanceId=0 # 0,1,2,... in case more than 1 application started on the same system
 appMode=0 # O-DU(0) | O-RU(1)
 xranMode=1 # Category A  (0) (precoder in O-DU) | Category B (1) (precoder in O-RU)
 ccNum=1 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 4)
-antNum=4 # Number of Antennas per CC (default: 4) or number of Digital streams for Category B 
-antNumUL=2 # Cat B: UL Number of Antennas per CC (default: 8) or number of UL Digital streams for Category B 
+antNum=4 # Number of Antennas per CC (default: 4) or number of Digital streams for Category B
+antNumUL=2 # Cat B: UL Number of Antennas per CC (default: 8) or number of UL Digital streams for Category B
 antElmTRx=8 #number of Antenna Elements for Cat B default 32T32R
 
 #UEs
-muMimoUEs=8 #number of UEs serviced by MU-MIMO system. Number of independent beams within the same Freq/Time resources    
+muMimoUEs=8 #number of UEs serviced by MU-MIMO system. Number of independent beams within the same Freq/Time resources
 DlLayersPerUe=1 #number of RX anntennas on DL UE side
 UlLayersPerUe=1 #number of TX anntennas on UL UE side
 
@@ -59,25 +58,10 @@ sSlotConfig7=0,0,0,0,0,0,0,0,0,0,0,0,0,0 # (0) - DL (1) - UL (2) - GUARD
 sSlotConfig8=0,0,0,0,0,0,0,0,0,0,0,0,0,0 # (0) - DL (1) - UL (2) - GUARD
 sSlotConfig9=0,0,0,0,0,0,0,0,0,0,0,0,0,0 # (0) - DL (1) - UL (2) - GUARD
 
-MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single 
+MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protocol data unit (PDU) that can be communicated in a single
  #xRAN network layer transaction. supported 1500 bytes and 9600 bytes (Jumbo Frame)
 Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
-
-ioCore=5           # core id 
-ioWorker=0x2000000 # mask [0- no workers]
-
-# Eth 0
-duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
-ruMac0=00:11:22:33:44:55 # O-RU VF for O-RU app
-duMac1=00:11:22:33:44:66 # asigned MAC of O-DU VF
-ruMac1=00:11:22:33:44:55 # O-RU VF for O-RU app
-
-# Eth 1
-duMac2=00:11:22:33:44:77 # asigned MAC of O-DU VF
-ruMac2=00:11:22:33:44:44 # O-RU VF for O-RU app
-duMac3=00:11:22:33:44:77 # asigned MAC of O-DU VF
-ruMac3=00:11:22:33:44:44 # O-RU VF for O-RU app
 
 numSlots=20 #number of slots per IQ files
 antC0=./usecase/cat_b/mu1_100mhz/qpsk_ant_0.bin   #CC0
@@ -130,13 +114,13 @@ srsNdmTxDuration=4  # tx duration for ndm srts u-plane (numberof of symbols)
 
 ###########################################################
 ##Section Settings
-DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used 
+DynamicSectionEna=1 # 1 - enable dynamic section allocation 0 - static sections all RBs are used
 
-nPrbElemDl=2
+nPrbElemDl=1
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType, Scalefactor, REMask
-# weight base beams 
-PrbElemDl0=0,90,0,14,0,1,4,1,1,8192,4095
-PrbElemDl1=90,90,0,14,1,1,4,1,1,8192,4095
+# weight base beams
+PrbElemDl0=0,90,0,14,0,1,4,1,1,8192,0xfff
+PrbElemDl1=90,90,0,14,1,1,4,1,1,8192,0xfff
 # Extension Parameters for Beamforming weights
 # numBundPrb, numSetBFW, RAD, disableBFW, bfwIqWidth, bfwCompMeth
 ExtBfwDl0=30,3,0,0,9,1
@@ -144,7 +128,7 @@ ExtBfwDl1=30,3,0,0,9,1
 
 nPrbElemUl=2
 #nRBStart, nRBSize, nStartSymb, numSymb, nBeamIndex, bf_weight_update, compMethod, iqWidth, BeamFormingType
-# weight base beams 
+# weight base beams
 PrbElemUl0=0,64,0,14,0,1,1,9,1
 PrbElemUl1=64,26,0,14,1,1,1,9,1
 # Extension Parameters for Beamforming weights
@@ -175,39 +159,39 @@ totalBFWeights=32 # Total number of Beamforming Weights on RU
 Tadv_cp_dl=25 # in us
               # C-Plane messages must arrive at the RU some amount of time in advance (Tcp_adv_dl) of the corresponding U-Plane messages
 #Reception Window C-plane DL
-T2a_min_cp_dl=285 # 285.42us
-T2a_max_cp_dl=429 # 428.12us
+T2a_min_cp_dl=390 # 285.42us
+T2a_max_cp_dl=971 # 428.12us
 
 #Reception Window C-plane UL
-T2a_min_cp_ul=285 # 285.42us
-T2a_max_cp_ul=429 # 428.12us
+T2a_min_cp_ul=259 # 285.42us
+T2a_max_cp_ul=840 # 428.12us
 
 #Reception Window U-plane
-T2a_min_up=71  # 71.35in us
-T2a_max_up=428 # 428.12us
+T2a_min_up=240  # 71.35in us
+T2a_max_up=475 # 428.12us
 
 #Transmission Window
-Ta3_min=20 # in us 
-Ta3_max=32 # in us 
+Ta3_min=50 # in us
+Ta3_max=280 # in us
 
 ###########################################################
 ##O-DU Settings
 #C-plane
 #Transmission Window Fast C-plane DL
-T1a_min_cp_dl=285
-T1a_max_cp_dl=429
+T1a_min_cp_dl=550
+T1a_max_cp_dl=971
 
 ##Transmission Window Fast C-plane UL
-T1a_min_cp_ul=285
-T1a_max_cp_ul=300
+T1a_min_cp_ul=419
+T1a_max_cp_ul=840
 
 #U-plane
 ##Transmission Window
-T1a_min_up=96  #71 + 25 us
-T1a_max_up=196 #71 + 25 us
+T1a_min_up=400  #71 + 25 us
+T1a_max_up=475 #71 + 25 us
 
 #Reception Window
-Ta4_min=0  # in us 
-Ta4_max=75 # in us 
+Ta4_max=440  # in us
+Ta4_max=440 # in us
 ###########################################################
 

@@ -112,8 +112,6 @@ debugStop=1 #stop app on 1pps boundary (gps_second % 30)
 debugStopCount=0 #if this value is >0 then stop app after x transmission packets, otherwise app will stop at 1pps boundary
 
 CPenable=0 #(1) C-Plane is enabled| (0) C-Plane is disabled
-c_plane_vlan_tag=1 #VLAN Tag used for C-Plane
-u_plane_vlan_tag=2 #VLAN Tag used for U-Plane
 
 ##RU Settings
 Tadv_cp_dl=25 # in us

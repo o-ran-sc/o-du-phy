@@ -1,20 +1,8 @@
-/******************************************************************************
+/**********************************************************************
 *
-*   Copyright (c) 2021 Intel.
+* <COPYRIGHT_TAG>
 *
-*   Licensed under the Apache License, Version 2.0 (the "License");
-*   you may not use this file except in compliance with the License.
-*   You may obtain a copy of the License at
-*
-*       http://www.apache.org/licenses/LICENSE-2.0
-*
-*   Unless required by applicable law or agreed to in writing, software
-*   distributed under the License is distributed on an "AS IS" BASIS,
-*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*   See the License for the specific language governing permissions and
-*   limitations under the License.
-*
-*******************************************************************************/
+**********************************************************************/
 
 #ifndef __SYSLIB_H__
 #define __SYSLIB_H__
@@ -51,8 +39,8 @@ typedef void *PVOID;
 typedef U64 (*wls_us_addr_conv)(void*, U64);
 
 
-#define K 			1024
-#define M			(K*K)
+#define K         	1024
+#define M	        (K*K)
 #define KHZ         1000
 #define MHZ         (KHZ * KHZ)
 
@@ -108,8 +96,10 @@ typedef struct tagWLS_MSG_QUEUE {
 #define COUNT(some_array) ( sizeof(some_array)/sizeof((some_array)[0]) )
 
 void SFL_DefQueue(PFASTQUEUE pq, void *pStorage, int StorageSize);
+int	SFL_Enqueue(PFASTQUEUE pq, PVOID pData);
 int	SFL_WlsEnqueue(PFASTQUEUE pq, U64 pData, wls_us_addr_conv change_addr, void* hWls);
 int	SFL_Enqueue_NoSync(PFASTQUEUE pq, PVOID pData);
+PVOID SFL_Dequeue(PFASTQUEUE pq);
 U64 SFL_WlsDequeue(PFASTQUEUE pq, wls_us_addr_conv change_addr, void *hWls);
 
 PVOID SFL_Dequeue_NoSync(PFASTQUEUE pq);

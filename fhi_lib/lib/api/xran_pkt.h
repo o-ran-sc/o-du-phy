@@ -67,7 +67,7 @@ extern "C" {
 #define	XRAN_MTU_DEFAULT	RTE_ETHER_MTU
 #define XRAN_APP_LAYER_MAX_SIZE_L2_DEFAUT    (XRAN_MTU_DEFAULT - 8) /**< In case of L2 only solution, application layer maximum transmission unit size
                                                                          is standard IEEE 802.3 Ethernet frame payload
-                                                                         size (1500 bytes) ? transport overhead (8 bytes) = 1492 bytes (or larger for Jumbo frames) */
+                                                                         size (1500 bytes) � transport overhead (8 bytes) = 1492 bytes (or larger for Jumbo frames) */
 
 #ifndef OK
 #define OK 0    /* Function executed correctly */
@@ -145,12 +145,12 @@ enum ecpri_action_type
 union ecpri_seq_id
 {
     struct
-{
-    uint8_t seq_id:8;       /**< Sequence ID */
-    uint8_t sub_seq_id:7;   /**< Subsequence ID */
-    uint8_t e_bit:1;        /**< E bit */
+    {
+        uint8_t seq_id:8;       /**< Sequence ID */
+        uint8_t sub_seq_id:7;   /**< Subsequence ID */
+        uint8_t e_bit:1;        /**< E bit */
     } bits;
-    struct 
+    struct
     {
         uint16_t data_num_1;
     } data;
@@ -171,12 +171,12 @@ union ecpri_seq_id
 union xran_ecpri_cmn_hdr
 {
     struct
-{
-    uint8_t     ecpri_concat:1;     /**< 3.1.3.1.3 eCPRI concatenation indicator */
-    uint8_t     ecpri_resv:3;       /**< 3.1.3.1.2 eCPRI reserved */
-    uint8_t     ecpri_ver:4;        /**< 3.1.3.1.1 eCPRI protocol revision, defined in XRAN_ECPRI_VER */
-    uint8_t     ecpri_mesg_type;    /**< 3.1.3.1.4 eCPRI message type, defined in ecpri_msg_type */
-    uint16_t    ecpri_payl_size;    /**< 3.1.3.1.5 eCPRI payload size, without common header and any padding bytes */
+    {
+        uint8_t     ecpri_concat:1;     /**< 3.1.3.1.3 eCPRI concatenation indicator */
+        uint8_t     ecpri_resv:3;       /**< 3.1.3.1.2 eCPRI reserved */
+        uint8_t     ecpri_ver:4;        /**< 3.1.3.1.1 eCPRI protocol revision, defined in XRAN_ECPRI_VER */
+        uint8_t     ecpri_mesg_type;    /**< 3.1.3.1.4 eCPRI message type, defined in ecpri_msg_type */
+        uint16_t    ecpri_payl_size;    /**< 3.1.3.1.5 eCPRI payload size, without common header and any padding bytes */
     } bits;
     struct
     {
@@ -200,7 +200,6 @@ struct xran_ecpri_delay_meas_pl
     uint8_t             ActionType;           /**< Table 2-17 Octet 6     */
     TimeStamp           ts;                   /**< Table 2-17 Octet 7-16  */
     int64_t             CompensationValue;    /**< Table 2-17 Octet 17    */
-    uint8_t             DummyBytes[1400];       /**< Table 2-17 Octet 25    */
 } /*__rte_packed*/;
 
 /**
@@ -241,12 +240,12 @@ struct xran_ecpri_hdr
  *      Enum used to set xRAN packet data direction (gNB Tx/Rx 5.4.4.1)
  *      uplink or downlink
  *****************************************************************************/
-enum xran_pkt_dir
+typedef enum xran_pkt_dir
 {
      XRAN_DIR_UL  = 0, /**< UL direction */
      XRAN_DIR_DL  = 1, /**< DL direction */
      XRAN_DIR_MAX
-};
+}xran_pkt_dir;
 
 /**
  ******************************************************************************
@@ -259,19 +258,19 @@ enum xran_pkt_dir
  *****************************************************************************/
 struct radio_app_common_hdr
 {
-   /* Octet 9 */
+    /* Octet 9 */
     union {
         uint8_t value;
         struct {
-   uint8_t filter_id:4; /**< This parameter defines an index to the channel filter to be
+           uint8_t filter_id:4; /**< This parameter defines an index to the channel filter to be
                               used between IQ data and air interface, both in DL and UL.
                               For most physical channels filterIndex =0000b is used which
                               indexes the standard channel filter, e.g. 100MHz channel filter
                               for 100MHz nominal carrier bandwidth. (see 5.4.4.3 for more) */
-   uint8_t payl_ver:3; /**< This parameter defines the payload protocol version valid
+           uint8_t payl_ver:3; /**< This parameter defines the payload protocol version valid
                             for the following IEs in the application layer. In this version of
                             the specification payloadVersion=001b shall be used. */
-   uint8_t data_direction:1; /**< This parameter indicates the gNB data direction. */
+           uint8_t data_direction:1; /**< This parameter indicates the gNB data direction. */
         };
     }data_feature;
 
@@ -338,6 +337,91 @@ struct xran_pkt_comm_hdr
     struct rte_ether_hdr eth_hdr; /**< Ethernet Header */
     struct xran_ecpri_hdr ecpri_hdr; /**< eCPRI Transport Header */
 } __rte_packed;
+
+/**
+******************************************************************************
+* @struct xran_cfm_opcode_e 
+*
+* @brief
+* IEEE 802.1Q - Table 21-3 OpCode Field range assignments
+******************************************************************************
+*/
+typedef enum xran_cfm_opcode_e {
+    CFM_OPCODE_LOOPBACK_REPLY = 2,
+    CFM_OPCODE_LOOPBACK_MESSAGE = 3
+} xran_cfm_opcode;
+
+#define END_TLV 0
+#define SENDER_ID_TLV 1
+#define CHASSIS_ID_SUBTYPE_MAC_ADDR 4
+/**
+******************************************************************************
+* @struct xran_cfm_common_header 
+*
+* @brief
+* IEEE 802.1Q - 21.4 Common CFM Header
+******************************************************************************
+*/
+typedef struct __rte_packed xran_cfm_common_header_s
+{
+    uint8_t version:5;          /* 21.4.2 - The protocol version number*/
+    uint8_t md_level:3;         /* 21.4.1 - Integer identifying the Maintenance Domain Level (MD Level) of the packet */
+    uint8_t opcode;             /* 21.4.3 - OpCode field specifies the format and meaning of the remainder of the CFM PDU */
+    uint8_t flags;              /* 21.4.4 - The use of the Flags field is defined separately for each OpCode */
+    uint8_t first_tlv_offset;   /* 21.4.5 - The offset, starting from the first octet following the First TLV Offset field, up to the first TLV in the CFM PDU*/
+} xran_cfm_common_header;
+
+/**
+******************************************************************************
+* @struct xran_sender_id_tlv 
+*
+* @brief
+* IEEE 802.1Q - Table 21.7 Sender ID TLV Formats
+* Only mandatory fields i.e. upto chassis ID are supported
+******************************************************************************
+*/
+typedef struct __rte_packed xran_sender_id_tlv_s
+{
+    uint8_t  type;              /* 21.5.1.1 Type field in the TLV format */
+    uint16_t length;            /* 21.5.1.2 The 16 bits of the Length field indicate the size, in octets, of the Value field */
+    uint8_t  chassis_id_length; /* 21.5.3.1 The length, in octets, of the Chassis ID field*/
+    uint8_t  chassis_id_subtype;/* 21.5.3.2 Identifies the format of the Chassis ID field. Specified by 9.5.2.2 of IEEE Std 802.1AB-2005*/
+
+    /* ============== Note ===========
+       Next field chassis id depends on chassis ID subtype : IEEE 802.1 AB - Table 8.2 
+       However in xRAN LBM message only CHASSIS_ID_SUBTYPE_MAC_ADDR is supported 
+       =============================== */
+    uint8_t  chassis_id_smac[6]; /* MAC address of the transmitter */
+    uint8_t end_type;            /* End type value to indicate the end of TLV */
+} xran_sender_id_tlv;
+
+/**
+******************************************************************************
+* @struct xran_lbm_header
+*
+* @brief
+* IEEE 802.1Q - Table 21-20—LBM and LBR formats
+******************************************************************************
+*/
+typedef struct __rte_packed xran_lbm_header_s {
+    xran_cfm_common_header cfm_common_header;             /* See the definition of xran_cfm_common_header for sub-field field information */
+    uint32_t               loopBackTransactionIdentifier; /* 21.7.3 A MEP copies the contents of the nextLBMtransID variable to this field. */
+    xran_sender_id_tlv     tlv;                           /* See the definition of xran_sender_id_tlv for sub-field field information */
+} xran_lbm_header;
+
+/**
+******************************************************************************
+* @struct xran_cfm_common_header 
+*
+* @brief
+* IEEE 802.1Q - Table 21-20—LBM and LBR formats
+******************************************************************************
+*/
+typedef struct __rte_packed xran_lbr_header_s {
+    xran_cfm_common_header cfm_common_header;               /* See the definition of xran_cfm_common_header for sub-field field information */
+    uint32_t               loopBackTransactionIdentifier;   /* 21.7.3 A MEP copies the contents of the nextLBMtransID variable to this field. */
+    uint8_t                end_tlv;
+} xran_lbr_header;
 
 #ifdef __cplusplus
 }

@@ -103,23 +103,22 @@ static int build_ecpri_hdr(struct rte_mbuf *mbuf,
  * @param comp_meth Compression method
  * @return int int 0 on success, non zero on failure
  */
-static inline int xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
+static inline void xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
                               uint8_t ecpri_mesg_type,
                               int payl_size,
                               uint8_t CC_ID,
                               uint8_t Ant_ID,
                               uint8_t seq_id,
                               uint8_t comp_meth,
+                              uint8_t oxu_port_id,
                               enum xran_comp_hdr_type staticEn)
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
     struct xran_ecpri_hdr *ecpri_hdr = (struct xran_ecpri_hdr *)(pChar + sizeof(struct rte_ether_hdr));
-    
+
     uint16_t    ecpri_payl_size = payl_size
                                 + sizeof(struct radio_app_common_hdr)
                                 + XRAN_ECPRI_HDR_SZ; //xran_get_ecpri_hdr_size();
-    if (NULL == ecpri_hdr)
-        return 1;
 
     ecpri_hdr->cmnhdr.data.data_num_1 = 0x0;
     ecpri_hdr->cmnhdr.bits.ecpri_ver       = XRAN_ECPRI_VER;
@@ -129,7 +128,7 @@ static inline int xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
     ecpri_hdr->cmnhdr.bits.ecpri_payl_size = rte_cpu_to_be_16(ecpri_payl_size);
 
     /* one to one lls-CU to RU only and band sector is the same */
-    ecpri_hdr->ecpri_xtc_id = xran_compose_cid(0, 0, CC_ID, Ant_ID);
+    ecpri_hdr->ecpri_xtc_id = xran_compose_cid(oxu_port_id, 0, 0, CC_ID, Ant_ID);
 
     /* no transport layer fragmentation supported */
     ecpri_hdr->ecpri_seq_id.data.data_num_1 = 0x8000;
@@ -138,8 +137,6 @@ static inline int xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
     /* no transport layer fragmentation supported */
     //ecpri_hdr->ecpri_seq_id.sub_seq_id  = 0;
     //ecpri_hdr->ecpri_seq_id.e_bit       = 1;
-
-    return 0;
 }
 
 
@@ -149,9 +146,9 @@ static inline int xran_build_ecpri_hdr_ex(struct rte_mbuf *mbuf,
  * @param mbuf Initialized rte_mbuf packet
  * @param app_hdr_input Radio App common header structure to be set in mbuf
  *                      packet.
- * @return int 0 on success, non zero on failure
+ * @return void
  */
-static inline int build_application_layer(
+static inline void build_application_layer(
     struct rte_mbuf *mbuf,
     const struct radio_app_common_hdr *app_hdr_input)
 {
@@ -159,12 +156,7 @@ static inline int build_application_layer(
     struct radio_app_common_hdr *app_hdr = (struct radio_app_common_hdr *)(pChar + sizeof(struct rte_ether_hdr)
         + sizeof (struct xran_ecpri_hdr));
 
-    if (NULL == app_hdr)
-        return 1;
-
     memcpy(app_hdr, app_hdr_input, sizeof(struct radio_app_common_hdr));
-
-    return 0;
 }
 
 /**
@@ -173,9 +165,9 @@ static inline int build_application_layer(
  * @param mbuf Initialized rte_mbuf packet
  * @param sec_hdr Section header structure to be set in mbuf packet
  * @param offset Offset to create the section header
- * @return int 0 on success, non zero on failure
+ * @return void
  */
-static inline int build_section_hdr(
+static inline void build_section_hdr(
     struct rte_mbuf *mbuf,
     const struct data_section_hdr *sec_hdr,
     uint32_t offset)
@@ -183,12 +175,7 @@ static inline int build_section_hdr(
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
     struct data_section_hdr *section_hdr = (struct data_section_hdr *)(pChar + offset);
 
-    if (NULL == section_hdr)
-        return 1;
-
     memcpy(section_hdr, &sec_hdr->fields.all_bits, sizeof(struct data_section_hdr));
-
-    return 0;
 }
 
 #if 0
@@ -213,7 +200,7 @@ static inline uint16_t append_iq_samples_ex(
     void *iq_sam_buf;
 
     iq_sam_buf = (pChar + iq_sam_offset);
-    if (iq_sam_buf == NULL){
+    if (iq_sam_buf == NULL) {
         print_err("iq_sam_buf == NULL\n");
         return 0;
     }
@@ -279,23 +266,18 @@ static uint16_t append_iq_samples(
  * @param compression_hdr Section compression header structure
  *                to be set in mbuf packet
  * @param offset mbuf data offset to create compression header
- * @return int 0 on success, non zero on failure
+ * @return void
  */
-static inline int build_compression_hdr(
+static inline void build_compression_hdr(
     struct rte_mbuf *mbuf,
     const struct data_section_compression_hdr *compr_hdr,
     uint32_t offset)
 {
     char *pChar = rte_pktmbuf_mtod(mbuf, char*);
-    struct data_section_compression_hdr *compression_hdr = 
+    struct data_section_compression_hdr *compression_hdr =
                     (struct data_section_compression_hdr *)(pChar + offset);
 
-    if (NULL == compression_hdr)
-        return 1;
-
     memcpy(compression_hdr, compr_hdr, sizeof(*compression_hdr));
-
-    return 0;
 }
 
 #if 0
@@ -345,7 +327,8 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
     int8_t   expect_comp,
     enum xran_comp_hdr_type staticComp,
     uint8_t *compMeth,
-    uint8_t *iqWidth)
+    uint8_t *iqWidth,
+    uint8_t oxu_port_id)
 {
 #if XRAN_MLOG_VAR
     uint32_t mlogVar[10];
@@ -360,18 +343,16 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
 
     /* Process eCPRI header. */
     const struct xran_ecpri_hdr *ecpri_hdr = rte_pktmbuf_mtod(mbuf, void *);
-    if (ecpri_hdr == NULL)
-        return 0;
 
     if (seq_id)
         *seq_id = ecpri_hdr->ecpri_seq_id;
 
-    if(*CC_ID == 0xFF && *Ant_ID == 0xFF) {
+    //if(*CC_ID == 0xFF && *Ant_ID == 0xFF)
+    {
         /* if not classified vi HW Queue parse packet  */
-    xran_decompose_cid((uint16_t)ecpri_hdr->ecpri_xtc_id, &result);
-
-    *CC_ID  = result.ccId;
-    *Ant_ID = result.ruPortId;
+        xran_decompose_cid(oxu_port_id, (uint16_t)ecpri_hdr->ecpri_xtc_id, &result);
+        *CC_ID  = result.ccId;
+        *Ant_ID = result.ruPortId;
     }
 
     /* Process radio header. */
@@ -454,6 +435,84 @@ int32_t xran_extract_iq_samples(struct rte_mbuf *mbuf,
 
     return rte_pktmbuf_pkt_len(mbuf);
 }
+int32_t xran_extract_iq_samples_dataheader(struct rte_mbuf *mbuf,
+    void **iq_data_start,
+    uint16_t *num_prbu,
+    uint16_t *start_prbu,
+    uint16_t *sym_inc,
+    uint16_t *rb,
+    uint16_t *sect_id,
+    int8_t   expect_comp,
+    enum xran_comp_hdr_type staticComp,
+    uint8_t *compMeth,
+    uint8_t *iqWidth)
+{
+#if XRAN_MLOG_VAR
+    uint32_t mlogVar[10];
+    uint32_t mlogVarCnt = 0;
+#endif
+
+    if (NULL == mbuf)
+        return 0;
+    if (NULL == iq_data_start)
+        return 0;
+
+
+    /* Process data section hdr */
+    struct data_section_hdr *data_hdr =
+        (struct data_section_hdr *)((char*)mbuf->buf_addr + mbuf->data_off);
+ 
+
+    /* cpu byte order */
+    data_hdr->fields.all_bits  = rte_be_to_cpu_32(data_hdr->fields.all_bits);
+
+    *num_prbu   = data_hdr->fields.num_prbu;
+    *start_prbu = data_hdr->fields.start_prbu;
+    *sym_inc    = data_hdr->fields.sym_inc;
+    *rb         = data_hdr->fields.rb;
+    *sect_id    = data_hdr->fields.sect_id;
+
+    if(expect_comp) {
+            const struct data_section_compression_hdr *data_compr_hdr;
+        if (staticComp != XRAN_COMP_HDR_TYPE_STATIC)
+        {
+            data_compr_hdr =
+            (void *) rte_pktmbuf_adj(mbuf, sizeof(*data_hdr));
+
+        if (data_compr_hdr == NULL)
+            return 0;
+
+        *compMeth = data_compr_hdr->ud_comp_hdr.ud_comp_meth;
+        *iqWidth =  data_compr_hdr->ud_comp_hdr.ud_iq_width;
+        const uint8_t *compr_param =
+            (void *)rte_pktmbuf_adj(mbuf, sizeof(*data_compr_hdr));
+
+            *iq_data_start = (void *)compr_param; /*rte_pktmbuf_adj(mbuf, sizeof(*compr_param))*/;
+        }
+        else
+        {
+            *iq_data_start = rte_pktmbuf_adj(mbuf, sizeof(*data_hdr));
+        }
+
+
+    } else {
+        *iq_data_start = rte_pktmbuf_adj(mbuf, sizeof(*data_hdr));
+    }
+
+    if (*iq_data_start == NULL)
+        return 0;
+
+#if XRAN_MLOG_VAR
+    mlogVar[mlogVarCnt++] = 0xDDDDDDDD;
+    mlogVar[mlogVarCnt++] = data_hdr->fields.sect_id;
+    mlogVar[mlogVarCnt++] = data_hdr->fields.start_prbu;
+    mlogVar[mlogVarCnt++] = data_hdr->fields.num_prbu;
+    mlogVar[mlogVarCnt++] = rte_pktmbuf_pkt_len(mbuf);
+    MLogAddVariables(mlogVarCnt, mlogVar, MLogTick());
+#endif
+
+    return rte_pktmbuf_pkt_len(mbuf);
+}
 
 /**
  * @brief Function for starting preparion of IQ samples portions
@@ -482,67 +541,96 @@ int32_t xran_prepare_iq_symbol_portion(
                         uint32_t do_copy,
                         uint16_t num_sections,
                         uint16_t section_id_start,
-                        uint16_t iq_offset)
+                        uint16_t iq_offset,
+                        uint8_t oxu_port_id)
 {
     uint32_t offset=0 , ret_val=0;
     uint16_t idx , iq_len=0;
-    const void *iq_data;
     uint16_t iq_n_section_size; //All data_section + compression hdrs + iq
 
     iq_n_section_size = iq_data_num_bytes + num_sections*sizeof(struct data_section_hdr);
-    
+
     if ((params[0].compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
-{
+    {
         iq_n_section_size += num_sections*sizeof(struct data_section_compression_hdr);
     }
 
-    if(xran_build_ecpri_hdr_ex(mbuf,
-                           ECPRI_IQ_DATA,
-                           (int)iq_n_section_size,
-                           CC_ID,
-                           Ant_ID,
-                           seq_id,
-                           params[0].compr_hdr_param.ud_comp_hdr.ud_comp_meth,
-                           staticEn)){
-        print_err("xran_build_ecpri_hdr_ex return 0\n");
-        return 0;
-    }
+    xran_build_ecpri_hdr_ex(mbuf, ECPRI_IQ_DATA, (int)iq_n_section_size, CC_ID, Ant_ID, seq_id,
+                            params[0].compr_hdr_param.ud_comp_hdr.ud_comp_meth, oxu_port_id, staticEn);
 
-    if (build_application_layer(mbuf, &(params[0].app_params)) != 0){
-        print_err("build_application_layer return != 0\n");
-        return 0;
-    }
+    build_application_layer(mbuf, &(params[0].app_params));    
 
     offset = sizeof(struct rte_ether_hdr)
                 + sizeof(struct xran_ecpri_hdr)
                 + sizeof(struct radio_app_common_hdr);
     for(idx=0 ; idx < num_sections ; idx++)
     {
-        if (build_section_hdr(mbuf, &(params[idx].sec_hdr),offset) != 0){
-        print_err("build_section_hdr return != 0\n");
-        return 0;
-    }
+        build_section_hdr(mbuf, &(params[idx].sec_hdr),offset);
+
         offset += sizeof(struct data_section_hdr);
         if ((params[idx].compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC)) {
-            if (build_compression_hdr(mbuf, &(params[idx].compr_hdr_param),offset) !=0)
-            return 0;
-            
-        offset += sizeof(struct data_section_compression_hdr);
-    }
-
-        /** IQ buffer contains space for data section/compression hdr in case of multiple sections.*/
-        iq_data = (const void *)((uint8_t *)iq_data_start 
-                                + idx*(sizeof(struct data_section_hdr) + iq_data_num_bytes/num_sections));
-        
-        if ((params[idx].compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
-            iq_data = (const void *)((uint8_t *)iq_data + idx*sizeof(struct data_section_compression_hdr));
+            build_compression_hdr(mbuf, &(params[idx].compr_hdr_param), offset);
+            offset += sizeof(struct data_section_compression_hdr);
+        }
 
         //ret_val = (do_copy ? append_iq_samples_ex(mbuf, offset, iq_data_start, iq_data_num_bytes/num_sections, iq_buf_byte_order, do_copy) : iq_data_num_bytes/num_sections);
         ret_val = iq_data_num_bytes/num_sections;
-        
+
         if(!ret_val)
             return ret_val;
-        
+
+        iq_len += ret_val;
+        offset += ret_val;
+    }
+    return iq_len;
+}
+int32_t xran_prepare_iq_symbol_portion_appand(
+                        struct rte_mbuf *mbuf,
+                        const void *iq_data_start,
+                        const enum xran_input_byte_order iq_buf_byte_order,
+                        const uint32_t iq_data_num_bytes,
+                        struct xran_up_pkt_gen_params *params,
+                        uint8_t CC_ID,
+                        uint8_t Ant_ID,
+                        uint8_t seq_id,
+                        enum xran_comp_hdr_type staticEn,
+                        uint32_t do_copy,
+                        uint16_t num_sections,
+                        uint16_t section_id_start,
+                        uint16_t iq_offset,
+                        uint8_t oxu_port_id)
+{
+    uint32_t offset=0 , ret_val=0;
+    uint16_t idx , iq_len=0;
+    uint16_t iq_n_section_size; //All data_section + compression hdrs + iq
+    struct xran_ecpri_hdr * p_ecpri_header;
+    p_ecpri_header = rte_pktmbuf_mtod_offset(mbuf, struct xran_ecpri_hdr *, sizeof(struct rte_ether_hdr));
+    iq_n_section_size = iq_data_num_bytes + num_sections*sizeof(struct data_section_hdr);
+
+    if ((params[0].compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC))
+    {
+        iq_n_section_size += num_sections*sizeof(struct data_section_compression_hdr);
+    }
+    uint16_t ecpri_payl_size = rte_cpu_to_be_16(p_ecpri_header->cmnhdr.bits.ecpri_payl_size) + iq_n_section_size;
+    p_ecpri_header->cmnhdr.bits.ecpri_payl_size = rte_cpu_to_be_16(ecpri_payl_size);
+
+    offset = rte_pktmbuf_data_len(mbuf);
+    for(idx=0 ; idx < num_sections ; idx++)
+    {
+        build_section_hdr(mbuf, &(params[idx].sec_hdr),offset);
+
+        offset += sizeof(struct data_section_hdr);
+        if ((params[idx].compr_hdr_param.ud_comp_hdr.ud_comp_meth != XRAN_COMPMETHOD_NONE)&&(staticEn == XRAN_COMP_HDR_TYPE_DYNAMIC)) {
+            build_compression_hdr(mbuf, &(params[idx].compr_hdr_param), offset);
+            offset += sizeof(struct data_section_compression_hdr);
+        }
+
+        //ret_val = (do_copy ? append_iq_samples_ex(mbuf, offset, iq_data_start, iq_data_num_bytes/num_sections, iq_buf_byte_order, do_copy) : iq_data_num_bytes/num_sections);
+        ret_val = iq_data_num_bytes/num_sections;
+
+        if(!ret_val)
+            return ret_val;
+
         iq_len += ret_val;
         offset += ret_val;
     }

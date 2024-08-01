@@ -19,8 +19,9 @@
 
 #include "common.hpp"
 #include "xran_common.h"
+#include "xran_cp_proc.h"
 #include "xran_fh_o_du.h"
-#include "ethernet.h"
+#include "xran_ethernet.h"
 #include "xran_transport.h"
 #include "xran_cp_api.h"
 
@@ -36,11 +37,11 @@ class PrachPerf : public KernelTests
     // private:
     // struct xran_section_recv_info *m_pSectResult = NULL; /*Not used*/
 
-	protected:
-		struct xran_fh_config m_xranConf;
-		struct xran_device_ctx m_xran_dev_ctx;
-		struct xran_prach_config *m_pPRACHConfig;
-		struct xran_prach_cp_config  *m_pPrachCPConfig;
+    protected:
+        struct xran_fh_config m_xranConf;
+        struct xran_device_ctx m_xran_dev_ctx;
+        struct xran_prach_config *m_pPRACHConfig;
+        struct xran_prach_cp_config  *m_pPrachCPConfig;
 
     struct xran_section_gen_info *m_pSectGenInfo = NULL;
     int m_maxSections = 8;  /*  not used */
@@ -53,6 +54,7 @@ class PrachPerf : public KernelTests
     struct xran_cp_gen_params m_result;
 
     uint8_t     m_dir;
+    uint8_t     m_mu;
     std::string m_dirStr;
     uint8_t     m_sectionType;
 
@@ -70,34 +72,37 @@ class PrachPerf : public KernelTests
     //uint16_t    m_timeOffset;
     uint8_t     m_fftSize;
 
-		//define reference values
-    	uint8_t     m_startSymId;
-    	uint8_t     m_x;
-		uint8_t    	m_filterIdx;
-		uint16_t   	m_startPrbc;
-		uint8_t    	m_numPrbc;
-		uint8_t    	m_numSymbol;
-		uint16_t   	m_timeOffset;
-		int32_t    	m_freqOffset;
-		uint8_t   	m_nrofPrachInSlot;
-		uint8_t    	m_occassionsInPrachSlot;
-		uint8_t    	m_y[XRAN_PRACH_CANDIDATE_Y];
-		uint8_t     m_isPRACHslot[XRAN_PRACH_CANDIDATE_SLOT];
-		int 		m_prach_start_symbol;
-		int			m_prach_last_symbol;
-		uint8_t     m_SlotNrNum;
+        //define reference values
+        uint8_t     m_startSymId;
+        uint8_t     m_x;
+        uint8_t        m_filterIdx;
+        uint16_t       m_startPrbc;
+        uint8_t        m_numPrbc;
+        uint8_t        m_numSymbol;
+        uint16_t       m_timeOffset;
+        int32_t        m_freqOffset;
+        uint8_t       m_nrofPrachInSlot;
+        uint8_t        m_occassionsInPrachSlot;
+        uint8_t        m_y[XRAN_PRACH_CANDIDATE_Y];
+        uint8_t     m_isPRACHslot[XRAN_PRACH_CANDIDATE_SLOT];
+        int         m_prach_start_symbol;
+        int            m_prach_last_symbol;
+        uint8_t     m_SlotNrNum;
 
 
-	void SetUp() override
+    void SetUp() override
   {
-    	init_test("prach_performance");
-		memset(&m_xranConf, 0, sizeof(struct xran_fh_config));
-		memset(&m_xran_dev_ctx, 0, sizeof(struct xran_device_ctx));
-		m_pPRACHConfig = &m_xranConf.prach_conf;
-		m_pPrachCPConfig = &m_xran_dev_ctx.PrachCPConfig;
+        init_test("prach_performance");
+        memset(&m_xranConf, 0, sizeof(struct xran_fh_config));
+        memset(&m_xran_dev_ctx, 0, sizeof(struct xran_device_ctx));
+        m_xran_dev_ctx.perMu=(xran_device_per_mu_fields*)malloc(XRAN_MAX_NUM_MU1*sizeof(xran_device_per_mu_fields));//memory permu
+        m_mu = get_input_parameter<uint8_t>("Numerology");
+        m_xranConf.mu_number[0] = m_mu;
+        m_pPRACHConfig = &m_xranConf.perMu[m_mu].prach_conf;
+        m_pPrachCPConfig = &m_xran_dev_ctx.perMu[m_mu].PrachCPConfig;
 
-		//initialize input parameters
-        m_xranConf.frame_conf.nNumerology = get_input_parameter<uint8_t>("Numerology");
+        //initialize input parameters
+        
         m_xranConf.frame_conf.nFrameDuplexType = get_input_parameter<uint8_t>("FrameDuplexType");
         m_xranConf.log_level = get_input_parameter<uint32_t>("loglevel");
 
@@ -115,37 +120,37 @@ class PrachPerf : public KernelTests
         m_ccId = get_input_parameter<uint8_t>("ccId");
         m_antId = get_input_parameter<uint8_t>("antId");
 
-		//initialize reference output
+        //initialize reference output
         m_startSymId = get_reference_parameter<uint8_t>("startSymId");
         m_x = get_reference_parameter<uint8_t>("x_value");
-		m_filterIdx = get_reference_parameter<uint8_t>("filterIdx");
+        m_filterIdx = get_reference_parameter<uint8_t>("filterIdx");
         m_startPrbc = get_reference_parameter<uint16_t>("startPrbc");
-		m_numPrbc = get_reference_parameter<uint8_t>("numPrbc");
+        m_numPrbc = get_reference_parameter<uint8_t>("numPrbc");
         m_timeOffset = get_reference_parameter<uint16_t>("timeOffset");
-		m_freqOffset = get_reference_parameter<uint32_t>("freqOffset");
+        m_freqOffset = get_reference_parameter<uint32_t>("freqOffset");
         m_nrofPrachInSlot = get_reference_parameter<uint8_t>("nrofPrachInSlot");
 
-		//get the values from a vector
-		std::vector<uint8_t> y_vec = get_reference_parameter<std::vector<uint8_t>>("y_value");
-		for(int i=0; i < XRAN_PRACH_CANDIDATE_Y; i++) {
+        //get the values from a vector
+        std::vector<uint8_t> y_vec = get_reference_parameter<std::vector<uint8_t>>("y_value");
+        for(int i=0; i < XRAN_PRACH_CANDIDATE_Y; i++) {
             m_y[i] = y_vec[i];
         }
 
         m_numSymbol = get_reference_parameter<uint8_t>("numSymbol");
-		m_occassionsInPrachSlot = get_reference_parameter<uint8_t>("occassionsInPrachSlot");
+        m_occassionsInPrachSlot = get_reference_parameter<uint8_t>("occassionsInPrachSlot");
 
-		std::vector<uint8_t> index_vec = get_reference_parameter<std::vector<uint8_t>>("isPRACHslot");
-		m_SlotNrNum = get_reference_parameter<uint8_t>("SlotNrNum");
-		for(int i = 0; i < XRAN_PRACH_CANDIDATE_SLOT; i++){
-			m_isPRACHslot[i]=0;
-		}
-		for(int i=0; i<m_SlotNrNum;i++){
-			m_isPRACHslot[index_vec[i]]=1;
-		}
+        std::vector<uint8_t> index_vec = get_reference_parameter<std::vector<uint8_t>>("isPRACHslot");
+        m_SlotNrNum = get_reference_parameter<uint8_t>("SlotNrNum");
+        for(int i = 0; i < XRAN_PRACH_CANDIDATE_SLOT; i++){
+            m_isPRACHslot[i]=0;
+        }
+        for(int i=0; i<m_SlotNrNum;i++){
+            m_isPRACHslot[index_vec[i]]=1;
+        }
 
 
-		m_prach_start_symbol = get_reference_parameter<int>("prach_start_symbol");
-		m_prach_last_symbol = get_reference_parameter<int>("prach_last_symbol");
+        m_prach_start_symbol = get_reference_parameter<int>("prach_start_symbol");
+        m_prach_last_symbol = get_reference_parameter<int>("prach_last_symbol");
 
         /* allocate and prepare required data storage */
         m_pSectGenInfo = new struct xran_section_gen_info[8];
@@ -162,26 +167,26 @@ class PrachPerf : public KernelTests
     void TearDown() override
     {
 
-		if(m_pTestBuffer != NULL)
-			rte_pktmbuf_free(m_pTestBuffer);
-		if(m_pSectGenInfo)
-			delete[] m_pSectGenInfo;
+        if(m_pTestBuffer != NULL)
+            rte_pktmbuf_free(m_pTestBuffer);
+        if(m_pSectGenInfo)
+            delete[] m_pSectGenInfo;
 
-		return;
+        return;
     }
 };
 
 void performance_cp(void *pHandle,struct xran_cp_gen_params *params, struct xran_section_gen_info *sect_geninfo, struct xran_device_ctx *pxran_lib_ctx,
                 uint8_t frame_id, uint8_t subframe_id, uint8_t slot_id,
-                uint16_t beam_id, uint8_t cc_id, uint8_t prach_port_id, uint8_t seq_id)
+                uint16_t beam_id, uint8_t cc_id, uint8_t prach_port_id, uint8_t seq_id, uint8_t mu)
 {
-  	struct rte_mbuf *mbuf;
+      struct rte_mbuf *mbuf;
 
     mbuf = (struct rte_mbuf*)rte_pktmbuf_alloc(_eth_mbuf_pool);
 
     generate_cpmsg_prach(pxran_lib_ctx, params, sect_geninfo, mbuf, pxran_lib_ctx,
         frame_id, subframe_id, slot_id, 0,
-        beam_id, cc_id, prach_port_id, 0, seq_id);
+        beam_id, cc_id, prach_port_id, 0, seq_id, mu, 0);
 
     seq_id++;
 
@@ -194,20 +199,20 @@ TEST_P(PrachPerf, PrachPerfPacketGen)//TestCaseName   TestName
     void *pHandle = NULL;
 
     /* Preparing input data for prach config */
-    ret = xran_init_prach(&m_xranConf, &m_xran_dev_ctx, XRAN_RAN_5GNR);
+    ret = xran_init_prach(&m_xranConf, &m_xran_dev_ctx, XRAN_RAN_5GNR, m_mu);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
 
     ret = generate_cpmsg_prach(&m_xran_dev_ctx, &m_params, m_pSectGenInfo, m_pTestBuffer, &m_xran_dev_ctx,
         m_frameId, m_subframeId, m_slotId, 0,
-        m_beamId, m_ccId, m_antId, 0, 0);
+        m_beamId, m_ccId, m_antId, 0, 0, m_mu, 0);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
 
-	performance("C", module_name,
+    performance("C", module_name,
             &performance_cp, pHandle, &m_params, m_pSectGenInfo, &m_xran_dev_ctx,
         m_frameId, m_subframeId, m_slotId,
-        m_beamId, m_ccId, m_antId, 0);
+        m_beamId, m_ccId, m_antId, 0, m_mu);
         
     if(m_params.sections[0].info)
         delete[] m_params.sections[0].info;

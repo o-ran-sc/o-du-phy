@@ -1,20 +1,8 @@
-/******************************************************************************
-*
-*   Copyright (c) 2021 Intel.
-*
-*   Licensed under the Apache License, Version 2.0 (the "License");
-*   you may not use this file except in compliance with the License.
-*   You may obtain a copy of the License at
-*
-*       http://www.apache.org/licenses/LICENSE-2.0
-*
-*   Unless required by applicable law or agreed to in writing, software
-*   distributed under the License is distributed on an "AS IS" BASIS,
-*   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*   See the License for the specific language governing permissions and
-*   limitations under the License.
-*
-*******************************************************************************/
+/*******************************************************************************
+ *
+ * <COPYRIGHT_TAG>
+ *
+ *******************************************************************************/
 
 #ifdef __KERNEL__
 #include <linux/kernel.h>
@@ -22,6 +10,7 @@
 #endif
 #include <string.h>
 #include <pthread.h>
+#include <stdio.h>
 #include "pool.h"
 
 /*static void pool_mutex_destroy(pthread_mutex_t* pMutex)
@@ -40,12 +29,28 @@ static void pool_mutex_init(pthread_mutex_t* pMutex)
 
 static void pool_mutex_lock(pthread_mutex_t* pMutex)
 {
-    pthread_mutex_lock(pMutex);
+    int nLockRet = 0;
+    
+    nLockRet = pthread_mutex_lock(pMutex);
+
+    /* Add this to fix Klockwork SV.RVT.RETVAL_NOTTESTED issue */
+    if (0 != nLockRet)
+    {
+        printf("pool mutex lock Error %d\n", nLockRet);
+    }
 }
 
 static void pool_mutex_unlock(pthread_mutex_t* pMutex)
 {
-    pthread_mutex_unlock(pMutex);
+    int nLockRet = 0;
+    
+    nLockRet = pthread_mutex_unlock(pMutex);
+
+    /* Add this to fix Klockwork SV.RVT.RETVAL_NOTTESTED issue */
+    if (0 != nLockRet)
+    {
+        printf("pool mutex unlock Error %d\n", nLockRet);
+    }
 }
 
 

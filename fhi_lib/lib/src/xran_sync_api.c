@@ -106,7 +106,7 @@ static int check_ptp_status()
             }
         }
     }
-    fclose(pmc_pipe);
+    pclose(pmc_pipe);
     return res;
 }
 

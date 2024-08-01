@@ -37,6 +37,7 @@ extern "C" {
 
 uint32_t xran_fs_get_tti_interval(uint8_t nMu);
 uint32_t xran_fs_get_scs(uint8_t nMu);
+int8_t xran_fs_get_mu_from_scs(uint16_t scs);
 
 //-------------------------------------------------------------------------------------------
 /** @ingroup group_nr5g_source_phy_common
@@ -67,14 +68,14 @@ uint16_t xran_fs_get_num_rbs(uint32_t nNumerology, uint32_t nBandwidth, uint32_t
 **/
 //-------------------------------------------------------------------------------------------
 uint32_t xran_fs_cal_nrarfcn(uint32_t nCenterFreq);
-int32_t xran_fs_slot_limit(uint32_t PortId, int32_t nSlotIdx);
+int32_t xran_fs_slot_limit(uint32_t PortId, int32_t nSfIdx, uint8_t mu);
 void xran_fs_clear_slot_type(uint32_t PortId, uint32_t nCcId);
 int32_t xran_fs_set_slot_type(uint32_t PortId, uint32_t nCcId, uint32_t nFrameDuplexType, uint32_t nTddPeriod, struct xran_slot_config* psSlotConfig);
-int32_t xran_fs_get_slot_type(uint32_t PortId, int32_t nCcId, int32_t nSlotIdx, int32_t nType);
-uint32_t xran_fs_slot_limit_init(uint32_t PortId, int32_t tti_interval_us);
-uint32_t xran_fs_get_max_slot(uint32_t PortId);
-uint32_t xran_fs_get_max_slot_SFN(uint32_t PortId);
-int32_t xran_fs_get_symbol_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx,  int32_t nSymbIdx);
+int32_t xran_fs_get_slot_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx, int32_t nType, uint8_t mu);
+uint32_t  xran_fs_slot_limit_init(uint8_t mu);
+
+uint32_t xran_fs_get_max_slot(uint8_t mu);
+int32_t xran_fs_get_symbol_type(uint32_t PortId, int32_t nCellIdx, int32_t nSlotdx,  int32_t nSymbIdx, uint8_t mu);
 
 #ifdef __cplusplus
 }

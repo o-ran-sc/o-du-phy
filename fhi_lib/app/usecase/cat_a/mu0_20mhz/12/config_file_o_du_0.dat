@@ -1,24 +1,10 @@
 #######################################################################
 #
-# Copyright (c) 2020 Intel.
-# 
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-# 
-# http://www.apache.org/licenses/LICENSE-2.0
-# 
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# 
+# <COPYRIGHT_TAG>
 #
 #######################################################################
 
 # This is simple configuration file. Use '#' sign for comments
-instanceId=0 # 0,1,2,... in case more than 1 application started on the same system
 appMode=0 # lls-CU(0) | RU(1)
 xranMode=0 # Category A  (0) (precoder in lls-CU) | Category B (1) (precoder in RU)
 ccNum=6 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 12)
@@ -42,7 +28,6 @@ MTUSize=9600 #maximum transmission unit (MTU) is the size of the largest protoco
 Gps_Alpha=0	#alpha and beta value as in section 9.7.2 of ORAN spec
 Gps_Beta=0
 
-ioCore=5
 
 # Eth 0
 duMac0=00:11:22:33:44:66 # asigned MAC of O-DU VF
@@ -191,8 +176,6 @@ debugStop=0 #stop app on 1pps boundary (gps_second % 30)
 debugStopCount=0 #if this value is >0 then stop app after x transmission packets, otherwise app will stop at 1pps boundary
 
 CPenable=1 #(1) C-Plane is enabled| (0) C-Plane is disabled
-c_plane_vlan_tag=1 #VLAN Tag used for C-Plane
-u_plane_vlan_tag=2 #VLAN Tag used for U-Plane
 
 ##RU Settings
 Tadv_cp_dl=25 #in us  TODO: update per RU implementation

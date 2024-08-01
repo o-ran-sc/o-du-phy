@@ -17,7 +17,7 @@
 *******************************************************************************/
 
 /**
- * @brief xRAN BFP compression/decompression U-plane implementation and interface functions
+ * @brief xRAN BFP compression/decompression interface functions
  *
  * @file xran_compression.cpp
  * @ingroup group_source_xran
@@ -33,6 +33,7 @@
 #include <immintrin.h>
 #include <limits.h>
 #include <cstring>
+#include <stdint.h>
 
 using namespace BlockFloatCompander;
 
@@ -42,11 +43,37 @@ typedef void (*xran_bfp_compress_fn)(const BlockFloatCompander::ExpandedData& da
 
 /** callback function type for Symbol packet */
 typedef void (*xran_bfp_decompress_fn)(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut);
+#ifdef _BBLIB_SPR_
+typedef void (*xran_bfp_decompress_fn_5gisa)(const BlockFloatCompander::CompressedData& dataIn, BlockFloatCompander::ExpandedData* dataOut, float fScale);
+#endif
+int gCpuCapability = -1;
+
+struct xran_lib_compander_for_isa
+{
+    xran_lib_compander_for_isa() {
+        if (gCpuCapability == -1) {
+#ifdef _BBLIB_SPR_
+            if (_may_i_use_cpu_feature(_FEATURE_F16C)) {
+                gCpuCapability = 2;
+            } else 
+#endif
+            if (_may_i_use_cpu_feature(_FEATURE_AVX512IFMA52)) {
+                gCpuCapability = 1;
+            } else {
+                gCpuCapability = 0;
+            }
+        }
+
+        printf("xran_lib_compander_for_isa: %d\n", gCpuCapability);
+    }
+};
+
+xran_lib_compander_for_isa xran_constructor_compresion_cpp;
 
 int32_t
 xranlib_compress(const struct xranlib_compress_request *request,
                         struct xranlib_compress_response *response)
-  {
+{
     if (request->compMethod == XRAN_COMPMETHOD_MODULATION)
     {
         struct xranlib_5gnr_mod_compression_request mod_request;
@@ -60,20 +87,20 @@ xranlib_compress(const struct xranlib_compress_request *request,
         response->len = (request->numRBs * XRAN_NUM_OF_SC_PER_RB * request->iqWidth * 2) >> 3;
 
         return xranlib_5gnr_mod_compression(&mod_request, &mod_response);
-  }
+    }
     else{
-        if(_may_i_use_cpu_feature(_FEATURE_AVX512IFMA52)) {
+        if(XRANLIB_COMPAND_CHECK_CPU_CAPABILITY()) {
             return xranlib_compress_avxsnc(request,response);
         } else {
             return xranlib_compress_avx512(request,response);
+        }
     }
-  }
-  }
+}
 
 int32_t
 xranlib_decompress(const struct xranlib_decompress_request *request,
     struct xranlib_decompress_response *response)
-  {
+{
     if (request->compMethod == XRAN_COMPMETHOD_MODULATION)
     {
         struct xranlib_5gnr_mod_decompression_request mod_request;
@@ -87,36 +114,99 @@ xranlib_decompress(const struct xranlib_decompress_request *request,
         response->len = request->numRBs * XRAN_NUM_OF_SC_PER_RB * 4;
 
         return xranlib_5gnr_mod_decompression(&mod_request, &mod_response);
-      }
+    }
     else{
-        if(_may_i_use_cpu_feature(_FEATURE_AVX512IFMA52)) {
+        if((gCpuCapability == 2)&&(request->SprEnable == 1)) {
+            return xranlib_decompress_5gisa(request,response);
+        } else if(XRANLIB_COMPAND_CHECK_CPU_CAPABILITY()) {
             return xranlib_decompress_avxsnc(request,response);
         } else {
             return xranlib_decompress_avx512(request,response);
+        }
     }
-  }
-  }
+}
+
+int32_t
+xranlib_decompress_5gisa(const struct xranlib_decompress_request *request,
+    struct xranlib_decompress_response *response)
+{
+#ifdef _BBLIB_SPR_
+    BlockFloatCompander::CompressedData compressedDataInput;
+    BlockFloatCompander::ExpandedData expandedDataOut;
+
+    xran_bfp_decompress_fn_5gisa decom_fn = NULL;
+    uint16_t totalRBs = request->numRBs;
+    uint16_t remRBs   = totalRBs;
+    int16_t len = 0;
+    int16_t block_idx_bytes = 0;
+    float fScale = request->fScale;
+
+    switch (request->iqWidth) {
+    case 8:
+    case 9:
+    case 10:
+    case 12:
+        decom_fn = BlockFloatCompander::BFPExpandUserPlaneSpr;
+        break;
+    default:
+        decom_fn = BlockFloatCompander::BFPExpandRefSpr;
+        break;
+    }
+
+    compressedDataInput.iqWidth         =  request->iqWidth;
+    compressedDataInput.numDataElements =  24;
+
+    while(remRBs) {
+        compressedDataInput.dataCompressed = (uint8_t*)&request->data_in[block_idx_bytes];
+        expandedDataOut.dataExpanded       = &response->data_out[len];
+
+        if(remRBs >= 16){
+            compressedDataInput.numBlocks = 16;
+            decom_fn(compressedDataInput, &expandedDataOut, fScale);
+            len  += 16*compressedDataInput.numDataElements;
+            block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)16);
+            remRBs -= 16;
+        }else if(remRBs >= 4){
+            compressedDataInput.numBlocks = 4;
+            decom_fn(compressedDataInput, &expandedDataOut, fScale);
+            len  += 4*compressedDataInput.numDataElements;
+            block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)4);
+            remRBs -=4;
+        }else if (remRBs >= 1){
+            compressedDataInput.numBlocks = 1;
+            decom_fn(compressedDataInput, &expandedDataOut, fScale);
+            len  += 1*compressedDataInput.numDataElements;
+            block_idx_bytes  += ((3 * compressedDataInput.iqWidth) + 1) * std::min((int16_t)BlockFloatCompander::k_maxNumBlocks,(int16_t)1);
+            remRBs = remRBs - 1;
+        }
+
+    }
+
+    response->len = totalRBs * compressedDataInput.numDataElements * sizeof(int16_t);
+#endif
+    return XRAN_STATUS_SUCCESS;
+}
 
 int32_t
 xranlib_compress_bfw(const struct xranlib_compress_request *request,
                         struct xranlib_compress_response *response)
-    {
-    if(_may_i_use_cpu_feature(_FEATURE_AVX512IFMA52)) {
+{
+    if(XRANLIB_COMPAND_CHECK_CPU_CAPABILITY()) {
         return xranlib_compress_avxsnc_bfw(request,response);
     } else {
         return xranlib_compress_avx512_bfw(request,response);
     }
-  }
+}
 
 int32_t
 xranlib_decompress_bfw(const struct xranlib_decompress_request *request,
     struct xranlib_decompress_response *response)
-  {
-    if(_may_i_use_cpu_feature(_FEATURE_AVX512IFMA52)) {
+{
+    if(XRANLIB_COMPAND_CHECK_CPU_CAPABILITY()) {
         return xranlib_decompress_avxsnc_bfw(request,response);
     } else {
         return xranlib_decompress_avx512_bfw(request,response);
-  }
+    }
 }
 
 int32_t
@@ -172,7 +262,7 @@ xranlib_compress_avx512(const struct xranlib_compress_request *request,
 
     response->len =  ((3 * expandedDataInput.iqWidth) + 1) * totalRBs;
 
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 
 int32_t
@@ -242,7 +332,7 @@ xranlib_compress_avx512_bfw(const struct xranlib_compress_request *request,
 
     if (request->numRBs != 1){
         printf("Unsupported numRBs %d\n", request->numRBs);
-        return -1;
+        return XRAN_STATUS_FAIL;
     }
 
     switch (request->iqWidth) {
@@ -266,13 +356,13 @@ xranlib_compress_avx512_bfw(const struct xranlib_compress_request *request,
             case 24:
             default:
                 printf("Unsupported numDataElements %d\n", request->numDataElements);
-                return -1;
+                return XRAN_STATUS_FAIL;
                 break;
         }
         break;
     default:
         printf("Unsupported iqWidth %d\n", request->iqWidth);
-        return -1;
+        return XRAN_STATUS_FAIL;
         break;
     }
 
@@ -287,7 +377,7 @@ xranlib_compress_avx512_bfw(const struct xranlib_compress_request *request,
     response->len =  (((expandedDataInput.numDataElements  * expandedDataInput.iqWidth) >> 3) + 1)
                             * request->numRBs;
 
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 
 int32_t
@@ -300,7 +390,7 @@ xranlib_decompress_avx512_bfw(const struct xranlib_decompress_request *request,
 
     if (request->numRBs != 1){
         printf("Unsupported numRBs %d\n", request->numRBs);
-        return -1;
+        return XRAN_STATUS_FAIL;
     }
 
     switch (request->iqWidth) {
@@ -324,13 +414,13 @@ xranlib_decompress_avx512_bfw(const struct xranlib_decompress_request *request,
             case 24:
             default:
                 printf("Unsupported numDataElements %d\n", request->numDataElements);
-                return -1;
+                return XRAN_STATUS_FAIL;
                 break;
         }
         break;
     default:
         printf("Unsupported iqWidth %d\n", request->iqWidth);
-        return -1;
+        return XRAN_STATUS_FAIL;
         break;
     }
 
@@ -344,6 +434,6 @@ xranlib_decompress_avx512_bfw(const struct xranlib_decompress_request *request,
 
     response->len = request->numRBs * compressedDataInput.numDataElements * sizeof(int16_t);
 
-    return 0;
+    return XRAN_STATUS_SUCCESS;
 }
 

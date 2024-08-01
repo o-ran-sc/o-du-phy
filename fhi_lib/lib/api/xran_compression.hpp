@@ -138,4 +138,9 @@ namespace BlockFloatCompander
   /// Control-Plane specific compression and expansion functions for 64 antennas
   void BFPCompressCtrlPlane64AvxSnc(const ExpandedData& dataIn, CompressedData* dataOut);
   void BFPExpandCtrlPlane64AvxSnc(const CompressedData& dataIn, ExpandedData* dataOut);
+
+#ifdef _BBLIB_SPR_
+  void BFPExpandUserPlaneSpr(const CompressedData& dataIn, ExpandedData* dataOut, float fScale);
+  void BFPExpandRefSpr(const CompressedData& dataIn, ExpandedData* dataOut, float fScale);
+#endif
 }

@@ -4,11 +4,11 @@ project_creation_date: '2019-08-07'
 project_category: ''
 lifecycle_state: 'Incubation'
 project_lead: &odu_low_ptl
-    name: 'Zhimin Yuan'
-    email: 'zhimin.yuan@intel.com'
+    name: 'Peng Lu'
+    email: 'peng.lu@intel.com'
     company: 'Intel'
-    id: 'Zhimin'
-    timezone: 'China/Beijing'
+    id: 'penglu'
+    timezone: 'US/CA'
 primary_contact: *odu_low_ptl
 issue_tracking:
     type: 'jira'
@@ -31,15 +31,15 @@ repositories:
     - 'o-du/phy'
 committers:
     - <<: *odu_low_ptl
-    - name: 'Luis Farias'
-      email: 'luis.farias@intel.com'
+    - name: 'Ashwini Bhagat'
+      email: 'ashwini.bhagat@intel.com'
       company: 'Intel'
-      id: 'Lvfarias'
+      id: 'ashwinibintel'
       timezone: 'US/CA'
-    - name: 'Peng Cao'
-      email: 'peng.cao@intel.com'
+    - name: 'Peng Lu'
+      email: 'peng.lu@intel.com'
       company: 'Intel'
-      id: 'pengcao'
-      timezone: 'Asia/Beijing'
+      id: 'penglu'
+      timezone: 'US/CA'
 tsc:
     approval: 'https://lists.o-ran-sc.org/g/toc'

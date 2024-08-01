@@ -64,7 +64,8 @@ extern "C" {
  *   Callback function to call with arrival of C-Plane packets for given CC
  * @param pCallbackTag
  *   Parameters of Callback function
- * 
+ * @param mu
+ *   Numerology that this config applies to.
  * @return
  *   0  - on success
  *   -1 - on error
@@ -73,7 +74,7 @@ extern "C" {
 int32_t xran_5g_bfw_config(void * pHandle, struct xran_buffer_list *pSrcRxCpBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
                     struct xran_buffer_list *pSrcTxCpBuffer[XRAN_MAX_ANTENNA_NR][XRAN_N_FE_BUF_LEN],
                     xran_transport_callback_fn pCallback,
-                    void *pCallbackTag);
+                    void *pCallbackTag, uint8_t mu);
 
 
 #ifdef __cplusplus

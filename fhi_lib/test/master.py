@@ -34,19 +34,25 @@ from time import gmtime, strftime
 import json
 from threading import Timer
 import socket
+import array as arr
 
 timeout_sec = 60*5 #5 min max
-
+SecMu = [0]*4
+SecMuDat = [[],[],[],[]]
+curr_mu = 0
 nLteNumRbsPerSymF1 = [
     #  5MHz    10MHz   15MHz   20 MHz
-        [25,    50,     75,     100]  # LTE Numerology 0 (15KHz)
+        [25,    50,     75,     100,    0,  25]  # LTE Numerology 0 (15KHz)
 ]
 
 nNumRbsPerSymF1 = [
     #  5MHz    10MHz   15MHz   20 MHz  25 MHz  30 MHz  40 MHz  50MHz   60 MHz  70 MHz  80 MHz   90 MHz  100 MHz
         [25,    52,     79,     106,    133,    160,    216,    270,    0,         0,      0,      0,      0],         # Numerology 0 (15KHz)
-        [11,    24,     38,     51,     65,     78,     106,    133,    162,       0,    217,    245,    273],         # Numerology 1 (30KHz)
-        [0,     11,     18,     24,     31,     38,     51,     65,     79,        0,    107,    121,    135]          # Numerology 2 (60KHz)
+        [11,    24,     38,     51,     65,     78,     106,    133,    162,     189,    217,    245,    273],         # Numerology 1 (30KHz)
+        [0,     11,     18,     24,     31,     38,     51,     65,     79,       93,    107,    121,    135],         # Numerology 2 (60KHz)
+        [0,      0,      0,      0,      0,      0,      0,      0,      0,        0,      0,      0,      0],         # Numerology 3 Not supported
+        [0,      0,      0,      0,      0,      0,      0,      0,      0,        0,      0,      0,      0],         # Numerology 4 Not supported
+        [25,    52,     79,     106,    133,    160,    216,    270,    0,         0,      0,      0,      0]          # NB-IOT
 ]
 
 nNumRbsPerSymF2 = [
@@ -97,8 +103,8 @@ vf_addr_o_xu_scs1_repo = [
 
 vf_addr_o_xu_icelake_scs1_1 = [
         #vf_addr_o_xu_a                  vf_addr_o_xu_b               vf_addr_o_xu_c            vf_addr_o_xu_d
-    ["0000:51:01.0,0000:51:09.0", "0000:51:11.0,0000:51:19.0", "0000:18:01.0,0000:18:09.0", "0000:18:01.1,0000:18:09.1" ], #O-DU
-    ["0000:17:01.0,0000:17:09.0", "0000:17:11.0,0000:17:19.0", "0000:65:01.0,0000:65:09.0", "0000:65:01.1,0000:65:09.1" ], #O-RU
+    ["0000:51:01.0,0000:51:09.0", "0000:51:11.0,0000:51:19.0", "0000:54:01.0,0000:54:11.0", "0000:54:01.1,0000:54:11.1" ], #O-DU
+    ["0000:8a:01.0,0000:8a:09.0", "0000:8a:11.0,0000:8a:19.0", "0000:51:01.0,0000:51:09.0", "0000:51:01.1,0000:51:09.1" ], #O-RU
 ]
 
 vf_addr_o_xu_icx_npg_scs1_coyote4 = [
@@ -124,6 +130,29 @@ vf_addr_o_xu_skx_5gnr_sd6 = [
     ["0000:18:01.0,0000:18:09.0", "0000:18:11.0,0000:18:19.0", "0000:18:11.1,0000:18:19.1", "0000:18:01.1,0000:18:09.1"], #O-RU
 ]
 
+vf_addr_o_xu_npg_cp_srv01 = [
+    #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c             vf_addr_o_xu_d
+    ["0000:4b:01.0,0000:4b:09.0", "0000:4b:11.0,0000:4b:19.0", "0000:4b:11.1,0000:4b:19.1", "0000:4b:01.1,0000:4b:09.1"], #O-DU
+    ["0000:b1:01.0,0000:b1:09.0", "0000:b1:11.0,0000:b1:19.0", "0000:b1:11.1,0000:b1:19.1", "0000:b1:01.1,0000:b1:09.1"], #O-RU
+]
+
+vf_addr_o_xu_npg_cp_srv02 = [
+    #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c             vf_addr_o_xu_d
+    ["0000:31:01.0,0000:31:09.0", "0000:31:11.0,0000:31:19.0", "0000:31:11.1,0000:31:19.1", "0000:31:01.1,0000:31:09.1"], #O-DU
+    ["0000:b1:01.0,0000:b1:09.0", "0000:b1:11.0,0000:b1:19.0", "0000:b1:11.1,0000:b1:19.1", "0000:b1:01.1,0000:b1:09.1"], #O-RU
+]
+
+vf_addr_o_xu_spr_npg_quanta_b4 = [
+    #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c             vf_addr_o_xu_d
+    ["0000:43:01.0,0000:43:09.0", "0000:43:11.0,0000:43:19.0", "0000:45:01.0,0000:45:11.0", "0000:45:01.1,0000:45:11.1"], #O-DU
+    ["0000:8a:01.0,0000:8a:09.0", "0000:8a:11.0,0000:8a:19.0", "0000:51:11.0,0000:51:19.0", "0000:51:11.1,0000:51:19.1" ], #O-RU
+]
+
+vf_addr_o_xu_npg_cp_srv15 = [
+    #vf_addr_o_xu_a                     vf_addr_o_xu_b                vf_addr_o_xu_c             vf_addr_o_xu_d
+    ["0000:4b:01.0,0000:4b:09.0", "0000:4b:11.0,0000:4b:19.0", "0000:4b:11.1,0000:4b:19.1", "0000:4b:01.1,0000:4b:09.1"], #O-DU
+    ["0000:ca:01.0,0000:ca:09.0", "0000:ca:11.0,0000:ca:19.0", "0000:ca:11.1,0000:ca:19.1", "0000:ca:01.1,0000:ca:09.1"], #O-RU
+]
 
 # table of all test cases
 #                 (ran, cat, mu, bw, test case, "test case description")
@@ -136,18 +165,25 @@ NR_test_cases_A = [(0,  0,   0,  5,   0,  "NR_Sub6_Cat_A_5MHz_1_Cell_0"),
                    (0,  0,   3,  100, 7,  "NR_mmWave_Cat_A_100MHz_1_Cell_0_sc"),
 ]
 
+NR_test_cases_A_mix_mu  = [
+                   (0,  0,   1,  20,  1,  "NR_Sub6_Cat_A_mu1_20MHz_mu0_20MHz_Cell_6_6"),
+                   (0,  0,   3,  100, 201, "NR_mmWave_Cat_A_mu3_mu1_100MHz_Cell_0_sc"),
+]
+
 NR_test_cases_A_ext = [(0,  0,   0,  5,   0,  "NR_Sub6_Cat_A_5MHz_1_Cell_0"),
-                   (0,  0,   0,  10,  0,  "NR_Sub6_Cat_A_10MHz_1_Cell_0"),
-                   (0,  0,   0,  10,  12, "NR_Sub6_Cat_A_10MHz_12_Cell_12"),
-                   (0,  0,   0,  20,  0,  "NR_Sub6_Cat_A_20MHz_1_Cell_0"),
-                   (0,  0,   0,  20,  12, "NR_Sub6_Cat_A_20MHz_12_Cell_12"),
-                   (0,  0,   0,  20,  20, "NR_Sub6_Cat_A_20MHz_1_Cell_owd_req_resp"),
-                   (0,  0,   0,  20,  21, "NR_Sub6_Cat_A_20MHz_1_Cell_owd_rem_req"),
-                   (0,  0,   0,  20,  22, "NR_Sub6_Cat_A_20MHz_1_Cell_owd_req_wfup"),
-                   (0,  0,   0,  20,  23, "NR_Sub6_Cat_A_20MHz_1_Cell_owd_rem_req_wfup"),
-                   (0,  0,   1,  100, 0,  "NR_Sub6_Cat_A_100MHz_1_Cell_0"),
-                   (0,  0,   3,  100, 0,  "NR_mmWave_Cat_A_100MHz_1_Cell_0"),
-                   (0,  0,   3,  100, 7,  "NR_mmWave_Cat_A_100MHz_1_Cell_0_sc"),
+                        (0,  0,   0,  10,  0,  "NR_Sub6_Cat_A_10MHz_1_Cell_0"),
+                        (0,  0,   0,  10,  12, "NR_Sub6_Cat_A_10MHz_12_Cell_12"),
+                        (0,  0,   0,  20,  0,  "NR_Sub6_Cat_A_20MHz_1_Cell_0"),
+                        (0,  0,   0,  20,  12, "NR_Sub6_Cat_A_20MHz_12_Cell_12"),
+                        (0,  0,   0,  20,  20, "NR_Sub6_Cat_A_20MHz_1_Cell_owd_req_resp"),
+                        (0,  0,   0,  20,  21, "NR_Sub6_Cat_A_20MHz_1_Cell_owd_rem_req"),
+                        (0,  0,   0,  20,  22, "NR_Sub6_Cat_A_20MHz_1_Cell_owd_req_wfup"),
+                        (0,  0,   0,  20,  23, "NR_Sub6_Cat_A_20MHz_1_Cell_owd_rem_req_wfup"),
+                        (0,  0,   1,  100, 0,  "NR_Sub6_Cat_A_100MHz_1_Cell_0"),
+                        (0,  0,   1,  100, 412,"NR_Sub6_Cat_A_100MHz_LBM_4RU"),
+                        (0,  0,   1,  100, 801,  "NR_Sub6_Cat_A_100MHz_1_Cell_8TRX"),
+                        (0,  0,   3,  100, 0,  "NR_mmWave_Cat_A_100MHz_1_Cell_0"),
+                        (0,  0,   3,  100, 7,  "NR_mmWave_Cat_A_100MHz_1_Cell_0_sc"),
 ]
 
 j_test_cases_A   = [(0,  0,  1, 100, 204,"NR_Sub6_Cat_A_100MHz_4_O_RU_2Ant"),
@@ -168,6 +204,10 @@ j_test_cases_A_ext  = [(0,  0,  1, 100, 201,"NR_Sub6_Cat_A_100MHz_1_O_RU_2Ant"),
 LTE_test_cases_A = [(1,  0,   0,  5,   0, "LTE_Cat_A_5Hz_1_Cell_0"),
                     (1,  0,   0,  10,  0, "LTE_Cat_A_10Hz_1_Cell_0"),
                     (1,  0,   0,  20,  0, "LTE_Cat_A_20Hz_1_Cell_0"),
+]
+
+LTE_test_cases_A8 = [
+                    (1,  0,   0,  10,  8, "LTE_Cat_A_10MHz_1_Cell_8bitIQ"),
 ]
 
 DSS_test_cases_A = [(2,  0,   0,  20,  10, "DSS_Cat_A_20MHz_FDD_1_Cell"),
@@ -224,9 +264,7 @@ LTE_test_cases_B_ext = [(1,  1,   0,   5,  0, "LTE_Cat_B_5MHz_1_Cell_0"),
                     (1,  1,   0,  5,   1, "LTE_Cat_B_5Hz_1_Cell_0_sc"),
                     (1,  1,   0,  10,  1, "LTE_Cat_B_10Hz_1_Cell_0_sc"),
                     (1,  1,   0,  20,  1, "LTE_Cat_B_20Hz_1_Cell_0_sc"),
-
 ]
-
 
 V_test_cases_B = [
                     # (0,  1,   1,  100,  301, "NR_Sub6_Cat_B_100MHz_1_Cell_301"),
@@ -243,11 +281,9 @@ V_test_cases_B_ext = [
                     (0,  1,   1,  100,  602, "NR_Sub6_Cat_B_100MHz_1_Cell_602_sc"),
 ]
 
-
 V_test_cases_B_2xUL = [
                   #  (0,  1,   1,  100,  311, "NR_Sub6_Cat_B_100MHz_1_Cell_311"),
                     (0,  1,   1,  100,  612, "NR_Sub6_Cat_B_100MHz_1_Cell_612_sc"),
-
 ]
 
 V_test_cases_B_2xUL_ext = [
@@ -258,7 +294,6 @@ V_test_cases_B_2xUL_ext = [
                     (0,  1,   1,  100,  315, "NR_Sub6_Cat_B_100MHz_1_Cell_315"),
                     (0,  1,   1,  100,  316, "NR_Sub6_Cat_B_100MHz_1_Cell_316"),
                     (0,  1,   1,  100,  612, "NR_Sub6_Cat_B_100MHz_1_Cell_612_sc"),
-
 ]
 
 V_test_cases_B_mtu_1500 = [
@@ -292,9 +327,10 @@ V_test_cases_B_3Cells_mtu_1500 = [
 ]
 
 
-J_test_cases_B_4Cells = [
+J_test_cases_B = [
                     (0,  1,   1,  100,  1421, "NR_Sub6_Cat_B_100MHz_1_Cell_DL4UL2"),
-                    (0,  1,   1,  100,  4424, "NR_Sub6_Cat_B_100MHz_4_Cell_DL4UL2")
+                    (0,  1,   1,  100,  4424, "NR_Sub6_Cat_B_100MHz_4_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  154, "NR_Sub6_Cat_B_100MHz_ext1_csirs_1_Cell_DL8UL4")
 ]
 
 J_test_cases_B_4Cells_ext = [
@@ -304,19 +340,54 @@ J_test_cases_B_4Cells_ext = [
                     (0,  1,   1,  100,  4424, "NR_Sub6_Cat_B_100MHz_4_Cell_DL4UL2")
 ]
 
-Ext1_test_cases_B_4Cells = [
-                    (0,  1,   1,  100,  142, "NR_Sub6_Cat_B_100MHz_ext1_1_Cell_DL4UL2"),
-                    (0,  1,   1,  100,  242, "NR_Sub6_Cat_B_100MHz_ext1_2_Cell_DL4UL2"),
-                    (0,  1,   1,  100,  342, "NR_Sub6_Cat_B_100MHz_ext1_3_Cell_DL4UL2"),
-                    (0,  1,   1,  100,  442, "NR_Sub6_Cat_B_100MHz_ext1_4_Cell_DL4UL2")
+Ext1_test_cases_B = [
+                    (0,  1,   1,  100,  152, "NR_Sub6_Cat_B_100MHz_ext1_1_Cell_DL8UL4"),
+                    (0,  1,   1,  100,  252, "NR_Sub6_Cat_B_100MHz_ext1_2_Cell_DL8UL4"),
+                    (0,  1,   1,  100,  352, "NR_Sub6_Cat_B_100MHz_ext1_3_Cell_DL8UL4"),
+                    (0,  1,   1,  100,  2522,"NR_Sub6_Cat_B_100MHz_ext1_Tadv_2_Cell_DL8UL4"),
+                    (0,  1,   1,  100,  3523,"NR_Sub6_Cat_B_100MHz_ext1_Tadv_3_Cell_DL8UL4"),
+                    (0,  2,   1,  100,  201, "NR_Sub6_Cat_A_B_100MHz_ext1_2_Cell_DL8UL8")
+]
+
+CSIRS_test_cases_B = [
+                    (0,  1,   1,  100,  142, "NR_Sub6_Cat_B_100MHz_csirs_1_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  342, "NR_Sub6_Cat_B_100MHz_csirs_3_Cell_DL4UL2"),
+                    (0,  1,   1,  100,  384, "NR_Sub6_Cat_B_100MHz_csirs_3_Cell_DL8UL4"),
+                    (0,  1,   1,  100,  254, "NR_Sub6_Cat_B_100MHz_ext1_csirs_2_Cell_DL8UL4")
+]
+NBIOT_mixedMu_cases_short_A   = [
+                        (0,  0,  1, 100, 104,"NR_Sub6_Cat_A_mixedMu_100MHz_1_O_RU_4Ant"),
+                        (1,  0,   0,  20,  21, "NBIOT_LTE_Cat_A_20Hz_1_Cell_21")
+]
+
+NBIOT_mixedMu_cases_A   = [
+                        (0,  0,  1, 100, 104,"NR_Sub6_Cat_A_mixedMu_100MHz_1_O_RU_4Ant"),
+                        (0,  0,  1, 100, 1044,"NR_Sub6_Cat_A_mixedMu_100MHz_4_O_RU_4Ant"),
+                        (0,  0,  1, 100, 1046,"NR_Sub6_Cat_A_mixedMu_100MHz_4_O_RU_6_Cell_4Ant"),
+                        (1,  0,   0,  20,  20, "NBIOT_LTE_Cat_A_20Hz_1_Cell_20"),
+                        (1,  0,   0,  20,  21, "NBIOT_LTE_Cat_A_20Hz_1_Cell_21")
+]
+
+reMask_cases_A   = [
+                    (0,  0,  1, 100, 441,"NR_Sub6_Cat_A_reMask_enabled_100MHz_1_O_RU_4Ant"),
+                    (0,  0,  1, 100, 443,"NR_Sub6_Cat_A_reMask_enabled_100MHz_3_O_RU_4Ant")
 ]
 
 all_test_cases = []
 
 #reduced duration test cycle
-all_test_cases_short = NR_test_cases_A + LTE_test_cases_A + j_test_cases_A + LTE_test_cases_B + NR_test_cases_B + V_test_cases_B + V_test_cases_B_2xUL + J_test_cases_B_4Cells
+all_test_cases_short = NR_test_cases_A_mix_mu + NR_test_cases_A + LTE_test_cases_A + j_test_cases_A + LTE_test_cases_B + NR_test_cases_B + V_test_cases_B + V_test_cases_B_2xUL + J_test_cases_B + NBIOT_mixedMu_cases_short_A + reMask_cases_A
 
-all_test_cases_long = NR_test_cases_A_ext + LTE_test_cases_A + j_test_cases_A_ext + DSS_test_cases_A  + LTE_test_cases_B_ext + NR_test_cases_B_ext + V_test_cases_B_ext + V_test_cases_B_2xUL_ext + J_test_cases_B_4Cells_ext + Ext1_test_cases_B_4Cells
+all_test_cases_long = NR_test_cases_A_ext \
+                        + LTE_test_cases_A + LTE_test_cases_A8 + LTE_test_cases_B_ext \
+                        + j_test_cases_A_ext \
+                        + DSS_test_cases_A \
+                        + NR_test_cases_B_ext \
+                        + V_test_cases_B_ext + V_test_cases_B_2xUL_ext \
+                        + J_test_cases_B_4Cells_ext + Ext1_test_cases_B \
+                        + CSIRS_test_cases_B \
+                        + reMask_cases_A  \
+                        + NBIOT_mixedMu_cases_A 
 
 dic_dir      = dict({0:'DL', 1:'UL'})
 dic_xu       = dict({0:'o-du', 1:'o-ru'})
@@ -344,8 +415,8 @@ def parse_args(args):
 
     parser.add_argument("--rem_o_ru_host", type=str, default="", help="remote host to run O-RU", metavar="root@10.10.10.1", dest="rem_o_ru_host")
     parser.add_argument("--ran", type=int, default=0, help="Radio Access Technology 0 (5G NR) , 1 (LTE) or 2 DSS (5G NR and LTE)", metavar="ran", dest="rantech")
-    parser.add_argument("--cat", type=int, default=0, help="Category: 0 (A) or 1 (B)", metavar="cat", dest="category")
-    parser.add_argument("--mu", type=int, default=0, help="numerology [0,1,3]", metavar="num", dest="numerology")
+    parser.add_argument("--cat", type=int, default=0, help="Category: 0 (A) or 1 (B) or 2 (A+B)", metavar="cat", dest="category")
+    parser.add_argument("--mu", type=int, default=0, help="numerology [0,1,3,4]", metavar="num", dest="numerology")
     parser.add_argument("--bw",  type=int, default=20, help="bandwidth [5,10,20,100]", metavar="bw", dest="bandwidth")
     parser.add_argument("--testcase", type=int, default=0, help="test case number", metavar="testcase", dest="testcase")
     parser.add_argument("--verbose", type=int, default=0, help="enable verbose output", metavar="verbose", dest="verbose")
@@ -369,9 +440,13 @@ def is_comment(s):
 class GetOutOfLoops( Exception ):
     pass
 
-def get_re_map(nRB, direction):
+def get_re_map(nRB, direction, is375khz):
     prb_map        = []
     PrbElemContent = []
+    if is375khz :
+        n_sc_per_prb = 48
+    else:
+        n_sc_per_prb = 12
     if direction == 0:
         #DL
         if 'nPrbElemDl' in globals():
@@ -383,6 +458,10 @@ def get_re_map(nRB, direction):
                     PrbElemContent.insert(i,list(globals()[elm]))
                     xRBStart = PrbElemContent[i][0]
                     xRBSize  = PrbElemContent[i][1]
+                    # If reMask is present
+                    if (i > 0)  and ((len(PrbElemContent[i]) >= 11 and len(PrbElemContent[i-1]) >= 11 ) and PrbElemContent[i][10] != 0 and PrbElemContent[i][10] != 0xfff ):
+                        if ((xRBStart == PrbElemContent[i-1][0]) and xRBSize == PrbElemContent[i-1][1] and (PrbElemContent[i][2] == PrbElemContent[i-1][2]) and (PrbElemContent[i][3] == PrbElemContent[i-1][3])) :
+                            continue
                     #print(PrbElemContent,"RBStart: ", xRBStart, "RBSize: ",xRBSize, list(range(xRBStart, xRBStart + xRBSize)))
                     prb_map = prb_map + list(range(xRBStart*12, xRBStart*12 + xRBSize*12))
         else:
@@ -400,7 +479,11 @@ def get_re_map(nRB, direction):
                     xRBStart = PrbElemContent[i][0]
                     xRBSize  = PrbElemContent[i][1]
                     #print(PrbElemContent,"RBStart: ", xRBStart, "RBSize: ",xRBSize, list(range(xRBStart, xRBStart + xRBSize)))
-                    prb_map = prb_map + list(range(xRBStart*12, xRBStart*12 + xRBSize*12))
+                    # If reMask is present
+                    if (i > 0)  and ((len(PrbElemContent[i]) >= 11 and len(PrbElemContent[i-1]) >= 11 ) and PrbElemContent[i][10] != 0 and PrbElemContent[i][10] != 0xfff ):
+                        if ((xRBStart == PrbElemContent[i-1][0]) and xRBSize == PrbElemContent[i-1][1] and (PrbElemContent[i][2] == PrbElemContent[i-1][2]) and (PrbElemContent[i][3] == PrbElemContent[i-1][3])) :
+                            continue
+                    prb_map = prb_map + list(range(xRBStart*n_sc_per_prb, xRBStart*n_sc_per_prb + xRBSize*n_sc_per_prb))
         else:
             nPrbElm = 0
 
@@ -410,6 +493,21 @@ def get_re_map(nRB, direction):
             nPrbElm = nPrbElemSrs
             for i in range(0, nPrbElm):
                 elm = str('PrbElemSrs'+str(i))
+                #print(elm)
+                if (elm in globals()):
+                    PrbElemContent.insert(i,list(globals()[elm]))
+                    xRBStart = PrbElemContent[i][0]
+                    xRBSize  = PrbElemContent[i][1]
+                    #print(PrbElemContent,"RBStart: ", xRBStart, "RBSize: ",xRBSize, list(range(xRBStart, xRBStart + xRBSize)))
+                    prb_map = prb_map + list(range(xRBStart*12, xRBStart*12 + xRBSize*12))
+        else:
+            nPrbElm = 0
+    elif direction == 3:
+        #CSI-RS prbmap
+        if 'nPrbElemCsirs' in globals():
+            nPrbElm = nPrbElemCsirs
+            for i in range(0, nPrbElm):
+                elm = str('PrbElemCsirs'+str(i))
                 #print(elm)
                 if (elm in globals()):
                     PrbElemContent.insert(i,list(globals()[elm]))
@@ -442,12 +540,13 @@ def get_bfw_map(direction):
                     numsetBFW   = bfwElemContent[i][1]
                     bfw_map = bfw_map + list(range(antElmTRx*numsetBFW_total, antElmTRx*numsetBFW_total + numsetBFW*antElmTRx))
                     numsetBFW_total += numsetBFW
+                    bfwCompMeth = bfwElemContent[i][5]
         else:
             nPrbElm = 0
     if nPrbElm == 0 :
         bfw_map = list(range(0, (nPrbElm-1)*numsetBFW*antElmTRx))
 
-    return bfw_map, numsetBFW_total
+    return bfw_map, numsetBFW_total, bfwCompMeth
 
 def check_for_string_present_in_file(file_name, search_string):
     res = 1
@@ -468,14 +567,14 @@ def check_owdm_test_results(xran_path, o_xu_id):
     print("file_owd_odu :", file_owd_odu)
     res = check_for_string_present_in_file(file_owd_oru, 'passed')
     res = res or check_for_string_present_in_file(file_owd_odu, 'passed')
-    
+
     return res
 
-def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, direction):
+def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, direction, idx):
     res = 0
     re_map = []
     if rantech==2:
-        if mu == 0:
+        if mu == 0 or mu == 5:
             nDlRB = nLteNumRbsPerSymF1[mu][nRChBwOptions.get(str(nDLBandwidth))]
             nUlRB = nLteNumRbsPerSymF1[mu][nRChBwOptions.get(str(nULBandwidth))]
         else:
@@ -483,15 +582,15 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
             res = -1
             return res
     elif rantech==1:
-        if mu == 0:
-            nDlRB = nLteNumRbsPerSymF1[mu][nRChBwOptions.get(str(nDLBandwidth))]
-            nUlRB = nLteNumRbsPerSymF1[mu][nRChBwOptions.get(str(nULBandwidth))]
+        if mu == 0 or mu == 5:
+            nDlRB = nLteNumRbsPerSymF1[0][nRChBwOptions.get(str(nDLBandwidth))]
+            nUlRB = nLteNumRbsPerSymF1[0][nRChBwOptions.get(str(nULBandwidth))]
         else:
             print("Incorrect arguments\n")
             res = -1
             return res
     elif rantech==0:
-        if mu < 3:
+        if mu < 3 or mu == 5:
             nDlRB = nNumRbsPerSymF1[mu][nRChBwOptions.get(str(nDLBandwidth))]
             nUlRB = nNumRbsPerSymF1[mu][nRChBwOptions.get(str(nULBandwidth))]
         elif (mu >=2) & (mu <= 3):
@@ -508,15 +607,30 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
     else:
         comp = 0
 
+    if 'nbIotUlScs' in globals():
+        is375khz = nbIotUlScs
+    else:
+        is375khz = 0
+
     if 'srsEnable' in globals():
         srs_enb = srsEnable
     else:
         srs_enb = 0
 
+    if 'csirsEnable' in globals():
+        csirs_enb = csirsEnable
+    else:
+        csirs_enb = 0
+
     if 'rachEnable' in globals():
         rach = rachEnable
     else:
         rach = 0
+
+    if 'antNumUL' in globals():
+        antNum_UL = antNumUL
+    else:
+        antNum_UL = 0
 
     if 'extType' in globals():
         ext_type = extType
@@ -559,15 +673,15 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
 
     try:
 
-        if (direction == 1) & (cat == 1): #UL
+        if (direction == 1) & (antNum_UL != 0): #UL
             flowId = ccNum*antNumUL
         else:
             flowId = ccNum*antNum
 
         if direction == 0:
-            re_map = get_re_map(nDlRB, direction)
+            re_map = get_re_map(nDlRB, direction, 0)
         elif direction == 1:
-            re_map = get_re_map(nUlRB, direction)
+            re_map = get_re_map(nUlRB, direction, is375khz)
         else:
             raise Exception('Direction is not supported %d'.format(direction))
 
@@ -578,13 +692,21 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
             if direction == 0:
                 # DL
                 nRB = nDlRB
-                file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-rx_log_ant"+str(i)+".txt"
-                file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-play_ant"+str(i)+".txt"
+                if idx == 0:
+                    file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-rx_log_ant"+str(i)+".txt"
+                    file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-play_ant"+str(i)+".txt"
+                else:
+                    file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-mu_"+str(mu)+"-rx_log_ant"+str(i)+".txt"
+                    file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-mu_"+str(mu)+"-play_ant"+str(i)+".txt"
             elif direction == 1:
                 # UL
                 nRB = nUlRB
-                file_tst = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-rx_log_ant"+str(i)+".txt"
-                file_ref = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-play_ant"+str(i)+".txt"
+                if idx == 0:
+                    file_tst = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-rx_log_ant"+str(i)+".txt"
+                    file_ref = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-play_ant"+str(i)+".txt"
+                else:
+                    file_tst = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-mu_"+str(mu)+"-rx_log_ant"+str(i)+".txt"
+                    file_ref = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-mu_"+str(mu)+"-play_ant"+str(i)+".txt"
             else:
                 raise Exception('Direction is not supported %d'.format(direction))
 
@@ -622,57 +744,113 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
 
             print(numSlots)
 
-            #skip last slot for UL as we stop on PPS boundary (OTA) and all symbols might not be received by O-DU
-            for slot_idx in range(0, numSlots - (1*direction)):
-                for sym_idx in range(0, 14):
-                    if nFrameDuplexType==1:
-                        #skip sym if TDD
-                        if direction == 0:
-                            #DL
-                            sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
-                            if(sym_dir != 0):
-                                continue
-                        elif direction == 1:
+            if direction == 1 and is375khz == 1 and mu == 5:
+                #skip last slot for UL as we stop on PPS boundary (OTA) and all symbols might not be received by O-DU
+                for slot_idx in range(0, numSlots - (1*direction)):
+                    for sym_idx in range(0, 14):
+                        if nFrameDuplexType==1:
                             #UL
                             sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
                             if(sym_dir != 1):
                                 continue
+                        if (slot_idx % 2) == 0:
+                            if (sym_idx != 0) and (sym_idx != 3) and (sym_idx != 7) and (sym_idx != 11):
+                                # print("slot_idx = ",slot_idx, "sym_idx", sym_idx)
+                                continue
+                        elif (slot_idx % 2) != 0:
+                            if ((sym_idx != 1) and (sym_idx != 5) and (sym_idx != 9)) :
+                                # print("Odd slot_idx = ",slot_idx, "sym_idx", sym_idx)
+                                continue
 
-                    #print("Check:","[",i,"]", slot_idx, sym_idx)
-                    for line_idx in re_map:
-                        offset = (slot_idx*nRB*12*14) + sym_idx*nRB*12 + line_idx
-                        try:
-                            line_tst = tst[offset].rstrip()
-                        except IndexError:
-                            res = -1
-                            print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(tst))
-                            raise GetOutOfLoops
-                        try:
-                             line_ref = ref[offset].rstrip()
-                        except IndexError:
-                            res = -1
-                            print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(ref))
-                            raise GetOutOfLoops
-
-                        if comp == 1:
-                            # discard LSB bits as BFP compression is not "bit exact"
-                            tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
-                            tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
-                            ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
-                            ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
-
-                            #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
-                            if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
-                                print("FAIL:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                        #print("Check:","[",i,"]", slot_idx, sym_idx)
+                        for line_idx in re_map:
+                            offset = (slot_idx*nRB*48*14) + sym_idx*nRB*48 + line_idx
+                            try:
+                                line_tst = tst[offset].rstrip()
+                            except IndexError:
                                 res = -1
+                                print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(tst))
                                 raise GetOutOfLoops
-                        else:
-                            #if line_idx == 0:
-                                #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
-                            if line_ref != line_tst:
-                                print("FAIL:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                            try:
+                                line_ref = ref[offset].rstrip()
+                            except IndexError:
                                 res = -1
+                                print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(ref))
                                 raise GetOutOfLoops
+
+                            if comp == 1:
+                                # discard LSB bits as BFP compression is not "bit exact"
+                                tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
+                                tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
+                                ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
+                                ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
+
+                                #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
+                                    print("FAIL1","ant:[",i,"]:",offset," slot:[",slot_idx,"]", " sym:[",sym_idx,"]"," PRB:[", line_idx/12,"]","SC:[",line_idx%12,"]",":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                    res = -1
+                                    raise GetOutOfLoops
+                            else:
+                                #if line_idx == 0:
+                                    #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
+                                if line_ref != line_tst:
+                                    print("FAIL2:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                                    res = -1
+                                    raise GetOutOfLoops
+            else:
+                #skip last slot for UL as we stop on PPS boundary (OTA) and all symbols might not be received by O-DU
+                for slot_idx in range(0, numSlots - (1*direction)):
+                    for sym_idx in range(0, 14):
+                        if nFrameDuplexType==1:
+                            #skip sym if TDD
+                            if direction == 0:
+                                #DL
+                                sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
+                                if(sym_dir != 0):
+                                    continue
+                            elif direction == 1:
+                                #UL
+                                sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
+                                if(sym_dir != 1):
+                                    continue
+
+                        #print("Check:","[",i,"]", slot_idx, sym_idx)
+                        for line_idx in re_map:
+                            offset = (slot_idx*nRB*12*14) + sym_idx*nRB*12 + line_idx
+                            try:
+                                line_tst = tst[offset].rstrip()
+                            except IndexError:
+                                res = -1
+                                print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(tst))
+                                raise GetOutOfLoops
+                            try:
+                                line_ref = ref[offset].rstrip()
+                            except IndexError:
+                                res = -1
+                                print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(ref))
+                                raise GetOutOfLoops
+
+                            if comp == 1:
+                                # discard LSB bits as BFP compression is not "bit exact"
+                                tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
+                                tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
+                                ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
+                                ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
+
+                                #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
+                                    print("FAIL3","ant:[",i,"]:",offset," slot:[",slot_idx,"]", " sym:[",sym_idx,"]"," PRB:[", line_idx/12,"]","SC:[",line_idx%12,"]",":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                    res = -1
+                                    raise GetOutOfLoops
+                            else:
+                                #if line_idx == 0:
+                                    #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
+                                if line_ref != line_tst:
+                                    print("FAIL4","ant:[",i,"]:",offset," slot:[",slot_idx,"]", " sym:[",sym_idx,"]"," PRB:[", line_idx/12,"]","SC:[",line_idx%12,"]",":","tst:", line_tst, "ref:", line_ref)
+                                    # print("FAIL4:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                                    res = -1
+                                    raise GetOutOfLoops
+
     except GetOutOfLoops:
         return res
 
@@ -698,7 +876,7 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
                 else:
                     re_map = range(0, 840)
                     nRB = 70
-            if cat == 1:
+            if antNum_UL != 0:                   # cat == 1:
                 flowId = ccNum*antNumUL
             else:
                 flowId = ccNum*antNum
@@ -708,8 +886,12 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
                 tst = []
                 ref = []
 
-                file_tst = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-prach_log_ant"+str(i)+".txt"
-                file_ref = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-play_prach_ant"+str(i)+".txt"
+                if idx == 0:
+                    file_tst = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-prach_log_ant"+str(i)+".txt"
+                    file_ref = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-play_prach_ant"+str(i)+".txt"
+                else:
+                    file_tst = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-mu_"+str(mu)+"-prach_log_ant"+str(i)+".txt"
+                    file_ref = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-mu_"+str(mu)+"-play_prach_ant"+str(i)+".txt"
                 print("test result   :", file_tst)
                 print("test reference:", file_ref)
                 if os.path.exists(file_tst):
@@ -746,64 +928,64 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
 
                 #skip last slot for UL as we stop on PPS boundary (OTA) and all symbols might not be received by O-DU
                 for slot_idx in range(0, numSlots - (1*direction)):
-                for sym_idx in range(0, 14):
-                    if nFrameDuplexType==1:
-                        #skip sym if TDD
-                        if direction == 0:
-                            #DL
-                            sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
-                            if(sym_dir != 0):
-                                continue
-                        elif direction == 1:
-                            #UL
-                            sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
-                            if(sym_dir != 1):
-                                continue
+                    for sym_idx in range(0, 14):
+                        if nFrameDuplexType==1:
+                            #skip sym if TDD
+                            if direction == 0:
+                                #DL
+                                sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
+                                if(sym_dir != 0):
+                                    continue
+                            elif direction == 1:
+                                #UL
+                                sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
+                                if(sym_dir != 1):
+                                    continue
 
-                    #print("Check:","[",i,"]", slot_idx, sym_idx)
-                    for line_idx in re_map:
-                        offset = (slot_idx*nRB*12*14) + sym_idx*nRB*12 + line_idx
-                        try:
-                            line_tst = tst[offset].rstrip()
-                        except IndexError:
-                            res = -1
-                            print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(tst))
-                            raise GetOutOfLoops
-                        try:
-                             line_ref = ref[offset].rstrip()
-                        except IndexError:
-                            res = -1
-                            print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(ref))
-                            raise GetOutOfLoops
-
-                        if comp == 1:
-                            # discard LSB bits as BFP compression is not "bit exact"
-                            tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
-                            tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
-                            ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
-                            ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
-
-                            #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
-                            if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
-                                print("FAIL:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                        #print("Check:","[",i,"]", slot_idx, sym_idx)
+                        for line_idx in re_map:
+                            offset = (slot_idx*nRB*12*14) + sym_idx*nRB*12 + line_idx
+                            try:
+                                line_tst = tst[offset].rstrip()
+                            except IndexError:
                                 res = -1
+                                print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(tst))
                                 raise GetOutOfLoops
-                        else:
-                            #if line_idx == 0:
-                                #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
-                            if line_ref != line_tst:
-                                print("FAIL:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                            try:
+                                 line_ref = ref[offset].rstrip()
+                            except IndexError:
                                 res = -1
+                                print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(ref))
                                 raise GetOutOfLoops
-    except GetOutOfLoops:
-        return res
+
+                            if comp == 1:
+                                # discard LSB bits as BFP compression is not "bit exact"
+                                tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
+                                tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
+                                ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
+                                ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
+
+                                #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
+                                    print("FAIL5:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                    res = -1
+                                    raise GetOutOfLoops
+                            else:
+                                #if line_idx == 0:
+                                    #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
+                                if line_ref != line_tst:
+                                    print("FAIL6:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                                    res = -1
+                                    raise GetOutOfLoops
+        except GetOutOfLoops:
+            return res
 
     if ((cat == 1) and (direction == 0) and (ext_type == 1)): #Cat B, DL and Extension type = 1
         try:
             if (direction == 0) & (cat == 1): #DL
                 flowId = ccNum*antNum
             if direction == 0:
-                bfw_map, numsetBFW_total = get_bfw_map(direction)
+                bfw_map, numsetBFW_total, bfw_compmeth = get_bfw_map(direction)
             else:
                 raise Exception('Direction is not supported %d'.format(direction))
 
@@ -813,8 +995,12 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
                 ref = []
                 if direction == 0:
                     # DL
-                    file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-dl_bfw_log_ue"+str(i)+".txt"
-                    file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-dl_bfw_ue"+str(i)+".txt"
+                    if idx == 0:
+                        file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-dl_bfw_log_ue"+str(i)+".txt"
+                        file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-dl_bfw_ue"+str(i)+".txt"
+                    else:
+                        file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-mu_"+str(mu)+"-dl_bfw_log_ue"+str(i)+".txt"
+                        file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-mu_"+str(mu)+"-dl_bfw_ue"+str(i)+".txt"
                 else:
                     raise Exception('Direction is not supported %d'.format(direction))
 
@@ -880,7 +1066,7 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
                             print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, line_idx, len(ref))
                             raise GetOutOfLoops
 
-                        if comp == 1:
+                        if bfw_compmeth == 1:
                             # discard LSB bits as BFP compression is not "bit exact"
                             tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
                             tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
@@ -902,7 +1088,7 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
                             #if line_idx == 0:
                                 #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
                             if line_ref != line_tst:
-                                print("876 Actual:","bfw:[",i,"]:",offset, slot_idx, line_idx,":","tst: ", tst_i_act, " ", tst_q_act, " " , "ref: ", ref_i_act, " ", ref_q_act, " ")
+                                # print("876 Actual:","bfw:[",i,"]:",offset, slot_idx, line_idx,":","tst: ", tst_i_act, " ", tst_q_act, " " , "ref: ", ref_i_act, " ", ref_q_act, " ")
                                 print("FAIL:","bfw:[",i,"]:",offset, slot_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
                                 res = -1
                                 raise GetOutOfLoops
@@ -914,7 +1100,7 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
             if (direction == 0) & (cat == 1): #DL
                 flowId = ccNum*antNumUL
             if direction == 0:
-                bfw_map, numsetBFW_total = get_bfw_map(direction)
+                bfw_map, numsetBFW_total, bfw_compmeth = get_bfw_map(direction)
             else:
                 raise Exception('Direction is not supported %d'.format(direction))
 
@@ -924,8 +1110,12 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
                 ref = []
                 if direction == 0:
                     # DL
-                    file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-ul_bfw_log_ue"+str(i)+".txt"
-                    file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-ul_bfw_ue"+str(i)+".txt"
+                    if idx == 0:
+                        file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-ul_bfw_log_ue"+str(i)+".txt"
+                        file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-ul_bfw_ue"+str(i)+".txt"
+                    else:
+                        file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-mu_"+str(mu)+"-ul_bfw_log_ue"+str(i)+".txt"
+                        file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-mu_"+str(mu)+"-ul_bfw_ue"+str(i)+".txt"
                 else:
                     raise Exception('Direction is not supported %d'.format(direction))
 
@@ -991,7 +1181,7 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
                             print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, line_idx, len(ref))
                             raise GetOutOfLoops
 
-                        if comp == 1:
+                        if bfw_compmeth == 1:
                             # discard LSB bits as BFP compression is not "bit exact"
                             tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
                             tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
@@ -1014,134 +1204,265 @@ def compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, test_cfg, d
             res = 0        # Not treating it as a test case fail criteria for now
             # return res
 
-    if (direction == 0) | (cat == 0) | (srs_enb == 0): #DL or Cat A
+    if (cat == 0): # If Cat A - No SRS or CSI-RS
         #done
-    return res
-
-    print("O-RU {} compare results: {} [compression {}]\n".format(o_xu_id, 'SRS', comp))
+        return res
 
     #srs
-    PrbElemContent = []
-    if 'nPrbElemSrs' in globals():
-        for i in range(0, nPrbElemSrs):
-            elm = str('PrbElemSrs'+str(i))
-            #print(elm)
-            if (elm in globals()):
-                PrbElemContent.insert(i,list(globals()[elm]))
-                symbMask = 1 << PrbElemContent[i][2]    # start symbol
-                print(symbMask)
-                #print(PrbElemContent,"RBStart: ", xRBStart, "RBSize: ",xRBSize, list(range(xRBStart, xRBStart + xRBSize)))
-    else:
-        print("Cannot find SRS PRB map!")
-        symbMask = 0
+    if (srs_enb == 1) and (direction == 1):
+        print("O-RU {} compare results: {} [compression {}]\n".format(o_xu_id, 'SRS', comp))
+        PrbElemContent = []
+        if 'nPrbElemSrs' in globals():
+            for i in range(0, nPrbElemSrs):
+                elm = str('PrbElemSrs'+str(i))
+                #print(elm)
+                if (elm in globals()):
+                    PrbElemContent.insert(i,list(globals()[elm]))
+                    symbMask = 1 << PrbElemContent[i][2]    # start symbol
+                    print(symbMask)
+                    #print(PrbElemContent,"RBStart: ", xRBStart, "RBSize: ",xRBSize, list(range(xRBStart, xRBStart + xRBSize)))
+        else:
+            print("Cannot find SRS PRB map!")
+            symbMask = 0
 
-    re_map = get_re_map(nUlRB, 2)
-    try:
-        flowId = ccNum*antElmTRx
-        for i in range(0, flowId):
-            #read ref and test files
-            tst = []
-            ref = []
+        re_map = get_re_map(nUlRB, 2, 0)
+        try:
+            flowId = ccNum*antElmTRx
+            for i in range(0, flowId):
+                #read ref and test files
+                tst = []
+                ref = []
 
-            if direction == 1:
-                # UL
-                nRB = nUlRB
-                file_tst = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-srs_log_ant"+str(i)+".txt"
-                file_ref = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-play_srs_ant"+str(i)+".txt"
-            else:
-                raise Exception('Direction is not supported %d'.format(direction))
+                if direction == 1:
+                    # UL
+                    nRB = nUlRB
+                    if idx == 0:
+                        file_tst = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-srs_log_ant"+str(i)+".txt"
+                        file_ref = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-play_srs_ant"+str(i)+".txt"
+                    else:
+                        file_tst = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-mu_"+str(mu)+"-srs_log_ant"+str(i)+".txt"
+                        file_ref = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-mu_"+str(mu)+"-play_srs_ant"+str(i)+".txt"
+                else:
+                    raise Exception('Direction is not supported %d'.format(direction))
 
-            print("test result   :", file_tst)
-            print("test reference:", file_ref)
-            if os.path.exists(file_tst):
-                try:
-                    file_tst = open(file_tst, 'r')
-                except OSError:
-                    print ("Could not open/read file:", file_tst)
-                    sys.exit()
-            else:
-                print(file_tst, "doesn't exist")
-                res = -1
-                return res
-            if os.path.exists(file_ref):
-                try:
-                    file_ref = open(file_ref, 'r')
-                except OSError:
-                    print ("Could not open/read file:", file_ref)
-                    sys.exit()
-            else:
-                print(file_tst, "doesn't exist")
-                res = -1
-                return res
+                print("test result   :", file_tst)
+                print("test reference:", file_ref)
+                if os.path.exists(file_tst):
+                    try:
+                        file_tst = open(file_tst, 'r')
+                    except OSError:
+                        print ("Could not open/read file:", file_tst)
+                        sys.exit()
+                else:
+                    print(file_tst, "doesn't exist")
+                    res = -1
+                    return res
+                if os.path.exists(file_ref):
+                    try:
+                        file_ref = open(file_ref, 'r')
+                    except OSError:
+                        print ("Could not open/read file:", file_ref)
+                        sys.exit()
+                else:
+                    print(file_tst, "doesn't exist")
+                    res = -1
+                    return res
 
-            tst = file_tst.readlines()
-            ref = file_ref.readlines()
+                tst = file_tst.readlines()
+                ref = file_ref.readlines()
 
-            print(len(tst))
-            print(len(ref))
+                print(len(tst))
+                print(len(ref))
 
-            file_tst.close()
-            file_ref.close()
+                file_tst.close()
+                file_ref.close()
 
-            print(numSlots)
+                print(numSlots)
 
-            for slot_idx in range(0, numSlots - (1*direction)):
-                for sym_idx in range(0, 14):
-                    if symbMask & (1 << sym_idx) and slot_idx%nTddPeriod == srsSlot:
-                        print("SRS check sym ", slot_idx,  sym_idx)
-                        if nFrameDuplexType==1:
-                            #skip sym if TDD
-                            if direction == 0:
-                                #DL
-                                sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
-                                if(sym_dir != 0):
-                                    continue
-                            elif direction == 1:
-                                #UL
-                                sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
-                                # ignore if DL symbol for now
-                                #if(sym_dir != 1):
-                                #    continue
+                for slot_idx in range(0, numSlots - (1*direction)):
+                    for sym_idx in range(0, 14):
+                        if symbMask & (1 << sym_idx) and slot_idx%nTddPeriod == srsSlot:
+                            print("SRS check sym ", slot_idx,  sym_idx)
+                            if nFrameDuplexType==1:
+                                #skip sym if TDD
+                                if direction == 0:
+                                    #DL
+                                    sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
+                                    if(sym_dir != 0):
+                                        continue
+                                elif direction == 1:
+                                    #UL
+                                    sym_dir = SlotConfig[slot_idx%nTddPeriod][sym_idx]
+                                    # ignore if DL symbol for now
+                                    #if(sym_dir != 1):
+                                    #    continue
 
-                        print("Check:","[",i,"]", slot_idx, sym_idx)
-                        for line_idx in re_map:
-                            offset = (slot_idx*nRB*12*14) + sym_idx*nRB*12 + line_idx
-                            try:
-                                line_tst = tst[offset].rstrip()
-                            except IndexError:
-                                res = -1
-                                print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(tst))
-                                raise GetOutOfLoops
-                            try:
-                                line_ref = ref[offset].rstrip()
-                            except IndexError:
-                                res = -1
-                                print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(ref))
-                                raise GetOutOfLoops
-
-                            if comp == 1:
-                                # discard LSB bits as BFP compression is not "bit exact"
-                                tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
-                                tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
-                                ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
-                                ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
-
-                                #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
-                                if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
-                                    print("FAIL:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                            print("Check:","[",i,"]", slot_idx, sym_idx)
+                            for line_idx in re_map:
+                                offset = (slot_idx*nRB*12*14) + sym_idx*nRB*12 + line_idx
+                                try:
+                                    line_tst = tst[offset].rstrip()
+                                except IndexError:
                                     res = -1
+                                    print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(tst))
                                     raise GetOutOfLoops
-                            else:
-                                #if line_idx == 0:
-                                    #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
-                                if line_ref != line_tst:
-                                    print("FAIL:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                                try:
+                                    line_ref = ref[offset].rstrip()
+                                except IndexError:
                                     res = -1
+                                    print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(ref))
                                     raise GetOutOfLoops
-    except GetOutOfLoops:
-        #don't threat SRS as error for now
-        res = 0
-        return res
+
+                                if comp == 1:
+                                    # discard LSB bits as BFP compression is not "bit exact"
+                                    tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
+                                    tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
+                                    ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
+                                    ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
+
+                                    #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                    if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
+                                        print("FAIL:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                        res = -1
+                                        raise GetOutOfLoops
+                                else:
+                                    #if line_idx == 0:
+                                        #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
+                                    if line_ref != line_tst:
+                                        print("FAIL:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                                        res = -1
+                                        raise GetOutOfLoops
+
+
+        except GetOutOfLoops:
+            #SRS fail is not treated a test case failure
+            res = 0
+            return res
+
+    if (csirs_enb == 1) and (direction == 0):
+        print("O-RU {} compare results: {} [compression {}]\n".format(o_xu_id, 'CSIRS DL', comp))
+        #csirs
+        PrbElemContent_CSI = []
+        if 'nPrbElemCsirs' in globals():
+            for i in range(0, nPrbElemCsirs):
+                elm = str('PrbElemCsirs'+ str(i))
+                #print(elm)
+                if (elm in globals()):
+                    PrbElemContent_CSI.insert(i,list(globals()[elm]))
+                    symbMask = 1 << PrbElemContent_CSI[i][2]    # start symbol
+                    print(symbMask)
+                    #print(PrbElemContent_CSI,"RBStart: ", xRBStart, "RBSize: ",xRBSize, list(range(xRBStart, xRBStart + xRBSize)))
+        else:
+            print("Cannot find CSIRS PRB map!")
+            symbMask = 0
+
+        re_map = get_re_map(nDlRB, 3, 0) # for CSI-RS
+        try:
+            flowId = ccNum*nCSIports
+            for i in range(0, flowId):
+                #read ref and test files
+                tst = []
+                ref = []
+
+                if direction == 0:
+                    # DL
+                    nRB = nDlRB
+                    if idx == 0:
+                        file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-csirs_log_ant"+str(i)+".txt"
+                        file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-play_csirs_ant"+str(i)+".txt"
+                    else:
+                        file_tst = xran_path+"/app/logs/"+"o-ru"+str(o_xu_id)+"-mu_"+str(mu)+"-csirs_log_ant"+str(i)+".txt"
+                        file_ref = xran_path+"/app/logs/"+"o-du"+str(o_xu_id)+"-mu_"+str(mu)+"-play_csirs_ant"+str(i)+".txt"
+                else:
+                    raise Exception('Direction is not supported %d'.format(direction))
+
+                print("test result   :", file_tst)
+                print("test reference:", file_ref)
+                if os.path.exists(file_tst):
+                    try:
+                        file_tst = open(file_tst, 'r')
+                    except OSError:
+                        print ("Could not open/read file:", file_tst)
+                        sys.exit()
+                else:
+                    print(file_tst, "doesn't exist")
+                    res = -1
+                    return res
+                if os.path.exists(file_ref):
+                    try:
+                        file_ref = open(file_ref, 'r')
+                    except OSError:
+                        print ("Could not open/read file:", file_ref)
+                        sys.exit()
+                else:
+                    print(file_tst, "doesn't exist")
+                    res = -1
+                    return res
+
+                tst = file_tst.readlines()
+                ref = file_ref.readlines()
+
+                print(len(tst))
+                print(len(ref))
+
+                file_tst.close()
+                file_ref.close()
+
+                print(numSlots)
+
+                for slot_idx in range(0, numSlots-1):
+                    for sym_idx in range(0, 14):
+                        if symbMask & (1 << sym_idx):
+                            if nFrameDuplexType==1:
+                                #skip sym if TDD
+                                if direction == 0:
+                                    #DL
+                                    sym_dir = SlotConfig[slot_idx % nTddPeriod][sym_idx]
+                                    if(sym_dir != 0):
+                                        continue
+                                elif direction == 1:
+                                    #UL
+                                    sym_dir = SlotConfig[slot_idx % nTddPeriod][sym_idx]
+                                    if(sym_dir != 1):
+                                        continue
+                            for line_idx in re_map:
+                                offset = (slot_idx*nRB*12*14) + sym_idx*nRB*12 + line_idx
+                                try:
+                                    line_tst = tst[offset].rstrip()
+                                except IndexError:
+                                    res = -1
+                                    print("FAIL:","IndexError on tst: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(tst))
+                                    raise GetOutOfLoops
+                                try:
+                                    line_ref = ref[offset].rstrip()
+                                except IndexError:
+                                    res = -1
+                                    print("FAIL:","IndexError on ref: ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx, len(ref))
+                                    raise GetOutOfLoops
+
+                                if comp == 1:
+                                    # discard LSB bits as BFP compression is not "bit exact"
+                                    tst_i_value = int(line_tst.split(" ")[0]) & 0xFF80
+                                    tst_q_value = int(line_tst.split(" ")[1]) & 0xFF80
+                                    ref_i_value = int(line_ref.split(" ")[0]) & 0xFF80
+                                    ref_q_value = int(line_ref.split(" ")[1]) & 0xFF80
+
+                                    #print("check:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                    if (tst_i_value != ref_i_value) or  (tst_q_value != ref_q_value) :
+                                        print("FAIL1412:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst: ", tst_i_value, " ", tst_q_value, " " , "ref: ", ref_i_value, " ", ref_q_value, " ")
+                                        res = -1
+                                        raise GetOutOfLoops
+                                else:
+                                    #if line_idx == 0:
+                                        #print("Check:", offset,"[",i,"]", slot_idx, sym_idx,":",line_tst, line_ref)
+                                    if line_ref != line_tst:
+                                        print("FAIL1419:","ant:[",i,"]:",offset, slot_idx, sym_idx, line_idx,":","tst:", line_tst, "ref:", line_ref)
+                                        res = -1
+                                        raise GetOutOfLoops
+
+        except GetOutOfLoops:
+            # res = 0
+            return res
 
 
     return res
@@ -1159,6 +1480,7 @@ def parse_usecase_cfg(rantech, cat, mu, bw, tcase, xran_path, usecase_cfg):
 
     global_env = {}
     local_env  = {}
+    oxu_count = 0
 
     for line in lineList:
         exe_line = line.replace(":", ",0x")
@@ -1172,6 +1494,23 @@ def parse_usecase_cfg(rantech, cat, mu, bw, tcase, xran_path, usecase_cfg):
         code = compile(str(exe_line), '<string>', 'exec')
         exec (code, global_env, local_env)
 
+        if "numSecMu" in exe_line:
+            x = local_env.get("numSecMu",None)
+            if x != None:
+                SecMu[oxu_count] = x
+                oxu_count = oxu_count + 1
+        if "oXuSecNumFile0" in exe_line:
+            x = local_env.get("oXuSecNumFile0",None)
+            SecMuDat[oxu_count-1].append(x)
+        if "oXuSecNumFile1" in exe_line:
+            x = local_env.get("oXuSecNumFile1",None)
+            SecMuDat[oxu_count-1].append(x)
+        if "oXuSecNumFile2" in exe_line:
+            x = local_env.get("oXuSecNumFile2",None)
+            SecMuDat[oxu_count-1].append(x)
+        if "oXuSecNumFile3" in exe_line:
+            x = local_env.get("oXuSecNumFile3",None)
+            SecMuDat[oxu_count-1].append(x)
     for k, v in local_env.items():
         globals()[k] = v
         print(k, v)
@@ -1182,9 +1521,9 @@ def parse_usecase_cfg(rantech, cat, mu, bw, tcase, xran_path, usecase_cfg):
 
 def parse_dat_file(rantech, cat, mu, bw, tcase, xran_path, test_cfg):
     #parse config files
+    global curr_mu
     logging.info("parse config files %s\n", test_cfg[0])
     lineList = list()
-
     sep = '#'
     with open(test_cfg[0],'r') as fh:
         for curline in dropwhile(is_comment, fh):
@@ -1205,7 +1544,9 @@ def parse_dat_file(rantech, cat, mu, bw, tcase, xran_path, test_cfg):
 
         code = compile(str(exe_line), '<string>', 'exec')
         exec (code, global_env, local_env)
-
+        x = local_env.get("mu",None)
+        if(x!= None):
+            curr_mu = x
     for k, v in local_env.items():
         globals()[k] = v
         print(k, v)
@@ -1267,6 +1608,9 @@ def make_copy_mlog(rantech, cat, mu, bw, tcase, xran_path):
 
 def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf_addr_o_xu):
 
+    global curr_mu
+    global SecMuDat
+    curr_mu = mu
     if rantech == 2: #LTE and #5G NR
         if cat == 0:
             test_config =xran_path+"/app/usecase/dss/mu{0:d}_{1:d}mhz".format(mu, bw)
@@ -1282,7 +1626,9 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
             print("Incorrect cat arguments\n")
             return -1
     elif rantech == 0: #5G NR
-        if cat == 1:
+        if cat == 2:
+            test_config =xran_path+"/app/usecase/cat_a_b"
+        elif cat == 1:
             test_config =xran_path+"/app/usecase/cat_b/mu{0:d}_{1:d}mhz".format(mu, bw)
         elif cat == 0 :
             test_config =xran_path+"/app/usecase/cat_a/mu{0:d}_{1:d}mhz".format(mu, bw)
@@ -1311,40 +1657,64 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
     else:
         cpu = 'csx'
 
-    #O-DU
-    if REM_O_RU_HOST == "":
+    #print("printing sockets:",os.system())
+    if(os.system('lscpu | grep "Socket(s):             2"') == 0):
+        #O-DU
+        if REM_O_RU_HOST == "":
 
-        if (cpu == 'icx'):
-            if ((os.path.isfile(test_config+"/usecase_du_icx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_icx.cfg"))):
-                test_cfg.append(test_config+"/usecase_du_icx.cfg")
-                test_cfg.append(test_config+"/usecase_ru_icx.cfg")
-            else:
-                test_cfg.append(test_config+"/usecase_du.cfg")
-                test_cfg.append(test_config+"/usecase_ru.cfg")
-        else: #(csx_cpu)
-            if ((os.path.isfile(test_config+"/usecase_du_csx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_csx.cfg"))):
-                test_cfg.append(test_config+"/usecase_du_csx.cfg")
-                test_cfg.append(test_config+"/usecase_ru_csx.cfg")
-            else:
-                test_cfg.append(test_config+"/usecase_du.cfg")
-                test_cfg.append(test_config+"/usecase_ru.cfg")
-    else: # O-RU remote always CSX-SP
-        if (cpu == 'icx'):
-            if (os.path.isfile(test_config+"/usecase_du_icx.cfg")):
-                test_cfg.append(test_config+"/usecase_du_icx.cfg")
-            else:
-                test_cfg.append(test_config+"/usecase_du.cfg")
-            if (os.path.isfile(test_config+"/usecase_ru_csx.cfg")):
-                test_cfg.append(test_config+"/usecase_ru_csx.cfg")
-            else:
-                test_cfg.append(test_config+"/usecase_ru.cfg")
-        else: #(csx_cpu)
-            if ((os.path.isfile(test_config+"/usecase_du_csx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_csx.cfg"))):
-                test_cfg.append(test_config+"/usecase_du_csx.cfg")
-                test_cfg.append(test_config+"/usecase_ru_csx.cfg")
-            else:
-    test_cfg.append(test_config+"/usecase_du.cfg")
-    test_cfg.append(test_config+"/usecase_ru.cfg")
+            if (cpu == 'icx'):
+                if ((os.path.isfile(test_config+"/usecase_du_icx2.cfg")) & (os.path.isfile(test_config+"/usecase_ru_icx2.cfg"))):
+                    test_cfg.append(test_config+"/usecase_du_icx2.cfg")
+                    test_cfg.append(test_config+"/usecase_ru_icx2.cfg")
+                else:
+                    test_cfg.append(test_config+"/usecase_du2.cfg")
+                    test_cfg.append(test_config+"/usecase_ru2.cfg")
+            else: #(csx_cpu)
+                test_cfg.append(test_config+"/usecase_du2.cfg")
+                test_cfg.append(test_config+"/usecase_ru2.cfg")
+        else: # O-RU remote always CSX-SP
+            if (cpu == 'icx'):
+                if (os.path.isfile(test_config+"/usecase_du_icx2.cfg")):
+                    test_cfg.append(test_config+"/usecase_du_icx2.cfg")
+                else:
+                    test_cfg.append(test_config+"/usecase_du2.cfg")
+                test_cfg.append(test_config+"/usecase_ru2.cfg")
+            else: #(csx_cpu)
+                test_cfg.append(test_config+"/usecase_du2.cfg")
+                test_cfg.append(test_config+"/usecase_ru2.cfg")
+    else:
+        #O-DU
+        if REM_O_RU_HOST == "":
+
+            if (cpu == 'icx'):
+                if ((os.path.isfile(test_config+"/usecase_du_icx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_icx.cfg"))):
+                    test_cfg.append(test_config+"/usecase_du_icx.cfg")
+                    test_cfg.append(test_config+"/usecase_ru_icx.cfg")
+                else:
+                    test_cfg.append(test_config+"/usecase_du.cfg")
+                    test_cfg.append(test_config+"/usecase_ru.cfg")
+            else: #(csx_cpu)
+                if ((os.path.isfile(test_config+"/usecase_du_csx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_csx.cfg"))):
+                    test_cfg.append(test_config+"/usecase_du_csx.cfg")
+                    test_cfg.append(test_config+"/usecase_ru_csx.cfg")
+                else:
+                    test_cfg.append(test_config+"/usecase_du.cfg")
+                    test_cfg.append(test_config+"/usecase_ru.cfg")
+        else: # O-RU remote always CSX-SP
+            if (cpu == 'icx'):
+                if ((os.path.isfile(test_config+"/usecase_du_icx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_icx.cfg"))):
+                    test_cfg.append(test_config+"/usecase_du_icx.cfg")
+                    test_cfg.append(test_config+"/usecase_ru_icx.cfg")
+                else:
+                    test_cfg.append(test_config+"/usecase_du.cfg")
+                    test_cfg.append(test_config+"/usecase_ru.cfg")
+            else: #(csx_cpu)
+                if ((os.path.isfile(test_config+"/usecase_du_csx.cfg")) & (os.path.isfile(test_config+"/usecase_ru_csx.cfg"))):
+                    test_cfg.append(test_config+"/usecase_du_csx.cfg")
+                    test_cfg.append(test_config+"/usecase_ru_csx.cfg")
+                else:
+                    test_cfg.append(test_config+"/usecase_du.cfg")
+                    test_cfg.append(test_config+"/usecase_ru.cfg")
 
     usecase_dirname = os.path.dirname(os.path.realpath(test_cfg[0]))
     print(usecase_dirname)
@@ -1360,7 +1730,10 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
     os.system('pkill -9 "sample-app"')
     os.system('pkill -9 "sample-app-ru"')
     os.system('rm -rf ./logs')
-
+    # SecMuDat.clear()
+    #Re-initializing a list for next test case
+    SecMu = [0]*4
+    SecMuDat = [[],[],[],[]]
     usecase_cfg = parse_usecase_cfg(rantech, cat, mu, bw, tcase, xran_path, test_cfg)
 
 
@@ -1372,19 +1745,19 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
             #, stdout=f, stderr=f
             if (verbose==1):
                 if i == 0 or REM_O_RU_HOST == "":
-                p = subprocess.Popen(run_cmd)
-            else:
+                    p = subprocess.Popen(run_cmd)
+                else:
                     CMD = ' '.join([str(elem) for elem in run_cmd])
-                    ssh = ["ssh", "%s" % REM_O_RU_HOST, "cd " + xran_path + "/app"+"; hostname; pwd; pkill -9 sample-app; rm -rf ./logs; ulimit -c unlimited; echo 1 > /proc/sys/kernel/core_uses_pid; " + CMD]
+                    ssh = ["ssh", "%s" % REM_O_RU_HOST, "cd " + xran_path + "/app"+"; hostname; source ~/.profile; pwd; pkill -9 sample-app; rm -rf ./logs; rm -rf ./core.[0-9]*; ulimit -c unlimited; echo 1 > /proc/sys/kernel/core_uses_pid; " + CMD]
                     print(ssh)
                     print("my_cmd: ", ' '.join([str(elem) for elem in ssh]))
                     p = subprocess.Popen(ssh, shell=False)
             else:
                 if i == 0 or REM_O_RU_HOST == "":
-                p = subprocess.Popen(run_cmd, stdout=f, stderr=f)
+                    p = subprocess.Popen(run_cmd, stdout=f, stderr=f)
                 else :
                     CMD = ' '.join([str(elem) for elem in run_cmd])
-                    ssh = ["ssh", "%s" % REM_O_RU_HOST, "cd " + xran_path + "/app"+"; hostname; pwd; pkill -9 sample-app; rm -rf ./logs; ulimit -c unlimited; echo 1 > /proc/sys/kernel/core_uses_pid; " + CMD]
+                    ssh = ["ssh", "%s" % REM_O_RU_HOST, "cd " + xran_path + "/app"+"; hostname; source ~/.profile; pwd; pkill -9 sample-app; rm -rf ./logs; rm -rf ./core.[0-9]*; ulimit -c unlimited; echo 1 > /proc/sys/kernel/core_uses_pid; " + CMD]
                     p = subprocess.Popen(ssh, shell=False, stdout=f, stderr=f)
                     #stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
@@ -1401,8 +1774,8 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
     i = 0
     for p, f in processes:
         try:
-        p.communicate()[0]
-        p.wait()
+            p.communicate()[0]
+            p.wait()
         except (KeyboardInterrupt, SystemExit):
             for i in range(2):
                 timer[i].cancel()
@@ -1443,44 +1816,58 @@ def run_tcase(rem_o_ru_host, rantech, cat, mu, bw, tcase, verbose, xran_path, vf
          OwdmTest=0
 
     for o_xu_id in range(0, oXuNum):
-        o_xu_test_cfg = []
-        if o_xu_id == 0:
-            o_xu_test_cfg.append(usecase_dirname+"/"+oXuCfgFile0)
-        elif o_xu_id == 1:
-            o_xu_test_cfg.append(usecase_dirname+"/"+oXuCfgFile1)
-        elif o_xu_id == 2:
-            o_xu_test_cfg.append(usecase_dirname+"/"+oXuCfgFile2)
-        elif o_xu_id == 3:
-            o_xu_test_cfg.append(usecase_dirname+"/"+oXuCfgFile3)
+        # o_xu_test_cfg = []
+        for itr in range(0, (SecMu[o_xu_id] + 1)):
+            # o_xu_mixed_mu_cfg = []
+            o_xu_test_cfg = []
+            if o_xu_id == 0:
+                if itr == 0:
+                    o_xu_test_cfg.append(usecase_dirname+"/"+oXuCfgFile0)
+                else:       # mixedMu secondary numerology files
+                    o_xu_test_cfg.append(usecase_dirname+"/"+SecMuDat[0][itr-1])
+            elif o_xu_id == 1:
+                if itr == 0:
+                    o_xu_test_cfg.append(usecase_dirname+"/"+oXuCfgFile1)
+                else:
+                    o_xu_test_cfg.append(usecase_dirname+"/"+SecMuDat[1][itr-1])
+            elif o_xu_id == 2:
+                if itr == 0:
+                    o_xu_test_cfg.append(usecase_dirname+"/"+oXuCfgFile2)
+                else:
+                    o_xu_test_cfg.append(usecase_dirname+"/"+SecMuDat[2][itr-1])
+            elif o_xu_id == 3:
+                if itr == 0:
+                    o_xu_test_cfg.append(usecase_dirname+"/"+oXuCfgFile3)
+                else:
+                    o_xu_test_cfg.append(usecase_dirname+"/"+SecMuDat[3][itr-1])
 
-        logging.info("O-RU %d parse config files %s\n", o_xu_id, o_xu_test_cfg)
+            logging.info("O-RU %d parse config files %s\n", o_xu_id, o_xu_test_cfg)
+            # mu=0
+            usecase_cfg_per_o_ru = parse_dat_file(rantech, cat, mu, bw, tcase, xran_path, o_xu_test_cfg)
+            res = compare_results(o_xu_id, rantech, cat, curr_mu, bw, tcase, xran_path, o_xu_test_cfg, 0, itr)
+            if OwdmTest == 1:
+            # overwrite PASS/FAIL in res if the owd tests have failed
+                res1 = check_owdm_test_results(xran_path, o_xu_id)
+                print("res1 :", res1)
+                if res1 !=0 :
+                    res = -1
+            if res != 0:
+                os.chdir(wd)
+                print("FAIL")
+                del_dat_file_vars(usecase_cfg_per_o_ru)
+                return res
 
-        usecase_cfg_per_o_ru = parse_dat_file(rantech, cat, mu, bw, tcase, xran_path, o_xu_test_cfg)
+            res = compare_results(o_xu_id, rantech, cat, curr_mu, bw, tcase, xran_path, o_xu_test_cfg, 1, itr)
+            if res != 0:
+                os.chdir(wd)
+                print("FAIL")
+                del_dat_file_vars(usecase_cfg_per_o_ru)
+                return res
 
-        res = compare_results(o_xu_id,rantech, cat, mu, bw, tcase, xran_path, o_xu_test_cfg, 0)
-        if OwdmTest == 1:
-        # overwrite PASS/FAIL in res if the owd tests have failed
-             res1 = check_owdm_test_results(xran_path, o_xu_id)
-             print("res1 :", res1)
-             if res1 !=0 :
-                  res = -1     
-    if res != 0:
-        os.chdir(wd)
-        print("FAIL")
+            os.chdir(wd)
+            print("PASS")
+
             del_dat_file_vars(usecase_cfg_per_o_ru)
-        return res
-
-        res = compare_results(o_xu_id, rantech, cat, mu, bw, tcase, xran_path, o_xu_test_cfg, 1)
-    if res != 0:
-        os.chdir(wd)
-        print("FAIL")
-            del_dat_file_vars(usecase_cfg_per_o_ru)
-        return res
-
-    os.chdir(wd)
-    print("PASS")
-
-        del_dat_file_vars(usecase_cfg_per_o_ru)
 
     return res
 
@@ -1531,6 +1918,14 @@ def main():
         vf_addr_o_xu = vf_addr_o_xu_csl_npg_scs1_33
     elif host_name == "skx-5gnr-sd6":
         vf_addr_o_xu = vf_addr_o_xu_skx_5gnr_sd6
+    elif host_name == "npg-cp-srv02":
+        vf_addr_o_xu = vf_addr_o_xu_npg_cp_srv02
+    elif host_name == "npg-cp-srv01":
+        vf_addr_o_xu = vf_addr_o_xu_npg_cp_srv01
+    elif host_name == "spr-npg-quanta-b4":
+        vf_addr_o_xu = vf_addr_o_xu_spr_npg_quanta_b4
+    elif host_name == "npg-cp-srv15":
+        vf_addr_o_xu = vf_addr_o_xu_npg_cp_srv15
     else:
         vf_addr_o_xu = vf_addr_o_xu_jenkins
         all_test_cases  = all_test_cases_short
@@ -1577,10 +1972,10 @@ def main():
         if (res != 0):
             test_results.append((rantech, cat, mu, bw, tcase,'FAIL'))
         else:
-        test_results.append((rantech, cat, mu, bw, tcase,'PASS'))
+            test_results.append((rantech, cat, mu, bw, tcase,'PASS'))
 
-        with open('testresult.txt', 'w') as reshandle:
-            json.dump(test_results, reshandle)
+    with open('testresult.txt', 'w') as reshandle:
+        json.dump(test_results, reshandle)
 
     return res
 

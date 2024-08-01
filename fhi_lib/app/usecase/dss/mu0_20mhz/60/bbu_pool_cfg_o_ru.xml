@@ -41,19 +41,19 @@
         <!--  Number of control threads, which are responsible to enqueue trigger events for different cells -->
         <CtrlThreadNum>1</CtrlThreadNum>
         <!--  Logical core list for control threads, which are real-time threads -->
-        <CtrlThreadCoreList>6</CtrlThreadCoreList>
+        <CtrlThreadCoreList>10</CtrlThreadCoreList>
         <!--  Number of cosumer threads, maximum 256 -->
-        <TestCoreNum>4</TestCoreNum>
+        <TestCoreNum>8</TestCoreNum>
         <!--  The core index list of the consumer threads -->
-        <TestCoreList>16,48,17,49,18,50,19,51,20,52,4,44,5,45,22,23,24,25,6,26,7,27,8,28,9,29,10,30,11,31,12,32,13,33,13,34,15,35,16,36,17,37,18,38,19,39</TestCoreList>
+        <TestCoreList>16,36,17,37,18,38,19,39,3,23,4,24,5,25,6,26,7,27,8,28</TestCoreList>
         <!--  Number of cells to test, maximum 40 -->
-        <TestCellNum>1</TestCellNum>
+        <TestCellNum>6</TestCellNum>
         <!--  The frame format of each cell: 0, FDD; 1, DDDSU; 2, DDDDDDDSUU -->
-        <TestCellFrameFormat>1,1,1,1</TestCellFrameFormat>
+        <TestCellFrameFormat>0,0,0,0,0,0,0,0,0,0,0,0</TestCellFrameFormat>
         <!--  The TTI of each cell, unit micro-second -->
-        <TestCellTti>500, 500, 500, 500</TestCellTti>
+        <TestCellTti>1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000</TestCellTti>
         <!--  The number of events per cell, maximum 1000 -->
-        <TestCellEventNum>50, 50, 50, 50</TestCellEventNum>
+        <TestCellEventNum>50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50</TestCellEventNum>
     </Test>
 
     <Misc>
