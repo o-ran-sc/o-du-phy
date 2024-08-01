@@ -39,6 +39,12 @@
 
 using json = nlohmann::json;
 
+
+#define XRAN_MAX_NUM_MU0    (1)    /**< Max numerologies= 0 */
+#define XRAN_MAX_NUM_MU1    (2)    /**< Max numerologies= 1 */
+#define XRAN_MAX_NUM_MU2    (3)    /**< Max numerologies= 2 */
+#define XRAN_MAX_NUM_MU3    (4)    /**< Max numerologies= 3 */
+
 #define ASSERT_ARRAY_NEAR(reference, actual, size, precision) \
         assert_array_near(reference, actual, size, precision)
 
@@ -339,7 +345,7 @@ protected:
             throw;
         }
     }
-    
+
     template <typename T>
     T get_input_parameter(const std::string &subsection_name, const int index, const std::string &parameter_name)
     {
@@ -391,7 +397,7 @@ protected:
         }
         catch (std::domain_error &e)
         {
-            std::cout << "[----------] get_input_subsection_size (" << subsection_name 
+            std::cout << "[----------] get_input_subsection_size (" << subsection_name
                       << ") failed: " << e.what()
                       << ". Did you mispell the subsection name?" << std::endl;
             return (-1);
