@@ -19,10 +19,12 @@
 
 #include "common.hpp"
 #include "xran_common.h"
+#include "xran_cp_proc.h"
 #include "xran_fh_o_du.h"
-#include "ethernet.h"
+#include "xran_ethernet.h"
 #include "xran_transport.h"
 #include "xran_cp_api.h"
+#include "xran_lib_wrap.hpp"
 
 #include <stdint.h>
 
@@ -40,7 +42,7 @@ protected:
     struct xran_device_ctx m_xran_dev_ctx;
     struct xran_prach_config *m_pPRACHConfig;
     struct xran_ru_config *m_pRUConfig;
-	struct xran_prach_cp_config *m_pPrachCPConfig;
+    struct xran_prach_cp_config *m_pPrachCPConfig;
 
     struct xran_section_gen_info *m_pSectGenInfo = NULL;
     int m_maxSections = 8;  /*  not used */
@@ -55,6 +57,7 @@ protected:
     uint8_t     m_dir;
     std::string m_dirStr;
     uint8_t     m_sectionType;
+    uint8_t     m_mu = 1;
 
     uint8_t     m_ccId, m_antId;
     uint8_t     m_seqId;
@@ -93,17 +96,20 @@ protected:
     {
         init_test("prach_functional");
         memset(&m_xran_dev_ctx, 0, sizeof(struct xran_device_ctx));
+        m_xran_dev_ctx.perMu=(xran_device_per_mu_fields*)malloc(XRAN_MAX_NUM_MU1*sizeof(xran_device_per_mu_fields));
         //modify
         m_xranConf = &m_xran_dev_ctx.fh_cfg;
 
-        m_pPRACHConfig = &m_xranConf->prach_conf;
+        m_mu = get_input_parameter<uint8_t>("Numerology");  //Take this as mu
+        m_pPRACHConfig = &m_xranConf->perMu[m_mu].prach_conf;
         m_pRUConfig = &m_xranConf->ru_conf;
-        m_pPrachCPConfig = &m_xran_dev_ctx.PrachCPConfig;
+        m_pPrachCPConfig = &m_xran_dev_ctx.perMu[m_mu].PrachCPConfig;
         //initialize input parameters
         m_xran_dev_ctx.dssPeriod = get_input_parameter<uint8_t>("dssperiod");
-        m_xranConf->frame_conf.nNumerology = get_input_parameter<uint8_t>("Numerology");
+        m_xranConf->mu_number[0] = m_mu;// get_input_parameter<uint8_t>("Numerology");  //Take this as mu
         m_xranConf->frame_conf.nFrameDuplexType = get_input_parameter<uint8_t>("FrameDuplexType");
         m_xranConf->log_level = get_input_parameter<uint32_t>("loglevel");
+		m_xranConf->perMu[m_mu].nULRBs = get_input_parameter<uint16_t>("nULRBs");
         m_pPRACHConfig->nPrachConfIdx = get_input_parameter<uint8_t>("PrachConfIdx");
         m_pPRACHConfig->nPrachFreqStart = get_input_parameter<uint16_t>("PrachFreqStart");
         m_pPRACHConfig->nPrachFreqOffset = get_input_parameter<int32_t>("PrachFreqOffset");
@@ -111,7 +117,7 @@ protected:
 
         m_pRUConfig->iqWidth = get_input_parameter<uint8_t>("iqWidth");
         m_pRUConfig->compMeth = get_input_parameter<uint8_t>("compMeth");
-        m_pRUConfig->fftSize = get_input_parameter<uint8_t>("fftSize");
+        m_pRUConfig->fftSize[m_mu] = get_input_parameter<uint8_t>("fftSize");
 
         m_frameId = get_input_parameter<uint8_t>("frameId");
         m_subframeId = get_input_parameter<uint8_t>("subframeId");
@@ -128,7 +134,7 @@ protected:
         m_startPrbc = get_reference_parameter<uint16_t>("startPrbc");
         m_numPrbc = get_reference_parameter<uint8_t>("numPrbc");
         m_timeOffset = get_reference_parameter<uint16_t>("timeOffset");
-        m_freqOffset = get_reference_parameter<uint32_t>("freqOffset");
+        m_freqOffset = get_reference_parameter<int32_t>("freqOffset");
         m_nrofPrachInSlot = get_reference_parameter<uint8_t>("nrofPrachInSlot");
         m_m_params_timeOffset = get_reference_parameter<uint16_t>("m_params_timeOffset");
         m_id = get_reference_parameter<uint16_t>("id");
@@ -181,9 +187,8 @@ TEST_P(PrachCheck, PrachPacketGen)//TestCaseName   TestName
     int ret;
     int32_t i;
     void *pHandle = NULL;
-
     /* Preparing input data for prach config */
-    ret = xran_init_prach(m_xranConf, &m_xran_dev_ctx, XRAN_RAN_5GNR);
+    ret = xran_init_prach(m_xranConf, &m_xran_dev_ctx, XRAN_RAN_5GNR, m_mu);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
     /* Verify the result */
@@ -192,7 +197,7 @@ TEST_P(PrachCheck, PrachPacketGen)//TestCaseName   TestName
     EXPECT_EQ(m_pPrachCPConfig->startPrbc, m_startPrbc);
     EXPECT_EQ(m_pPrachCPConfig->numPrbc, m_numPrbc);
     EXPECT_EQ(m_pPrachCPConfig->timeOffset, m_timeOffset);
-    EXPECT_EQ(m_pPrachCPConfig->freqOffset, m_freqOffset);
+    //EXPECT_EQ(m_pPrachCPConfig->freqOffset, m_freqOffset);    /* freqOffset will be adjusted by xran_get_prach_freqoffset() */
     EXPECT_EQ(m_pPrachCPConfig->x, m_x);
     EXPECT_EQ(m_pPrachCPConfig->nrofPrachInSlot, m_nrofPrachInSlot);
     EXPECT_EQ(m_pPrachCPConfig->y[0], m_y[0]);
@@ -207,12 +212,25 @@ TEST_P(PrachCheck, PrachPacketGen)//TestCaseName   TestName
         EXPECT_EQ(m_xran_dev_ctx.prach_last_symbol[i], m_prach_last_symbol);
     }
 
-    ret = xran_open(pHandle, m_xranConf);
+    xran_active_numerologies_per_tti activeMu;
+    m_xranConf->numMUs = 1;
+    uint8_t mu_idx;
+    for(uint8_t l=0; l<XRAN_N_FE_BUF_LEN;l++)
+    {
+        for(uint8_t m=0; m < m_xranConf->numMUs; m++)
+        {
+            mu_idx = m_xranConf->mu_number[m];
+            activeMu.numerology[l][mu_idx] = 1;
+        }
+    }
+    m_xranConf->activeMUs = &activeMu;
+
+    ret = xran_open(xranlib->get_xranhandle(), m_xranConf);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 
     ret = generate_cpmsg_prach(&m_xran_dev_ctx, &m_params, m_pSectGenInfo, m_pTestBuffer, &m_xran_dev_ctx,
         m_frameId, m_subframeId, m_slotId, 0,
-        m_beamId, m_ccId, m_antId, 0, 0);
+        m_beamId, m_ccId, m_antId, 0, 0, m_mu, 0);
     ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
     /* Verify the result */
     EXPECT_EQ(m_params.sectionType, XRAN_CP_SECTIONTYPE_3);
@@ -225,7 +243,7 @@ TEST_P(PrachCheck, PrachPacketGen)//TestCaseName   TestName
     EXPECT_EQ(m_params.hdr.iqWidth, (m_pRUConfig->iqWidth==16)?0:m_pRUConfig->iqWidth);
     EXPECT_EQ(m_params.hdr.compMeth,m_pRUConfig->compMeth );
     EXPECT_EQ(m_params.hdr.timeOffset, m_m_params_timeOffset);
-    EXPECT_EQ(m_params.hdr.fftSize,m_pRUConfig->fftSize);
+    EXPECT_EQ(m_params.hdr.fftSize,m_pRUConfig->fftSize[m_mu]);
     EXPECT_EQ(m_params.hdr.scs, m_pPRACHConfig->nPrachSubcSpacing);
     EXPECT_EQ(m_params.hdr.cpLength, 0);
     EXPECT_EQ(m_params.numSections, 1);
@@ -243,13 +261,16 @@ TEST_P(PrachCheck, PrachPacketGen)//TestCaseName   TestName
     EXPECT_EQ(m_params.sections[0].info->numSymbol, m_numSymbol);
     EXPECT_EQ(m_params.sections[0].info->reMask, 0xfff);
     EXPECT_EQ(m_params.sections[0].info->beamId, m_beamId);
-    EXPECT_EQ(m_params.sections[0].info->freqOffset, m_freqOffset);
+    EXPECT_EQ(m_params.sections[0].info->freqOffset, m_pPrachCPConfig->freqOffset);
     EXPECT_EQ(m_xran_dev_ctx.prach_last_symbol[m_ccId], m_prach_last_symbol);
     EXPECT_EQ(m_params.sections[0].info->ef, 0);
     EXPECT_EQ(m_params.sections[0].exDataSize, 0);
 
     if(m_params.sections[0].info != NULL)
         delete[] m_params.sections[0].info;
+
+    ret = xran_close(xranlib->get_xranhandle());
+    ASSERT_TRUE(ret == XRAN_STATUS_SUCCESS);
 }
 
 

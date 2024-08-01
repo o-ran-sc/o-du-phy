@@ -88,7 +88,14 @@ typedef enum
     SYM13_WAKE_UP,              /* 4 Sym13 Arrival which will wake up UL Tasks for all cells */
     PRACH_WAKE_UP,              /* 5 PRACH Arrival which will wake up will wake up PRACH for all cells */
     SRS_WAKE_UP,                /* 6 (Massive MIMO) SRS Arrival which will wake up SRS Decompression for all cells */
-    DL_CONFIG,                  /* 7 */
+#ifdef POLL_EBBU_OFFLOAD
+    SYM_POLL = 7,               /* 7 Symbol polling task which will do all symbol-level polling tasks*/
+    PKT_POLL,                   /* 8 RX packet polling processing task which will do RX packet polling processing tasks*/
+    DL_CP_POLL,                 /* 9 DL CP Polling tasks*/
+    UL_CP_POLL,                 /* 10 UL CP Polling tasks*/
+    TTI_POLL,                   /* 11 TTI Polling tasks*/
+#endif
+    DL_CONFIG,                  /* 7 if macro POLL_EBBU_OFFLOAD is undefined, otherwise it will be 12. And following number will change accordingly */
     DL_PDSCH_TB,                /* 8 */
     DL_PDSCH_SCRM,              /* 9 */
     DL_PDSCH_SYM,               /* 10 */
@@ -117,7 +124,8 @@ typedef enum
     DL_BEAM_TX,                 /* 33 */
     UL_BEAM_GEN,                /* 34 */
     UL_BEAM_TX,                 /* 35 */
-    MAX_TASK_NUM_G_NB           /* 36 */
+    UL_TX,                      /* 36 */
+    MAX_TASK_NUM_G_NB           /* 37 */
 } TaskTypeEnum;
 
 ///defines the parameters that multi-tasks are generated.
@@ -188,6 +196,7 @@ typedef struct
 
 typedef struct
 {
+    eBbuPoolMsgHeader sMsgHeader; //mush have it at the begining of the event control struct
     int32_t nEventId;
     int32_t nSplitIdx;
     int32_t nCellIdx;
@@ -197,6 +206,7 @@ typedef struct
     float *dummy0;
     uint64_t tSendTime;
     uint8_t nBuffer[240];
+    uint8_t mu;
 } __attribute__((aligned(IA_ALIGN))) EventCtrlStruct;
 
 typedef struct
@@ -215,8 +225,8 @@ typedef struct
     int16_t *pWeighttp;
 } __attribute__((aligned(IA_ALIGN))) gNBCellStruct;
 
-extern EventChainDescStruct gEventChain[EBBU_POOL_MAX_TEST_CELL][MAX_TEST_CTX];
-extern EventCtrlStruct gEventCtrl[EBBU_POOL_MAX_TEST_CELL][MAX_TEST_CTX][MAX_TASK_NUM_G_NB][MAX_TEST_SPLIT_NUM];
+extern EventChainDescStruct gEventChain[EBBU_POOL_MAX_TEST_CELL][MAX_TEST_CTX][XRAN_MAX_NUM_MU];
+extern EventCtrlStruct gEventCtrl[EBBU_POOL_MAX_TEST_CELL][MAX_TEST_CTX][MAX_TASK_NUM_G_NB][XRAN_MAX_NUM_MU][MAX_TEST_SPLIT_NUM];
 
 int32_t event_chain_gen(EventChainDescStruct *psEventChain);
 int32_t event_chain_reset(EventChainDescStruct *psEventChain);
@@ -229,9 +239,10 @@ int32_t app_bbu_init(int argc, char *argv[], char cfgName[512], UsecaseConfig* p
 int32_t app_bbu_close(void);
 
 
-int32_t app_bbu_dl_tti_call_back(void * param);
+int32_t app_bbu_dl_tti_call_back(void * param, uint8_t mu);
+int32_t app_bbu_ul_tti_call_back(void * param, uint8_t mu);
 
-int32_t test_func_gen(eBbuPoolHandler pHandler, int32_t nCell, int32_t nSlot, int32_t eventId);
+int32_t test_func_gen(eBbuPoolHandler pHandler, int32_t nCell, int32_t nSlot, int32_t eventId, uint8_t mu);
 int32_t next_event_unlock(void *pCookies);
 
 /** tasks */
@@ -239,8 +250,10 @@ int32_t app_bbu_pool_task_dl_post(void *pCookies);
 void app_bbu_pool_pre_task_dl_post(uint32_t nSubframe, uint16_t nCellIdx, TaskPreGen *pPara);
 int32_t app_bbu_pool_task_dl_config(void *pCookies);
 void app_bbu_pool_pre_task_dl_cfg(uint32_t nSubframe, uint16_t nCellIdx, TaskPreGen *pPara);
-int32_t app_bbu_pool_task_ul_config(void * pCookies);
+int32_t app_bbu_pool_task_ul_config( void * pCookies);
 void app_bbu_pool_pre_task_ul_cfg(uint32_t nSubframe, uint16_t nCellIdx, TaskPreGen *pPara);
+int32_t app_bbu_pool_task_ul_tx(void *pCookies);
+void app_bbu_pool_pre_task_ul_tx(uint32_t nSubframe, uint16_t nCellIdx, TaskPreGen *pPara);
 
 int32_t app_bbu_pool_task_sym2_wakeup(void *pCookies);
 int32_t app_bbu_pool_task_sym6_wakeup(void *pCookies);
@@ -249,10 +262,20 @@ int32_t app_bbu_pool_task_sym13_wakeup(void *pCookies);
 int32_t app_bbu_pool_task_prach_wakeup(void *pCookies);
 int32_t app_bbu_pool_task_srs_wakeup(void *pCookies);
 
-void app_io_xran_fh_bbu_rx_callback(void *pCallbackTag, xran_status_t status);
-void app_io_xran_fh_bbu_rx_bfw_callback(void *pCallbackTag, xran_status_t status);
-void app_io_xran_fh_bbu_rx_prach_callback(void *pCallbackTag, xran_status_t status);
-void app_io_xran_fh_bbu_rx_srs_callback(void *pCallbackTag, xran_status_t status);
+#ifdef POLL_EBBU_OFFLOAD
+int32_t app_bbu_polling_event_gen(uint32_t nCellIdx, uint32_t nTaskId, uint32_t nDelay, void *pTaskPara);
+int32_t app_bbu_pool_task_sym_poll(void *pCookies);
+int32_t app_bbu_pool_task_pkt_proc_poll(void *pCookies);
+int32_t app_bbu_pool_task_dl_cp_poll(void *pCookies);
+int32_t app_bbu_pool_task_ul_cp_poll(void *pCookies);
+int32_t app_bbu_pool_task_tti_poll(void *pCookies);
+#endif
+
+void app_io_xran_fh_bbu_rx_callback(void *pCallbackTag, xran_status_t status, uint8_t mu);
+void app_io_xran_fh_bbu_rx_bfw_callback(void *pCallbackTag, xran_status_t status, uint8_t mu);
+void app_io_xran_fh_bbu_rx_prach_callback(void *pCallbackTag, xran_status_t status, uint8_t mu);
+void app_io_xran_fh_bbu_rx_srs_callback(void *pCallbackTag, xran_status_t status, uint8_t mu);
+void app_io_xran_fh_bbu_rx_csirs_callback(void *pCallbackTag, xran_status_t status, uint8_t mu); //Rx callback for RU
 
 
 #ifdef __cplusplus
