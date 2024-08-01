@@ -78,10 +78,6 @@ extern "C" {
 #define print_inf               printf
 #endif
 
-#ifdef __cplusplus
-}
-#endif
-
 #ifndef _IASSERT_
 #define _IASSERT_
 
