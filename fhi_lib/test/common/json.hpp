@@ -8894,6 +8894,8 @@ class basic_json
             return ret;
         }
 
+        iter_impl &operator=(const iter_impl &other);
+
         /*!
         @brief copy constructor
         @param[in] other  iterator to copy from
@@ -10840,7 +10842,7 @@ basic_json_parser_74:
             assert(m_marker == nullptr or m_marker  <= m_limit);
 
             // number of processed characters (p)
-            const auto num_processed_chars = static_cast<size_t>(m_start - m_content);
+            const auto num_processed_chars = static_cast<size_t>((size_t)m_start - (size_t)m_content);
             // offset for m_marker wrt. to m_start
             const auto offset_marker = (m_marker == nullptr) ? 0 : m_marker - m_start;
             // number of unprocessed characters (u)
@@ -10889,7 +10891,7 @@ basic_json_parser_74:
         {
             assert(m_start != nullptr);
             return string_t(reinterpret_cast<typename string_t::const_pointer>(m_start),
-                            static_cast<size_t>(m_cursor - m_start));
+                            static_cast<size_t>((size_t)m_cursor - (size_t)m_start));
         }
 
         /*!
@@ -10954,7 +10956,7 @@ basic_json_parser_74:
             assert(m_cursor - m_start >= 2);
 
             string_t result;
-            result.reserve(static_cast<size_t>(m_cursor - m_start - 2));
+            result.reserve(static_cast<size_t>((size_t)m_cursor - (size_t)m_start - 2));
 
             // iterate the result between the quotes
             for (const lexer_char_t* i = m_start + 1; i < m_cursor - 1; ++i)
@@ -11124,10 +11126,10 @@ basic_json_parser_74:
                 // string, or buf, or tempstr containing the fixed string.
                 std::string tempstr;
                 std::array<char, 64> buf;
-                const size_t len = static_cast<size_t>(m_end - m_start);
+                const size_t len = static_cast<size_t>((size_t)(m_end) - (size_t)(m_start));
 
                 // lexer will reject empty numbers
-                assert(len > 0);
+                assert(len > 0 && len < 64);
 
                 // since dealing with strtod family of functions, we're
                 // getting the decimal point char from the C locale facilities
@@ -11140,7 +11142,7 @@ basic_json_parser_74:
 
                 if (decimal_point_char != '.')
                 {
-                    const size_t ds_pos = static_cast<size_t>(std::find(m_start, m_end, '.') - m_start);
+                    const size_t ds_pos = static_cast<size_t>((size_t)(std::find(m_start, m_end, '.')) - (size_t)m_start);
 
                     if (ds_pos != len)
                     {

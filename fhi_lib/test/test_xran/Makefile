@@ -23,12 +23,12 @@
 #  Tools configuration
 ##############################################################
 ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
-CC  := icc
-CXX := icpc
-CPP := icpc
-AS := as
-AR := ar
-LD := icc
+    CC  := icc
+    CXX := icpc
+    CPP := icpc
+    AS := as
+    AR := ar
+    LD := icc
 else ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
     CC  := icx
     CXX := icpx
@@ -40,7 +40,6 @@ else
     $(error "Please define WIRELESS_SDK_TOOLCHAIN environment variable")
 endif
 
-OBJDUMP := objdump
 
 ifeq ($(SHELL),cmd.exe)
 MD := mkdir.exe -p
@@ -59,9 +58,9 @@ ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
 	else ifeq ($(WIRELESS_SDK_TARGET_ISA),avx2)
 		TARGET_PROCESSOR := -xCORE-AVX2
 	else ifeq ($(WIRELESS_SDK_TARGET_ISA),avx512)
-		TARGET_PROCESSOR := -xCORE-AVX512
+		TARGET_PROCESSOR := -march=skylake-avx512
 	else ifeq ($(WIRELESS_SDK_TARGET_ISA),snc)
-		TARGET_PROCESSOR := -xicelake-server
+		TARGET_PROCESSOR := -march=icelake-server
 	else ifeq ($(WIRELESS_SDK_TARGET_ISA),spr)
 		TARGET_PROCESSOR := -march=sapphirerapids
 	endif
@@ -79,8 +78,8 @@ ifeq ($(MLOG_DIR),)
     MLOG_DIR=$(XRAN_DIR)/../mlog
 endif
 
-RTE_LIBS = $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --static --libs libdpdk)
-RTE_INC := $(shell PKG_CONFIG_PATH=/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
+RTE_LIBS = $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --static --libs libdpdk)
+RTE_INC := $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):/usr/lib64/pkgconfig:$(RTE_SDK)/build/meson-uninstalled pkgconf --cflags-only-I libdpdk)
 
 # Where to find user code.
 COMMON_TEST_DIR = $(XRAN_DIR)/test/common
@@ -94,8 +93,8 @@ USER_API = $(XRAN_DIR)/lib/api
 CPPFLAGS += -isystem $(GTEST_ROOT)/include -Wno-unused-variable
 
 # Flags passed to the C++ compiler.
-CXXFLAGS += -g -std=c++14 -pthread  -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe  -mcmodel=large -Wno-unused-variable -fPIC \
-    -falign-functions=16 $(TARGET_PROCESSOR) -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I $(COMMON_TEST_DIR) -I$(RTE_INC)
+CXXFLAGS += -g -O3 -std=c++14 -pthread  -D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS -D_GNU_SOURCE -D_REENTRANT -pipe  -mcmodel=large -Wno-unused-variable -fPIC \
+    -falign-functions=16 $(TARGET_PROCESSOR) -Wno-overriding-t-option -I$(USER_API) -I$(USER_DIR) -I$(USER_ETH) -I$(MLOG_DIR)/source -I $(COMMON_TEST_DIR) -I$(RTE_INC)
 
 
 
@@ -112,6 +111,7 @@ CFLAGS += -std=gnu11 -Wall -Wno-deprecated-declarations \
 	-fdata-sections \
 	-ffunction-sections \
 	-g \
+	-O3 \
 	-Wall \
 	-Wimplicit-function-declaration  \
 	-mcmodel=large \
@@ -129,10 +129,14 @@ ifeq ($(WIRELESS_SDK_TOOLCHAIN),icx)
 CFLAGS += -mintrinsic-promote -Wno-intrinsic-promote -Wno-error -Wno-unused-but-set-variable
 endif
 
+ifeq ($(POLL_EBBU_OFFLOAD),1)
+CFLAGS += -DPOLL_EBBU_OFFLOAD
+CPPFLAGS += -DPOLL_EBBU_OFFLOAD
+endif
 
 C_SRC = \
-	$(USER_ETH)/ethdi.c \
-	$(USER_ETH)/ethernet.c \
+	$(USER_ETH)/xran_ethdi.c \
+	$(USER_ETH)/xran_ethernet.c \
 	$(USER_DIR)/xran_up_api.c \
 	$(USER_DIR)/xran_sync_api.c \
 	$(USER_DIR)/xran_timer.c \
@@ -172,7 +176,6 @@ CPP_SRC = $(COMMON_TEST_DIR)/common.cpp \
 	$(USER_DIR)/xran_bfp_cplane16.cpp \
 	$(USER_DIR)/xran_bfp_cplane32.cpp \
 	$(USER_DIR)/xran_bfp_cplane64.cpp \
-	$(USER_DIR)/xran_bfp_uplane_9b16rb.cpp \
 	$(USER_DIR)/xran_bfp_uplane.cpp \
 	$(USER_DIR)/xran_mod_compression.cpp
 
@@ -192,7 +195,7 @@ CPP_SNC_OBJS := $(patsubst %.cpp,%.o,$(CPP_SRC_SNC))
 CPPFLAGS += -I$(USER_DIR) -I$(USER_API)
 
 #-qopt-report=5 -qopt-matmul -qopt-report-phase=all
-CPP_COMP := -O3 -DNDEBUG  -xcore-avx512 -fPIE -fasm-blocks
+CPP_COMP := -O3 -DNDEBUG  -march=skylake-avx512 -fPIE -fasm-blocks
 CPP_COMP_SNC := -O3 -DNDEBUG -march=icelake-server -fPIE -fasm-blocks
 
 ifeq ($(WIRELESS_SDK_TOOLCHAIN),icc)
@@ -215,9 +218,9 @@ CPP_COMP += -qopt-report=5 -qopt-matmul -qopt-report-phase=all
 CPP_COMP_SNC += -qopt-report=5 -qopt-matmul -qopt-report-phase=all
 endif
 
-PROJECT_DEP_FILE := $(TESTS).dep
+PROJECT_DEP_DIR := $(TESTS).dep.d
 
-ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
+ifeq ($(wildcard $(PROJECT_DEP_DIR)),$(PROJECT_DEP_DIR))
 GENERATE_DEPS :=
 else
 C_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(C_SRC)))
@@ -227,6 +230,12 @@ CPP_SNC_DEPS  := $(addprefix __dep__,$(subst ../,__up__,$(CPP_SRC_SNC)))
 GENERATE_DEPS := generate_deps
 endif
 
+#Add CodeCoverage option
+ifeq ($(CODE_COVERAGE),1)
+    CCFLAGS += -fprofile-instr-generate -fcoverage-mapping
+    CXXFLAGS += -fprofile-instr-generate -fcoverage-mapping
+    LD_FLAGS += -fprofile-instr-generate
+endif
 
 # House-keeping build targets.
 all : echo_start_build $(GENERATE_DEPS) $(TESTS)
@@ -237,36 +246,35 @@ clean :
 	*.asm $(COMMON_TEST_DIR)/*.asm $(USER_DIR)/*.asm $(USER_ETH)/*.asm \
 	*.asm $(COMMON_TEST_DIR)/*.asm2 $(USER_DIR)/*.asm2 $(USER_ETH)/*.asm2 \
 	*.optrpt $(COMMON_TEST_DIR)/*.optrpt $(USER_DIR)/*.optrpt $(USER_ETH)/*.optrpt;\
-	$(RM) $(PROJECT_DEP_FILE)
+	$(RM) -rf $(PROJECT_DEP_DIR)
 
 .PHONY: xclean
 xclean: clean
 
 .PHONY : clear_dep
 clear_dep:
-	@$(RM) $(PROJECT_DEP_FILE)
-	@echo [DEP] $(PROJECT_DEP_FILE)
+	@echo [DEP] rm $(PROJECT_DEP_DIR)/$(@F).dep
+	@$(MD) $(PROJECT_DEP_DIR)
+	@$(RM) $(PROJECT_DEP_DIR)/$(@F).dep
 
 $(C_DEPS) :
-	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CFLAGS)  >> $(PROJECT_DEP_FILE)
+	@echo [DEP] $(subst __up__,../,$(subst __dep__,,$@))
+	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.c,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CFLAGS)  >> $(PROJECT_DEP_DIR)/$(@F).dep
 
 $(CC_DEPS) :
-	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.cc,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPPFLAGS) $(CXXFLAGS) >> $(PROJECT_DEP_FILE)
+	@echo [DEP] $(subst __up__,../,$(subst __dep__,,$@))
+	@$(CC) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.cc,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPPFLAGS) $(CXXFLAGS) >> $(PROJECT_DEP_DIR)/$(@F).dep
 
 $(CPP_DEPS) :
-	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPPFLAGS) $(CXXFLAGS) $(CPP_COMP) >> $(PROJECT_DEP_FILE)
+	@echo [DEP] $(subst __up__,../,$(subst __dep__,,$@))
+	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPPFLAGS) $(CXXFLAGS) $(CPP_COMP) >> $(PROJECT_DEP_DIR)/$(@F).dep
 
 $(CPP_SNC_DEPS) :
-	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPPFLAGS) $(CXXFLAGS) $(CPP_COMP_SNC) >> $(PROJECT_DEP_FILE)
+	@echo [DEP] $(subst __up__,../,$(subst __dep__,,$@))
+	@$(CPP) -MM $(subst __up__,../,$(subst __dep__,,$@)) -MT $(patsubst %.cpp,%.o,$(subst __up__,../,$(subst __dep__,,$@))) $(CPPFLAGS) $(CXXFLAGS) $(CPP_COMP_SNC) >> $(PROJECT_DEP_DIR)/$(@F).dep
 
 .PHONY : generate_deps
-generate_deps : clear_dep $(C_DEPS) $(CC_DEPS) $(CPP_DEPS) $(CPP_SNC_DEPS)
-
-ifeq ($(wildcard $(PROJECT_DEP_FILE)),$(PROJECT_DEP_FILE))
-
-include $(PROJECT_DEP_FILE)
-
-endif
+generate_deps : $(DIRLIST) clear_dep $(C_DEPS) $(CC_DEPS) $(CPP_DEPS) $(CPP_SNC_DEPS)
 
 .PHONY : echo_start_build
 echo_start_build :

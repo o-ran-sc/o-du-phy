@@ -60,380 +60,475 @@ extern "C" {
 #define PID_GNB_SYM_CB                                  72
 #define PID_GNB_SRS_CB                                  74
 #define PID_GNB_BFW_CB                                  75
+#define PID_GNB_CSIRS_CB                                76
 //#define NR5G_SUBTASK_PROFILING_ON
 //#define WLS_SUBTASK_ON
 
 //--------------------------------------------------------------------
 // MAC2PHY API PROC
 //--------------------------------------------------------------------
-#define PID_MAC2PHY_API_HANDLER                         1
-#define PID_MAC2PHY_API_HANDLER_NULL                    2
-#define PID_MAC2PHY_API_CHECK_LATE_API                  3
-#define PID_MAC2PHY_API_RECV                            4
-#define PID_MAC2PHY_API_RECV_NULL                       5
-#define PID_MAC2PHY_API_CLEANUP                         6
-#define PID_MAC2PHY_API_ERROR_CHECK                     7
-#define PID_MAC2PHY_API_PARSE                           8
-#define PID_MAC2PHY_TX_SDU_PROC                         9
-#define PID_MAC2PHY_TX_VECTOR_PROC_DATA                 10
-#define PID_MAC2PHY_TX_SDU_ZBC                          11
-#define PID_MAC2PHY_RX_VECTOR_PROC                      12
-#define PID_MAC2PHY_API_PROC                            13
+#define PID_MAC2PHY_API_HANDLER                     1
+#define PID_MAC2PHY_API_HANDLER_NULL                2
+#define PID_MAC2PHY_API_CHECK_LATE_API              3
+#define PID_MAC2PHY_API_RECV                        4
+#define PID_MAC2PHY_API_RECV_NULL                   5
+#define PID_MAC2PHY_API_CLEANUP                     6
+#define PID_MAC2PHY_API_ERROR_CHECK                 7
+#define PID_MAC2PHY_API_PARSE                       8
+#define PID_MAC2PHY_LTE_TX_SDU_PROC                 9
+#define PID_MAC2PHY_LTE_TX_SDU_COPY                 10
+#define PID_MAC2PHY_LTE_TX_HI_SDU_COPY              11
+#define PID_MAC2PHY_LTE_TX_VECTOR_PROC_DATA         12
+#define PID_MAC2PHY_LTE_TX_VECTOR_PROC_CONTROL      13
+#define PID_MAC2PHY_LTE_TX_SDU_ZBC                  14
+#define PID_MAC2PHY_LTE_RX_VECTOR_PROC              15
+#define PID_MAC2PHY_LTE_API_PROC                    16
+#define PID_MAC2PHY_NR5G_TX_CONFIG                  17
+#define PID_MAC2PHY_NR5G_TX_REQUEST                 18
+#define PID_MAC2PHY_NR5G_RX_CONFIG                  19
+#define PID_MAC2PHY_API_PROC_NR5G                   20
 
 //--------------------------------------------------------------------
 // PHY2MAC API PROC
 //--------------------------------------------------------------------
-#define PID_PHY2MAC_API_PROC_PUSCH                      20
-#define PID_PHY2MAC_API_PROC_PUCCH                      21
-#define PID_PHY2MAC_API_PROC_UPDATE                     22
-#define PID_PHY2MAC_API_PROC_SEND                       23
-#define PID_PHY2MAC_URLLC_API_PROC_SEND                 24
-
-//--------------------------------------------------------------------
-// PHYSTATS
-//--------------------------------------------------------------------
-#define PID_PHYSTATS                                    30
+#define PID_PHY2MAC_LTE_API_PROC_UPDATE             30
+#define PID_PHY2MAC_LTE_API_PROC_SEND               31
+#define PID_PHY2MAC_NR5G_API_PROC_SEND_NR5G         32
+#define PID_PHY2MAC_NR5G_URLLC_API_PROC_SEND        33
 
 //--------------------------------------------------------------------
 // PHYDI
 //--------------------------------------------------------------------
-#define PID_PHYDI_IQ_COPY_DL                            35
-#define PID_PHYDI_IQ_COPY_UL                            36
-#define PID_PHYDI_IQ_COPY_DL_FRB                        37
-#define PID_PHYDI_IQ_COPY_UL_FRB                        38
-#define PID_PHYDI_IQ_COPY_PRACH_UL                      39
-#define PID_PHYDI_IQ_COPY_SRS_UL                        40
+#define PID_PHYDI_IQ_COPY_DL                        35
+#define PID_PHYDI_IQ_COPY_UL                        36
+#define PID_PHYDI_IQ_COPY_PRACH_UL                  37
+#define PID_PHYDI_IQ_COPY_SRS_UL                    38
 
 //--------------------------------------------------------------------
-// DISPATCH eBbuPool TASKS
+// PHYSTATS
 //--------------------------------------------------------------------
-#define PID_GNB_TTI_START_GEN_EXECUTE                   43
-#define PID_GNB_SYM2_WAKEUP_GEN_EXECUTE                 44
-#define PID_GNB_SYM6_WAKEUP_GEN_EXECUTE                 45
-#define PID_GNB_SYM11_WAKEUP_GEN_EXECUTE                46
-#define PID_GNB_SYM13_WAKEUP_GEN_EXECUTE                47
-#define PID_GNB_PRACH_WAKEUP_GEN_EXECUTE                48
-#define PID_GNB_SRS_WAKEUP_GEN_EXECUTE                  49
+#define PID_PHYSTATS_LTE                            40
+#define PID_PHYSTATS_NR5G                           41
+
+//--------------------------------------------------------------------
+// Infotrace tool Tasks
+//--------------------------------------------------------------------
+#define PID_INFO_TRACE_TRIGGER                      45
+#define PID_INFO_TRACE_PARSE_DL                     46
+#define PID_INFO_TRACE_PARSE_UL                     47
 
 //--------------------------------------------------------------------
 // POLLING
 //--------------------------------------------------------------------
-#define PID_AUX_BBDEV_DL_POLL                           50
-#define PID_AUX_BBDEV_DL_POLL_DISPATCH                  51
-#define PID_AUX_BBDEV_UL_POLL                           52
-#define PID_AUX_BBDEV_UL_POLL_DISPATCH                  53
+#define PID_AUX_BBDEV_NR5G_DL_POLL                  50
+#define PID_AUX_BBDEV_NR5G_DL_POLL_DISPATCH         51
+#define PID_AUX_BBDEV_NR5G_UL_POLL                  52
+#define PID_AUX_BBDEV_NR5G_UL_POLL_DISPATCH         53
+#define PID_AUX_BBDEV_NR5G_UL_SRS_FFT_POLL          54
+#define PID_AUX_BBDEV_LTE_DL_POLL                   55
+#define PID_AUX_BBDEV_LTE_DL_POLL_DISPATCH          56
+#define PID_AUX_BBDEV_LTE_UL_POLL                   57
+#define PID_AUX_BBDEV_LTE_UL_POLL_DISPATCH          58
 
 //--------------------------------------------------------------------
 // WLS
 //--------------------------------------------------------------------
-#define PID_AUX_WLS_RX_PROCESS                          55
-#define PID_AUX_WLS_SEND_API                            56
-#define PID_AUX_WLS_ADD_TO_QUEUE                        57
-#define PID_AUX_WLS_REMOVE_FROM_QUEUE                   58
-#define PID_AUX_WLS_URLLC_RX_PROCESS                    59
-
-//--------------------------------------------------------------------
-// BBU-POOL-TASKS
-//--------------------------------------------------------------------
-#define PID_BBUPOOL_TTI_COMPLETE                        60
-#define PID_BBUPOOL_TTI_COMPLETE_PRINT                  61
-#define PID_BBUPOOL_TTI_TO_TTI_DURATION                 62
-
-#define PID_BBUPOOL_ACTIVATE_CELL                       63
-#define PID_BBUPOOL_DE_ACTIVATE_CELL                    64
-#define PID_BBUPOOL_CREATE_EMPTY_LIST                   65
-#define PID_BBUPOOL_RX_HANDLER                          66
+#define PID_AUX_WLS_RX_PROCESS                      60
+#define PID_AUX_WLS_SEND_API                        61
+#define PID_AUX_WLS_ADD_TO_QUEUE                    62
+#define PID_AUX_WLS_REMOVE_FROM_QUEUE               63
+#define PID_AUX_WLS_URLLC_RX_PROCESS                64
 
 //--------------------------------------------------------------------
 // Timing Tasks
 //--------------------------------------------------------------------
-#define PID_GNB_PROC_TIMING                             70
-#define PID_GNB_PROC_TIMING_TIMEOUT                     71
-#define PID_GNB_TTI_START                               72
-#define PID_GNB_SYM2_WAKEUP                             73
-#define PID_GNB_SYM6_WAKEUP                             74
-#define PID_GNB_SYM11_WAKEUP                            75
-#define PID_GNB_SYM13_WAKEUP                            76
-#define PID_GNB_PRACH_WAKEUP                            77
-#define PID_GNB_SRS_WAKEUP                              78
+#define PID_TIMING_TTI_COMPLETE                     70
+#define PID_TIMING_TTI_COMPLETE_PRINT               71
+#define PID_TIMING_TTI_TO_TTI_DURATION              72
+#define PID_TIMING_RX_HANDLER                       73
+#define PID_TIMING_TASKLIST_NOT_COMPLETED           74
+#define PID_TIMING_PROC                             75
+#define PID_TIMING_PROC_TIMEOUT                     76
+#define PID_TIMING_TTI_START                        77
+#define PID_TIMING_SYM2_WAKEUP                      78
+#define PID_TIMING_SYM6_WAKEUP                      79
+#define PID_TIMING_SYM11_WAKEUP                     80
+#define PID_TIMING_SYM13_WAKEUP                     81
+#define PID_TIMING_PRACH_WAKEUP                     82
+#define PID_TIMING_SRS_WAKEUP                       83
 
 //--------------------------------------------------------------------
-// URLLC Tasks
+// 5GNR URLLC Tasks
 //--------------------------------------------------------------------
-#define PID_GNB_URLLC_DL_TASK                           80
-#define PID_GNB_URLLC_DL_TOTAL_TASK                     81
-#define PID_GNB_URLLC_UL_TASK                           82
-#define PID_GNB_URLLC_UL_TOTAL_TASK                     83
-#define PID_GNB_URLLC_TASK                              84
-#define PID_GNB_URLLC_DL_CALL_BACK                      85
-#define PID_GNB_URLLC_UL_CALL_BACK                      86
-#define PID_GNB_URLLC_API_CALL_BACK                     87
+#define PID_NR5G_URLLC_API_TASK                     91
+#define PID_NR5G_URLLC_DL_TASK                      92
+#define PID_NR5G_URLLC_DL_TOTAL_TASK                93
+#define PID_NR5G_URLLC_UL_TASK                      94
+#define PID_NR5G_URLLC_UL_TOTAL_TASK                95
+#define PID_NR5G_URLLC_TASK                         96
+#define PID_NR5G_URLLC_DL_CALL_BACK                 97
+#define PID_NR5G_URLLC_UL_CALL_BACK                 98
+#define PID_NR5G_URLLC_API_CALL_BACK                99
 
 //--------------------------------------------------------------------
-// Latency Tasks  (Need 4 values (one per Numerology))
+// 5GNR BBU Tasks (there is gap of 30 for 30 cell support)
 //--------------------------------------------------------------------
-#define PID_GNB_DL_LINK_PRINT                           88
-#define PID_GNB_UL_LINK_PRINT                           92
-#define PID_GNB_SRS_LINK_PRINT                          96
+#define PCID_NR5G_UL_CFG_CC0                        100
+#define PCID_NR5G_UL_PUSCH_CE_SYMB0_CC0             130
+#define PCID_NR5G_UL_PUSCH_CE_SYMB7_CC0             160
+#define PCID_NR5G_UL_PUSCH_MMSE_SYMB0_CC0           190
+#define PCID_NR5G_UL_PUSCH_MMSE_SYMB7_CC0           220
+#define PCID_NR5G_UL_PUSCH_REDEMAP_SYMB0_CC0        250
+#define PCID_NR5G_UL_PUSCH_REDEMAP_SYMB7_CC0        280
+#define PCID_NR5G_UL_PUSCH_LAYDEMAP_SYMB0_CC0       310
+#define PCID_NR5G_UL_PUSCH_LAYDEMAP_SYMB7_CC0       340
+#define PCID_NR5G_UL_PUSCH_PN_SYMB0_CC0             370
+#define PCID_NR5G_UL_PUSCH_PN_SYMB7_CC0             400
+#define PCID_NR5G_UL_PUSCH_DEMOD_SYMB0_CC0          430
+#define PCID_NR5G_UL_PUSCH_DEMOD_SYMB7_CC0          460
+#define PCID_NR5G_UL_PUSCH_DESCRAMBLE_CC0           490
+#define PCID_NR5G_UL_PUSCH_DECODER_CC0              520
+#define PCID_NR5G_UL_PUSCH_TB_CRC_CC0               550
+#define PCID_NR5G_UL_PUSCH_CB_SETUP_CC0             580
+#define PCID_NR5G_UL_PUSCH_TB_CC0                   610
+#define PCID_NR5G_UL_PUSCH_UCI_DECODER_CC0          640
+#define PCID_NR5G_UL_PUCCH_RX_CC0                   670
+#define PCID_NR5G_UL_PUSCH_DECODER_CB_CC0           700
+#define PCID_NR5G_UL_PUSCH_RX_SYMB0_CC0             730
+#define PCID_NR5G_UL_PUSCH_RX_SYMB7_CC0             760
+#define PCID_NR5G_UL_PRACH_PROCESS_CC0              790
+#define PCID_NR5G_UL_SRS_RX_CC0                     820
+#define PCID_NR5G_UL_SRS_CE_CC0                     850
+#define PCID_NR5G_UL_SRS_REPORT_CC0                 880
+#define PCID_NR5G_UL_SRS_FFT_CB_SETUP_CC0           910
+#define PCID_NR5G_UL_SRS_FFT_CB_CC0                 940
+#define PCID_NR5G_UL_SRS_CE_POST_CC0                970
+#define PCID_NR5G_UL_IQ_LOG_CC0                     1000
+#define PCID_NR5G_UL_POST_CC0                       1030
+#define PCID_NR5G_DL_CFG_CC0                        1060
+#define PCID_NR5G_DL_PDSCH_TB_CRC_CC0               1090
+#define PCID_NR5G_DL_PDSCH_CB_SETUP_CC0             1120
+#define PCID_NR5G_DL_PDSCH_TB_QUEUE_CC0             1150
+#define PCID_NR5G_DL_PDSCH_TB_CC0                   1180
+#define PCID_NR5G_DL_PDSCH_SCRAMBLER_CC0            1210
+#define PCID_NR5G_DL_PDSCH_MOD_CC0                  1240
+#define PCID_NR5G_DL_PDSCH_PRECODE_CC0              1270
+#define PCID_NR5G_DL_PDSCH_RS_CC0                   1300
+#define PCID_NR5G_DL_PDSCH_REMAP_CC0                1330
+#define PCID_NR5G_DL_SYMBOL_PROC_CC0                1360
+#define PCID_NR5G_DL_RESET_BUF_CC0                  1390
+#define PCID_NR5G_DL_CSI_PROC_CC0                   1420
+#define PCID_NR5G_DL_DCI_PROC_CC0                   1450
+#define PCID_NR5G_DL_UCI_PROC_CC0                   1480
+#define PCID_NR5G_DL_DCI_PRECODER_CC0               1510
+#define PCID_NR5G_DL_PBCH_PROC_CC0                  1540
+#define PCID_NR5G_DL_POST_CC0                       1570
+#define PCID_NR5G_DL_ORAN_CC0                       1600
+#define PCID_NR5G_DL_PDSCH_BEAM_FORMING_CC0         1630
+#define PCID_NR5G_DL_BEAM_WEIGHT_TASK_CC0           1660
+#define PCID_NR5G_UL_BEAM_WEIGHT_TASK_CC0           1690
+#define PCID_NR5G_UL_PUCCH_BEAM_WEIGHT_TASK_CC0     1720
+#define PCID_FH_DL_IQ_COMPRESS_CC0                  1750
+#define PCID_FH_UL_IQ_DECOMPRESS_CC0                1780
+#define PCID_FH_UL_SRS_IQ_DECOMPRESS_CC0            1810
+#define PCID_FH_UL_IQ_DECOMP_PUSCH_CC0              1840
+#define PCID_FH_UL_IQ_DECOMP_PUCCH_CC0              1870
+#define PCID_FH_DL_OFDM_CTRL_COMPRESS_CC0           1900
+#define PCID_FH_DL_OFDM_RS_COMPRESS_CC0             1930
+#define PCID_FH_DL_OFDM_DATA_COMPRESS_CC0           1960
+#define PCID_FH_RX_DATA_CC0                         1990
+#define PCID_FH_RX_SRS_CC0                          2020
+#define PCID_FH_RX_PRACH_CC0                        2050
+#define PCID_FH_DL_BEAM_WEIGHT_COMPRESS_CC0         2080
+#define PCID_FH_UL_BEAM_WEIGHT_COMPRESS_CC0         2110
+#define PCID_FH_UL_PUCCH_BEAM_WEIGHT_COMPRESS_CC0   2140
+#define PCID_FH_UL_TX_CC0                           2170
+
 
 //--------------------------------------------------------------------
-// GNB UL BBU Tasks (there is gap of 24 for 24 cell support)
+// LTE BBU Tasks (there is gap of 30 for 30 cell support)
 //--------------------------------------------------------------------
-#define PCID_GNB_FH_RX_DATA_CC0                         100
-#define PCID_GNB_FH_RX_SRS_CC0                          124
-#define PCID_GNB_PUSCH_CE_SYMB0_CC0                     148
-#define PCID_GNB_PUSCH_MMSE_SYMB0_CC0                   172
-#define PCID_GNB_PUSCH_MMSE_SYMB7_CC0                   196
-#define PCID_GNB_PUSCH_REDEMAP_SYMB0_CC0                220
-#define PCID_GNB_PUSCH_REDEMAP_SYMB7_CC0                244
-#define PCID_GNB_PUSCH_LAYDEMAP_SYMB0_CC0               268
-#define PCID_GNB_PUSCH_LAYDEMAP_SYMB7_CC0               292
-#define PCID_GNB_PUSCH_PN_SYMB0_CC0                     316
-#define PCID_GNB_PUSCH_PN_SYMB7_CC0                     340
-#define PCID_GNB_PUSCH_DEMOD_SYMB0_CC0                  364
-#define PCID_GNB_PUSCH_DEMOD_SYMB7_CC0                  388
-#define PCID_GNB_PUSCH_DESCRAMBLE_CC0                   412
-#define PCID_GNB_PUSCH_DECODER_CC0                      436
-#define PCID_GNB_PUSCH_TB_CC0                           460
-#define PCID_GNB_UL_CFG_CC0                             484
-#define PCID_GNB_PUSCH_DECODER_CB_CC0                   508
-#define PCID_GNB_PUSCH_RX_SYMB0_CC0                     532
-#define PCID_GNB_PUSCH_RX_SYMB7_CC0                     556
-#define PCID_GNB_PRACH_PROCESS_CC0                      580
-#define PCID_GNB_PUCCH_RX_CC0                           604
-#define PCID_GNB_SRS_RX_CC0                             628
-#define PCID_GNB_PUSCH_UCI_DECODER_CC0                  652
-#define PCID_GNB_UL_POST_CC0                            676
-#define PCID_GNB_UL_IQ_LOG_CC0                          700
-#define PCID_GNB_FH_RX_PRACH_CC0                        724
-#define PCID_GNB_PUSCH_RX_LINK_CC0                      748
-#define PCID_GNB_UL_LINK_CC0                            772
-#define PCID_GNB_PUSCH_CE_SYMB7_CC0                     796
-#define PCID_GNB_SRS_RX_LINK_CC0                        820
-
-
-#define PID_GNB_TASKLIST_NOT_COMPLETED                   899
-//--------------------------------------------------------------------
-// GNB DL BBU Tasks (there is gap of 24 for 24 cell support)
-//--------------------------------------------------------------------
-#define PCID_GNB_DL_CFG_CC0                             900
-#define PCID_GNB_PDSCH_TB_CC0                           924
-#define PCID_GNB_PDSCH_SCRAMBLER_CC0                    948
-#define PCID_GNB_PDSCH_MOD_CC0                          972
-#define PCID_GNB_PDSCH_PRECODE_CC0                      996
-#define PCID_GNB_PDSCH_RS_CC0                           1020
-#define PCID_GNB_PDSCH_REMAP_CC0                        1044
-#define PCID_GNB_DL_RESET_BUF_CC0                       1068
-#define PCID_GNB_DL_SYMBOL_PROC_CC0                     1092
-#define PCID_GNB_DL_CSI_PROC_CC0                        1116
-#define PCID_GNB_DL_DCI_PROC_CC0                        1140
-#define PCID_GNB_DL_UCI_PROC_CC0                        1164
-#define PCID_GNB_DL_PBCH_PROC_CC0                       1188
-#define PCID_GNB_DL_POST_CC0                            1212
-#define PCID_GNB_PDSCH_TB_QUEUE_CC0                     1236
-#define PCID_GNB_DL_LINK_CC0                            1260
-#define PCID_GNB_DL_DCI_PRECODER_CC0                    1284
-#define PCID_GNB_PDSCH_TB_CRC_CC0                       1308
-#define PCID_GNB_PDSCH_CB_SETUP_CC0                     1332
+#define PCID_LTE_API_TASK_CC0                       2300
+#define PCID_LTE_DL_FEC_CRC_CC0                     2330
+#define PCID_LTE_UL_PREAPRE_TASK_CC0                2360
+#define PCID_LTE_UL_FEC_CC0                         2390
+#define PCID_LTE_UL_PUSCH_CE_CC0                    2420
+#define PCID_LTE_UL_DEMOD_CC0                       2450
+#define PCID_LTE_ULFFT_TASK_CC0                     2480
+#define PCID_LTE_DLIFFT_TASK_CC0                    2510
+#define PCID_LTE_DLIFFT_POST_TASK_CC0               2540
+#define PCID_LTE_UL_FEC_PUSCH_TB_CRC_CHECK_CC0      2570
+#define PCID_LTE_DL_FEC_RM_TURBO_SCR_CC0            2600
+#define PCID_LTE_DL_MOD_CC0                         2630
+#define PCID_LTE_UL_PUCCH_CC0                       2660
+#define PCID_LTE_UL_SRS_CC0                         2690
+#define PCID_LTE_UL_API_SEND_CC0                    2720
+#define PCID_LTE_UL_PRACH_CC0                       2750
+#define PCID_LTE_UL_POST_CC0                        2780
+#define PCID_LTE_DL_OPT_TASK1_CC0                   2810
+#define PCID_LTE_DL_OPT_TASK2_CC0                   2840
+#define PCID_LTE_UL_OPT_TASK1_CC0                   2870
+#define PCID_LTE_UL_OPT_TASK2_CC0                   2900
 
 //--------------------------------------------------------------------
-// Other DL / UL tasks (there is gap of 24 for 24 cell support)
+// DL, UL and SRS Links (there is gap of 30 for 30 cell support)
 //--------------------------------------------------------------------
-#define PCID_GNB_PUSCH_TB_CRC_CC0                       1500
-#define PCID_GNB_PUSCH_CB_SETUP_CC0                     1524
-#define PCID_GNB_DL_BEAM_WEIGHT_TASK_CC0                1548
-#define PCID_GNB_UL_BEAM_WEIGHT_TASK_CC0                1572
-#define PCID_GNB_SRS_CE_CC0                             1596
-#define PCID_GNB_SRS_REPORT_CC0                         1620
-#define PCID_GNB_DL_BEAM_WEIGHT_COMPRESS_CC0            1644
-#define PCID_GNB_UL_BEAM_WEIGHT_COMPRESS_CC0            1668
-#define PCID_GNB_DL_IQ_COMPRESS_CC0                     1692
-#define PCID_GNB_UL_IQ_DECOMPRESS_CC0                   1712
-#define PCID_GNB_UL_IQ_FROM_XRAN_CC0                    1736
-#define PCID_GNB_UL_IQ_SP_SLOT_FROM_XRAN_CC0            1760
-#define PCID_GNB_UL_SRS_IQ_DECOMPRESS_CC0               1784
-#define PCID_GNB_DL_OFDM_CTRL_COMPRESS_CC0              1808
-#define PCID_GNB_DL_OFDM_RS_COMPRESS_CC0                1832
-#define PCID_GNB_DL_OFDM_DATA_COMPRESS_CC0              1856
+#define PCID_DL_FEC_LINK_CC0                        2930
+#define PCID_UL_FEC_LINK_CC0                        2960
+#define PCID_DL_LINK_CC0                            2990
+#define PCID_UL_LINK_CC0                            2020
+#define PCID_UL_SRS_RX_LINK_CC0                     3050
 
 //--------------------------------------------------------------------
-// GNB UL Sub Tasks
+// Latency Tasks  (Need 5 values each (one per Numerology))
 //--------------------------------------------------------------------
-#define PID_GNB_PUCCH_F0_SEQ_GEN                        2000
-#define PID_GNB_PUCCH_F0_DETECT                         2001
-#define PID_GNB_PUCCH_F1_SEQ_GEN1                       2002
-#define PID_GNB_PUCCH_F1_SEQ_GEN2                       2003
-#define PID_GNB_PUCCH_F1_DESPRD                         2004
-#define PID_GNB_PUCCH_F1_DEMOD                          2005
-#define PID_GNB_PUCCH_F2_DMRS_GEN                       2006
-#define PID_GNB_PUCCH_F2_CE                             2007
-#define PID_GNB_PUCCH_F2_EQU                            2008
-#define PID_GNB_PUCCH_F2_DEMOD                          2009
-#define PID_GNB_PUCCH_F2_DESCR                          2010
-#define PID_GNB_PUCCH_F2_DEC                            2011
-#define PID_GNB_PUCCH_F3_F4_DMRS_GEN                    2012
-#define PID_GNB_PUCCH_F3_F4_CE                          2013
-#define PID_GNB_PUCCH_F3_F4_EQU                         2014
-#define PID_GNB_PUCCH_F3_F4_IDFT                        2015
-#define PID_GNB_PUCCH_F3_F4_DESPRD                      2016
-#define PID_GNB_PUCCH_F3_F4_DEMOD                       2017
-#define PID_GNB_PUCCH_F3_F4_DESCR                       2018
-#define PID_GNB_PUCCH_F3_F4_DEC                         2019
+#define PID_DL_LINK_PRINT                           3100
+#define PID_UL_LINK_PRINT                           3105
+#define PID_SRS_LINK_PRINT                          3110
 
 //--------------------------------------------------------------------
-// GNB UL BBU Creation Tasks
+// BBU-POOL-TASKS
 //--------------------------------------------------------------------
-#define PID_GNB_PUSCH_DMRS0_GEN_BYPASS                  2700
-#define PID_GNB_PUSCH_DMRS0_GEN_EXECUTE                 2701
-#define PID_GNB_PUSCH_DMRS1_GEN_BYPASS                  2702
-#define PID_GNB_PUSCH_DMRS1_GEN_EXECUTE                 2703
-#define PID_GNB_PRACH_GEN_BYPASS                        2704
-#define PID_GNB_PRACH_GEN_EXECUTE                       2705
-#define PID_GNB_PUCCH_GEN_BYPASS                        2706
-#define PID_GNB_PUCCH_GEN_EXECUTE                       2707
-#define PID_GNB_SRS_GEN_BYPASS                          2708
-#define PID_GNB_SRS_GEN_EXECUTE                         2709
-#define PID_GNB_UL_CFG_GEN_BYPASS                       2710
-#define PID_GNB_UL_CFG_GEN_EXECUTE                      2711
-#define PID_GNB_PUSCH_TB_TASK_GEN_BYPASS                2712
-#define PID_GNB_PUSCH_TB_TASK_GEN_EXECUTE               2713
-#define PID_GNB_PUSCH_DECODE_TASK_GEN_BYPASS            2714
-#define PID_GNB_PUSCH_DECODE_TASK_GEN_EXECUTE           2715
-#define PID_GNB_PUSCH_DATA0_GEN_BYPASS                  2716
-#define PID_GNB_PUSCH_DATA0_GEN_EXECUTE                 2717
-#define PID_GNB_PUSCH_DATA1_GEN_BYPASS                  2718
-#define PID_GNB_PUSCH_DATA1_GEN_EXECUTE                 2719
+#define PID_BBUPOOL_PRE_LTE_DLIFFT                  3220
+#define PID_BBUPOOL_PRE_LTE_DLTURSCR                3221
+#define PID_BBUPOOL_PRE_LTE_ULFEC                   3222
+#define PID_BBUPOOL_PRE_NR5G_DL_PDSCH_SYMBOL        3223
+#define PID_BBUPOOL_PRE_NR5G_DL_BEAM_WGHT           3224
+#define PID_BBUPOOL_PRE_NR5G_UL_BEAM_WGHT           3225
+#define PID_BBUPOOL_PRE_NR5G_UL_PUSCH_CE0           3226
+#define PID_BBUPOOL_PRE_NR5G_UL_PUSCH_CE7           3227
+#define PID_BBUPOOL_PRE_NR5G_UL_PUSCH_MMSE0         3228
+#define PID_BBUPOOL_PRE_NR5G_UL_PUSCH_MMSE7         3229
+#define PID_BBUPOOL_PRE_NR5G_UL_PUSCH_LLR_DEMAP     3230
+#define PID_BBUPOOL_PRE_NR5G_UL_PUSCH_DECODE        3231
+#define PID_BBUPOOL_PRE_NR5G_UL_PUCCH               3232
+#define PID_BBUPOOL_PRE_NR5G_UL_PUCCH_BEAM_WGHT     3233
+#define PID_BBUPOOL_PRE_NR5G_UL_SRS                 3234
 
-//--------------------------------------------------------------------
-// GNB DL BBU Creation Tasks
-//--------------------------------------------------------------------
-#define PID_GNB_DL_SCRAMBLER_GEN_BYPASS                 2720
-#define PID_GNB_DL_SCRAMBLER_GEN_EXECUTE                2721
-#define PID_GNB_DL_CONFIG_GEN_BYPASS                    2722
-#define PID_GNB_DL_CONFIG_GEN_EXECUTE                   2723
-#define PID_GNB_DL_BEAM_GEN_BYPASS                      2724
-#define PID_GNB_DL_BEAM_GEN_EXECUTE                     2725
+#define PID_BBUPOOL_POST_NR5G_UL_PUCCH              3235
 
-//--------------------------------------------------------------------
-// GNB Pre Tasks
-//--------------------------------------------------------------------
-#define PID_GNB_DL_PDSCH_SYMBOL_PRE_TASK                2730
-#define PID_GNB_UL_PUSCH_CE0_PRE_TASK                   2731
-#define PID_GNB_UL_PUSCH_CE7_PRE_TASK                   2732
-#define PID_GNB_UL_PUSCH_MMSE0_PRE_TASK                 2733
-#define PID_GNB_UL_PUSCH_MMSE7_PRE_TASK                 2734
-#define PID_GNB_UL_PUCCH_PRE_TASK                       2735
-#define PID_GNB_UL_SRS_PRE_TASK                         2736
-#define PID_GNB_UL_PUSCH_LLR_RX_PRE_TASK                2737
-#define PID_GNB_DL_BEAM_WEIGHT_PRE_TASK                 2738
-#define PID_GNB_UL_BEAM_WEIGHT_PRE_TASK                 2739
-#define PID_GNB_UL_PUSCH_DECODE_PRE_TASK                2740
+#define PID_BBUPOOL_GEN_DL_CONFIG                   3236
+#define PID_BBUPOOL_GEN_DL_SCRAMBLER                3237
+#define PID_BBUPOOL_GEN_UL_CONFIG                   3238
+#define PID_BBUPOOL_GEN_SRS_FFT                     3239
+#define PID_BBUPOOL_GEN_PUSCH_CE0                   3240
+#define PID_BBUPOOL_GEN_PUSCH_CE7                   3241
+#define PID_BBUPOOL_GEN_PRACH                       3242
+#define PID_BBUPOOL_GEN_PUCCH                       3243
+#define PID_BBUPOOL_GEN_SRS                         3244
+#define PID_BBUPOOL_GEN_UL_PUSCH_TB                 3245
+#define PID_BBUPOOL_GEN_UL_PUSCH_DECODE             3246
+#define PID_BBUPOOL_GEN_UL_PUSCH_MMSE0              3247
+#define PID_BBUPOOL_GEN_UL_PUSCH_MMSE7              3248
+#define PID_BBUPOOL_GEN_DL_BEAM_WGHT                3249
+#define PID_BBUPOOL_GEN_TIMING_TTI_START            3250
+#define PID_BBUPOOL_GEN_TIMING_SYM2                 3251
+#define PID_BBUPOOL_GEN_TIMING_SYM6                 3252
+#define PID_BBUPOOL_GEN_TIMING_SYM11                3253
+#define PID_BBUPOOL_GEN_TIMING_SYM13                3254
+#define PID_BBUPOOL_GEN_TIMING_PRACH                3255
+#define PID_BBUPOOL_GEN_TIMING_SRS                  3256
 
-//--------------------------------------------------------------------
-// GNB Post Tasks
-//--------------------------------------------------------------------
-#define PID_GNB_UL_PUCCH_POST_TASK                      2745
-
-//--------------------------------------------------------------------
-// Other tasks
-//--------------------------------------------------------------------
-#define PID_GNB_DL_IFFT0                                2750
-#define PID_GNB_DL_IFFT1                                2751
-#define PID_GNB_DL_IFFT2                                2752
-#define PID_GNB_DL_IFFT3                                2753
-#define PID_GNB_DL_IFFT4                                2754
-#define PID_GNB_DL_IFFT5                                2755
-#define PID_GNB_DL_IFFT6                                2756
-#define PID_GNB_DL_IFFT7                                2757
-#define PID_GNB_UL_FFT0                                 2758
-#define PID_GNB_UL_FFT1                                 2759
-#define PID_GNB_UL_FFT2                                 2760
-#define PID_GNB_UL_FFT3                                 2761
-#define PID_GNB_UL_FFT4                                 2762
-#define PID_GNB_UL_FFT5                                 2763
-#define PID_GNB_UL_FFT6                                 2764
-#define PID_GNB_UL_FFT7                                 2765
-
-#define PID_DLIFFT                                      2766
-#define PID_DLIFFT_ADD_CP                               2767
-#define PID_ULFFT                                       2768
-
-//--------------------------------------------------------------------
-// AUX RADIO
-//--------------------------------------------------------------------
-#define PID_AUX_RADIO_RX_BYPASS_PROC                    2900
-#define PID_AUX_RADIO_RX_STOP                           2901
-#define PID_AUX_RADIO_RX_UL_IQ                          2902
-#define PID_AUX_RADIO_PRACH_PKT                         2903
-#define PID_AUX_RADIO_FE_COMPRESS                       2904
-#define PID_AUX_RADIO_FE_DECOMPRESS                     2905
-#define PID_AUX_RADIO_TX_BYPASS_PROC                    2906
-#define PID_AUX_RADIO_ETH_TX_BURST                      2907
-#define PID_AUX_RADIO_TX_DL_IQ                          2908
-#define PID_AUX_RADIO_RX_VALIDATE                       2909
-#define PID_AUX_RADIO_RX_IRQ_ON                         2910
-#define PID_AUX_RADIO_RX_IRQ_OFF                        2911
-#define PID_AUX_RADIO_RX_EPOLL_WAIT                     2912
-#define PID_AUX_RADIO_TX_LTEMODE_PROC                   2913
-#define PID_AUX_RADIO_RX_LTEMODE_PROC                   2914
-#define PID_AUX_RADIO_TX_PLAY_BACK_IQ                   2915
-
-#define PCID_BBUPOOL_RADIO_DL_COMPRESSION_TASK_CC0      2940
-#define PCID_BBUPOOL_RADIO_DL_IQ_LOG_LTE_TASK_CC0       2960
-#define PCID_BBUPOOL_RADIO_UL_IQ_LOG_LTE_TASK_CC0       2980
+#define PID_BBUPOOL_BYPASS_UL_PUSCH_TB              3257
+#define PID_BBUPOOL_BYPASS_DL_SCRAMBLER             3258
 
 //--------------------------------------------------------------------
 // XRAN
 //--------------------------------------------------------------------
-#define PID_XRAN_TTI_TIMER                              3100
-#define PID_XRAN_TTI_CB                                 3101
-#define PID_XRAN_SYM_TIMER                              3102
-#define PID_XRAN_PROC_TIMING_TIMEOUT                    3103
-#define PID_XRAN_TIME_SYSTIME_POLL                      3104
-#define PID_XRAN_TIME_SYSTIME_STOP                      3105
-#define PID_XRAN_TIME_ARM_TIMER                         3106
+#define PID_XRAN_TTI_TIMER                          3300
+#define PID_XRAN_TTI_CB                             3301
+#define PID_XRAN_SYM_TIMER                          3302
+#define PID_XRAN_PROC_TIMING_TIMEOUT                3303
+#define PID_XRAN_TIME_SYSTIME_POLL                  3304
+#define PID_XRAN_TIME_SYSTIME_STOP                  3305
+#define PID_XRAN_TIME_ARM_TIMER                     3306
+#define PID_XRAN_FREQ_RX_PKT                        3307
+#define PID_XRAN_RX_STOP                            3308
+#define PID_XRAN_RX_UL_IQ                           3309
+#define PID_XRAN_PRACH_PKT                          3310
+#define PID_XRAN_FE_COMPRESS                        3311
+#define PID_XRAN_FE_DECOMPRESS                      3312
+#define PID_XRAN_TX_BYPASS_PROC                     3313
+#define PID_XRAN_ETH_TX_BURST                       3314
+#define PID_XRAN_TX_DL_IQ                           3315
+#define PID_XRAN_RX_VALIDATE                        3316
+#define PID_XRAN_RX_IRQ_ON                          3317
+#define PID_XRAN_RX_IRQ_OFF                         3318
+#define PID_XRAN_RX_EPOLL_WAIT                      3319
+#define PID_XRAN_TX_LTEMODE_PROC                    3320
+#define PID_XRAN_RX_LTEMODE_PROC                    3321
+#define PID_XRAN_TX_PLAY_BACK_IQ                    3322
+#define PID_XRAN_PROCESS_TX_SYM                     3323
+#define PID_XRAN_DISPATCH_TX_SYM                    3324
+#define PID_XRAN_PREPARE_TX_PKT                     3325
+#define PID_XRAN_ATTACH_EXT_BUF                     3326
+#define PID_XRAN_ETH_ENQUEUE_BURST                  3327
+#define PID_XRAN_CP_DL_CB                           3328
+#define PID_XRAN_CP_UL_CB                           3329
+#define PID_XRAN_UP_DL_CB                           3330
+#define PID_XRAN_SYM_OTA_CB                         3331
+#define PID_XRAN_TTI_CB_TO_PHY                      3332
+#define PID_XRAN_HALF_SLOT_CB_TO_PHY                3333
+#define PID_XRAN_FULL_SLOT_CB_TO_PHY                3334
+#define PID_XRAN_UP_UL_HALF_DEAD_LINE_CB            3335
+#define PID_XRAN_UP_UL_FULL_DEAD_LINE_CB            3336
+#define PID_XRAN_UP_UL_USER_DEAD_LINE_CB            3337
+#define PID_XRAN_PROCESS_UP_PKT                     3338
+#define PID_XRAN_PROCESS_UP_PKT_SRS                 3339
+#define PID_XRAN_PROCESS_UP_PKT_PARSE               3340
+#define PID_XRAN_PROCESS_CP_PKT                     3341
+#define PID_XRAN_PROCESS_DELAY_MEAS_PKT             3342
+#define PID_XRAN_TIME_ARM_TIMER_DEADLINE            3343
+#define PID_XRAN_TIME_ARM_USER_TIMER_DEADLINE       3344
+#define PID_XRAN_UL_DECOMPRESS                      3345
+#define PID_XRAN_DL_DECOMPRESS                      3346
+#define PID_XRAN_SRS_DECOMPRESS                     3347
+#define PID_XRAN_PRACH_DECOMPRESS                   3348
+#define PID_XRAN_CSIRS_DECOMPRESS                   3349
 
-#define PID_XRAN_FREQ_RX_PKT                            3107
-#define PID_XRAN_RX_STOP                                3108
-#define PID_XRAN_RX_UL_IQ                               3109
-#define PID_XRAN_PRACH_PKT                              3110
-#define PID_XRAN_FE_COMPRESS                            3111
-#define PID_XRAN_FE_DECOMPRESS                          3112
-#define PID_XRAN_TX_BYPASS_PROC                         3113
-#define PID_XRAN_ETH_TX_BURST                           3114
-#define PID_XRAN_TX_DL_IQ                               3115
-#define PID_XRAN_RX_VALIDATE                            3116
-#define PID_XRAN_RX_IRQ_ON                              3117
-#define PID_XRAN_RX_IRQ_OFF                             3118
-#define PID_XRAN_RX_EPOLL_WAIT                          3119
-#define PID_XRAN_TX_LTEMODE_PROC                        3120
-#define PID_XRAN_RX_LTEMODE_PROC                        3121
-#define PID_XRAN_TX_PLAY_BACK_IQ                        3122
-#define PID_XRAN_PROCESS_TX_SYM                         3123
-#define PID_XRAN_DISPATCH_TX_SYM                        3124
-#define PID_XRAN_PREPARE_TX_PKT                         3125
-#define PID_XRAN_ATTACH_EXT_BUF                         3126
-#define PID_XRAN_ETH_ENQUEUE_BURST                      3127
 
-#define PID_XRAN_CP_DL_CB                               3128
-#define PID_XRAN_CP_UL_CB                               3129
-#define PID_XRAN_UP_DL_CB                               3130
-#define PID_XRAN_SYM_OTA_CB                             3131
-#define PID_XRAN_TTI_CB_TO_PHY                          3132
-#define PID_XRAN_HALF_SLOT_CB_TO_PHY                    3133
-#define PID_XRAN_FULL_SLOT_CB_TO_PHY                    3134
-#define PID_XRAN_UP_UL_HALF_DEAD_LINE_CB                3135
-#define PID_XRAN_UP_UL_FULL_DEAD_LINE_CB                3136
-#define PID_XRAN_UP_UL_USER_DEAD_LINE_CB                3137
+//--------------------------------------------------------------------
+// LTE SUBTASKS
+//--------------------------------------------------------------------
+#define PID_SUBLTE_DL_FEC_CRC                       3350
+#define PID_SUBLTE_DL_FEC_TURBOENCODER_RMATCHING    3351
+#define PID_SUBLTE_DL_FEC_SCRAMBLER                 3352
+#define PID_SUBLTE_DL_FEC_CRCA                      3353
+#define PID_SUBLTE_DL_FEC_CRCB                      3354
+#define PID_SUBLTE_DL_FEC_TURBOENCODERSDK           3355
+#define PID_SUBLTE_DL_FEC_RATEMATCHINGSDK           3356
+#define PID_SUBLTE_DL_MOD_CONTROL_SYM               3357
+#define PID_SUBLTE_DL_MOD_DATA_SYM                  3358
+#define PID_SUBLTE_DL_MOD_RES_ELEM_MAPPER           3359
+#define PID_SUBLTE_DL_MOD_SETUP_SYM_BUFS            3360
+#define PID_SUBLTE_DL_MOD_DLIFFT_SETUP              3361
+#define PID_SUBLTE_DL_MOD_MAPPER                    3362
+#define PID_SUBLTE_DL_MOD_LAYER_MAPPER_PRECODER     3363
+#define PID_SUBLTE_DL_MOD_PILOTS                    3364
+#define PID_SUBLTE_DL_MOD_PILOTS_POS                3365
+#define PID_SUBLTE_DL_MOD_SYNC_SIGNALS              3366
+#define PID_SUBLTE_DL_MOD_PILOTS_UE_S               3367
+#define PID_SUBLTE_DL_MOD_MEMSET                    3368
+#define PID_SUBLTE_DL_MOD_PILOTS_CSI                3369
+#define PID_SUBLTE_DL_MOD_PRECODER                  3370
+#define PID_SUBLTE_DL_MOD_SETUP_SYM_BUFS_MPDCCH     3371
+#define PID_SUBLTE_DL_MOD_MAPPER_MPDCCH             3372
+#define PID_SUBLTE_DL_MOD_LMAPPER_PRECODER_MPDCCH   3373
+#define PID_SUBLTE_DL_IQ_SETUP                      3374
+#define PID_SUBLTE_DL_SDU_SETUP                     3375
+#define PID_SUBLTE_DL_PDSCH_FEC_ENQUEUE             3376
+#define PID_SUBLTE_DL_PDSCH_POST_FEC                3377
+#define PID_SUBLTE_DL_MODULATION_MAPPER             3378
+#define PID_SUBLTE_UL_DEMOD_PROC                    3379
+#define PID_SUBLTE_UL_DEMOD_PUSCH_CHEST_PART0       3380
+#define PID_SUBLTE_UL_DEMOD_PUSCH_CHEST_PART1       3381
+#define PID_SUBLTE_UL_DEMOD_PUSCH_CHEST_PART2       3382
+#define PID_SUBLTE_UL_DEMOD_PUSCH_RSSI              3383
+#define PID_SUBLTE_UL_DEMOD_PUSCH_SNR               3384
+#define PID_SUBLTE_UL_DEMOD_PUSCH_MRC               3385
+#define PID_SUBLTE_UL_DEMOD_PUSCH_INVDFT_DEMAPPER   3386
+#define PID_SUBLTE_UL_DEMOD_MULTIPLEX_PUSCH         3387
+#define PID_SUBLTE_UL_DEMOD_FLOAT_TO_FIX            3388
+#define PID_SUBLTE_UL_DEMOD_PUSCH_INVDFT            3389
+#define PID_SUBLTE_UL_DEMOD_PUSCH_DEMAPPER          3390
+#define PID_SUBLTE_UL_DEMOD_PUSCH_PRE_INVDFT_SCALE  3391
+#define PID_SUBLTE_UL_DEMOD_PUSCH_POST_INVDFT_SCALE 3392
+#define PID_SUBLTE_UL_DEMOD_PUSCH_SIG_LEVEL         3393
+#define PID_SUBLTE_UL_DEMOD_PUSCH_NOISE_DEMOD       3394
+#define PID_SUBLTE_UL_DEMOD_PUSCH_MRC_MU_MIMO       3395
+#define PID_SUBLTE_UL_DEMOD_PUSCH_SNR_MU_MIMO       3396
+#define PID_SUBLTE_UL_DEMOD_PUSCH_CEST_MUMIMO_PRT0  3397
+#define PID_SUBLTE_UL_DEMOD_MU_MIMO_MATRIX_INVERSE  3398
+#define PID_SUBLTE_UL_DEMAP_PROC                    3399
+#define PID_SUBLTE_UL_DEMOD_PUSCH_NOISE_EST_MU_MIMO 3400
+#define PID_SUBLTE_UL_DEMOD_PUSCH_MU_MIMO_RSSI      3401
+#define PID_SUBLTE_UL_DEMOD_PUSCH_SETUP             3402
+#define PID_SUBLTE_UL_DEMOD_PUSCH_USR               3403
+#define PID_SUBLTE_UL_DEMOD_PUSCH_MU_MIMO_USR       3404
+#define PID_SUBLTE_UL_DEMOD_PUSCH_MUMIMO_NOISE_POW  3405
+#define PID_SUBLTE_UL_DEMOD_PUSCH_MU_MIMO_MATRIX    3406
+#define PID_SUBLTE_UL_DEMOD_PUSCH_MU_MIMO_CALC_G    3407
+#define PID_SUBLTE_UL_DEMOD_PUCCH_CHAN              3408
+#define PID_SUBLTE_UL_DEMOD_PUCCH_CHAN_EST          3409
+#define PID_SUBLTE_UL_DEMOD_PUCCH                   3410
+#define PID_SUBLTE_UL_PRACH_PEAK_SEARCH_PROC        3411
+#define PID_SUBLTE_UL_PRACH_PEAK_SEARCH_PROC_1      3412
+#define PID_SUBLTE_UL_PRACH_PEAK_SEARCH_PROC_2      3413
+#define PID_SUBLTE_UL_PRACH_PEAK_SEARCH_PROC_3      3414
+#define PID_SUBLTE_UL_PRACH_PEAK_SEARCH_PROC_4      3415
+#define PID_SUBLTE_UL_PRACH_PEAK_SEARCH_PROC_5      3416
+#define PID_SUBLTE_UL_PRACH_INIT                    3417
+#define PID_SUBLTE_UL_PRACH_DWN_SAMPLING            3418
+#define PID_SUBLTE_UL_PRACH_FFT                     3419
+#define PID_SUBLTE_UL_PRACH_COPY_CORR               3420
+#define PID_SUBLTE_UL_PRACH_DEMOD                   3421
+#define PID_SUBLTE_UL_PRACH_DWN_STAGE1              3422
+#define PID_SUBLTE_UL_PRACH_DWN_STAGE2              3423
+#define PID_SUBLTE_UL_PRACH_DWN_STAGE3              3424
+#define PID_SUBLTE_UL_DEMOD_SRS                     3425
+#define PID_SUBLTE_UL_DEMOD_SRS_CHAN_EST            3426
+#define PID_SUBLTE_UL_DEMOD_SRS_BEAMFORMING_DOA_EST 3427
+#define PID_SUBLTE_UL_DEMOD_SRS_SNR                 3428
+#define PID_SUBLTE_UL_MSRM_RIP_UNUSED_RB            3429
+#define PID_SUBLTE_UL_MSRM_RIP_PUSCH                3430
+#define PID_SUBLTE_UL_MSRM_RIP_PUCCH                3431
+#define PID_SUBLTE_UL_FEC_PUSCH_DESCRAMBLER         3432
+#define PID_SUBLTE_UL_FEC_PUSCH_DEINTERL            3433
+#define PID_SUBLTE_UL_FEC_PUSCH_COPY                3434
+#define PID_SUBLTE_UL_FEC_PUSCH_CODE_BLOCK          3435
+#define PID_SUBLTE_UL_FEC_PUSCH_PREP                3436
+#define PID_SUBLTE_UL_FEC_PUSCH_HARQ_COMB           3437
+#define PID_SUBLTE_UL_FEC_PUSCH_RATE_DEMATCHING     3438
+#define PID_SUBLTE_UL_FEC_PUSCH_TB_CRC_CHECK        3439
+#define PID_SUBLTE_UL_FEC_PUSCH_FEC_DECODER         3440
+#define PID_SUBLTE_UL_FEC_PUSCH_VITERBI_DECODER     3441
+#define PID_SUBLTE_UL_FEC_RM_DECODER                3442
+#define PID_SUBLTE_UL_FEC_RM_FHT_DECODER            3443
+#define PID_SUBLTE_UL_FEC_RM_DECODER_CONF           3444
+#define PID_SUBLTE_UL_FEC_CQI_EXTRACTION            3445
+#define PID_SUBLTE_UL_IQ_SETUP                      3446
+#define PID_SUBLTE_UL_PUSCH_PROC                    3447
+#define PID_SUBLTE_UL_PUSCH_ENQUEUE                 3448
+#define PID_SUBLTE_UL_PUCCH_PROC                    3449
+#define PID_SUBLTE_UL_PRACH_PROC                    3450
+#define PID_SUBLTE_UL_SRS_PROC                      3451
+#define PID_SUBLTE_UL_PUSCH_POST_FEC                3452
+#define PID_SUBLTE_UL_SEND_API                      3453
 
-#define PID_XRAN_PROCESS_UP_PKT                         3140
-#define PID_XRAN_PROCESS_UP_PKT_SRS                     3141
-#define PID_XRAN_PROCESS_UP_PKT_PARSE                   3142
-#define PID_XRAN_PROCESS_CP_PKT                         3143
-#define PID_XRAN_PROCESS_DELAY_MEAS_PKT                 3144
+//--------------------------------------------------------------------
+// 5GNR SUBTASKS
+//--------------------------------------------------------------------
+#define PID_SUBNR5G_PUCCH_F0_SEQ_GEN                3475
+#define PID_SUBNR5G_PUCCH_F0_DETECT                 3476
+#define PID_SUBNR5G_PUCCH_F1_SEQ_GEN1               3477
+#define PID_SUBNR5G_PUCCH_F1_SEQ_GEN2               3478
+#define PID_SUBNR5G_PUCCH_F1_DESPRD                 3479
+#define PID_SUBNR5G_PUCCH_F1_DEMOD                  3480
+#define PID_SUBNR5G_PUCCH_F2_DMRS_GEN               3481
+#define PID_SUBNR5G_PUCCH_F2_CE                     3482
+#define PID_SUBNR5G_PUCCH_F2_EQU                    3483
+#define PID_SUBNR5G_PUCCH_F2_DEMOD                  3484
+#define PID_SUBNR5G_PUCCH_F2_DESCR                  3485
+#define PID_SUBNR5G_PUCCH_F2_DEC                    3486
+#define PID_SUBNR5G_PUCCH_F3_F4_DMRS_GEN            3487
+#define PID_SUBNR5G_PUCCH_F3_F4_CE                  3488
+#define PID_SUBNR5G_PUCCH_F3_F4_EQU                 3489
+#define PID_SUBNR5G_PUCCH_F3_F4_IDFT                3490
+#define PID_SUBNR5G_PUCCH_F3_F4_DESPRD              3491
+#define PID_SUBNR5G_PUCCH_F3_F4_DEMOD               3492
+#define PID_SUBNR5G_PUCCH_F3_F4_DESCR               3493
+#define PID_SUBNR5G_PUCCH_F3_F4_DEC                 3494
+#define PID_SUBNR5G_PRACH_AGC                       3495
+#define PID_SUBNR5G_PRACH_IFFT                      3496
+#define PID_SUBNR5G_PRACH_AGC_ALIGN                 3497
+#define PID_SUBNR5G_SRS_FFT_CB_SETUP                3498
 
-#define PID_XRAN_TIME_ARM_TIMER_DEADLINE                3150
-#define PID_XRAN_TIME_ARM_USER_TIMER_DEADLINE           3151
+//--------------------------------------------------------------------
+// COMMON SUBTASKS
+//--------------------------------------------------------------------
+#define PID_SUB_DL_IFFT                             3500
+#define PID_SUB_DL_IFFT_ADD_CP                      3501
+#define PID_SUB_UL_FFT                              3502
 
 #ifdef __cplusplus
 }

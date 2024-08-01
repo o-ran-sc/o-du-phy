@@ -29,6 +29,7 @@
 #include <complex>
 #include <algorithm>
 #include <limits.h>
+#include <limits>
 
 static int16_t saturateAbs(int16_t inVal)
 {
@@ -132,3 +133,51 @@ BlockFloatCompander::BFPExpandRef(const CompressedData& dataIn, ExpandedData* da
   dataOut->numBlocks = dataIn.numBlocks;
   dataOut->numDataElements = dataIn.numDataElements;
 }
+
+#ifdef _BBLIB_SPR_
+/// Reference expansion
+void
+BlockFloatCompander::BFPExpandRefSpr(const CompressedData& dataIn, ExpandedData* dataOut, float fScale)
+{
+  uint32_t iqMask = (uint32_t)(UINT_MAX - ((1 << (32 - dataIn.iqWidth)) - 1));
+  uint32_t byteBuffer = { 0 };
+  int numBytesPerRB = ((dataIn.numDataElements * dataIn.iqWidth) >> 3) + 1;
+  int bitPointer = 0;
+  int dataIdxOut = 0;
+
+  for (int rb = 0; rb < dataIn.numBlocks; ++rb)
+  {
+    auto expIdx = rb * numBytesPerRB;
+    auto signExtShift = 32 - dataIn.iqWidth - dataIn.dataCompressed[expIdx];
+
+    for (int b = 0; b < numBytesPerRB - 1; ++b)
+    {
+      auto dataIdxIn = (expIdx + 1) + b;
+      auto thisByte = (uint16_t)dataIn.dataCompressed[dataIdxIn];
+      byteBuffer = (uint32_t)((byteBuffer << 8) + thisByte);
+      bitPointer += 8;
+      while (bitPointer >= dataIn.iqWidth)
+      {
+        /// byteBuffer currently has enough data in it to extract a sample
+        /// Shift left first to set sign bit at MSB, then shift right to
+        /// sign extend down to iqWidth. Finally recast to int16.
+        int32_t thisSample32 = (int32_t)((byteBuffer << (32 - bitPointer)) & iqMask);
+        int16_t thisSample = (int16_t)(thisSample32 >> signExtShift);
+        bitPointer -= dataIn.iqWidth;
+        dataOut->dataExpanded[dataIdxOut++] = thisSample;
+      }
+    }
+  }
+
+  int16_t *p_data_in = (int16_t *) dataOut->dataExpanded;
+  _Float16 *p_data_out = (_Float16 *) dataOut->dataExpanded;
+  for (size_t i = 0; i < dataIdxOut - 1; i ++)
+  {
+    p_data_out[i] = (_Float16)((float)(p_data_in[i]) / fScale);
+  }
+
+  dataOut->iqWidth = dataIn.iqWidth;
+  dataOut->numBlocks = dataIn.numBlocks;
+  dataOut->numDataElements = dataIn.numDataElements;
+}
+#endif
