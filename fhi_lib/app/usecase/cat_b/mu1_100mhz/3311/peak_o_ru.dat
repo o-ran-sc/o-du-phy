@@ -22,7 +22,6 @@
 
 
 # This is simple configuration file. Use '#' sign for comments
-instanceId=1 # 0,1,2,... in case more than 1 application started on the same system
 appMode=1 # O-DU(0) | O-RU(1)
 xranMode=1 # Category A  (0) (precoder in O-DU) | Category B (1) (precoder in O-RU)
 ccNum=1 # Number of Componnent Carriers (CC) per ETH port with XRAN protocol (default:1 max: 4)
@@ -259,39 +258,39 @@ totalBFWeights=64 # Total number of Beamforming Weights on RU
 Tadv_cp_dl=25 # in us
               # C-Plane messages must arrive at the RU some amount of time in advance (Tcp_adv_dl) of the corresponding U-Plane messages
 #Reception Window C-plane DL
-T2a_min_cp_dl=285 # 285.42us
-T2a_max_cp_dl=429 # 428.12us
+T2a_min_cp_dl=259 # 285.42us
+T2a_max_cp_dl=669 # 428.12us
 
 #Reception Window C-plane UL
-T2a_min_cp_ul=285 # 285.42us
-T2a_max_cp_ul=429 # 428.12us
+T2a_min_cp_ul=125 # 285.42us
+T2a_max_cp_ul=535 # 428.12us
 
 #Reception Window U-plane
-T2a_min_up=71  # 71.35in us
-T2a_max_up=428 # 428.12us
+T2a_min_up=134  # 71.35in us
+T2a_max_up=345 # 428.12us
 
 #Transmission Window
-Ta3_min=20 # in us
-Ta3_max=32 # in us
+Ta3_min=50 # in us
+Ta3_max=171 # in us
 
 ###########################################################
 ##O-DU Settings
 #C-plane
 #Transmission Window Fast C-plane DL
-T1a_min_cp_dl=285
-T1a_max_cp_dl=429
+T1a_min_cp_dl=419
+T1a_max_cp_dl=669
 
 ##Transmission Window Fast C-plane UL
 T1a_min_cp_ul=285
-T1a_max_cp_ul=300
+T1a_max_cp_ul=535
 
 #U-plane
 ##Transmission Window
-T1a_min_up=96  #71 + 25 us
-T1a_max_up=196 #71 + 25 us
+T1a_min_up=294  #71 + 25 us
+T1a_max_up=345 #71 + 25 us
 
 #Reception Window
-Ta4_min=0  # in us
-Ta4_max=75 # in us
+Ta4_max=331  # in us
+Ta4_max=331 # in us
 ###########################################################
 
