@@ -23,6 +23,15 @@ O-DU Low oran_f_release_v1.0. June 2022
 ---------------------------------------
 
 * Enhanced features and optimizations in support of MMIMO and URLC.
+* Enhanced Info Trace Tool to stream all API messages to NIC card port.
+* Incorporation of Bug Fixes for E2E connectivity from Commercial product.
+* Support for cell start/stop feature. Enables users to start and stop cell during run time.
+* Support for SPR pipeline added. 
+
+O-DU Low oran_f_release_v1.0. June 2022
+---------------------------------------
+
+* Enhanced features and optimizations in support of MMIMO and URLC.
 * Enhanced test coverage prior to the comunity release.
 * Incorporation of Bug Fixes for E2E connectivity from Commercial product.
 * Additional information at the component level release notes.
