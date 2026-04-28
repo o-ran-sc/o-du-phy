@@ -35,7 +35,7 @@ The build (CI) jobs will be in the Linux Foundation Jenkins server:
     `<https://jenkins.o-ran-sc.org>`_
 
 Issues are tracked in the Linux Foundation Jira server:
-    `<https://jira.o-ran-sc.org/secure/Dashboard.jspa>`_
+    `<https://lf-o-ran-sc.atlassian.net/jira/secure/Dashboard.jspa>`_
 
 Project information is available in the Linux Foundation Wiki:
     `<https://wiki.o-ran-sc.org>`_
