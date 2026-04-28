@@ -338,7 +338,7 @@ it to specified queues.
 
 For further information, please refer to section 11 of the DPDK
 Programmers
-guide <https://doc.dpdk.org/guides/prog_guide/rte_flow.html>.
+guide <https://doc.dpdk.org/guides/howto/rte_flow.html>.
 
 The specific ingress traffic is identified by a matching pattern which
 is composed of one or more Pattern items (represented by struct
@@ -482,7 +482,7 @@ Attributes
 Flow rule patterns apply to inbound and/or outbound traffic. For the
 purposes described in later sections the rules apply to ingress only.
 For further information, please refer to section 11 of the DPDK
-Programmers guide <https://doc.dpdk.org/guides/prog_guide/rte_flow.html>.::
+Programmers guide <https://doc.dpdk.org/guides/howto/rte_flow.html>.::
 
   *struct*\ rte_flow_attr <https://doc.dpdk.org/api/structrte__flow__attr.html>\ *{*
   *uint32_t*\ group <https://doc.dpdk.org/api/structrte__flow__attr.html#a0d20c78ce80e301ed514bd4b4dec9ec0>\ *;*
