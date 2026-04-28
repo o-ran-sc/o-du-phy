@@ -250,7 +250,7 @@ Table 2. Reference Documents
 || *Personalization (DDP)*         |                                     |
 || *Technology Guide*              |                                     |
 +----------------------------------+-------------------------------------+
-| *3GPP\* specification series*    | https://www.3gpp.org/specifications |
+| *3GPP\* specification series*    | https://www.3gpp.org/specifications-technologies |
 |                                  |                                     |
 +----------------------------------+-------------------------------------+
 | *Wolf Pass Server Documentation* |                                     |

@@ -37,7 +37,7 @@ Issues are tracked in the Linux Foundation Jira server:
     `<https://jira.o-ran-sc.org/secure/Dashboard.jspa>`_
 
 Project information is available in the Linux Foundation Wiki:
-    `<https://wiki.o-ran-sc.org>`_
+    `<https://lf-o-ran-sc.atlassian.net/wiki>`_
     
 
 Library Functions
