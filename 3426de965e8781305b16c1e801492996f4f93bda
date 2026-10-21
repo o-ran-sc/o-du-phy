@@ -1,0 +1,9 @@
+Verified+1: ORAN Bypass GHA <releng+oran.bypass.gha@linuxfoundation.org>
+Code-Review+2: Andrew Grimberg <agrimberg@linuxfoundation.org>
+Verified+1: ORAN Required GHA <releng+oran.required.gha@linuxfoundation.org>
+Verified+1: ORAN Jobbuilder <releng+oran-jobbuilder@linuxfoundation.org>
+Submitted-by: Andrew Grimberg <agrimberg@linuxfoundation.org>
+Submitted-at: Wed, 21 Oct 2026 13:08:56 +0000
+Reviewed-on: https://gerrit.o-ran-sc.org/r/c/o-du/phy/+/15854
+Project: o-du/phy
+Branch: refs/heads/master
